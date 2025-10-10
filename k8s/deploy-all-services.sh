@@ -86,9 +86,6 @@ build_service "k8s/services/agent-service" "agent-service"
 build_service "k8s/services/training-service" "training-service"
 build_service "k8s/services/chat-service" "chat-service"
 
-# Build Python service
-build_service "k8s/services/bedrock-gateway" "bedrock-gateway"
-
 # Build API Gateway
 build_service "k8s/gateway/api-gateway" "api-gateway"
 
@@ -162,9 +159,6 @@ kubectl apply -f services/training-service/ 2>/dev/null || print_warning "Traini
 
 print_status "Deploying Chat Service..."
 kubectl apply -f services/chat-service/ 2>/dev/null || print_warning "Chat service deployment file not found, skipping"
-
-print_status "Deploying Bedrock Gateway..."
-kubectl apply -f services/bedrock-gateway/ 2>/dev/null || print_warning "Bedrock gateway deployment file not found, skipping"
 
 print_success "Microservices deployed"
 

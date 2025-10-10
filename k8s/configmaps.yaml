@@ -24,7 +24,6 @@ data:
   RAG_SERVICE_URL: "http://rag-service.mfulearnai-services.svc.cluster.local:3004"
   TRAINING_SERVICE_URL: "http://training-service.mfulearnai-services.svc.cluster.local:3005"
   STORAGE_SERVICE_URL: "http://storage-service.mfulearnai-services.svc.cluster.local:3006"
-  BEDROCK_GATEWAY_URL: "http://bedrock-gateway.mfulearnai-services.svc.cluster.local:8000"
 
   # Infrastructure URLs
   MONGODB_HOST: "mongodb.mfulearnai-core.svc.cluster.local"

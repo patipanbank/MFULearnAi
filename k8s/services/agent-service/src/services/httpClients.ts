@@ -73,35 +73,4 @@ export const storageClient = {
   }
 };
 
-// Bedrock Gateway Client
-export const bedrockClient = {
-  async invoke(modelId: string, prompt: string, options: any = {}) {
-    try {
-      const response = await axios.post(`${config.bedrockServiceUrl}/api/invoke`, {
-        modelId,
-        prompt,
-        ...options
-      });
-      return response.data;
-    } catch (error) {
-      console.error('Bedrock service error:', error);
-      throw error;
-    }
-  },
-
-  async stream(modelId: string, prompt: string, options: any = {}) {
-    try {
-      const response = await axios.post(`${config.bedrockServiceUrl}/api/stream`, {
-        modelId,
-        prompt,
-        ...options
-      }, {
-        responseType: 'stream'
-      });
-      return response.data;
-    } catch (error) {
-      console.error('Bedrock service error:', error);
-      throw error;
-    }
-  }
-};
+// Note: Bedrock Gateway has been removed. Use AWS SDK directly if needed.

@@ -1,50 +1,90 @@
-import axios from 'axios';
-import config from '../config/config';
+import { BedrockRuntimeClient, InvokeModelCommand } from '@aws-sdk/client-bedrock-runtime';
 
 export class EmbeddingService {
-  private bedrockServiceUrl: string;
+  private client: BedrockRuntimeClient;
 
   constructor() {
-    this.bedrockServiceUrl = config.BEDROCK_SERVICE_URL;
+    this.client = new BedrockRuntimeClient({
+      region: process.env.AWS_REGION || 'us-east-1',
+    });
   }
 
   /**
-   * Get text embeddings by calling Bedrock Gateway service
+   * Get text embeddings using AWS SDK directly
    * @param input Array of text strings to embed
    * @param model Model identifier (default: amazon.titan-embed-text-v1)
    * @returns Array of embedding vectors
    */
   async getTextEmbeddings(input: string[], model: string = 'amazon.titan-embed-text-v1'): Promise<number[][]> {
+    if (!input || input.length === 0) {
+      return [];
+    }
+
+    console.log(`[EmbeddingService] Creating embeddings for ${input.length} texts`);
+
     try {
-      console.log(`[EmbeddingService] Requesting embeddings for ${input.length} texts from Bedrock Gateway`);
+      const embeddings: number[][] = [];
 
-      const response = await axios.post(
-        `${this.bedrockServiceUrl}/api/bedrock/embeddings`,
-        {
-          input,
-          model
-        },
-        {
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          timeout: 30000, // 30 second timeout
-        }
-      );
-
-      if (response.data && Array.isArray(response.data)) {
-        console.log(`[EmbeddingService] Successfully received ${response.data.length} embeddings`);
-        return response.data;
-      } else {
-        console.error('[EmbeddingService] Invalid response format from Bedrock Gateway:', response.data);
-        throw new Error('Invalid response format from Bedrock Gateway');
+      for (const text of input) {
+        const embedding = await this.createSingleEmbedding(text, model);
+        embeddings.push(embedding);
       }
+
+      console.log(`[EmbeddingService] Successfully created ${embeddings.length} embeddings`);
+      return embeddings;
     } catch (error: any) {
-      console.error('[EmbeddingService] Error calling Bedrock Gateway:', error.message);
-      if (error.response) {
-        console.error('[EmbeddingService] Response error:', error.response.status, error.response.data);
+      console.error('[EmbeddingService] Error creating embeddings:', error.message);
+      throw new Error(`Failed to create embeddings: ${error.message}`);
+    }
+  }
+
+  /**
+   * Create a single text embedding
+   */
+  private async createSingleEmbedding(text: string, modelId: string = 'amazon.titan-embed-text-v1'): Promise<number[]> {
+    try {
+      if (!text || text.trim().length === 0) {
+        throw new Error('Empty text provided for embedding');
       }
-      throw new Error(`Failed to get embeddings from Bedrock Gateway: ${error.message}`);
+
+      // Truncate text if too long (Titan limit is ~8000 tokens)
+      const maxLength = 25000;
+      const truncatedText = text.length > maxLength ? text.substring(0, maxLength) : text;
+
+      const input = {
+        inputText: truncatedText,
+      };
+
+      const command = new InvokeModelCommand({
+        modelId,
+        contentType: 'application/json',
+        body: JSON.stringify(input),
+      });
+
+      const response = await this.client.send(command);
+
+      if (!response.body) {
+        throw new Error('Empty response from Bedrock');
+      }
+
+      const responseBody = JSON.parse(new TextDecoder().decode(response.body));
+
+      if (!responseBody.embedding || !Array.isArray(responseBody.embedding)) {
+        throw new Error('Invalid embedding response format');
+      }
+
+      return responseBody.embedding;
+
+    } catch (error: any) {
+      console.error('[EmbeddingService] Error creating text embedding:', error.message);
+
+      // For development/testing, return dummy embeddings
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[EmbeddingService] Development mode: Returning dummy embedding');
+        return new Array(1536).fill(0.001);
+      }
+
+      throw error;
     }
   }
 

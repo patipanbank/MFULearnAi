@@ -128,7 +128,7 @@ const startServer = async () => {
 ║ Environment: ${config.NODE_ENV}        ║
 ║ MongoDB:     Connected                 ║
 ║ ChromaDB:    ${config.CHROMA_URL}      ║
-║ Bedrock:     ${config.BEDROCK_SERVICE_URL} ║
+║ AWS Region:  ${process.env.AWS_REGION || 'us-east-1'} ║
 ╚════════════════════════════════════════╝
       `);
       console.log(`🚀 Server is running on port ${PORT}`);

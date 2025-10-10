@@ -1,165 +1,149 @@
-import express from 'express';
+import express, { Application, Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
-import dotenv from 'dotenv';
-import session from 'express-session';
-import passport from 'passport';
-import { createServer } from 'http';
-import authRouter from './routes/auth';
-import chatRouter from './routes/chat';
-import agentRouter from './routes/agent';
-import bedrockRouter from './routes/bedrock';
-import chromaRouter from './routes/chroma';
-import embeddingRouter from './routes/embedding';
-import uploadRouter from './routes/upload';
-import collectionRouter from './routes/collection';
-import trainingRouter from './routes/training';
-import queueRouter from './routes/queue';
-import usageRouter from './routes/usage';
-import adminRouter from './routes/admin';
-import toolsRouter from './routes/tools';
-import monitoringRouter from './routes/monitoring';
-import { WebSocketService } from './services/websocketService';
-import { queueService } from './services/queueService';
+import config from './config/config';
 import { connectDB } from './lib/mongodb';
+import { redis } from './lib/redis';
 
-dotenv.config();
+// Import routes
+import authRoutes from './routes/auth';
+import chatRoutes from './routes/chat';
+import adminRoutes from './routes/admin';
 
-const app = express();
+const app: Application = express();
 
-app.use(express.json({ 
-  type: ['application/json', 'text/plain'] 
-}));
-app.use(express.urlencoded({ 
-  extended: true,
-  type: 'application/x-www-form-urlencoded'
-}));
-app.use(cors());
-app.use(helmet());
-app.use(morgan('dev'));
-app.use(session({
-  secret: process.env.SESSION_SECRET || 'secret',
-  resave: false,
-  saveUninitialized: false,
-  cookie: { secure: false },
+// Security middleware
+app.use(helmet({
+  contentSecurityPolicy: false,
+  crossOriginEmbedderPolicy: false,
 }));
 
-// Initialize passport
-app.use(passport.initialize());
-app.use(passport.session());
+// CORS
+const corsOrigins = config.ALLOWED_ORIGINS ? config.ALLOWED_ORIGINS.split(',') : ['http://localhost:5173'];
+app.use(cors({
+  origin: corsOrigins,
+  credentials: true,
+}));
 
-// Create API router with global prefix
+// Body parsing
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// Logging
+if (config.APP_ENV === 'development') {
+  app.use(morgan('dev'));
+} else {
+  app.use(morgan('combined'));
+}
+
+// Health check
+app.get('/health', async (req, res) => {
+  try {
+    const redisHealthy = await redis.ping() === 'PONG';
+
+    res.status(200).json({
+      success: true,
+      status: 'healthy',
+      timestamp: new Date().toISOString(),
+      environment: config.APP_ENV,
+      services: {
+        database: 'connected',
+        redis: redisHealthy ? 'connected' : 'disconnected',
+      },
+    });
+  } catch (error) {
+    res.status(503).json({
+      success: false,
+      status: 'unhealthy',
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+});
+
+// Root endpoint
+app.get('/', (req, res) => {
+  res.json({
+    success: true,
+    message: 'MFU Learn AI API - Production Ready',
+    version: '2.0.0',
+    environment: config.APP_ENV,
+  });
+});
+
+// API Routes
 const apiRouter = express.Router();
+apiRouter.use('/auth', authRoutes);
+apiRouter.use('/chat', chatRoutes);
+apiRouter.use('/admin', adminRoutes);
 
-// Mount auth routes under API router
-apiRouter.use('/auth', authRouter);
-
-// Mount chat routes under API router
-apiRouter.use('/chat', chatRouter);
-
-// Mount agent routes under API router
-apiRouter.use('/agents', agentRouter);
-
-// Mount bedrock routes under API router
-apiRouter.use('/bedrock', bedrockRouter);
-
-// Mount chroma routes under API router
-apiRouter.use('/chroma', chromaRouter);
-
-// Mount embedding routes under API router
-apiRouter.use('/embedding', embeddingRouter);
-
-// Mount upload routes under API router
-apiRouter.use('/upload', uploadRouter);
-
-// Mount collection routes under API router
-apiRouter.use('/collections', collectionRouter);
-
-// Mount training routes under API router
-apiRouter.use('/training', trainingRouter);
-
-// Mount queue routes under API router
-apiRouter.use('/queue', queueRouter);
-
-// Mount usage routes under API router
-apiRouter.use('/usage', usageRouter);
-
-// Mount admin routes under API router
-apiRouter.use('/admin', adminRouter);
-
-// Mount tools routes under API router
-apiRouter.use('/tools', toolsRouter);
-
-// Mount monitoring routes under API router
-apiRouter.use('/monitoring', monitoringRouter);
-
-// Mount API router under /api prefix
+// Mount API router
 app.use('/api', apiRouter);
 
-app.get('/', (req, res) => {
-  res.send('MFULearnAi Node.js Backend');
+// 404 handler
+app.use((req, res) => {
+  res.status(404).json({
+    success: false,
+    error: 'Route not found',
+  });
 });
 
-// Error handler middleware
-app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
-  console.error(err.stack);
-  res.status(err.status || 500).json({ error: err.message || 'Internal Server Error' });
+// Error handler
+app.use((err: any, req: Request, res: Response, next: NextFunction) => {
+  console.error('Error:', err);
+  res.status(err.statusCode || 500).json({
+    success: false,
+    error: err.message || 'Internal server error',
+  });
 });
 
-const PORT = process.env.PORT || 3001;
-
-// Create HTTP server
-const server = createServer(app);
-
-// Initialize WebSocket service
-const wsService = new WebSocketService(server);
-
-// Connect to MongoDB and start server
+// Start server
 const startServer = async () => {
   try {
     await connectDB();
-    server.listen(PORT, () => {
-      console.log(`🚀 Server running on port ${PORT}`);
-      console.log(`🌐 WebSocket server available at ws://localhost:${PORT}/ws`);
+
+    try {
+      const redisHealthy = await redis.ping();
+      if (redisHealthy !== 'PONG') {
+        console.warn('⚠️  Redis connection test failed, but continuing...');
+      }
+    } catch (error) {
+      console.warn('⚠️  Redis connection test failed, but continuing...');
+    }
+
+    const PORT = config.PORT;
+    app.listen(PORT, () => {
+      console.log('\n' + '='.repeat(60));
+      console.log('🚀 MFU Learn AI Backend Server - Production Ready');
+      console.log('='.repeat(60));
+      console.log(`📍 Environment: ${config.APP_ENV}`);
+      console.log(`🌐 Port: ${PORT}`);
+      console.log(`🔗 URL: http://localhost:${PORT}`);
+      console.log(`🏥 Health: http://localhost:${PORT}/health`);
+      console.log('='.repeat(60) + '\n');
     });
   } catch (error) {
-    console.error('Failed to start server:', error);
+    console.error('❌ Failed to start server:', error);
     process.exit(1);
   }
 };
 
 // Graceful shutdown
-process.on('SIGTERM', async () => {
-  console.log('🛑 SIGTERM received, shutting down gracefully...');
-  
-  // Stop queue service
-  await queueService.shutdown();
-  
-  // Stop WebSocket service
-  wsService.stop();
-  
-  // Close HTTP server
-  server.close(() => {
-    console.log('✅ Server closed');
+const shutdown = async () => {
+  console.log('\n🛑 Shutting down gracefully...');
+  try {
+    await redis.quit();
+    console.log('✅ Redis disconnected');
     process.exit(0);
-  });
-});
+  } catch (error) {
+    console.error('❌ Error during shutdown:', error);
+    process.exit(1);
+  }
+};
 
-process.on('SIGINT', async () => {
-  console.log('🛑 SIGINT received, shutting down gracefully...');
-  
-  // Stop queue service
-  await queueService.shutdown();
-  
-  // Stop WebSocket service
-  wsService.stop();
-  
-  // Close HTTP server
-  server.close(() => {
-    console.log('✅ Server closed');
-    process.exit(0);
-  });
-});
+process.on('SIGTERM', shutdown);
+process.on('SIGINT', shutdown);
 
-startServer(); 
+startServer();
+
+export default app;

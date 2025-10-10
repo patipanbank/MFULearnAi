@@ -91,7 +91,6 @@ build_images() {
         "k8s/services/agent-service:agent-service"
         "k8s/services/training-service:training-service"
         "k8s/services/chat-service:chat-service"
-        "k8s/services/bedrock-gateway:bedrock-gateway"
         "k8s/gateway/api-gateway:api-gateway"
     )
 
@@ -194,7 +193,6 @@ deploy_services() {
         "services/agent-service:Agent Service"
         "services/training-service:Training Service"
         "services/chat-service:Chat Service"
-        "services/bedrock-gateway:Bedrock Gateway"
     )
 
     for service in "${services[@]}"; do
