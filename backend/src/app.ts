@@ -7,21 +7,6 @@ import session from 'express-session';
 import passport from 'passport';
 import { createServer } from 'http';
 import authRouter from './routes/auth';
-import chatRouter from './routes/chat';
-import agentRouter from './routes/agent';
-import bedrockRouter from './routes/bedrock';
-import chromaRouter from './routes/chroma';
-import embeddingRouter from './routes/embedding';
-import uploadRouter from './routes/upload';
-import collectionRouter from './routes/collection';
-import trainingRouter from './routes/training';
-import queueRouter from './routes/queue';
-import usageRouter from './routes/usage';
-import adminRouter from './routes/admin';
-import toolsRouter from './routes/tools';
-import monitoringRouter from './routes/monitoring';
-import { WebSocketService } from './services/websocketService';
-import { queueService } from './services/queueService';
 import { connectDB } from './lib/mongodb';
 
 dotenv.config();
@@ -55,45 +40,6 @@ const apiRouter = express.Router();
 // Mount auth routes under API router
 apiRouter.use('/auth', authRouter);
 
-// Mount chat routes under API router
-apiRouter.use('/chat', chatRouter);
-
-// Mount agent routes under API router
-apiRouter.use('/agents', agentRouter);
-
-// Mount bedrock routes under API router
-apiRouter.use('/bedrock', bedrockRouter);
-
-// Mount chroma routes under API router
-apiRouter.use('/chroma', chromaRouter);
-
-// Mount embedding routes under API router
-apiRouter.use('/embedding', embeddingRouter);
-
-// Mount upload routes under API router
-apiRouter.use('/upload', uploadRouter);
-
-// Mount collection routes under API router
-apiRouter.use('/collections', collectionRouter);
-
-// Mount training routes under API router
-apiRouter.use('/training', trainingRouter);
-
-// Mount queue routes under API router
-apiRouter.use('/queue', queueRouter);
-
-// Mount usage routes under API router
-apiRouter.use('/usage', usageRouter);
-
-// Mount admin routes under API router
-apiRouter.use('/admin', adminRouter);
-
-// Mount tools routes under API router
-apiRouter.use('/tools', toolsRouter);
-
-// Mount monitoring routes under API router
-apiRouter.use('/monitoring', monitoringRouter);
-
 // Mount API router under /api prefix
 app.use('/api', apiRouter);
 
@@ -112,16 +58,12 @@ const PORT = process.env.PORT || 3001;
 // Create HTTP server
 const server = createServer(app);
 
-// Initialize WebSocket service
-const wsService = new WebSocketService(server);
-
 // Connect to MongoDB and start server
 const startServer = async () => {
   try {
     await connectDB();
     server.listen(PORT, () => {
       console.log(`🚀 Server running on port ${PORT}`);
-      console.log(`🌐 WebSocket server available at ws://localhost:${PORT}/ws`);
     });
   } catch (error) {
     console.error('Failed to start server:', error);
@@ -132,13 +74,7 @@ const startServer = async () => {
 // Graceful shutdown
 process.on('SIGTERM', async () => {
   console.log('🛑 SIGTERM received, shutting down gracefully...');
-  
-  // Stop queue service
-  await queueService.shutdown();
-  
-  // Stop WebSocket service
-  wsService.stop();
-  
+
   // Close HTTP server
   server.close(() => {
     console.log('✅ Server closed');
@@ -148,13 +84,7 @@ process.on('SIGTERM', async () => {
 
 process.on('SIGINT', async () => {
   console.log('🛑 SIGINT received, shutting down gracefully...');
-  
-  // Stop queue service
-  await queueService.shutdown();
-  
-  // Stop WebSocket service
-  wsService.stop();
-  
+
   // Close HTTP server
   server.close(() => {
     console.log('✅ Server closed');
