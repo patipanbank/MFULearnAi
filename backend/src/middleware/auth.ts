@@ -1,60 +1,68 @@
-import { Request, Response, NextFunction } from 'express';
+import { Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
-import config from '../config/config';
+import config from '../config';
+import { AuthRequest, UnauthorizedError } from '../types';
 
-export interface AuthenticatedRequest extends Request {
-  user?: any;
-}
-
-export enum UserRole {
-  ADMIN = 'Admin',
-  STAFFS = 'Staffs',
-  STUDENTS = 'Students',
-  SUPER_ADMIN = 'SuperAdmin'
-}
-
-// JWT Authentication Middleware
-export const authenticateJWT = (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
-  const authHeader = req.headers.authorization;
-  if (!authHeader) {
-    return res.status(401).json({ detail: 'No token provided' });
-  }
-  const token = authHeader.split(' ')[1];
+export const authenticate = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
   try {
-    const decoded = jwt.verify(token, config.JWT_SECRET) as any;
-    console.log('🔐 JWT decoded:', JSON.stringify(decoded, null, 2));
-    req.user = decoded;
-    return next();
+    const token = extractToken(req);
+
+    if (!token) {
+      throw new UnauthorizedError('No token provided');
+    }
+
+    const decoded = jwt.verify(token, config.jwt.secret) as any;
+
+    req.user = {
+      id: decoded.sub || decoded.userId,
+      email: decoded.email,
+      role: decoded.role,
+      displayName: decoded.displayName,
+      departmentId: decoded.departmentId,
+    };
+
+    next();
   } catch (error) {
-    console.error('❌ JWT verification failed:', error);
-    return res.status(401).json({ detail: 'Invalid token' });
+    next(new UnauthorizedError('Invalid or expired token'));
   }
 };
 
-// Role Guard Middleware (เหมือน Python get_current_user_with_roles)
-export const requireRoles = (allowedRoles: UserRole[]) => {
-  return (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+export const authorize = (...roles: string[]) => {
+  return (req: AuthRequest, res: Response, next: NextFunction): void => {
     if (!req.user) {
-      return res.status(401).json({ detail: 'Authentication required' });
+      return next(new UnauthorizedError('User not authenticated'));
     }
-    const userRole = req.user.role;
-    if (!allowedRoles.includes(userRole as UserRole)) {
-      return res.status(403).json({ detail: 'Insufficient permissions' });
+
+    if (!roles.includes(req.user.role)) {
+      return next(new UnauthorizedError('Insufficient permissions'));
     }
-    return next();
+
+    next();
   };
 };
 
-// Middleware สำหรับ /me และ /refresh (ต้องมี role ใดก็ได้)
-export const requireAnyRole = requireRoles([
-  UserRole.STUDENTS,
-  UserRole.STAFFS,
-  UserRole.ADMIN,
-  UserRole.SUPER_ADMIN
-]);
+function extractToken(req: AuthRequest): string | null {
+  // Check Authorization header
+  const authHeader = req.headers.authorization;
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    return authHeader.substring(7);
+  }
 
-// Middleware สำหรับ admin endpoints
-export const requireAdminRole = requireRoles([
-  UserRole.ADMIN,
-  UserRole.SUPER_ADMIN
-]); 
+  // Check query parameter (for SSE/WebSocket)
+  if (req.query.token && typeof req.query.token === 'string') {
+    return req.query.token;
+  }
+
+  // Check cookie
+  if (req.cookies && req.cookies.token) {
+    return req.cookies.token;
+  }
+
+  return null;
+}
+
+export default { authenticate, authorize };

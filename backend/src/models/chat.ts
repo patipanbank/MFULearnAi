@@ -1,85 +1,82 @@
-import mongoose, { Document, Schema } from 'mongoose';
+import mongoose, { Schema, Document } from 'mongoose';
 
-export interface ImagePayload {
-  url: string;
-  mediaType: string;
-}
-
-export interface ChatMessage {
-  id: string;
-  role: 'user' | 'assistant';
+export interface IMessageDocument {
+  role: 'user' | 'assistant' | 'system';
   content: string;
   timestamp: Date;
-  images?: ImagePayload[];
-  isStreaming?: boolean;
-  isComplete?: boolean;
+  metadata?: Record<string, any>;
 }
 
-export interface Chat extends Document {
-  userId: string;
-  name: string;
-  messages: ChatMessage[];
-  agentId?: string;
-  modelId?: string;
-  collectionNames?: string[];
-  isPinned: boolean;
+export interface IChatDocument extends Document {
+  userId: mongoose.Types.ObjectId;
+  title: string;
+  messages: IMessageDocument[];
+  isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
 
-const ImagePayloadSchema = new Schema<ImagePayload>({
-  url: { type: String, required: true },
-  mediaType: { type: String, required: true }
-});
-
-
-
-const ChatMessageSchema = new Schema<ChatMessage>({
-  id: { type: String, required: true },
-  role: { 
-    type: String, 
-    enum: ['user', 'assistant'], 
-    required: true 
+const MessageSchema = new Schema<IMessageDocument>(
+  {
+    role: {
+      type: String,
+      enum: ['user', 'assistant', 'system'],
+      required: true,
+    },
+    content: {
+      type: String,
+      required: true,
+    },
+    timestamp: {
+      type: Date,
+      default: Date.now,
+    },
+    metadata: {
+      type: Schema.Types.Mixed,
+    },
   },
-  content: { 
-    type: String, 
-    required: false,
-    default: '',
-    validate: {
-      validator: function(v: string) {
-        return v !== undefined && v !== null;
+  { _id: false }
+);
+
+const ChatSchema = new Schema<IChatDocument>(
+  {
+    userId: {
+      type: Schema.Types.ObjectId,
+      ref: 'User',
+      required: true,
+      index: true,
+    },
+    title: {
+      type: String,
+      required: true,
+      trim: true,
+      default: 'New Chat',
+    },
+    messages: {
+      type: [MessageSchema],
+      default: [],
+    },
+    isActive: {
+      type: Boolean,
+      default: true,
+    },
+  },
+  {
+    timestamps: true,
+    toJSON: {
+      virtuals: true,
+      transform: (_doc, ret) => {
+        ret.id = ret._id.toString();
+        delete ret._id;
+        delete ret.__v;
+        return ret;
       },
-      message: 'Content cannot be undefined or null'
-    }
-  },
-  timestamp: { type: Date, default: Date.now },
-  images: [ImagePayloadSchema],
-  isStreaming: Boolean,
-  isComplete: Boolean
-});
+    },
+  }
+);
 
-const ChatSchema = new Schema<Chat>({
-  userId: { type: String, required: true, index: true },
-  name: { type: String, required: true, default: 'Untitled Chat' },
-  messages: [ChatMessageSchema],
-  agentId: { type: String, index: true },
-  modelId: String,
-  collectionNames: [String],
-  isPinned: { type: Boolean, default: false },
-  createdAt: { type: Date, default: Date.now },
-  updatedAt: { type: Date, default: Date.now }
-});
-
-// Indexes for better query performance
+// Indexes
 ChatSchema.index({ userId: 1, createdAt: -1 });
-ChatSchema.index({ userId: 1, isPinned: -1, updatedAt: -1 });
-// Optimize common list query: list chats by user ordered by updatedAt desc
-ChatSchema.index({ userId: 1, updatedAt: -1 });
+ChatSchema.index({ isActive: 1 });
 
-// Update the updatedAt field before saving
-ChatSchema.pre('save', function(next) {
-  this.updatedAt = new Date();
-  next();
-});
-
-export const ChatModel = mongoose.model<Chat>('Chat', ChatSchema); 
+export const Chat = mongoose.model<IChatDocument>('Chat', ChatSchema);
