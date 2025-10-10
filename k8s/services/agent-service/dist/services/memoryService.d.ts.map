@@ -1,0 +1,1 @@
+{"version":3,"file":"memoryService.d.ts","sourceRoot":"","sources":["../../src/services/memoryService.ts"],"names":[],"mappings":"AAAA;;GAEG;AAEH,eAAO,MAAM,aAAa;wCACkB,MAAM,SAAS,MAAM;8BAC/B,MAAM,SAAS,MAAM,SAAS,MAAM;4BACtC,MAAM,WAAW,GAAG;8BAClB,MAAM,WAAW,MAAM;CACxD,CAAC"}

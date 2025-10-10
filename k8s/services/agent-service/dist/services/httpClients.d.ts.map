@@ -1,0 +1,1 @@
+{"version":3,"file":"httpClients.d.ts","sourceRoot":"","sources":["../../src/services/httpClients.ts"],"names":[],"mappings":"AAAA;;;GAGG;AAMH,eAAO,MAAM,SAAS;4BACU,MAAM,SAAS,MAAM,UAAS,MAAM;4BAcpC,MAAM,WAAW,MAAM;qCAWd,MAAM,SAAS,MAAM,UAAS,MAAM;gBAczD,MAAM;CAWzB,CAAC;AAGF,eAAO,MAAM,aAAa;4BACM,MAAM;CASrC,CAAC;AAGF,eAAO,MAAM,aAAa;mBACH,GAAG;CAIzB,CAAC"}

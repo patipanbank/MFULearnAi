@@ -6,6 +6,9 @@
  * - Execution queue management
  * - Error handling และ recovery
  * - Resource optimization
+ *
+ * NOTE: This service is compatible with both legacy and LangGraph agents
+ * The agentFactory.ts now uses LangGraph StateGraph by default
  */
 
 import { EventEmitter } from 'events';
