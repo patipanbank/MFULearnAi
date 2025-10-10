@@ -6,15 +6,17 @@ WORKDIR /app
 COPY package*.json ./
 
 # Install dependencies
-RUN npm install --omit=dev
+RUN npm install
 
 # Copy source code
 COPY src ./src
 COPY tsconfig.json ./
 
 # Build TypeScript
-RUN npm install -D typescript @types/node
 RUN npm run build
+
+# Remove dev dependencies
+RUN npm prune --production
 
 # Production stage
 FROM node:20-alpine
