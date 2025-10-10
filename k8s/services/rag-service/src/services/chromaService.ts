@@ -1,8 +1,8 @@
-import { ChromaClient, Collection, EmbeddingFunction } from 'chromadb';
+import { ChromaClient, Collection, IEmbeddingFunction } from 'chromadb';
 import config from '../config/config';
 
 // Custom embedding function that doesn't require @chroma-core/default-embed
-class CustomEmbeddingFunction implements EmbeddingFunction {
+class CustomEmbeddingFunction implements IEmbeddingFunction {
   constructor() {}
 
   async generate(texts: string[]): Promise<number[][]> {
@@ -190,7 +190,7 @@ export class ChromaService {
       const result = await collection.query({
         queryEmbeddings,
         nResults,
-        include: ["metadatas", "documents", "distances"],
+        include: ["metadatas" as const, "documents" as const, "distances" as const],
       });
 
       // ตรวจสอบและปรับปรุง response format
