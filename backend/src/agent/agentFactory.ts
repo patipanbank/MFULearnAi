@@ -1,6 +1,7 @@
 import { LLM } from './llmFactory';
 import { ToolFunction } from '../services/toolRegistry';
 import { createLangChainAgent, LangChainAgentConfig } from './langchainAgentFactory';
+import { createLangGraphAgent, LangGraphAgentConfig } from './langgraphAgent';
 import { unifiedToolRegistry, ToolExecutionContext, ToolConfig } from '../services/unifiedToolRegistry';
 
 export interface AgentExecutor {
@@ -35,7 +36,7 @@ export async function createAgent(
     allowedTools?: string[]; // รายการ tools ที่ agent ใช้ได้
   }
 ): Promise<AgentExecutor> {
-  console.log(`🤖 Creating LangChain Agent with prompt: ${prompt.substring(0, 50)}...`);
+  console.log(`🤖 Creating LangGraph Agent with prompt: ${prompt.substring(0, 50)}...`);
 
   // Setup execution context for unified tool registry
   const toolContext: ToolExecutionContext = {
@@ -94,18 +95,16 @@ export async function createAgent(
     console.log(`⚠️ No tool filtering applied - agent will have access to ALL tools`);
   }
 
-  // สร้าง LangChain Agent config
-  const agentConfig: LangChainAgentConfig = {
+  // Use LangGraph StateGraph instead of legacy AgentExecutor
+  const langgraphAgent = await createLangGraphAgent({
     modelId: config?.modelId || 'anthropic.claude-3-5-sonnet-20240620-v1:0',
     systemPrompt: prompt,
     temperature: config?.temperature || 0.7,
     maxTokens: config?.maxTokens || 4000,
-    tools: allTools,
-    sessionId: config?.sessionId
-  };
-  
-  // สร้าง LangChain Agent
-  const langchainAgent = await createLangChainAgent(agentConfig);
+    collectionNames: config?.collectionNames || [],
+    sessionId: config?.sessionId || 'default',
+    tools: allTools
+  });
   
   return {
     async run(messages: { role: string; content: string }[], options?: { 
@@ -172,11 +171,46 @@ export async function createAgent(
             return response;
           }
         }
-        
-        // ใช้ LangChain Agent แบบเดิม
-        return await langchainAgent.run(messages, options);
+
+        // Use LangGraph Agent with streaming support
+        const lastUserMessage = messages[messages.length - 1]?.content || '';
+
+        // Convert messages to BaseMessage format
+        const baseMessages = messages.map(msg => ({
+          role: msg.role,
+          content: msg.content
+        }));
+
+        let fullAnswer = '';
+        const result = await langgraphAgent.run(
+          lastUserMessage,
+          [],
+          (chunk: string) => {
+            fullAnswer = chunk;
+            if (options?.onEvent) {
+              options.onEvent({
+                type: 'chunk',
+                data: chunk
+              });
+            }
+          }
+        );
+
+        // Send end event
+        if (options?.onEvent) {
+          options.onEvent({
+            type: 'end',
+            data: {
+              answer: result.answer,
+              metadata: result.metadata,
+              toolsUsed: result.toolsUsed
+            }
+          });
+        }
+
+        return result.answer;
       } catch (error) {
-        console.error('❌ Error in LangChain Agent:', error);
+        console.error('❌ Error in LangGraph Agent:', error);
         throw error;
       } finally {
         // Cleanup session tools if this was the final execution
