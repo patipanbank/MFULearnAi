@@ -10,6 +10,17 @@ import { redis } from './lib/redis';
 import authRoutes from './routes/auth';
 import chatRoutes from './routes/chat';
 import adminRoutes from './routes/admin';
+import agentRoutes from './routes/agent';
+import collectionRoutes from './routes/collection';
+import chromaRoutes from './routes/chroma';
+import embeddingRoutes from './routes/embedding';
+import uploadRoutes from './routes/upload';
+import trainingRoutes from './routes/training';
+import queueRoutes from './routes/queue';
+import toolsRoutes from './routes/tools';
+import usageRoutes from './routes/usage';
+import monitoringRoutes from './routes/monitoring';
+import bedrockRoutes from './routes/bedrock';
 
 const app: Application = express();
 
@@ -73,9 +84,36 @@ app.get('/', (req, res) => {
 
 // API Routes
 const apiRouter = express.Router();
+
+// Authentication & Admin
 apiRouter.use('/auth', authRoutes);
-apiRouter.use('/chat', chatRoutes);
 apiRouter.use('/admin', adminRoutes);
+
+// Chat Service
+apiRouter.use('/chat', chatRoutes);
+
+// Agent Service
+apiRouter.use('/agents', agentRoutes);
+apiRouter.use('/tools', toolsRoutes);
+
+// RAG Service
+apiRouter.use('/collections', collectionRoutes);
+apiRouter.use('/chroma', chromaRoutes);
+apiRouter.use('/embedding', embeddingRoutes);
+
+// Storage Service
+apiRouter.use('/upload', uploadRoutes);
+
+// Training Service
+apiRouter.use('/training', trainingRoutes);
+apiRouter.use('/queue', queueRoutes);
+
+// Monitoring & Usage
+apiRouter.use('/usage', usageRoutes);
+apiRouter.use('/monitoring', monitoringRoutes);
+
+// Bedrock AI
+apiRouter.use('/bedrock', bedrockRoutes);
 
 // Mount API router
 app.use('/api', apiRouter);

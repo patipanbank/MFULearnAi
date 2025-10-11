@@ -5,21 +5,10 @@ metadata:
   name: api-gateway-config
   namespace: mfulearnai-gateway
 data:
-  # Service endpoints
-  AUTH_SERVICE_URL: "http://auth-service.mfulearnai-services.svc.cluster.local:3000"
-  DEPARTMENT_SERVICE_URL: "http://department-service.mfulearnai-services.svc.cluster.local:3001"
-  CHAT_SERVICE_URL: "http://chat-service.mfulearnai-services.svc.cluster.local:3002"
-  AGENT_SERVICE_URL: "http://agent-service.mfulearnai-services.svc.cluster.local:3003"
-  RAG_SERVICE_URL: "http://rag-service.mfulearnai-services.svc.cluster.local:3004"
-  TRAINING_SERVICE_URL: "http://training-service.mfulearnai-services.svc.cluster.local:3005"
-  STORAGE_SERVICE_URL: "http://storage-service.mfulearnai-services.svc.cluster.local:3006"
-  BEDROCK_GATEWAY_URL: "http://bedrock-gateway.mfulearnai-services.svc.cluster.local:8000"
-
-  # Gateway configuration
+  NODE_ENV: "production"
   PORT: "8080"
   LOG_LEVEL: "info"
-  RATE_LIMIT_WINDOW_MS: "60000"
-  RATE_LIMIT_MAX_REQUESTS: "100"
+  CORS_ORIGIN: "https://mfulearnai.mfu.ac.th"
 ---
 apiVersion: v1
 kind: Service
@@ -47,7 +36,7 @@ metadata:
     app: api-gateway
     version: v1
 spec:
-  replicas: 3
+  replicas: 2
   selector:
     matchLabels:
       app: api-gateway
@@ -64,30 +53,82 @@ spec:
     spec:
       containers:
       - name: api-gateway
-        image: mfulearnai/api-gateway:latest  # Update with your registry
+        image: mfulearnai/api-gateway:latest
         imagePullPolicy: Always
         ports:
         - containerPort: 8080
           name: http
           protocol: TCP
-        envFrom:
-        - configMapRef:
-            name: api-gateway-config
         env:
-        - name: REDIS_URL
-          value: "redis://redis.mfulearnai-core.svc.cluster.local:6379"
+        - name: NODE_ENV
+          valueFrom:
+            configMapKeyRef:
+              name: api-gateway-config
+              key: NODE_ENV
+        - name: PORT
+          valueFrom:
+            configMapKeyRef:
+              name: api-gateway-config
+              key: PORT
+        - name: LOG_LEVEL
+          valueFrom:
+            configMapKeyRef:
+              name: api-gateway-config
+              key: LOG_LEVEL
+        - name: CORS_ORIGIN
+          valueFrom:
+            configMapKeyRef:
+              name: api-gateway-config
+              key: CORS_ORIGIN
+        # Microservices URLs
+        - name: AUTH_SERVICE_URL
+          valueFrom:
+            configMapKeyRef:
+              name: global-config
+              key: AUTH_SERVICE_URL
+        - name: DEPARTMENT_SERVICE_URL
+          valueFrom:
+            configMapKeyRef:
+              name: global-config
+              key: DEPARTMENT_SERVICE_URL
+        - name: CHAT_SERVICE_URL
+          valueFrom:
+            configMapKeyRef:
+              name: global-config
+              key: CHAT_SERVICE_URL
+        - name: AGENT_SERVICE_URL
+          valueFrom:
+            configMapKeyRef:
+              name: global-config
+              key: AGENT_SERVICE_URL
+        - name: RAG_SERVICE_URL
+          valueFrom:
+            configMapKeyRef:
+              name: global-config
+              key: RAG_SERVICE_URL
+        - name: TRAINING_SERVICE_URL
+          valueFrom:
+            configMapKeyRef:
+              name: global-config
+              key: TRAINING_SERVICE_URL
+        - name: STORAGE_SERVICE_URL
+          valueFrom:
+            configMapKeyRef:
+              name: global-config
+              key: STORAGE_SERVICE_URL
+        # JWT Secret
         - name: JWT_SECRET
           valueFrom:
             secretKeyRef:
-              name: api-gateway-secret
+              name: auth-service-secret
               key: jwt-secret
         resources:
           requests:
+            memory: "256Mi"
+            cpu: "200m"
+          limits:
             memory: "512Mi"
             cpu: "500m"
-          limits:
-            memory: "1Gi"
-            cpu: "1000m"
         livenessProbe:
           httpGet:
             path: /health
@@ -98,7 +139,7 @@ spec:
           failureThreshold: 3
         readinessProbe:
           httpGet:
-            path: /ready
+            path: /health
             port: 8080
           initialDelaySeconds: 10
           periodSeconds: 5
@@ -123,8 +164,8 @@ spec:
     apiVersion: apps/v1
     kind: Deployment
     name: api-gateway
-  minReplicas: 3
-  maxReplicas: 20
+  minReplicas: 2
+  maxReplicas: 10
   metrics:
   - type: Resource
     resource:
@@ -138,12 +179,3 @@ spec:
       target:
         type: Utilization
         averageUtilization: 80
----
-apiVersion: v1
-kind: Secret
-metadata:
-  name: api-gateway-secret
-  namespace: mfulearnai-gateway
-type: Opaque
-stringData:
-  jwt-secret: changeme-jwt-secret-production  # Change this in production!
