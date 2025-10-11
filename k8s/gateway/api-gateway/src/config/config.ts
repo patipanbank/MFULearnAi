@@ -20,9 +20,15 @@ interface Config {
     rag: string;
     training: string;
     storage: string;
+    bedrock?: string;
   };
   jwt: {
     secret: string;
+  };
+  jwtSecret: string;
+  rateLimit: {
+    windowMs: number;
+    max: number;
   };
 }
 
@@ -50,11 +56,21 @@ const config: Config = {
     rag: process.env.RAG_SERVICE_URL || 'http://rag-service.mfulearnai.svc.cluster.local:5004',
     training: process.env.TRAINING_SERVICE_URL || 'http://training-service.mfulearnai.svc.cluster.local:5005',
     storage: process.env.STORAGE_SERVICE_URL || 'http://storage-service.mfulearnai.svc.cluster.local:5005',
+    bedrock: process.env.BEDROCK_SERVICE_URL,
   },
 
   // JWT Configuration
   jwt: {
     secret: process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-in-production',
+  },
+
+  // Legacy JWT Secret (for compatibility)
+  jwtSecret: process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-in-production',
+
+  // Rate Limiting
+  rateLimit: {
+    windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000', 10), // 15 minutes
+    max: parseInt(process.env.RATE_LIMIT_MAX || '100', 10), // 100 requests per window
   },
 };
 
