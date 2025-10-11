@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { FiRefreshCw, FiAlertTriangle, FiDatabase, FiZap } from 'react-icons/fi';
+import { api } from '../../lib/api';
 
 interface TokenUsage {
   userId: string;
@@ -43,26 +44,8 @@ const CompactTokenUsage: React.FC<CompactTokenUsageProps> = ({ className = '' })
     try {
       setLoading(true);
       setError(null);
-      
-      const token = localStorage.getItem('auth_token');
-      if (!token) {
-        throw new Error('No authentication token found');
-      }
 
-      const response = await fetch('/api/usage/me', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Usage API Error:', response.status, errorText);
-        throw new Error(`Failed to fetch usage information: ${response.status} - ${errorText}`);
-      }
-
-      const data = await response.json();
+      const data = await api.get<TokenUsageInfo>('/usage/me');
       console.log('Usage API Response:', data);
       setUsageInfo(data);
     } catch (err) {

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { FiActivity, FiCalendar, FiDatabase, FiRefreshCw, FiAlertTriangle } from 'react-icons/fi';
+import { api } from '../../lib/api';
 
 interface TokenUsage {
   userId: string;
@@ -43,24 +44,8 @@ const TokenUsageDisplay: React.FC<TokenUsageDisplayProps> = ({ className = '' })
     try {
       setLoading(true);
       setError(null);
-      
-      const token = localStorage.getItem('auth_token');
-      if (!token) {
-        throw new Error('No authentication token found');
-      }
 
-      const response = await fetch('/api/usage/me', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch usage information');
-      }
-
-      const data = await response.json();
+      const data = await api.get<TokenUsageInfo>('/usage/me');
       setUsageInfo(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error');
