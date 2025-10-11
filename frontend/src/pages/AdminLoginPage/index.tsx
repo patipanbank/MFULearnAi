@@ -22,7 +22,7 @@ const AdminLoginPage: React.FC = () => {
     setIsUsernameError(false);
     
     try {
-      const response = await axios.post(`${config.apiUrl}/api/auth/admin/login`, {
+      const response = await axios.post(`${config.apiUrl}/auth/admin/login`, {
         username,
         password
       });

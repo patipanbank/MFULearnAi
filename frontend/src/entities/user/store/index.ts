@@ -104,7 +104,7 @@ export const useAuthStore = create<AuthState>((set, get) => {
       }
       
       // Then redirect current tab to SAML logout
-      window.location.href = `${config.apiUrl}/api/auth/logout/saml`;
+      window.location.href = `${config.apiUrl}/auth/logout/saml`;
     },
   };
 
