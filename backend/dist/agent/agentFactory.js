@@ -1,10 +1,10 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.createAgent = createAgent;
-const langchainAgentFactory_1 = require("./langchainAgentFactory");
+const langgraphAgent_1 = require("./langgraphAgent");
 const unifiedToolRegistry_1 = require("../services/unifiedToolRegistry");
 async function createAgent(llm, tools, prompt, config) {
-    console.log(`🤖 Creating LangChain Agent with prompt: ${prompt.substring(0, 50)}...`);
+    console.log(`🤖 Creating LangGraph Agent with prompt: ${prompt.substring(0, 50)}...`);
     const toolContext = {
         sessionId: config?.sessionId,
         userId: config?.userId,
@@ -44,15 +44,15 @@ async function createAgent(llm, tools, prompt, config) {
     else {
         console.log(`⚠️ No tool filtering applied - agent will have access to ALL tools`);
     }
-    const agentConfig = {
+    const langgraphAgent = await (0, langgraphAgent_1.createLangGraphAgent)({
         modelId: config?.modelId || 'anthropic.claude-3-5-sonnet-20240620-v1:0',
         systemPrompt: prompt,
         temperature: config?.temperature || 0.7,
         maxTokens: config?.maxTokens || 4000,
-        tools: allTools,
-        sessionId: config?.sessionId
-    };
-    const langchainAgent = await (0, langchainAgentFactory_1.createLangChainAgent)(agentConfig);
+        collectionNames: config?.collectionNames || [],
+        sessionId: config?.sessionId || 'default',
+        tools: allTools
+    });
     return {
         async run(messages, options) {
             console.log(`🤖 LangChain Agent.run called with ${messages.length} messages`);
@@ -100,10 +100,35 @@ async function createAgent(llm, tools, prompt, config) {
                         return response;
                     }
                 }
-                return await langchainAgent.run(messages, options);
+                const lastUserMessage = messages[messages.length - 1]?.content || '';
+                const baseMessages = messages.map(msg => ({
+                    role: msg.role,
+                    content: msg.content
+                }));
+                let fullAnswer = '';
+                const result = await langgraphAgent.run(lastUserMessage, [], (chunk) => {
+                    fullAnswer = chunk;
+                    if (options?.onEvent) {
+                        options.onEvent({
+                            type: 'chunk',
+                            data: chunk
+                        });
+                    }
+                });
+                if (options?.onEvent) {
+                    options.onEvent({
+                        type: 'end',
+                        data: {
+                            answer: result.answer,
+                            metadata: result.metadata,
+                            toolsUsed: result.toolsUsed
+                        }
+                    });
+                }
+                return result.answer;
             }
             catch (error) {
-                console.error('❌ Error in LangChain Agent:', error);
+                console.error('❌ Error in LangGraph Agent:', error);
                 throw error;
             }
             finally {
