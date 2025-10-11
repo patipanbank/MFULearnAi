@@ -6,7 +6,7 @@ metadata:
   namespace: mfulearnai-services
 data:
   NODE_ENV: "production"
-  PORT: "3000"
+  PORT: "5001"
   LOG_LEVEL: "info"
 ---
 apiVersion: v1
@@ -19,8 +19,8 @@ metadata:
 spec:
   type: ClusterIP
   ports:
-  - port: 3000
-    targetPort: 3000
+  - port: 5001
+    targetPort: 5001
     protocol: TCP
     name: http
   selector:
@@ -55,7 +55,7 @@ spec:
         image: mfulearnai/auth-service:latest  # Update with your registry
         imagePullPolicy: Always
         ports:
-        - containerPort: 3000
+        - containerPort: 5001
           name: http
           protocol: TCP
         env:
@@ -101,7 +101,7 @@ spec:
         livenessProbe:
           httpGet:
             path: /health
-            port: 3000
+            port: 5001
           initialDelaySeconds: 30
           periodSeconds: 10
           timeoutSeconds: 5
@@ -109,7 +109,7 @@ spec:
         readinessProbe:
           httpGet:
             path: /ready
-            port: 3000
+            port: 5001
           initialDelaySeconds: 10
           periodSeconds: 5
           timeoutSeconds: 3
@@ -117,7 +117,7 @@ spec:
         startupProbe:
           httpGet:
             path: /health
-            port: 3000
+            port: 5001
           initialDelaySeconds: 0
           periodSeconds: 5
           timeoutSeconds: 3
