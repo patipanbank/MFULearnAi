@@ -24,7 +24,7 @@ spec:
     spec:
       containers:
       - name: auth-service
-        image: mfulearnai/auth-service:v1.0.0
+        image: mfulearnai/auth-service:v1.0.1
         imagePullPolicy: IfNotPresent  # Use local image in Kind
         ports:
         - containerPort: 5001
