@@ -359,10 +359,15 @@ router.get('/metadata', (req: Request, res: Response) => {
 
   // Fix: Replace relative callback URL with absolute URL
   const baseUrl = (config.FRONTEND_URL || '').replace('http://', 'https://');
+  console.log('🔧 baseUrl:', baseUrl);
+  console.log('🔧 metadata BEFORE:', metadata.substring(0, 600));
+
   metadata = metadata.replace(
     /Location="\/api\/auth\/saml\/callback"/g,
     `Location="${baseUrl}/api/auth/saml/callback"`
   );
+
+  console.log('🔧 metadata AFTER:', metadata.substring(0, 600));
 
   res.send(metadata);
 });
