@@ -1,0 +1,110 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: auth-service
+  namespace: mfulearnai
+  labels:
+    app: auth-service
+    tier: backend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: auth-service
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: auth-service
+        tier: backend
+    spec:
+      containers:
+      - name: auth-service
+        image: mfulearnai/auth-service:v1.0.0
+        imagePullPolicy: IfNotPresent  # Use local image in Kind
+        ports:
+        - containerPort: 5001
+          name: http
+          protocol: TCP
+        env:
+        - name: NODE_ENV
+          value: "production"
+        - name: PORT
+          value: "5001"
+        - name: MONGODB_URI
+          valueFrom:
+            secretKeyRef:
+              name: mfulearnai-secrets
+              key: mongodb-uri
+        - name: JWT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: mfulearnai-secrets
+              key: jwt-secret
+        - name: JWT_ALGORITHM
+          value: "HS256"
+        - name: ACCESS_TOKEN_EXPIRE_MINUTES
+          value: "43200"
+        - name: CORS_ORIGIN
+          value: "https://mfulearnai.mfu.ac.th"
+        - name: SAML_SP_ENTITY_ID
+          value: "https://mfulearnai.mfu.ac.th"
+        - name: SAML_SP_ACS_URL
+          value: "https://mfulearnai.mfu.ac.th/api/auth/saml/callback"
+        - name: SAML_IDP_SSO_URL
+          value: "https://authsso.mfu.ac.th/adfs/ls/"
+        - name: SAML_IDP_ENTITY_ID
+          value: "https://authsso.mfu.ac.th/adfs/services/trust"
+        - name: SAML_CERTIFICATE
+          valueFrom:
+            secretKeyRef:
+              name: saml-cert
+              key: certificate
+        - name: SAML_IDENTIFIER_FORMAT
+          value: "urn:oasis:names:tc:SAML:2.0:nameid-format:persistent"
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "200m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 5001
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 5001
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: auth-service
+  namespace: mfulearnai
+  labels:
+    app: auth-service
+    tier: backend
+spec:
+  selector:
+    app: auth-service
+  ports:
+  - port: 5001
+    targetPort: 5001
+    protocol: TCP
+    name: http
+  type: ClusterIP
+  sessionAffinity: None
