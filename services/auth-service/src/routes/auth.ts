@@ -360,7 +360,7 @@ router.get('/metadata', (req: Request, res: Response) => {
   // Fix: Replace relative callback URL with absolute URL
   const baseUrl = (config.FRONTEND_URL || '').replace('http://', 'https://');
   metadata = metadata.replace(
-    'Location="/api/auth/saml/callback"',
+    /Location="\/api\/auth\/saml\/callback"/g,
     `Location="${baseUrl}/api/auth/saml/callback"`
   );
 
