@@ -59,6 +59,8 @@ spec:
           value: "https://mfulearnai.mfu.ac.th/api/auth/saml/callback"
         - name: SAML_IDP_SSO_URL
           value: "https://authsso.mfu.ac.th/adfs/ls/"
+        - name: SAML_IDP_SLO_URL
+          value: "https://authsso.mfu.ac.th/adfs/ls/?wa=wsignout1.0"
         - name: SAML_IDP_ENTITY_ID
           value: "https://authsso.mfu.ac.th/adfs/services/trust"
         - name: SAML_CERTIFICATE
