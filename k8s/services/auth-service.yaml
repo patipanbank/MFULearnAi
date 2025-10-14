@@ -51,7 +51,7 @@ spec:
           value: "43200"
         - name: CORS_ORIGIN
           value: "https://mfulearnai.mfu.ac.th"
-        - name: FRONTEND_URL
+        - name: PROD_FRONTEND_URL
           value: "https://mfulearnai.mfu.ac.th"
         - name: SAML_SP_ENTITY_ID
           value: "https://mfulearnai.mfu.ac.th"
