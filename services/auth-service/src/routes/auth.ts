@@ -350,11 +350,21 @@ router.get('/metadata', (req: Request, res: Response) => {
   const samlStrategy = new SamlStrategy(getSamlConfig(), (() => {}) as any);
   res.type('application/xml');
   const cert = config.SAML_CERTIFICATE ? config.SAML_CERTIFICATE.replace(/-----BEGIN CERTIFICATE-----|-----END CERTIFICATE-----|\n/g, '').trim() : undefined;
+  let metadata = '';
   if (cert) {
-    res.send(samlStrategy.generateServiceProviderMetadata(cert));
+    metadata = samlStrategy.generateServiceProviderMetadata(cert);
   } else {
-    res.send(samlStrategy.generateServiceProviderMetadata(null));
+    metadata = samlStrategy.generateServiceProviderMetadata(null);
   }
+
+  // Fix: Replace relative callback URL with absolute URL
+  const baseUrl = (config.FRONTEND_URL || '').replace('http://', 'https://');
+  metadata = metadata.replace(
+    'Location="/api/auth/saml/callback"',
+    `Location="${baseUrl}/api/auth/saml/callback"`
+  );
+
+  res.send(metadata);
 });
 
 // SAML Logout (redirect/logout SAML)
