@@ -159,10 +159,12 @@ export const useWebSocket = ({ chatId, isInChatRoom }: UseWebSocketOptions) => {
     console.log('connectWebSocket: Starting connection to', config.wsUrl);
     setWsStatus('connecting');
     setIsConnectedToRoom(false); // Reset connection state
-    
-    let wsUrl = `${config.wsUrl}?token=${token}`;
+
+    // Use /ws/chat endpoint for chat-service WebSocket
+    const wsBaseUrl = config.wsUrl.includes('/ws/chat') ? config.wsUrl : config.wsUrl.replace('/ws', '/ws/chat');
+    let wsUrl = `${wsBaseUrl}?token=${token}`;
     if (window.location.hostname === 'localhost') {
-      wsUrl = `ws://localhost/ws?token=${token}`;
+      wsUrl = `ws://localhost/ws/chat?token=${token}`;
     }
     
     console.log('connectWebSocket: Final WebSocket URL', wsUrl);
