@@ -8,7 +8,7 @@ COPY package*.json ./
 COPY tsconfig.json ./
 
 # Install dependencies
-RUN npm ci --only=production --legacy-peer-deps && \
+RUN npm install --legacy-peer-deps && \
     npm install -g typescript
 
 # Copy source code
@@ -26,7 +26,7 @@ WORKDIR /app
 COPY package*.json ./
 
 # Install production dependencies only
-RUN npm ci --only=production --legacy-peer-deps && \
+RUN npm install --production --legacy-peer-deps && \
     npm cache clean --force
 
 # Copy built files from builder
