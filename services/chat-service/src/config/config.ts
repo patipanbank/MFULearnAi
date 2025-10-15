@@ -63,6 +63,10 @@ export interface Config {
   // Monitoring
   ENABLE_METRICS: boolean;
   METRICS_PORT: number;
+
+  // LLM Configuration
+  TEMPERATURE: number;
+  MAX_TOKENS: number;
 }
 
 const APP_ENV = process.env.APP_ENV || process.env.NODE_ENV || 'development';
@@ -130,6 +134,10 @@ const config: Config = {
   // Monitoring
   ENABLE_METRICS: process.env.ENABLE_METRICS === 'true',
   METRICS_PORT: parseInt(process.env.METRICS_PORT || '9090', 10),
+
+  // LLM Configuration
+  TEMPERATURE: parseFloat(process.env.TEMPERATURE || '0.7'),
+  MAX_TOKENS: parseInt(process.env.MAX_TOKENS || '4096', 10),
 };
 
 // Validation

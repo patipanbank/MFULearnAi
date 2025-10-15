@@ -1,4 +1,4 @@
-import { Checkpointer } from "@langchain/langgraph-checkpoint";
+import { BaseCheckpointSaver } from "@langchain/langgraph-checkpoint";
 import { createRedisCheckpointer, closeRedisCheckpointer } from "./redisCheckpointer";
 import { createPostgresCheckpointer, closePostgresCheckpointer } from "./postgresCheckpointer";
 import config from "../config/config";
@@ -29,7 +29,7 @@ function getCheckpointerType(): CheckpointerType {
 /**
  * Create checkpointer based on configuration
  */
-export async function getCheckpointer(): Promise<Checkpointer> {
+export async function getCheckpointer(): Promise<BaseCheckpointSaver> {
   const type = getCheckpointerType();
 
   logger.info(`🔧 Creating checkpointer of type: ${type}`);

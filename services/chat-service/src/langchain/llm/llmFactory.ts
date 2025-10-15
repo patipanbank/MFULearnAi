@@ -39,7 +39,7 @@ export function createBedrockLLM(
     temperature: llmConfig?.temperature || config.TEMPERATURE,
     maxTokens: llmConfig?.maxTokens || config.MAX_TOKENS,
     topP: llmConfig?.topP,
-    stopSequences: llmConfig?.stopSequences,
+    // stopSequences is not supported in ChatBedrockConverseInput
   });
 
   return llm;

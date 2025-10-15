@@ -218,14 +218,12 @@ export class WebSocketController {
       });
 
       // Create streaming callback handler
-      const streamingCallback = new StreamingCallbackHandler(
+      const streamingCallback = new StreamingCallbackHandler({
+        ws,
+        chatId,
         messageId,
-        (event) => {
-          if (!abortController.signal.aborted) {
-            this.sendToClient(ws, event);
-          }
-        }
-      );
+        userId,
+      });
 
       // Create chat graph with checkpointer
       const chatGraph = await createChatGraph();

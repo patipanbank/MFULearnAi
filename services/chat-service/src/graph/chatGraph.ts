@@ -43,42 +43,42 @@ export async function createChatGraph() {
   logger.info('🔗 Adding edges to graph');
 
   // START → userInput
-  workflow.addEdge(START, "userInput");
+  (workflow as any).addEdge(START, "userInput");
 
   // userInput → agent (with validation)
   workflow.addConditionalEdges(
-    "userInput",
-    validateInput,
+    "userInput" as any,
+    validateInput as any,
     {
       agent: "agent",
-      end: END,
-    }
+      __end__: END as any,
+    } as any
   );
 
   // agent → tools OR response (based on agent decision)
   workflow.addConditionalEdges(
-    "agent",
-    shouldCallTools,
+    "agent" as any,
+    shouldCallTools as any,
     {
       tools: "tools",
       response: "response",
-      end: END,
-    }
+      __end__: END as any,
+    } as any
   );
 
   // tools → agent (loop back for next iteration)
   workflow.addConditionalEdges(
-    "tools",
-    shouldContinueIteration,
+    "tools" as any,
+    shouldContinueIteration as any,
     {
       agent: "agent",
       response: "response",
-      end: END,
-    }
+      __end__: END as any,
+    } as any
   );
 
   // response → END
-  workflow.addEdge("response", END);
+  (workflow as any).addEdge("response", END);
 
   // Get checkpointer (Redis or Postgres based on config)
   const checkpointer = await getCheckpointer();

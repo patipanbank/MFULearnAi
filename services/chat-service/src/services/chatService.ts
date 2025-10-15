@@ -1,9 +1,10 @@
-import { ChatModel, ChatMessageModel, Chat, ChatMessage } from '../models/chat';
+import { ChatModel, Chat, ChatMessage } from '../models/chat';
 import logger from '../utils/logger';
 import { createChatGraph } from '../graph/chatGraph';
 import { ChatState } from '../graph/state/chatState';
 import { HumanMessage, AIMessage } from '@langchain/core/messages';
 import config from '../config/config';
+import { randomUUID } from 'crypto';
 
 /**
  * Chat Service
@@ -25,7 +26,7 @@ export class ChatService {
         count: chats.length,
       });
 
-      return chats as Chat[];
+      return chats as unknown as Chat[];
     } catch (error: any) {
       logger.error('❌ Error getting user chats', {
         userId,
@@ -59,7 +60,7 @@ export class ChatService {
         agentId,
       });
 
-      return chat.toObject() as Chat;
+      return chat.toObject() as unknown as Chat;
     } catch (error: any) {
       logger.error('❌ Error creating chat', {
         userId,
@@ -94,7 +95,7 @@ export class ChatService {
         messageCount: chat.messages?.length || 0,
       });
 
-      return chat as Chat;
+      return chat as unknown as Chat;
     } catch (error: any) {
       logger.error('❌ Error getting chat', {
         chatId,
@@ -134,7 +135,7 @@ export class ChatService {
         name,
       });
 
-      return chat as Chat;
+      return chat as unknown as Chat;
     } catch (error: any) {
       logger.error('❌ Error updating chat name', {
         chatId,
@@ -174,7 +175,7 @@ export class ChatService {
         isPinned,
       });
 
-      return chat as Chat;
+      return chat as unknown as Chat;
     } catch (error: any) {
       logger.error('❌ Error updating chat pin status', {
         chatId,
@@ -257,6 +258,7 @@ export class ChatService {
   ): Promise<ChatMessage> {
     try {
       const message: ChatMessage = {
+        id: randomUUID(),
         role,
         content,
         timestamp: new Date(),

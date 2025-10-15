@@ -1,4 +1,4 @@
-import { BaseCallbackHandler } from "@langchain/core/callbacks";
+import { BaseCallbackHandler, NewTokenIndices, HandleLLMNewTokenCallbackFields } from "@langchain/core/callbacks/base";
 import { Serialized } from "@langchain/core/load/serializable";
 import { WebSocket } from "ws";
 import logger from "../utils/logger";
@@ -84,7 +84,11 @@ export class StreamingCallbackHandler extends BaseCallbackHandler {
    */
   async handleLLMNewToken(
     token: string,
-    runId: string
+    idx: NewTokenIndices,
+    runId: string,
+    parentRunId?: string,
+    tags?: string[],
+    fields?: HandleLLMNewTokenCallbackFields
   ): Promise<void> {
     this.fullContent += token;
 

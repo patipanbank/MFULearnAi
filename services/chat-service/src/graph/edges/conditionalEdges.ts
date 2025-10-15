@@ -10,14 +10,14 @@ import logger from "../../utils/logger";
  * Decide whether agent should call tools or generate final response
  * Called after agent node execution
  */
-export function shouldCallTools(state: ChatState): "tools" | "response" | "end" {
+export function shouldCallTools(state: ChatState): "__start__" | "__end__" | "tools" | "response" {
   // Check for errors first
   if (state.error) {
     logger.warn('⚠️ Conditional Edge: Error detected, routing to end', {
       chatId: state.chatId,
       error: state.error,
     });
-    return "end";
+    return "__end__";
   }
 
   // Check if should continue
@@ -59,14 +59,14 @@ export function shouldCallTools(state: ChatState): "tools" | "response" | "end" 
  * Decide whether to continue iteration after tool execution
  * Called after tool node execution
  */
-export function shouldContinueIteration(state: ChatState): "agent" | "response" | "end" {
+export function shouldContinueIteration(state: ChatState): "__start__" | "__end__" | "agent" | "response" {
   // Check for errors
   if (state.error) {
     logger.warn('⚠️ Conditional Edge: Error after tools, routing to end', {
       chatId: state.chatId,
       error: state.error,
     });
-    return "end";
+    return "__end__";
   }
 
   // Check if should continue
@@ -98,14 +98,14 @@ export function shouldContinueIteration(state: ChatState): "agent" | "response" 
  * Validate user input before processing
  * Called after user input node
  */
-export function validateInput(state: ChatState): "agent" | "end" {
+export function validateInput(state: ChatState): "__start__" | "__end__" | "agent" {
   // Check for errors in input validation
   if (state.error) {
     logger.warn('⚠️ Conditional Edge: Input validation error, routing to end', {
       chatId: state.chatId,
       error: state.error,
     });
-    return "end";
+    return "__end__";
   }
 
   // Check if messages exist
@@ -113,7 +113,7 @@ export function validateInput(state: ChatState): "agent" | "end" {
     logger.warn('⚠️ Conditional Edge: No messages, routing to end', {
       chatId: state.chatId,
     });
-    return "end";
+    return "__end__";
   }
 
   // Proceed to agent
