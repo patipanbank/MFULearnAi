@@ -1,0 +1,141 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: chat-service
+  namespace: mfulearnai
+  labels:
+    app: chat-service
+    service: chat
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: chat-service
+  template:
+    metadata:
+      labels:
+        app: chat-service
+        service: chat
+    spec:
+      containers:
+      - name: chat-service
+        image: mfulearnai/chat-service:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 5002
+          name: http
+          protocol: TCP
+        env:
+        - name: NODE_ENV
+          value: "production"
+        - name: APP_ENV
+          value: "production"
+        - name: PORT
+          value: "5002"
+        - name: LOG_LEVEL
+          value: "info"
+
+        # MongoDB
+        - name: MONGODB_URI
+          valueFrom:
+            secretKeyRef:
+              name: chat-service-secrets
+              key: mongodb-uri
+
+        # Redis
+        - name: REDIS_URL
+          valueFrom:
+            secretKeyRef:
+              name: chat-service-secrets
+              key: redis-url
+
+        # PostgreSQL (optional)
+        - name: POSTGRES_URL
+          valueFrom:
+            secretKeyRef:
+              name: chat-service-secrets
+              key: postgres-url
+              optional: true
+
+        # JWT
+        - name: JWT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: chat-service-secrets
+              key: jwt-secret
+        - name: JWT_ALGORITHM
+          value: "HS256"
+
+        # AWS Bedrock
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              name: chat-service-secrets
+              key: aws-access-key-id
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: chat-service-secrets
+              key: aws-secret-access-key
+        - name: AWS_REGION
+          value: "us-east-1"
+        - name: BEDROCK_MODEL_ID
+          value: "anthropic.claude-3-5-sonnet-20240620-v1:0"
+
+        # Service URLs
+        - name: AUTH_SERVICE_URL
+          value: "http://auth-service:5001"
+        - name: AGENT_SERVICE_URL
+          value: "http://agent-service:5003"
+        - name: RAG_SERVICE_URL
+          value: "http://rag-service:5004"
+
+        # CORS
+        - name: CORS_ORIGIN
+          value: "https://mfulearnai.mfu.ac.th,http://localhost:8080"
+
+        # Agent Configuration
+        - name: MAX_ITERATIONS
+          value: "10"
+        - name: MAX_CONCURRENT_CHATS
+          value: "100"
+        - name: CHECKPOINT_TYPE
+          value: "redis"
+        - name: ENABLE_STREAMING
+          value: "true"
+        - name: ENABLE_METRICS
+          value: "true"
+
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "2Gi"
+            cpu: "1000m"
+
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 5002
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 5002
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+
+        lifecycle:
+          preStop:
+            exec:
+              command: ["/bin/sh", "-c", "sleep 10"]
+
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 30

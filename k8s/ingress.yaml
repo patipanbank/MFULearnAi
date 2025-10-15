@@ -37,6 +37,24 @@ spec:
             port:
               number: 5001
 
+      # Chat Service API
+      - path: /api/chat
+        pathType: Prefix
+        backend:
+          service:
+            name: chat-service
+            port:
+              number: 5002
+
+      # Chat Service WebSocket
+      - path: /ws/chat
+        pathType: Prefix
+        backend:
+          service:
+            name: chat-service
+            port:
+              number: 5002
+
       # Frontend - catch all (must be last)
       - path: /
         pathType: Prefix
