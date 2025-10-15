@@ -51,5 +51,4 @@ Thumbs.db
 .editorconfig
 .prettierrc
 .eslintrc.js
-tsconfig.json
 nodemon.json
