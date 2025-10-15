@@ -24,12 +24,8 @@ metadata:
     # Trust X-Forwarded-* headers from upstream proxy
     nginx.ingress.kubernetes.io/use-forwarded-headers: "true"
 
-    # WebSocket Configuration
+    # WebSocket Configuration (Nginx Ingress enables WebSocket by default)
     nginx.ingress.kubernetes.io/websocket-services: "chat-service"
-    nginx.ingress.kubernetes.io/proxy-http-version: "1.1"
-    nginx.ingress.kubernetes.io/configuration-snippet: |
-      proxy_set_header Upgrade $http_upgrade;
-      proxy_set_header Connection "upgrade";
 spec:
   ingressClassName: nginx
   rules:
