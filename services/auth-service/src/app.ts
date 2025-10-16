@@ -49,8 +49,9 @@ app.get('/health', (req, res) => {
 });
 
 // Routes
-app.use('/api/auth', authRouter);
-app.use('/api/usage', usageRouter);
+// Mount at root because ingress will rewrite /api/auth/* to /*
+app.use('/', authRouter);
+app.use('/usage', usageRouter);
 
 // Error handler
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
