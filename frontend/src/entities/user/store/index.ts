@@ -51,19 +51,19 @@ export const useAuthStore = create<AuthState>((set, get) => {
 
       try {
         // api object now handles base URL, token and returns data directly
-        console.log('fetchUser: Making API call to /auth/me with token:', token?.substring(0, 20) + '...');
-        const userData = await api.get<User>('/auth/me');
+        console.log('fetchUser: Making API call to /api/auth/me with token:', token?.substring(0, 20) + '...');
+        const userData = await api.get<User>('/api/auth/me');
         console.log('fetchUser: Successfully fetched user data:', userData);
         console.log('fetchUser: Setting status to authenticated');
         set({ status: 'authenticated', user: userData, fetchError: null });
       } catch (error) {
         console.error('fetchUser: Failed to fetch user data.', error);
         localStorage.removeItem('auth_token');
-        set({ 
-          status: 'unauthenticated', 
-          user: null, 
-          token: null, 
-          fetchError: error instanceof Error ? error.message : 'Network error' 
+        set({
+          status: 'unauthenticated',
+          user: null,
+          token: null,
+          fetchError: error instanceof Error ? error.message : 'Network error'
         });
       }
     },
@@ -71,13 +71,13 @@ export const useAuthStore = create<AuthState>((set, get) => {
     refreshToken: async (): Promise<string | null> => {
       try {
         // api object now handles base URL and token
-        const tokenData = await api.post<{token: string}>('/auth/refresh');
+        const tokenData = await api.post<{token: string}>('/api/auth/refresh');
         const newToken = tokenData.token;
-        
+
         // Update token in store and localStorage
         localStorage.setItem('auth_token', newToken);
         set({ token: newToken });
-        
+
         return newToken;
       } catch (error) {
         console.error('Token refresh failed:', error);

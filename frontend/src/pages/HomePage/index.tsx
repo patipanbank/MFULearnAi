@@ -3,30 +3,35 @@ import { useNavigate } from 'react-router-dom';
 import useAuthStore from '../../entities/user/store';
 
 const HomePage: React.FC = () => {
-  const { status, token, fetchUser } = useAuthStore();
+  const status = useAuthStore((state) => state.status);
+  const token = useAuthStore((state) => state.token);
+  const user = useAuthStore((state) => state.user);
+  const fetchUser = useAuthStore((state) => state.fetchUser);
   const navigate = useNavigate();
 
   useEffect(() => {
-    console.log('HomePage: Current status:', status, 'Token exists:', !!token);
-    
+    console.log('HomePage: Current status:', status, 'Token exists:', !!token, 'User:', user?.username || 'null');
+
+    // If we have a token and user is authenticated, redirect to chat immediately
+    if (token && status === 'authenticated' && user) {
+      console.log('HomePage: User authenticated, redirecting to chat...');
+      navigate('/chat', { replace: true });
+      return;
+    }
+
     // If we have a token but status is still loading, fetch user data
     if (token && status === 'loading') {
-      console.log('HomePage: Fetching user data...');
+      console.log('HomePage: Token found but loading, fetching user data...');
       fetchUser();
       return; // Wait for fetchUser to complete
     }
-    
-    // If we have a token and user is authenticated, redirect to chat
-    if (token && status === 'authenticated') {
-      console.log('HomePage: Redirecting to chat...');
-      navigate('/chat', { replace: true });
-    } 
+
     // If no token or unauthenticated, redirect to login
-    else if (!token || status === 'unauthenticated') {
-      console.log('HomePage: Redirecting to login...');
+    if (!token || status === 'unauthenticated') {
+      console.log('HomePage: No token or unauthenticated, redirecting to login...');
       navigate('/login', { replace: true });
     }
-  }, [status, token, navigate, fetchUser]);
+  }, [status, token, user, navigate, fetchUser]);
 
   // Show loading while determining auth status
   if (status === 'loading') {
