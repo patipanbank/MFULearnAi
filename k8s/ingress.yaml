@@ -26,14 +26,19 @@ metadata:
 
     # WebSocket Configuration (Nginx Ingress enables WebSocket by default)
     nginx.ingress.kubernetes.io/websocket-services: "chat-service"
+
+    # Path rewriting for microservices
+    # This rewrites /api/auth/* to /* for auth-service
+    # This rewrites /api/chat/* to /* for chat-service
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
 spec:
   ingressClassName: nginx
   rules:
   - http:
       paths:
       # Auth Service API
-      - path: /api/auth
-        pathType: Prefix
+      - path: /api/auth(/|$)(.*)
+        pathType: ImplementationSpecific
         backend:
           service:
             name: auth-service
@@ -41,8 +46,8 @@ spec:
               number: 5001
 
       # Chat Service API
-      - path: /api/chat
-        pathType: Prefix
+      - path: /api/chat(/|$)(.*)
+        pathType: ImplementationSpecific
         backend:
           service:
             name: chat-service
