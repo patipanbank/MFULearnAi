@@ -160,14 +160,11 @@ export const useWebSocket = ({ chatId, isInChatRoom }: UseWebSocketOptions) => {
     setWsStatus('connecting');
     setIsConnectedToRoom(false); // Reset connection state
 
-    // Use /ws/chat endpoint for chat-service WebSocket
-    const wsBaseUrl = config.wsUrl.includes('/ws/chat') ? config.wsUrl : config.wsUrl.replace('/ws', '/ws/chat');
-    let wsUrl = `${wsBaseUrl}?token=${token}`;
-    if (window.location.hostname === 'localhost') {
-      wsUrl = `ws://localhost/ws/chat?token=${token}`;
-    }
-    
-    console.log('connectWebSocket: Final WebSocket URL', wsUrl);
+    // Use chat-service WebSocket endpoint
+    // config.services.chat.wsUrl already points to the correct WebSocket endpoint
+    const wsUrl = `${config.services.chat.wsUrl}?token=${token}`;
+
+    console.log('connectWebSocket: Connecting to chat-service WebSocket', wsUrl);
     
     let ws: WebSocket;
     try {

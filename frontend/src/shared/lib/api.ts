@@ -1,17 +1,22 @@
 // A robust API utility for handling fetch requests with advanced features.
+// Updated for Microservices Architecture
 
 import axios from 'axios';
 import type { AxiosRequestConfig, AxiosResponse } from 'axios';
 import { useAuthStore } from '../../entities/user/store';
+import { config } from '../../config/config';
 
 /**
  * Creates a configured instance of Axios.
  * This instance includes the base API URL and an interceptor to automatically
  * add the JWT token to authorization headers.
+ *
+ * For microservices architecture, the baseURL points to the main gateway.
+ * Individual services are accessed via their specific paths (e.g., /api/chat, /api/auth)
  */
 const apiClient = axios.create({
-  baseURL: import.meta.env.VITE_API_URL,
-  timeout: 15000, // 15 seconds
+  baseURL: import.meta.env.VITE_API_URL || config.apiUrl,
+  timeout: config.api.timeout, // 30 seconds for microservices
   headers: {
     'Content-Type': 'application/json',
   },
