@@ -296,7 +296,7 @@ const CollectionDetailModal: React.FC<CollectionDetailModalProps> = ({ collectio
           });
         }
 
-        return response;
+        return responseData;
       } catch (error: any) {
         console.error(`Error uploading ${fileWithStatus.file.name}:`, error);
         

@@ -32,7 +32,7 @@ const KnowledgePage: React.FC = () => {
     try {
       // Attempt to fetch user-accessible collections first
       const userCollections = await RAGService.getCollections();
-      setCollections(userCollections);
+      setCollections(userCollections as any);
 
       // Fetch analytics
       const analyticsData = await RAGService.getAnalytics();

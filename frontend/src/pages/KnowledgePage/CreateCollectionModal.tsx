@@ -90,12 +90,11 @@ const CreateCollectionModal: React.FC<CreateCollectionModalProps> = ({ isOpen, o
     
     setIsSubmitting(true);
     try {
-      const newCol = await RAGService.createCollection({ 
+      const newCol = await RAGService.createCollection({
         name: trimmedName,
-        permission: permission,
-        modelId: 'amazon.titan-embed-text-v1'  // Use Titan embedding model
+        permission: permission
       });
-      onCreated(newCol);
+      onCreated(newCol as any);
       addToast({
         type: 'success',
         title: 'Collection Created',

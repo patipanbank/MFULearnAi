@@ -53,8 +53,13 @@ const AdminUserModal: React.FC<AdminUserModalProps> = ({ isOpen, onClose }) => {
 
       const response = await AuthService.getAdminUsers(params);
 
-      setUsers(response.users as UserData[]);
-      setPagination(response.pagination as PaginationData);
+      setUsers(response.users as any);
+      setPagination({
+        page: pagination.page,
+        limit: pagination.limit,
+        total: response.total,
+        pages: Math.ceil(response.total / pagination.limit)
+      });
     } catch (error) {
       console.error('Failed to fetch users:', error);
       addToast({
@@ -92,7 +97,7 @@ const AdminUserModal: React.FC<AdminUserModalProps> = ({ isOpen, onClose }) => {
     if (!selectedUser) return;
 
     try {
-      await AuthService.updateAdminUser(selectedUser._id, userData);
+      await AuthService.updateAdminUser(selectedUser._id, userData as any);
       addToast({
         type: 'success',
         title: 'Success',

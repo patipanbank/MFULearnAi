@@ -42,7 +42,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
     setCollectionsLoading(true);
     try {
       const loadedCollections = await RAGService.getCollections();
-      setCollections(loadedCollections);
+      setCollections(loadedCollections as any);
     } catch (error: any) {
       console.warn('Failed to load collections:', error);
       setCollections([]);

@@ -58,8 +58,8 @@ const EditCollectionModal: React.FC<EditCollectionModalProps> = ({
 
     setLoading(true);
     try {
-      const updatedCollection = await RAGService.updateCollection(collection._id, formData);
-      onUpdated(updatedCollection);
+      const updatedCollection = await RAGService.updateCollection(collection._id, formData as any);
+      onUpdated(updatedCollection as any);
       addToast({
         type: 'success',
         title: 'Collection Updated',

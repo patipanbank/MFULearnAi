@@ -47,7 +47,7 @@ const AdminAnalyticsModal: React.FC<AdminAnalyticsModalProps> = ({ isOpen, onClo
     setLoading(true);
     try {
       const data = await AuthService.getAdminAnalytics();
-      setAnalytics(data as SystemAnalytics);
+      setAnalytics(data as any);
     } catch (error) {
       console.error('Failed to fetch analytics:', error);
       addToast({
