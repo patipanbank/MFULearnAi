@@ -166,22 +166,6 @@ const UploadDocumentsModal: React.FC<UploadDocumentsModalProps> = ({
             ));
           }) as UploadResponse;
 
-        if (false) { // Removed duplicate handler
-          headers: {
-            // Don't set Content-Type - let browser set it with proper boundary
-          },
-          onUploadProgress: (progressEvent) => {
-            // สำหรับการ upload ไฟล์เท่านั้น (ไม่ใช่ processing)
-            const uploadProgress = progressEvent.total 
-              ? Math.round((progressEvent.loaded * 100) / progressEvent.total)
-              : 0;
-            
-            setFiles(prev => prev.map((f, i) => 
-              i === index ? { ...f, progress: Math.min(uploadProgress, 90) } : f
-            ));
-          }
-        });
-
         if (responseData.queued) {
           // ไฟล์ถูกส่งไป queue แล้ว
           console.log(`📋 File ${fileWithStatus.file.name} queued with job ID: ${responseData.jobId}`);

@@ -251,7 +251,7 @@ const CollectionDetailModal: React.FC<CollectionDetailModalProps> = ({ collectio
           }))
         });
 
-        const response = await RAGService.uploadToTraining(formData, (progressEvent) => {
+        const responseData = await RAGService.uploadToTraining(formData, (progressEvent) => {
             // สำหรับการ upload ไฟล์เท่านั้น (ไม่ใช่ processing)
             const uploadProgress = progressEvent.total
               ? Math.round((progressEvent.loaded * 100) / progressEvent.total)
@@ -260,27 +260,7 @@ const CollectionDetailModal: React.FC<CollectionDetailModalProps> = ({ collectio
             setFiles(prev => prev.map((f, i) =>
               i === index ? { ...f, progress: Math.min(uploadProgress, 90) } : f
             ));
-          }) as any;
-
-        const responseData = response.data || response;
-
-        if (false) { // Removed duplicate progress handler
-          headers: {
-            // Don't set Content-Type - let browser set it with proper boundary
-          },
-          onUploadProgress: (progressEvent) => {
-            // สำหรับการ upload ไฟล์เท่านั้น (ไม่ใช่ processing)
-            const uploadProgress = progressEvent.total 
-              ? Math.round((progressEvent.loaded * 100) / progressEvent.total)
-              : 0;
-            
-            setFiles(prev => prev.map((f, i) => 
-              i === index ? { ...f, progress: Math.min(uploadProgress, 90) } : f
-            ));
-          }
-        });
-
-        const responseData = (response as any).data;
+          });
 
         if (responseData.queued) {
           // ไฟล์ถูกส่งไป queue แล้ว
