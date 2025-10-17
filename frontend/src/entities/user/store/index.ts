@@ -54,7 +54,7 @@ export const useAuthStore = create<AuthState>((set, get) => {
         const userData = await AuthService.getMe();
         console.log('fetchUser: Successfully fetched user data:', userData);
         console.log('fetchUser: Setting status to authenticated');
-        set({ status: 'authenticated', user: userData as User, fetchError: null });
+        set({ status: 'authenticated', user: userData as any, fetchError: null });
       } catch (error) {
         console.error('fetchUser: Failed to fetch user data.', error);
         localStorage.removeItem('auth_token');
