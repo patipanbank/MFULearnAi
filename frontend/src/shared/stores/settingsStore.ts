@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { api } from '../lib/api';
+import { AuthService } from '../../services/api';
 
 export type Theme = 'light' | 'dark' | 'auto';
 
@@ -106,12 +106,8 @@ export const useSettingsStore = create<SettingsState>()(
       loadSettings: async () => {
         set({ isLoading: true });
         try {
-          // The api object from api.ts automatically handles the token.
-          const data = await api.get<{
-            preferences: Partial<UserPreferences>;
-            profile: Partial<UserProfile>;
-            privacy: Partial<PrivacySettings>;
-          }>('/user/settings');
+          // Use AuthService to load user settings
+          const data = await AuthService.getUserSettings() as any;
 
           set({
             preferences: { ...defaultPreferences, ...data.preferences },
@@ -133,11 +129,11 @@ export const useSettingsStore = create<SettingsState>()(
         set({ isSaving: true });
         try {
           const { preferences, profile, privacy } = get();
-          await api.put('/user/settings', {
+          await AuthService.updateUserSettings({
             preferences,
             profile,
             privacy,
-          });
+          } as any);
         } catch (error) {
           console.error('Failed to save settings:', error);
           throw error; // Re-throw to be caught by the UI layer
@@ -187,8 +183,8 @@ export const useSettingsStore = create<SettingsState>()(
 
       resetSettings: async () => {
         try {
-          // The api object handles the token automatically.
-          await api.post('/user/settings/reset');
+          // Use AuthService to reset settings
+          await AuthService.resetUserSettings();
 
           set({
             preferences: defaultPreferences,

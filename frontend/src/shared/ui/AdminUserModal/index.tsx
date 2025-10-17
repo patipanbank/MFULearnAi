@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { FiSearch, FiEdit, FiTrash2, FiEye, FiRefreshCw } from 'react-icons/fi';
 import { useUIStore } from '../../stores';
-import { api } from '../../lib/api';
+import { AuthService } from '../../../services/api';
 import type { User } from '../../types';
 import UniversalModal from '../UniversalModal';
 
@@ -43,21 +43,18 @@ const AdminUserModal: React.FC<AdminUserModalProps> = ({ isOpen, onClose }) => {
   const fetchUsers = async () => {
     setLoading(true);
     try {
-      const params = new URLSearchParams({
-        page: pagination.page.toString(),
-        limit: pagination.limit.toString(),
+      const params = {
+        page: pagination.page,
+        limit: pagination.limit,
         ...(filters.role !== 'all' && { role: filters.role }),
         ...(filters.department !== 'all' && { department: filters.department }),
         ...(filters.search && { search: filters.search })
-      });
+      };
 
-      const response = await api.get<{
-        users: UserData[];
-        pagination: PaginationData;
-      }>(`/admin/users?${params}`);
+      const response = await AuthService.getAdminUsers(params);
 
-      setUsers(response.users);
-      setPagination(response.pagination);
+      setUsers(response.users as UserData[]);
+      setPagination(response.pagination as PaginationData);
     } catch (error) {
       console.error('Failed to fetch users:', error);
       addToast({
@@ -74,7 +71,7 @@ const AdminUserModal: React.FC<AdminUserModalProps> = ({ isOpen, onClose }) => {
     if (!confirm('Are you sure you want to delete this user?')) return;
 
     try {
-      await api.delete(`/admin/users/${userId}`);
+      await AuthService.deleteAdminUser(userId);
       addToast({
         type: 'success',
         title: 'Success',
@@ -95,7 +92,7 @@ const AdminUserModal: React.FC<AdminUserModalProps> = ({ isOpen, onClose }) => {
     if (!selectedUser) return;
 
     try {
-      await api.put(`/admin/users/${selectedUser._id}`, userData);
+      await AuthService.updateAdminUser(selectedUser._id, userData);
       addToast({
         type: 'success',
         title: 'Success',

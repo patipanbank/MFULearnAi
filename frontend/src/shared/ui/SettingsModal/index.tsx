@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { FiSettings, FiDownload, FiUpload, FiDatabase, FiUser, FiEdit, FiCopy, FiTrash2, FiPlus, FiKey, FiShield } from 'react-icons/fi';
 import { useSettingsStore, useUIStore, useAuthStore } from '../../stores';
-import { api } from '../../lib/api';
+import { RAGService } from '../../../services/api';
 import UniversalModal from '../UniversalModal';
 import PreferencesModal from '../PreferencesModal';
 import AdminUserModal from '../AdminUserModal';
@@ -41,8 +41,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
   const fetchCollections = async () => {
     setCollectionsLoading(true);
     try {
-      const loadedCollections = await api.get<Collection[]>('/collections/');
-              setCollections(loadedCollections);
+      const loadedCollections = await RAGService.getCollections();
+      setCollections(loadedCollections);
     } catch (error: any) {
       console.warn('Failed to load collections:', error);
       setCollections([]);

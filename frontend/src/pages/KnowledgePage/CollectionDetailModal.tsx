@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { FiUpload, FiSearch, FiEye, FiTrash2, FiFile, FiFileText, FiImage, FiGrid } from 'react-icons/fi';
-import { api } from '../../shared/lib/api';
+import { RAGService } from '../../services/api';
 import { useUIStore } from '../../shared/stores';
 import { useUploadProgress } from '../../shared/hooks/useUploadProgress';
 import UploadProgressTracker from '../../shared/ui/UploadProgressTracker';
@@ -62,7 +62,7 @@ const CollectionDetailModal: React.FC<CollectionDetailModalProps> = ({ collectio
     if (!collection) return;
     setIsLoadingDocs(true);
     try {
-      const response = await api.get<CollectionDocument[]>(`/collections/${collection._id}/documents`);
+      const response = await RAGService.getDocuments(collection._id);
       setDocs(response || []);
     } catch (err) {
       console.error('Failed to fetch documents', err);
@@ -251,7 +251,20 @@ const CollectionDetailModal: React.FC<CollectionDetailModalProps> = ({ collectio
           }))
         });
 
-        const response = await api.post('/training/upload', formData, {
+        const response = await RAGService.uploadToTraining(formData, (progressEvent) => {
+            // สำหรับการ upload ไฟล์เท่านั้น (ไม่ใช่ processing)
+            const uploadProgress = progressEvent.total
+              ? Math.round((progressEvent.loaded * 100) / progressEvent.total)
+              : 0;
+
+            setFiles(prev => prev.map((f, i) =>
+              i === index ? { ...f, progress: Math.min(uploadProgress, 90) } : f
+            ));
+          }) as any;
+
+        const responseData = response.data || response;
+
+        if (false) { // Removed duplicate progress handler
           headers: {
             // Don't set Content-Type - let browser set it with proper boundary
           },
@@ -431,9 +444,7 @@ const CollectionDetailModal: React.FC<CollectionDetailModalProps> = ({ collectio
     if (!collection) return;
     const ids = Array.isArray(docIds) ? docIds : [docIds];
     try {
-      await api.delete(`/collections/${collection._id}/documents`, {
-        data: { documentIds: ids }
-      });
+      await RAGService.deleteDocuments(collection._id, ids);
       addToast({
         type: 'success',
         title: 'Document Deleted',

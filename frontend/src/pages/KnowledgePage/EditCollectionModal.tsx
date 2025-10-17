@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { FiSave, FiEdit } from 'react-icons/fi';
-import { api } from '../../shared/lib/api';
+import { RAGService } from '../../services/api';
 import { useUIStore } from '../../shared/stores';
 import UniversalModal from '../../shared/ui/UniversalModal';
 import type { Collection } from '../../shared/types';
@@ -45,7 +45,7 @@ const EditCollectionModal: React.FC<EditCollectionModalProps> = ({
 
   const fetchModels = async () => {
     try {
-      const response = await api.get<{ models: string[] }>('/bedrock/models');
+      const response = await RAGService.getBedrockModels();
       setModels(response.models || []);
     } catch (error) {
       console.error('Error fetching models:', error);
@@ -58,7 +58,7 @@ const EditCollectionModal: React.FC<EditCollectionModalProps> = ({
 
     setLoading(true);
     try {
-      const updatedCollection = await api.put<Collection>(`/collections/${collection._id}`, formData);
+      const updatedCollection = await RAGService.updateCollection(collection._id, formData);
       onUpdated(updatedCollection);
       addToast({
         type: 'success',

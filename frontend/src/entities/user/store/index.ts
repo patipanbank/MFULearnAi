@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import type { User } from '../../../shared/types';
-import { api } from '../../../shared/lib/api';
+import { AuthService } from '../../../services/api';
 import { config } from '../../../config/config';
 
 interface AuthState {
@@ -50,9 +50,9 @@ export const useAuthStore = create<AuthState>((set, get) => {
       set({ status: 'loading' });
 
       try {
-        // api object now handles base URL, token and returns data directly
-        console.log('fetchUser: Making API call to /api/auth/me with token:', token?.substring(0, 20) + '...');
-        const userData = await api.get<User>('/api/auth/me');
+        // Use AuthService to fetch user data
+        console.log('fetchUser: Making API call to AuthService.getMe with token:', token?.substring(0, 20) + '...');
+        const userData = await AuthService.getMe();
         console.log('fetchUser: Successfully fetched user data:', userData);
         console.log('fetchUser: Setting status to authenticated');
         set({ status: 'authenticated', user: userData, fetchError: null });
@@ -70,8 +70,8 @@ export const useAuthStore = create<AuthState>((set, get) => {
 
     refreshToken: async (): Promise<string | null> => {
       try {
-        // api object now handles base URL and token
-        const tokenData = await api.post<{token: string}>('/api/auth/refresh');
+        // Use AuthService to refresh token
+        const tokenData = await AuthService.refreshToken();
         const newToken = tokenData.token;
 
         // Update token in store and localStorage
@@ -104,7 +104,7 @@ export const useAuthStore = create<AuthState>((set, get) => {
       }
       
       // Then redirect current tab to SAML logout
-      window.location.href = `${config.apiUrl}/api/auth/logout/saml`;
+      window.location.href = AuthService.getSamlLogoutUrl();
     },
   };
 

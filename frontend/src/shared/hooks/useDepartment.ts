@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { api } from '../lib/api';
+import { AuthService } from '../../services/api';
 
 interface Department {
   _id: string;
@@ -24,8 +24,8 @@ export const useDepartment = (departmentId?: string) => {
       setError(null);
       
       try {
-        const data = await api.get<Department>(`/departments/${departmentId}`);
-        setDepartment(data);
+        const data = await AuthService.getDepartment(departmentId);
+        setDepartment(data as Department);
       } catch (err) {
         console.error('Failed to fetch department:', err);
         setError('Failed to load department information');

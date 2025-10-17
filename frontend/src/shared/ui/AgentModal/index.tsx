@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { FiPlus, FiTrash2, FiGlobe, FiLock, FiUsers, FiSettings } from 'react-icons/fi';
 import { useAgentStore, useAuthStore } from '../../stores';
-import { api } from '../../lib/api';
+import { RAGService } from '../../../services/api';
 import UniversalModal from '../UniversalModal';
 import type { AgentConfig, AgentTool } from '../../stores/agentStore';
 
@@ -105,14 +105,14 @@ const AgentModal: React.FC<AgentModalProps> = ({
     setLoadingCollections(true);
     try {
       // First, try fetching the user's private and public collections
-      const loadedCollections = await api.get<CollectionOption[]>('/collections/');
-      setCollections(loadedCollections);
+      const loadedCollections = await RAGService.getCollections();
+      setCollections(loadedCollections as CollectionOption[]);
     } catch (error: any) {
       // If the first attempt fails with an authentication error, try the public endpoint
       if (error.response?.status === 401) {
         try {
-          const publicCollections = await api.get<CollectionOption[]>('/collections/public/');
-          setCollections(publicCollections);
+          const publicCollections = await RAGService.getPublicCollections();
+          setCollections(publicCollections as CollectionOption[]);
         } catch (publicError: any) {
           console.warn('Failed to load public collections as well:', publicError);
           setCollections([]); // Continue with empty collections

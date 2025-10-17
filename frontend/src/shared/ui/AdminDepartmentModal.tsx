@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { FiUsers, FiPlus, FiEdit, FiTrash2, FiRefreshCw } from 'react-icons/fi';
 import { useUIStore } from '../stores';
-import { api } from '../lib/api';
+import { AuthService } from '../../services/api';
 import UniversalModal from './UniversalModal';
 
 interface Department {
@@ -45,8 +45,8 @@ const AdminDepartmentModal: React.FC<DepartmentModalProps> = ({ isOpen, onClose 
   const fetchDepartments = async () => {
     setLoading(true);
     try {
-      const response = await api.get<{ departments: Department[] }>('/admin/departments?includeInactive=true');
-      setDepartments(response.departments);
+      const response = await AuthService.getAdminDepartments(true);
+      setDepartments(response.departments as Department[]);
     } catch (error) {
       console.error('Failed to fetch departments:', error);
       addToast({
@@ -75,7 +75,7 @@ const AdminDepartmentModal: React.FC<DepartmentModalProps> = ({ isOpen, onClose 
     try {
       if (editingDepartment) {
         // Update existing department
-        await api.put(`/admin/departments/${editingDepartment._id}`, formData);
+        await AuthService.updateAdminDepartment(editingDepartment._id, formData);
         addToast({
           type: 'success',
           title: 'Success',
@@ -83,7 +83,7 @@ const AdminDepartmentModal: React.FC<DepartmentModalProps> = ({ isOpen, onClose 
         });
       } else {
         // Create new department
-        await api.post('/admin/departments', formData);
+        await AuthService.createAdminDepartment(formData);
         addToast({
           type: 'success',
           title: 'Success',
@@ -123,7 +123,7 @@ const AdminDepartmentModal: React.FC<DepartmentModalProps> = ({ isOpen, onClose 
 
     setLoading(true);
     try {
-      await api.delete(`/admin/departments/${departmentId}`);
+      await AuthService.deleteAdminDepartment(departmentId);
       addToast({
         type: 'success',
         title: 'Success',
@@ -144,7 +144,7 @@ const AdminDepartmentModal: React.FC<DepartmentModalProps> = ({ isOpen, onClose 
   const handleRecalculate = async () => {
     setLoading(true);
     try {
-      await api.post('/admin/departments/recalculate');
+      await AuthService.recalculateDepartments();
       addToast({
         type: 'success',
         title: 'Success',

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { FiDatabase, FiRefreshCcw, FiPlus, FiSearch, FiFolder, FiFile, FiUpload } from 'react-icons/fi';
-import { api } from '../../shared/lib/api';
+import { RAGService } from '../../services/api';
 import { useUIStore } from '../../shared/stores';
 import type { Collection } from '../../shared/types';
 import CreateCollectionModal from './CreateCollectionModal';
@@ -31,15 +31,11 @@ const KnowledgePage: React.FC = () => {
     setError(null);
     try {
       // Attempt to fetch user-accessible collections first
-      const userCollections = await api.get<Collection[]>('/collections/');
+      const userCollections = await RAGService.getCollections();
       setCollections(userCollections);
-      
+
       // Fetch analytics
-      const analyticsData = await api.get<{
-        totalCollections: number;
-        totalDocuments: number;
-        totalSize: number;
-      }>('/collections/analytics');
+      const analyticsData = await RAGService.getAnalytics();
       setAnalytics(analyticsData);
     } catch (error: any) {
       console.error('Error fetching collections:', error);
@@ -95,7 +91,7 @@ const KnowledgePage: React.FC = () => {
   const handleDeleteCollection = async (collection: Collection) => {
     if (window.confirm(`Are you sure you want to delete "${collection.name}"? This action cannot be undone.`)) {
       try {
-        await api.delete(`/collections/${collection._id}`);
+        await RAGService.deleteCollection(collection._id);
         handleCollectionDeleted(collection);
         addToast({
           type: 'success',

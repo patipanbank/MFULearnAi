@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { FiGlobe, FiUsers, FiLock, FiPlus } from 'react-icons/fi';
-import { api } from '../../shared/lib/api';
+import { RAGService } from '../../services/api';
 import { useUIStore, useAuthStore } from '../../shared/stores';
 import UniversalModal from '../../shared/ui/UniversalModal';
 import type { Collection } from '../../shared/types';
@@ -90,7 +90,7 @@ const CreateCollectionModal: React.FC<CreateCollectionModalProps> = ({ isOpen, o
     
     setIsSubmitting(true);
     try {
-      const newCol = await api.post<Collection>('/collections/', { 
+      const newCol = await RAGService.createCollection({ 
         name: trimmedName,
         permission: permission,
         modelId: 'amazon.titan-embed-text-v1'  // Use Titan embedding model

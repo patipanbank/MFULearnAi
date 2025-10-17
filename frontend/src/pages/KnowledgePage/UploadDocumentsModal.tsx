@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { FiUpload, FiFile, FiTrash2 } from 'react-icons/fi';
-import { api } from '../../shared/lib/api';
+import { RAGService } from '../../services/api';
 import { useUIStore } from '../../shared/stores';
 import { useUploadProgress } from '../../shared/hooks/useUploadProgress';
 import UploadProgressTracker from '../../shared/ui/UploadProgressTracker';
@@ -155,7 +155,18 @@ const UploadDocumentsModal: React.FC<UploadDocumentsModalProps> = ({
           }))
         });
 
-        const responseData = await api.post<UploadResponse>('/training/upload', formData, {
+        const responseData = await RAGService.uploadToTraining(formData, (progressEvent) => {
+            // สำหรับการ upload ไฟล์เท่านั้น (ไม่ใช่ processing)
+            const uploadProgress = progressEvent.total
+              ? Math.round((progressEvent.loaded * 100) / progressEvent.total)
+              : 0;
+
+            setFiles(prev => prev.map((f, i) =>
+              i === index ? { ...f, progress: Math.min(uploadProgress, 90) } : f
+            ));
+          }) as UploadResponse;
+
+        if (false) { // Removed duplicate handler
           headers: {
             // Don't set Content-Type - let browser set it with proper boundary
           },

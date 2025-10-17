@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { FiDatabase, FiEye, FiUpload, FiEdit, FiTrash2, FiUsers, FiLock, FiGlobe, FiCalendar, FiFileText, FiMoreVertical } from 'react-icons/fi';
-import { api } from '../../shared/lib/api';
+import { RAGService } from '../../services/api';
 import type { Collection } from '../../shared/types';
 
 interface CollectionCardProps {
@@ -37,7 +37,7 @@ const CollectionCard: React.FC<CollectionCardProps> = ({
           setDocumentCount(0);
           return;
         }
-        const response = await api.get<{ total: number }>(`/collections/${collectionId}/documents?limit=1&offset=0`);
+        const response = await RAGService.getDocumentCount(collectionId);
         setDocumentCount(response.total || 0);
       } catch (error) {
         console.error('Error fetching document count:', error);

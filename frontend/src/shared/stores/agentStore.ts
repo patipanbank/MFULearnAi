@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { api } from '../lib/api';
+import { AgentService } from '../../services/api';
 import { showSuccessToast, showErrorToast } from './uiStore';
 
 // Types
@@ -167,25 +167,7 @@ const useAgentStore = create<AgentStore>()(
 
           set({ isLoadingAgents: true });
           try {
-            const response = await api.get<any>('/agents/');
-            // รองรับทั้งกรณี response เป็น { success, data } และ array ตรง ๆ
-            let rawAgents: any[] = [];
-            if (Array.isArray(response)) {
-              rawAgents = response;
-            } else if (response && Array.isArray(response.data)) {
-              rawAgents = response.data;
-            } else {
-              rawAgents = [];
-            }
-
-            // Normalize agents to handle both old and new permission systems
-            const agents: AgentConfig[] = rawAgents.map(agent => ({
-              ...agent,
-              // Convert isPublic to permission for backward compatibility
-              permission: agent.permission || (agent.isPublic ? 'PUBLIC' : 'PRIVATE'),
-              // Keep isPublic for components that still use it
-              isPublic: agent.isPublic !== undefined ? agent.isPublic : agent.permission === 'PUBLIC'
-            }));
+            const agents = await AgentService.getAgents();
 
             set(state => {
               const newState: Partial<AgentStore> = { agents, isLoadingAgents: false };
@@ -232,22 +214,7 @@ const useAgentStore = create<AgentStore>()(
 
         createAgent: async (config) => {
           try {
-            // Convert permission to isPublic for backend compatibility
-            const backendConfig = {
-              ...config,
-              isPublic: config.permission === 'PUBLIC',
-              // Send both for flexibility
-              permission: config.permission
-            };
-
-            const rawAgent = await api.post<any>('/agents/', backendConfig);
-
-            // Normalize response from backend
-            const newAgent: AgentConfig = {
-              ...rawAgent,
-              permission: rawAgent.permission || (rawAgent.isPublic ? 'PUBLIC' : 'PRIVATE'),
-              isPublic: rawAgent.isPublic !== undefined ? rawAgent.isPublic : rawAgent.permission === 'PUBLIC'
-            };
+            const newAgent = await AgentService.createAgent(config);
 
             set(state => ({
               agents: [...state.agents, newAgent]
@@ -263,23 +230,7 @@ const useAgentStore = create<AgentStore>()(
 
         updateAgent: async (id, updates) => {
           try {
-            // Convert permission to isPublic for backend compatibility
-            const backendUpdates = {
-              ...updates,
-              ...(updates.permission && {
-                isPublic: updates.permission === 'PUBLIC',
-                permission: updates.permission
-              })
-            };
-
-            const rawUpdatedAgent = await api.put<any>(`/agents/${id}`, backendUpdates);
-
-            // Normalize response from backend
-            const updatedAgent: AgentConfig = {
-              ...rawUpdatedAgent,
-              permission: rawUpdatedAgent.permission || (rawUpdatedAgent.isPublic ? 'PUBLIC' : 'PRIVATE'),
-              isPublic: rawUpdatedAgent.isPublic !== undefined ? rawUpdatedAgent.isPublic : rawUpdatedAgent.permission === 'PUBLIC'
-            };
+            const updatedAgent = await AgentService.updateAgent(id, updates);
 
             set(state => ({
               agents: state.agents.map(agent =>
@@ -297,7 +248,7 @@ const useAgentStore = create<AgentStore>()(
 
         deleteAgent: async (id: string) => {
           try {
-            await api.delete(`/agents/${id}`);
+            await AgentService.deleteAgent(id);
             set(state => {
               const newAgents = state.agents.filter(agent => agent.id !== id);
               const newSelectedAgent = state.selectedAgent?.id === id ? (newAgents[0] || null) : state.selectedAgent;

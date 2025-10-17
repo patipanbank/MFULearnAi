@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { api } from '../lib/api';
+import { ChatService } from '../../services/api';
 
 export interface ChatMessage {
   id: string;
@@ -128,10 +128,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       
       // Make API call in background
       if (state.currentSession.id && state.currentSession.id.length === 24) {
-        api.post('/chat/update-name', {
-          chat_id: state.currentSession.id,
-          name: updatedName
-        }).catch((e) => {
+        ChatService.updateChatName(state.currentSession.id, updatedName).catch((e) => {
           console.error('Failed to update chat name:', e);
         });
       }
@@ -199,7 +196,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   loadChat: async (chatId: string) => {
     set({ isLoading: true });
     try {
-      const chat = await api.get<ChatSession>(`/chat/history/${chatId}`);
+      const chat = await ChatService.getChat(chatId);
       // Convert date strings back to Date objects
       const chatSession: ChatSession = {
         ...chat,
@@ -243,10 +240,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
   saveChat: async () => {
     const { currentSession } = get();
     if (!currentSession) return;
-    
+
     try {
-      // API call now handles headers and token
-      await api.post('/chat/save', currentSession);
+      await ChatService.saveChat(currentSession);
       
       // Update chat history with saved chat
       const { chatHistory } = get();
@@ -274,7 +270,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       return;
     }
     try {
-      const chats = await api.get<ChatSession[]>('/chat/history');
+      const chats = await ChatService.getHistory();
       const chatSessions: ChatSession[] = chats
         .filter((c: any) => c._id && c._id.length === 24)
         .map((chat: any) => {
@@ -309,7 +305,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   // Delete chat
   deleteChat: async (chatId: string) => {
     try {
-      await api.delete(`/chat/${chatId}`);
+      await ChatService.deleteChat(chatId);
       
       set((state) => ({
         chatHistory: state.chatHistory.filter(chat => chat.id !== chatId),
@@ -323,7 +319,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   pinChat: async (chatId, pinned) => {
     try {
       // Update pin state in backend
-      await api.post(`/chat/${chatId}/pin`, { isPinned: pinned });
+      await ChatService.pinChat(chatId, pinned);
       
       // Update local state
       set((state) => ({

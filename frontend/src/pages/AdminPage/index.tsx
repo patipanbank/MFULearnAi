@@ -5,7 +5,7 @@ import { useAuthStore, useUIStore } from '../../shared/stores';
 import AdminUserModal from '../../shared/ui/AdminUserModal';
 import AdminAnalyticsModal from '../../shared/ui/AdminAnalyticsModal';
 import AdminDepartmentModal from '../../shared/ui/AdminDepartmentModal';
-import { api } from '../../shared/lib/api';
+import { AuthService } from '../../services/api';
 
 interface SystemStats {
   totalUsers: number;
@@ -69,8 +69,8 @@ const AdminPage: React.FC = () => {
   const fetchQuickStats = async () => {
     try {
       const [analytics, departmentStats] = await Promise.all([
-        api.get<any>('/admin/analytics'),
-        api.get<DepartmentStats>('/admin/departments/stats')
+        AuthService.getAdminAnalytics(),
+        AuthService.getDepartmentStats()
       ]);
 
       setStats({

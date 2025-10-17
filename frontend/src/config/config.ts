@@ -56,16 +56,6 @@ export const config = {
       apiPath: '/api/rag',
       fullUrl: `${BASE_URL}/api/rag`,
     },
-    collection: {
-      baseUrl: BASE_URL,
-      apiPath: '/api/collections',
-      fullUrl: `${BASE_URL}/api/collections`,
-    },
-    upload: {
-      baseUrl: BASE_URL,
-      apiPath: '/api/upload',
-      fullUrl: `${BASE_URL}/api/upload`,
-    },
   },
 
   // WebSocket configuration

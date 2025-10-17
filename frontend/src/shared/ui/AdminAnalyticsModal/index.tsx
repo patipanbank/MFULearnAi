@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { FiRefreshCw, FiUsers, FiDatabase, FiActivity, FiBarChart } from 'react-icons/fi';
 import { useUIStore } from '../../stores';
-import { api } from '../../lib/api';
+import { AuthService } from '../../../services/api';
 import UniversalModal from '../UniversalModal';
 
 interface AdminAnalyticsModalProps {
@@ -46,8 +46,8 @@ const AdminAnalyticsModal: React.FC<AdminAnalyticsModalProps> = ({ isOpen, onClo
   const fetchAnalytics = async () => {
     setLoading(true);
     try {
-      const data = await api.get<SystemAnalytics>('/admin/analytics');
-      setAnalytics(data);
+      const data = await AuthService.getAdminAnalytics();
+      setAnalytics(data as SystemAnalytics);
     } catch (error) {
       console.error('Failed to fetch analytics:', error);
       addToast({
