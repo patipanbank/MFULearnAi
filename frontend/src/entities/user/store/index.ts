@@ -1,7 +1,6 @@
 import { create } from 'zustand';
 import type { User } from '../../../shared/types';
 import { AuthService } from '../../../services/api';
-import { config } from '../../../config/config';
 
 interface AuthState {
   token: string | null;
@@ -55,7 +54,7 @@ export const useAuthStore = create<AuthState>((set, get) => {
         const userData = await AuthService.getMe();
         console.log('fetchUser: Successfully fetched user data:', userData);
         console.log('fetchUser: Setting status to authenticated');
-        set({ status: 'authenticated', user: userData, fetchError: null });
+        set({ status: 'authenticated', user: userData as User, fetchError: null });
       } catch (error) {
         console.error('fetchUser: Failed to fetch user data.', error);
         localStorage.removeItem('auth_token');

@@ -92,7 +92,7 @@ export interface CollectionDocument {
 
 export interface CreateCollectionDto {
   name: string;
-  description: string;
+  description?: string;
   embeddingModel?: string;
   chunkSize?: number;
   chunkOverlap?: number;

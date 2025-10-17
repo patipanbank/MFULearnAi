@@ -5,7 +5,7 @@
 
 import { api } from '../../shared/lib/api';
 import { config } from '../../config/config';
-import type { ChatSession, ChatMessage } from './types';
+import type { ChatSession } from './types';
 
 export class ChatService {
   private static get baseUrl(): string {
