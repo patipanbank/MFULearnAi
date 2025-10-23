@@ -14,8 +14,24 @@ import { config } from '../../config/config';
  * For microservices architecture, the baseURL points to the main gateway.
  * Individual services are accessed via their specific paths (e.g., /api/chat, /api/auth)
  */
+// Determine baseURL at build time
+const getBaseURL = () => {
+  // Check environment variable first
+  if (import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL;
+  }
+
+  // For production, use the configured URL
+  if (import.meta.env.MODE === 'production') {
+    return 'https://mfulearnai.mfu.ac.th';
+  }
+
+  // For development, use localhost
+  return 'http://localhost:8080';
+};
+
 const apiClient = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || config.apiUrl,
+  baseURL: getBaseURL(),
   timeout: config.api.timeout, // 30 seconds for microservices
   headers: {
     'Content-Type': 'application/json',
