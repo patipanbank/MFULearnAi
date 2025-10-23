@@ -4,6 +4,9 @@ metadata:
   name: mfulearnai-api-ingress
   namespace: mfulearnai
   annotations:
+    # Priority - ensure API routes match before frontend catch-all
+    nginx.ingress.kubernetes.io/priority: "100"
+
     # CORS Configuration
     nginx.ingress.kubernetes.io/enable-cors: "true"
     nginx.ingress.kubernetes.io/cors-allow-origin: "https://mfulearnai.mfu.ac.th,http://mfulearnai.mfu.ac.th,http://localhost:8080,http://10.1.44.204:8080"
@@ -66,6 +69,9 @@ metadata:
   name: mfulearnai-websocket-ingress
   namespace: mfulearnai
   annotations:
+    # Priority - ensure WebSocket routes match before frontend catch-all
+    nginx.ingress.kubernetes.io/priority: "100"
+
     # CORS Configuration
     nginx.ingress.kubernetes.io/enable-cors: "true"
     nginx.ingress.kubernetes.io/cors-allow-origin: "https://mfulearnai.mfu.ac.th,http://mfulearnai.mfu.ac.th,http://localhost:8080,http://10.1.44.204:8080"
