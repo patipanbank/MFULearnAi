@@ -3,11 +3,13 @@ export function cn(...classes: (string | undefined | null | false)[]): string {
 }
 
 export function formatDate(date: Date | string | { $date: string }): string {
-  let dateStr: string | Date = date;
+  let dateStr: string | Date;
 
   // Handle MongoDB date format
-  if (typeof date === 'object' && '$date' in date) {
+  if (typeof date === 'object' && date !== null && !( date instanceof Date) && '$date' in date) {
     dateStr = date.$date;
+  } else {
+    dateStr = date as string | Date;
   }
 
   const d = new Date(dateStr);

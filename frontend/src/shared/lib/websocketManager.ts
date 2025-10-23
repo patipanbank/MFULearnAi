@@ -193,7 +193,7 @@ export class WebSocketManager {
     this.reconnectAttempts = 0;
 
     // Start heartbeat
-    if (this.config.heartbeat.enabled) {
+    if (this.config?.heartbeat?.enabled) {
       this.startHeartbeat();
     }
 
@@ -236,24 +236,29 @@ export class WebSocketManager {
     this.triggerCloseHandlers();
 
     // Attempt reconnection if not intentionally closed
-    if (!this.isIntentionallyClosed && this.config.reconnect.enabled) {
+    if (!this.isIntentionallyClosed && this.config?.reconnect?.enabled) {
       this.scheduleReconnect();
     }
   }
 
   private scheduleReconnect(): void {
-    if (this.reconnectAttempts >= this.config.reconnect.maxAttempts) {
+    const maxAttempts = this.config?.reconnect?.maxAttempts ?? 10;
+    if (this.reconnectAttempts >= maxAttempts) {
       console.error('WebSocketManager: Max reconnection attempts reached');
       return;
     }
 
     // Calculate delay with exponential backoff
+    const initialDelay = this.config?.reconnect?.initialDelay ?? 1000;
+    const multiplier = this.config?.reconnect?.multiplier ?? 1.5;
+    const maxDelay = this.config?.reconnect?.maxDelay ?? 30000;
+
     const delay = Math.min(
-      this.config.reconnect.initialDelay * Math.pow(this.config.reconnect.multiplier, this.reconnectAttempts),
-      this.config.reconnect.maxDelay
+      initialDelay * Math.pow(multiplier, this.reconnectAttempts),
+      maxDelay
     );
 
-    console.log(`WebSocketManager: Scheduling reconnect in ${delay}ms (attempt ${this.reconnectAttempts + 1}/${this.config.reconnect.maxAttempts})`);
+    console.log(`WebSocketManager: Scheduling reconnect in ${delay}ms (attempt ${this.reconnectAttempts + 1}/${maxAttempts})`);
 
     this.reconnectTimer = window.setTimeout(() => {
       this.reconnectAttempts++;
@@ -264,6 +269,9 @@ export class WebSocketManager {
   private startHeartbeat(): void {
     this.stopHeartbeat();
 
+    const interval = this.config?.heartbeat?.interval ?? 30000;
+    const timeout = this.config?.heartbeat?.timeout ?? 5000;
+
     this.heartbeatTimer = window.setInterval(() => {
       if (this.ws && this.ws.readyState === WebSocket.OPEN) {
         // Send ping
@@ -273,9 +281,9 @@ export class WebSocketManager {
         this.heartbeatTimeoutTimer = window.setTimeout(() => {
           console.warn('WebSocketManager: Heartbeat timeout, reconnecting...');
           this.ws?.close();
-        }, this.config.heartbeat.timeout);
+        }, timeout);
       }
-    }, this.config.heartbeat.interval);
+    }, interval);
   }
 
   private stopHeartbeat(): void {
