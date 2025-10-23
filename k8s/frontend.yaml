@@ -19,8 +19,8 @@ spec:
     spec:
       containers:
       - name: frontend
-        image: mfulearnai/frontend:v1.0.0
-        imagePullPolicy: IfNotPresent
+        image: mfulearnai/frontend:latest
+        imagePullPolicy: Always
         ports:
         - containerPort: 80
           name: http
