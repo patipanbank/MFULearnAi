@@ -35,7 +35,12 @@ type ConnectionHandler = () => void;
 
 export class WebSocketManager {
   private ws: WebSocket | null = null;
-  private config: Required<WebSocketConfig>;
+  private config: {
+    url: string;
+    protocols?: string | string[];
+    reconnect: Required<WebSocketConfig['reconnect']>;
+    heartbeat: Required<WebSocketConfig['heartbeat']>;
+  };
   private reconnectAttempts = 0;
   private reconnectTimer: number | null = null;
   private heartbeatTimer: number | null = null;
@@ -54,18 +59,16 @@ export class WebSocketManager {
       url: config.url,
       protocols: config.protocols,
       reconnect: {
-        enabled: true,
-        initialDelay: 1000,
-        maxDelay: 30000,
-        multiplier: 1.5,
-        maxAttempts: 10,
-        ...config.reconnect,
+        enabled: config.reconnect?.enabled ?? true,
+        initialDelay: config.reconnect?.initialDelay ?? 1000,
+        maxDelay: config.reconnect?.maxDelay ?? 30000,
+        multiplier: config.reconnect?.multiplier ?? 1.5,
+        maxAttempts: config.reconnect?.maxAttempts ?? 10,
       },
       heartbeat: {
-        enabled: true,
-        interval: 30000,
-        timeout: 5000,
-        ...config.heartbeat,
+        enabled: config.heartbeat?.enabled ?? true,
+        interval: config.heartbeat?.interval ?? 30000,
+        timeout: config.heartbeat?.timeout ?? 5000,
       },
     };
   }

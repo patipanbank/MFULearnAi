@@ -2,17 +2,24 @@ export function cn(...classes: (string | undefined | null | false)[]): string {
   return classes.filter(Boolean).join(' ');
 }
 
-export function formatDate(date: Date | string): string {
-  const d = new Date(date);
+export function formatDate(date: Date | string | { $date: string }): string {
+  let dateStr: string | Date = date;
+
+  // Handle MongoDB date format
+  if (typeof date === 'object' && '$date' in date) {
+    dateStr = date.$date;
+  }
+
+  const d = new Date(dateStr);
   // Add 7 hours for Thailand timezone
   d.setHours(d.getHours() + 7);
-  
+
   const day = d.getDate();
   const month = d.toLocaleString('en-US', { month: 'short' });
   const year = d.getFullYear();
   const hour = d.getHours().toString().padStart(2, '0');
   const minute = d.getMinutes().toString().padStart(2, '0');
-  
+
   return `${day} ${month} ${year}, ${hour}:${minute}`;
 }
 
