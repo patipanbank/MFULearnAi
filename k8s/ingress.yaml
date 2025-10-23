@@ -30,14 +30,19 @@ metadata:
     # Path rewriting for API microservices ONLY
     # This rewrites /api/auth/* to /* for auth-service
     # This rewrites /api/chat/* to /* for chat-service
-    nginx.ingress.kubernetes.io/rewrite-target: /$2
+    # $1 captures everything after /api/auth or /api/chat (including leading slash)
+    # Example: /api/auth/login/saml -> /login/saml
+    # Example: /api/auth -> (empty) -> /
+    nginx.ingress.kubernetes.io/rewrite-target: $1
 spec:
   ingressClassName: nginx
   rules:
   - http:
       paths:
       # Auth Service API
-      - path: /api/auth(/|$)(.*)
+      # Pattern: /api/auth/xxx -> /xxx
+      # Regex captures everything after /api/auth (including the slash)
+      - path: /api/auth(.*)
         pathType: ImplementationSpecific
         backend:
           service:
@@ -46,7 +51,9 @@ spec:
               number: 5001
 
       # Chat Service API
-      - path: /api/chat(/|$)(.*)
+      # Pattern: /api/chat/xxx -> /xxx
+      # Regex captures everything after /api/chat (including the slash)
+      - path: /api/chat(.*)
         pathType: ImplementationSpecific
         backend:
           service:
