@@ -17,7 +17,7 @@ interface AuthenticatedWebSocket extends WebSocket {
 }
 
 interface WebSocketMessage {
-  type: 'message' | 'join_room' | 'send_message' | 'stop_generation' | 'ping';
+  type: 'message' | 'join_room' | 'create_room' | 'send_message' | 'stop_generation' | 'ping';
   // Legacy format (from frontend)
   text?: string;
   chatId?: string;
@@ -185,6 +185,11 @@ export class WebSocketController {
           await this.handleJoinRoom(ws, message);
           break;
 
+        case 'create_room':
+          // Frontend sends create_room to create a new chat session
+          await this.handleCreateRoom(ws, message);
+          break;
+
         case 'send_message':
           await this.handleSendMessage(ws, message);
           break;
@@ -210,6 +215,62 @@ export class WebSocketController {
   }
 
   /**
+   * Handle create_room request (from frontend)
+   */
+  private async handleCreateRoom(
+    ws: AuthenticatedWebSocket,
+    message: WebSocketMessage
+  ): Promise<void> {
+    const userId = ws.userId!;
+    const agentId = message.agent_id;
+
+    if (!agentId) {
+      return this.sendError(ws, 'Missing agentId', 'agent_id is required for create_room');
+    }
+
+    try {
+      // Create new chat in database
+      const newChat = await ChatModel.create({
+        userId,
+        name: 'New Chat',
+        agentId,
+        messages: [],
+        isPinned: false,
+      });
+
+      const chatId = newChat._id.toString();
+
+      // Store current chat ID
+      ws.currentChatId = chatId;
+
+      // Add to chat room
+      if (!this.chatRooms.has(chatId)) {
+        this.chatRooms.set(chatId, new Set());
+      }
+      this.chatRooms.get(chatId)!.add(ws.sessionId!);
+
+      logger.info('✅ Room created successfully', {
+        userId,
+        sessionId: ws.sessionId,
+        chatId,
+        agentId,
+      });
+
+      // Send room_created confirmation
+      this.sendToClient(ws, {
+        type: 'room_created',
+        data: { chatId, agentId },
+      });
+    } catch (error: any) {
+      logger.error('❌ Error creating room', {
+        userId,
+        error: error.message,
+      });
+      this.sendError(ws, 'Failed to create room', error.message);
+    }
+  }
+
+  /**
    * Handle join_room request (from frontend)
    */
   private async handleJoinRoom(
@@ -222,32 +283,47 @@ export class WebSocketController {
       return this.sendError(ws, 'Missing chatId', 'chatId is required for join_room');
     }
 
-    // Store current chat ID
-    ws.currentChatId = chatId;
+    // Verify chat exists and user has access
+    try {
+      const chat = await ChatModel.findOne({ _id: chatId, userId: ws.userId });
+      if (!chat) {
+        return this.sendError(ws, 'Chat not found', 'Chat does not exist or access denied');
+      }
 
-    // Add to chat room
-    if (!this.chatRooms.has(chatId)) {
-      this.chatRooms.set(chatId, new Set());
+      // Store current chat ID
+      ws.currentChatId = chatId;
+
+      // Add to chat room
+      if (!this.chatRooms.has(chatId)) {
+        this.chatRooms.set(chatId, new Set());
+      }
+      this.chatRooms.get(chatId)!.add(ws.sessionId!);
+
+      logger.info('✅ Client joined chat room', {
+        userId: ws.userId,
+        sessionId: ws.sessionId,
+        chatId,
+      });
+
+      // Send confirmation
+      this.sendToClient(ws, {
+        type: 'room_joined',
+        data: { chatId },
+      });
+
+      // Send accepted confirmation (for compatibility)
+      this.sendToClient(ws, {
+        type: 'accepted',
+        data: { chatId },
+      });
+    } catch (error: any) {
+      logger.error('❌ Error joining room', {
+        userId: ws.userId,
+        chatId,
+        error: error.message,
+      });
+      this.sendError(ws, 'Failed to join room', error.message);
     }
-    this.chatRooms.get(chatId)!.add(ws.sessionId!);
-
-    logger.info('✅ Client joined chat room', {
-      userId: ws.userId,
-      sessionId: ws.sessionId,
-      chatId,
-    });
-
-    // Send confirmation
-    this.sendToClient(ws, {
-      type: 'room_joined',
-      data: { chatId },
-    });
-
-    // Send accepted confirmation (for compatibility)
-    this.sendToClient(ws, {
-      type: 'accepted',
-      data: { chatId },
-    });
   }
 
   /**

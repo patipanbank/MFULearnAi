@@ -78,6 +78,15 @@ const Sidebar: React.FC = () => {
 
   const settingsItems = [
     {
+      id: 'profile',
+      label: 'My Profile',
+      icon: FiUser,
+      description: 'View your account information',
+      type: 'route',
+      path: '/profile',
+      iconColor: iconColors.user
+    },
+    {
       id: 'knowledge',
       label: 'Knowledge Base',
       icon: FiDatabase,
@@ -89,11 +98,11 @@ const Sidebar: React.FC = () => {
     {
       id: 'agents',
       label: 'AI Agents',
-      icon: FiUser,
+      icon: FiSliders,
       description: 'Create and manage agents',
       type: 'route',
       path: '/agent',
-      iconColor: iconColors.user
+      iconColor: iconColors.preferences
     },
     ...(isSuperAdmin ? [{
       id: 'admin',

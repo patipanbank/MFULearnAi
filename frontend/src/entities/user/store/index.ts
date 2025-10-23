@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import type { User } from '../../../shared/types';
+import { normalizeUser } from '../../../shared/types';
 import { AuthService } from '../../../services/api';
 
 interface AuthState {
@@ -53,8 +54,13 @@ export const useAuthStore = create<AuthState>((set, get) => {
         console.log('fetchUser: Making API call to AuthService.getMe with token:', token?.substring(0, 20) + '...');
         const userData = await AuthService.getMe();
         console.log('fetchUser: Successfully fetched user data:', userData);
+
+        // Normalize user data from backend format
+        const normalizedUser = normalizeUser(userData);
+        console.log('fetchUser: Normalized user data:', normalizedUser);
         console.log('fetchUser: Setting status to authenticated');
-        set({ status: 'authenticated', user: userData as any, fetchError: null });
+
+        set({ status: 'authenticated', user: normalizedUser, fetchError: null });
       } catch (error) {
         console.error('fetchUser: Failed to fetch user data.', error);
         localStorage.removeItem('auth_token');

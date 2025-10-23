@@ -11,6 +11,7 @@ import ChatPage from '../pages/ChatPage';
 import AgentPage from '../pages/AgentPage';
 import SearchPage from '../pages/SearchPage';
 import AdminPage from '../pages/AdminPage';
+import ProfilePage from '../pages/ProfilePage';
 import Toast from '../shared/ui/Toast';
 import Loading from '../shared/ui/Loading';
 import { useSettingsStore } from '../shared/stores/settingsStore';
@@ -86,6 +87,7 @@ function App() {
               <Route path="/knowledgebase" element={<KnowledgePage />} />
               <Route path="/agent" element={<AgentPage />} />
               <Route path="/search" element={<SearchPage />} />
+              <Route path="/profile" element={<ProfilePage />} />
               {/* Fallback */}
               <Route path="*" element={<ChatPage />} />
             </Routes>

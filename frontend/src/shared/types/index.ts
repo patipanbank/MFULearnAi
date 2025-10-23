@@ -6,8 +6,13 @@ export interface MongoDBDate {
   $date: string;
 }
 
+/**
+ * User interface matching backend response format
+ * Backend sends _id as { $oid: string } format
+ */
 export interface User {
-  _id: { $oid: string };
+  _id: { $oid: string } | string;
+  id?: string;
   nameID: string;
   username: string;
   password?: string;
@@ -22,11 +27,25 @@ export interface User {
   department_id?: { $oid: string };
   student_id?: string;
   is_active?: boolean;
-  created: Date | MongoDBDate;
-  updated: Date | MongoDBDate;
+  created: Date | MongoDBDate | string;
+  updated: Date | MongoDBDate | string;
+  lastLogin?: Date | MongoDBDate | string;
   usage?: {
     total_tokens: number;
     total_requests: number;
+  };
+}
+
+/**
+ * Helper function to normalize User data from backend
+ */
+export function normalizeUser(user: any): User {
+  return {
+    ...user,
+    id: typeof user._id === 'object' && user._id.$oid ? user._id.$oid : user._id || user.id,
+    created: user.created?.$date || user.created,
+    updated: user.updated?.$date || user.updated,
+    lastLogin: user.lastLogin?.$date || user.lastLogin,
   };
 }
 
