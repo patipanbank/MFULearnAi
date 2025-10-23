@@ -1,7 +1,7 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: mfulearnai-ingress
+  name: mfulearnai-api-ingress
   namespace: mfulearnai
   annotations:
     # CORS Configuration
@@ -17,17 +17,17 @@ metadata:
     nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
     nginx.ingress.kubernetes.io/proxy-send-timeout: "300"
 
-    # SSL/TLS Configuration - IMPORTANT for preventing redirect loop
+    # SSL/TLS Configuration
     nginx.ingress.kubernetes.io/ssl-redirect: "false"
     nginx.ingress.kubernetes.io/force-ssl-redirect: "false"
 
     # Trust X-Forwarded-* headers from upstream proxy
     nginx.ingress.kubernetes.io/use-forwarded-headers: "true"
 
-    # WebSocket Configuration (Nginx Ingress enables WebSocket by default)
+    # WebSocket Configuration
     nginx.ingress.kubernetes.io/websocket-services: "chat-service"
 
-    # Path rewriting for microservices
+    # Path rewriting for API microservices ONLY
     # This rewrites /api/auth/* to /* for auth-service
     # This rewrites /api/chat/* to /* for chat-service
     nginx.ingress.kubernetes.io/rewrite-target: /$2
@@ -63,7 +63,33 @@ spec:
             port:
               number: 5002
 
-      # Frontend - catch all (must be last)
+---
+# Separate Ingress for frontend (no rewrite needed)
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: mfulearnai-frontend-ingress
+  namespace: mfulearnai
+  annotations:
+    # CORS Configuration
+    nginx.ingress.kubernetes.io/enable-cors: "true"
+    nginx.ingress.kubernetes.io/cors-allow-origin: "https://mfulearnai.mfu.ac.th,http://mfulearnai.mfu.ac.th,http://localhost:8080,http://10.1.44.204:8080"
+    nginx.ingress.kubernetes.io/cors-allow-methods: "GET, POST, PUT, DELETE, OPTIONS"
+    nginx.ingress.kubernetes.io/cors-allow-headers: "DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Authorization"
+    nginx.ingress.kubernetes.io/cors-allow-credentials: "true"
+
+    # SSL/TLS Configuration
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "false"
+
+    # Trust X-Forwarded-* headers from upstream proxy
+    nginx.ingress.kubernetes.io/use-forwarded-headers: "true"
+spec:
+  ingressClassName: nginx
+  rules:
+  - http:
+      paths:
+      # Frontend - catch all (no rewrite-target annotation, serves files as-is)
       - path: /
         pathType: Prefix
         backend:
