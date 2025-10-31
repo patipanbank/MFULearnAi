@@ -128,6 +128,58 @@ chatRouter.post('/', async (req: AuthRequest, res: Response) => {
 });
 
 /**
+ * POST /api/chat/save
+ * Save chat session (legacy endpoint for frontend compatibility)
+ * This endpoint updates an existing chat or creates a new one if it doesn't exist
+ */
+chatRouter.post('/save', async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user!.sub;
+    const session = req.body;
+
+    // Validate session data
+    if (!session || !session.id) {
+      return res.status(400).json({
+        error: 'Invalid session data',
+      });
+    }
+
+    // Check if chat exists and belongs to user
+    const existingChat = await chatService.getChat(session.id, userId);
+
+    if (existingChat) {
+      // Update existing chat
+      await chatService.updateChat(session.id, userId, {
+        name: session.name,
+        messages: session.messages,
+        agentId: session.agentId,
+      });
+      res.json({ success: true, message: 'Chat updated successfully' });
+    } else {
+      // Create new chat (this might be a temporary frontend-generated ID)
+      // In this case, we should create a new chat with proper MongoDB ID
+      const chat = await chatService.createChat(
+        userId,
+        session.name || 'New Chat',
+        session.agentId
+      );
+      res.status(201).json(chat);
+    }
+
+  } catch (error: any) {
+    logger.error('❌ Error saving chat', {
+      userId: req.user?.sub,
+      error: error.message,
+    });
+
+    res.status(500).json({
+      error: 'Failed to save chat',
+      message: error.message,
+    });
+  }
+});
+
+/**
  * GET /api/chat/:chatId
  * Get specific chat
  */

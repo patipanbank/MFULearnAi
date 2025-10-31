@@ -1,0 +1,191 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: chat-service
+  namespace: mfulearnai
+  labels:
+    app: chat-service
+    tier: backend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: chat-service
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: chat-service
+        tier: backend
+    spec:
+      containers:
+      - name: chat-service
+        image: mfulearnai/chat-service:v1.0.0
+        imagePullPolicy: IfNotPresent  # Use local image in Kind
+        ports:
+        - containerPort: 5002
+          name: http
+          protocol: TCP
+        env:
+        # Server Configuration
+        - name: NODE_ENV
+          value: "production"
+        - name: APP_ENV
+          value: "production"
+        - name: PORT
+          value: "5002"
+
+        # MongoDB
+        - name: MONGODB_URI
+          valueFrom:
+            secretKeyRef:
+              name: mfulearnai-secrets
+              key: mongodb-uri
+
+        # JWT
+        - name: JWT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: mfulearnai-secrets
+              key: jwt-secret
+        - name: JWT_ALGORITHM
+          value: "HS256"
+        - name: JWT_EXPIRE_MINUTES
+          value: "43200"
+
+        # Redis (for checkpointing)
+        - name: REDIS_HOST
+          value: "redis-service"
+        - name: REDIS_PORT
+          value: "6379"
+        - name: REDIS_URL
+          value: "redis://redis-service:6379"
+
+        # PostgreSQL (optional - for checkpointing)
+        - name: POSTGRES_HOST
+          value: "postgres-service"
+        - name: POSTGRES_PORT
+          value: "5432"
+        - name: POSTGRES_USER
+          valueFrom:
+            secretKeyRef:
+              name: mfulearnai-secrets
+              key: postgres-user
+              optional: true
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: mfulearnai-secrets
+              key: postgres-password
+              optional: true
+        - name: POSTGRES_DB
+          value: "chat_service"
+
+        # AWS Bedrock
+        - name: AWS_REGION
+          value: "us-east-1"
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              name: aws-credentials
+              key: access-key-id
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: aws-credentials
+              key: secret-access-key
+        - name: BEDROCK_MODEL_ID
+          value: "anthropic.claude-3-5-sonnet-20240620-v1:0"
+
+        # External Services
+        - name: AUTH_SERVICE_URL
+          value: "http://auth-service:5001"
+        - name: RAG_SERVICE_URL
+          value: "http://rag-service:5003"
+        - name: AGENT_SERVICE_URL
+          value: "http://agent-service:5004"
+
+        # CORS
+        - name: CORS_ORIGIN
+          value: "https://mfulearnai.mfu.ac.th,http://mfulearnai.mfu.ac.th,http://localhost:8080"
+        - name: FRONTEND_URL
+          value: "https://mfulearnai.mfu.ac.th"
+        - name: PROD_FRONTEND_URL
+          value: "https://mfulearnai.mfu.ac.th"
+
+        # Chat Configuration
+        - name: MAX_CONCURRENT_CHATS
+          value: "100"
+        - name: STREAM_TIMEOUT_MS
+          value: "300000"
+        - name: MAX_MESSAGE_LENGTH
+          value: "10000"
+        - name: MAX_ITERATIONS
+          value: "5"
+        - name: CHECKPOINT_TTL_SECONDS
+          value: "3600"
+
+        # Logging
+        - name: LOG_LEVEL
+          value: "info"
+        - name: LOG_FORMAT
+          value: "json"
+
+        # LLM Configuration
+        - name: TEMPERATURE
+          value: "0.7"
+        - name: MAX_TOKENS
+          value: "4096"
+
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "300m"
+          limits:
+            memory: "1Gi"
+            cpu: "1000m"
+
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 5002
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 5002
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: chat-service
+  namespace: mfulearnai
+  labels:
+    app: chat-service
+    tier: backend
+spec:
+  selector:
+    app: chat-service
+  ports:
+  - port: 5002
+    targetPort: 5002
+    protocol: TCP
+    name: http
+  type: ClusterIP
+  sessionAffinity: ClientIP
+  sessionAffinityConfig:
+    clientIP:
+      timeoutSeconds: 3600

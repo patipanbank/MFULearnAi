@@ -147,6 +147,50 @@ export class ChatService {
   }
 
   /**
+   * Update chat
+   */
+  async updateChat(
+    chatId: string,
+    userId: string,
+    updates: {
+      name?: string;
+      messages?: ChatMessage[];
+      agentId?: string;
+    }
+  ): Promise<Chat | null> {
+    try {
+      const chat = await ChatModel.findOneAndUpdate(
+        { _id: chatId, userId },
+        { ...updates, updatedAt: new Date() },
+        { new: true }
+      ).lean();
+
+      if (!chat) {
+        logger.warn('⚠️ Chat not found or access denied', {
+          chatId,
+          userId,
+        });
+        return null;
+      }
+
+      logger.info('✅ Updated chat', {
+        chatId,
+        userId,
+        updates: Object.keys(updates),
+      });
+
+      return chat as unknown as Chat;
+    } catch (error: any) {
+      logger.error('❌ Error updating chat', {
+        chatId,
+        userId,
+        error: error.message,
+      });
+      throw error;
+    }
+  }
+
+  /**
    * Update chat pin status
    */
   async updateChatPinStatus(

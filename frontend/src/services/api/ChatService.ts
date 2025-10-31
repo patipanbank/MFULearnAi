@@ -37,8 +37,7 @@ export class ChatService {
    * Update chat name
    */
   static async updateChatName(chatId: string, name: string): Promise<void> {
-    return api.post(`${this.baseUrl}/update-name`, {
-      chat_id: chatId,
+    return api.put(`${this.baseUrl}/${chatId}/name`, {
       name
     });
   }
