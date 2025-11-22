@@ -20,6 +20,10 @@ export const useChatNavigation = ({ chatId, isInChatRoom, connectWebSocket }: Us
 
   // Combined effect for chat navigation logic
   useEffect(() => {
+    // Skip in dummy mode - don't connect WebSocket or load chats
+    console.log('ChatNavigation: Skipping (dummy mode)');
+    return;
+    
     console.log('ChatNavigation: URL changed', { chatId, isInChatRoom, currentSessionId: currentSession?.id });
     
     // Handle chat loading when URL changes

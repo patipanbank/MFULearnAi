@@ -58,7 +58,9 @@ const Sidebar: React.FC = () => {
 
   // Fetch chat history on mount
   useEffect(() => {
-    fetchChatHistory();
+    // Skip fetching chat history in dummy mode
+    console.log('Sidebar: Skipping fetchChatHistory (dummy mode)');
+    // fetchChatHistory();
   }, [fetchChatHistory]);
 
   // Close settings dropdown when clicking outside

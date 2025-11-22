@@ -1,12 +1,7 @@
 import { useEffect } from 'react';
 import { Routes, Route, useLocation } from 'react-router-dom';
-import AuthGuard from './providers/AuthGuard';
 import Layout from '../shared/ui/Layout';
 import HomePage from '../pages/HomePage';
-import LoginPage from '../pages/LoginPage';
-import AdminLoginPage from '../pages/AdminLoginPage';
-import AuthCallbackPage from '../pages/AuthCallbackPage';
-import LogoutSuccessPage from '../pages/LogoutSuccessPage';
 import ChatPage from '../pages/ChatPage';
 import AgentPage from '../pages/AgentPage';
 import SearchPage from '../pages/SearchPage';
@@ -64,36 +59,24 @@ function App() {
       <Toast />
       <Loading />
     <Routes>
-      {/* Public Routes - No Layout */}
-      <Route path="/" element={<HomePage />} />
-      <Route path="/login" element={<LoginPage />} />
-      <Route path="/admin/login" element={<AdminLoginPage />} />
-      <Route path="/auth/callback" element={<AuthCallbackPage />} />
-      <Route path="/auth-callback" element={<AuthCallbackPage />} />
-      <Route path="/logout/success" element={<LogoutSuccessPage />} />
-
-      {/* Protected Routes with Layout */}
-      <Route element={<AuthGuard />}>
-        {/* Admin Page - No Layout */}
-        <Route path="/admin" element={<AdminPage />} />
-
-        {/* Other Protected Routes with Layout */}
-        <Route path="/*" element={
-          <Layout>
-            <Routes>
-              <Route path="/chat" element={<ChatPage />} />
-              <Route path="/chat/:chatId" element={<ChatPage />} />
-              <Route path="/chat/history" element={<div className="p-6"><h1 className="text-2xl font-bold">Chat History</h1><p>Chat history will be implemented here</p></div>} />
-              <Route path="/knowledgebase" element={<KnowledgePage />} />
-              <Route path="/agent" element={<AgentPage />} />
-              <Route path="/search" element={<SearchPage />} />
-              <Route path="/profile" element={<ProfilePage />} />
-              {/* Fallback */}
-              <Route path="*" element={<ChatPage />} />
-            </Routes>
-          </Layout>
-        } />
-      </Route>
+      {/* All routes go directly to Layout - No login required */}
+      <Route path="/*" element={
+        <Layout>
+          <Routes>
+            <Route path="/" element={<HomePage />} />
+            <Route path="/chat" element={<ChatPage />} />
+            <Route path="/chat/:chatId" element={<ChatPage />} />
+            <Route path="/chat/history" element={<div className="p-6"><h1 className="text-2xl font-bold">Chat History</h1><p>Chat history will be implemented here</p></div>} />
+            <Route path="/knowledgebase" element={<KnowledgePage />} />
+            <Route path="/agent" element={<AgentPage />} />
+            <Route path="/search" element={<SearchPage />} />
+            <Route path="/profile" element={<ProfilePage />} />
+            <Route path="/admin" element={<AdminPage />} />
+            {/* Fallback */}
+            <Route path="*" element={<ChatPage />} />
+          </Routes>
+        </Layout>
+      } />
     </Routes>
     </>
   );

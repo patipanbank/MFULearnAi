@@ -36,18 +36,27 @@ const AgentSelector: React.FC = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [closeDropdown, dropdownId]);
 
-  // Fetch agents on mount - Only fetch once
+  // Fetch agents on mount - Only fetch if no agents exist (skip in dummy mode)
   useEffect(() => {
+    // Skip fetching if agents already exist (dummy mode)
+    if (agents.length > 0) {
+      console.log('AgentSelector: Agents already exist, skipping fetch');
+      return;
+    }
+    
     const loadAgents = async () => {
       try {
         await fetchAgents();
       } catch (error) {
         console.error('Error fetching agents:', error);
-        setHasError(true);
+        // Don't set error in dummy mode - just use existing agents
+        if (agents.length === 0) {
+          setHasError(true);
+        }
       }
     };
     loadAgents();
-  }, [fetchAgents]); // Add fetchAgents as dependency
+  }, [fetchAgents, agents.length]); // Add agents.length as dependency
 
   const handleAgentSelect = (agent: AgentConfig | null) => {
     try {
@@ -61,11 +70,19 @@ const AgentSelector: React.FC = () => {
 
   const handleRefresh = async (e: React.MouseEvent) => {
     e.stopPropagation();
+    // Skip refresh if agents already exist (dummy mode)
+    if (agents.length > 0) {
+      console.log('AgentSelector: Agents already exist, skipping refresh');
+      return;
+    }
     try {
       await fetchAgents();
     } catch (error) {
       console.error('Error refreshing agents:', error);
-      setHasError(true);
+      // Don't set error if agents exist
+      if (agents.length === 0) {
+        setHasError(true);
+      }
     }
   };
 

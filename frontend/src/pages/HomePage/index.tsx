@@ -1,54 +1,20 @@
 import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import useAuthStore from '../../entities/user/store';
 
 const HomePage: React.FC = () => {
-  const status = useAuthStore((state) => state.status);
-  const token = useAuthStore((state) => state.token);
-  const user = useAuthStore((state) => state.user);
-  const fetchUser = useAuthStore((state) => state.fetchUser);
   const navigate = useNavigate();
 
   useEffect(() => {
-    console.log('HomePage: Current status:', status, 'Token exists:', !!token, 'User:', user?.username || 'null');
+    // Always redirect to chat (auth bypassed)
+    console.log('HomePage: Redirecting to chat...');
+    navigate('/chat', { replace: true });
+  }, [navigate]);
 
-    // If we have a token and user is authenticated, redirect to chat immediately
-    if (token && status === 'authenticated' && user) {
-      console.log('HomePage: User authenticated, redirecting to chat...');
-      navigate('/chat', { replace: true });
-      return;
-    }
-
-    // If we have a token but status is still loading, fetch user data
-    if (token && status === 'loading') {
-      console.log('HomePage: Token found but loading, fetching user data...');
-      fetchUser();
-      return; // Wait for fetchUser to complete
-    }
-
-    // If no token or unauthenticated, redirect to login
-    if (!token || status === 'unauthenticated') {
-      console.log('HomePage: No token or unauthenticated, redirecting to login...');
-      navigate('/login', { replace: true });
-    }
-  }, [status, token, user, navigate, fetchUser]);
-
-  // Show loading while determining auth status
-  if (status === 'loading') {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-white">
-        <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
-          <p className="text-gray-600">Loading...</p>
-        </div>
-      </div>
-    );
-  }
-
-  // This should not be reached as navigation will happen above
+  // Show loading while redirecting
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-white">
       <div className="text-center">
+        <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
         <p className="text-gray-600">Redirecting...</p>
       </div>
     </div>

@@ -180,6 +180,13 @@ export const useChatStore = create<ChatState>((set, get) => ({
   
   // Actions
   createNewChat: () => {
+    // In dummy mode, don't create new chat - keep existing dummy session
+    const currentState = get();
+    if (currentState.currentSession && currentState.currentSession.id === 'dummy-chat-001') {
+      console.log('ChatStore: Dummy session exists, skipping createNewChat');
+      return currentState.currentSession;
+    }
+    
     const newSession: ChatSession = {
       id: `chat_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       name: 'New Chat',
@@ -266,6 +273,10 @@ export const useChatStore = create<ChatState>((set, get) => ({
   
   // Fetch recent chats from backend
   fetchChatHistory: async (force = false) => {
+    // Skip fetching in dummy mode
+    console.log('ChatStore: Skipping fetchChatHistory (dummy mode)');
+    return;
+    
     if (!force && get().chatHistory.length > 0) {
       return;
     }

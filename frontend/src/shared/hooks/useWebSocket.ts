@@ -126,6 +126,10 @@ export const useWebSocket = ({ chatId, isInChatRoom }: UseWebSocketOptions) => {
 
   // WebSocket connection management
   const connectWebSocket = useCallback(() => {
+    // Skip WebSocket connection in dummy mode
+    console.log('connectWebSocket: Skipping (dummy mode)');
+    return;
+    
     console.log('connectWebSocket called', { token: !!token, currentSession: !!currentSession, wsRef: !!wsRef.current });
     
     if (

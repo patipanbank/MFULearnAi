@@ -1,13 +1,25 @@
 import React from 'react';
 import ReactMarkdown from 'react-markdown';
-import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
-import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { FiCopy } from 'react-icons/fi';
 import { ToolUsageDisplay } from '../../../shared/ui/ToolUsageDisplay';
 import { useUIStore } from '../../../shared/stores';
 import MessageActions from './MessageActions';
 import dindinAvatar from '../../../assets/dindin.png';
 import type { MessageItemProps } from '../types';
+
+// Simple CodeBlock component without syntax highlighter
+const CodeBlock: React.FC<{ language: string; code: string }> = ({ language, code }) => {
+  return (
+    <div className="relative">
+      <pre className="bg-gray-800 p-4 rounded-b-lg overflow-x-auto">
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-xs text-gray-300 font-medium">{language}</span>
+        </div>
+        <code className="text-gray-100 text-sm font-mono whitespace-pre">{code}</code>
+      </pre>
+    </div>
+  );
+};
 
 const MessageItem: React.FC<MessageItemProps> = ({
   message,
@@ -93,15 +105,7 @@ const MessageItem: React.FC<MessageItemProps> = ({
                       <span>Copy</span>
                     </button>
                   </div>
-                  <SyntaxHighlighter
-                    style={oneDark}
-                    language={language}
-                    PreTag="div"
-                    className="rounded-t-none !mt-0"
-                    {...props}
-                  >
-                    {String(children).replace(/\n$/, '')}
-                  </SyntaxHighlighter>
+                  <CodeBlock language={language} code={String(children).replace(/\n$/, '')} />
                 </div>
               ) : (
                 <code
@@ -112,15 +116,18 @@ const MessageItem: React.FC<MessageItemProps> = ({
                 </code>
               );
             },
-            p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
-            ul: ({ children }) => <ul className="list-disc list-inside mb-2">{children}</ul>,
-            ol: ({ children }) => <ol className="list-decimal list-inside mb-2">{children}</ol>,
-            li: ({ children }) => <li className="mb-1">{children}</li>,
-            blockquote: ({ children }) => (
-              <blockquote className="border-l-4 border-accent pl-4 py-1 bg-secondary/30 rounded-r">
-                {children}
-              </blockquote>
-            ),
+                    p: ({ children }) => <p className={`mb-3 last:mb-0 leading-[1.75] ${role === 'user' ? 'text-right' : 'text-left'}`}>{children}</p>,
+                    ul: ({ children }) => <ul className={`list-disc mb-3 space-y-1 ${role === 'user' ? 'list-inside text-right' : 'list-inside text-left'}`}>{children}</ul>,
+                    ol: ({ children }) => <ol className={`list-decimal mb-3 space-y-1 ${role === 'user' ? 'list-inside text-right' : 'list-inside text-left'}`}>{children}</ol>,
+                    li: ({ children }) => <li className="leading-[1.75]">{children}</li>,
+                    blockquote: ({ children }) => (
+                      <blockquote className={`border-l-4 border-muted pl-4 py-2 my-3 italic text-muted ${role === 'user' ? 'text-right' : 'text-left'}`}>
+                        {children}
+                      </blockquote>
+                    ),
+                    h1: ({ children }) => <h1 className={`text-2xl font-bold mb-3 mt-4 ${role === 'user' ? 'text-right' : 'text-left'}`}>{children}</h1>,
+                    h2: ({ children }) => <h2 className={`text-xl font-bold mb-2 mt-3 ${role === 'user' ? 'text-right' : 'text-left'}`}>{children}</h2>,
+                    h3: ({ children }) => <h3 className={`text-lg font-semibold mb-2 mt-3 ${role === 'user' ? 'text-right' : 'text-left'}`}>{children}</h3>,
           }}
           >
             {content}
@@ -142,41 +149,38 @@ const MessageItem: React.FC<MessageItemProps> = ({
       }
     }
 
-    // Fallback for simple text content
-    return (
-      <div className="whitespace-pre-wrap text-base sm:text-base leading-relaxed">
-        {content}
-      </div>
-    );
+            // Fallback for simple text content
+            return (
+              <div className={`whitespace-pre-wrap text-[15px] sm:text-base leading-[1.75] text-primary ${
+                role === 'user' ? 'text-right' : 'text-left'
+              }`}>
+                {content}
+              </div>
+            );
   };
 
   return (
     <div
       className={`flex ${
         message.role === 'user'
-          ? 'justify-end sm:mr-4 md:mr-8 lg:mr-[230px] 2xl:mr-[485px]'
-          : 'justify-start ml-0 sm:ml-4 md:ml-8 lg:ml-[245px] 2xl:ml-[500px]'
-      } items-end space-x-2 px-1 sm:px-2 group animate-fade-in`}
+          ? 'justify-end'
+          : 'justify-start'
+      } items-start w-full py-3 group animate-fade-in`}
     >
       {message.role !== 'user' && (
-        <div className="flex-shrink-0 ml-1 sm:ml-0">
+        <div className="flex-shrink-0 mt-0.5 pl-4 sm:pl-6 md:pl-72 lg:pl-96 xl:pl-[28rem] 2xl:pl-[32rem] pr-2">
           <img
             src={dindinAvatar}
             alt="DINDIN AI"
-            className="w-8 h-8 sm:w-8 sm:h-8 rounded-full shadow-md"
+            className="w-6 h-6 sm:w-7 sm:h-7 rounded-full"
           />
         </div>
       )}
-      <div className="flex flex-col max-w-[75%] sm:max-w-[65%] md:max-w-[60%] lg:max-w-[55%] 2xl:max-w-[50%] relative">
-        {/* Timestamp */}
-        <div className={`text-[10px] sm:text-xs mb-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 ${
-          message.role === 'user' ? 'text-right text-muted' : 'text-left text-muted'
-        }`}>
-          {message.role === 'user'
-            ? (() => { const d = new Date(message.timestamp); d.setHours(d.getHours() + 7); return d.toLocaleTimeString(); })()
-            : message.timestamp.toLocaleTimeString()}
-        </div>
-
+      <div className={`flex flex-col flex-1 min-w-0 relative ${
+        message.role === 'user' 
+          ? 'items-end text-right pr-4 sm:pr-6 md:pr-80 lg:pr-96 xl:pr-[28rem] 2xl:pr-[32rem] max-w-6xl' 
+          : 'items-start text-left max-w-lg'
+      }`}>
         {/* Message Actions Menu */}
         <MessageActions
           messageId={message.id}
@@ -189,13 +193,8 @@ const MessageItem: React.FC<MessageItemProps> = ({
           onClose={onToggleActionsMenu}
         />
 
-        <div
-          className={`px-3 sm:px-4 py-2 sm:py-3 rounded-2xl shadow-sm transition-all duration-200 hover:shadow-md ${
-            message.role === 'user'
-              ? 'bg-blue-600 text-white rounded-br-sm hover:bg-blue-700'
-              : 'card text-primary rounded-bl-sm hover:border-border-hover'
-          }`}
-        >
+        {/* Message Content - No border, no background, full width */}
+        <div className={`w-full ${message.role === 'user' ? 'text-right' : 'text-left'}`}>
           {/* Images */}
           {message.images && message.images.length > 0 && (
             <div className="mb-3">
@@ -255,10 +254,10 @@ const MessageItem: React.FC<MessageItemProps> = ({
               <textarea
                 value={editingContent}
                 onChange={(e) => onEditingContentChange(e.target.value)}
-                className={`w-full min-h-[60px] p-2 rounded-lg border resize-none ${
+                className={`w-full min-h-[60px] p-2 rounded border resize-none ${
                   message.role === 'user'
-                    ? 'bg-blue-500 text-white border-blue-400 placeholder-blue-200'
-                    : 'bg-card text-primary border-border'
+                    ? 'bg-secondary/50 text-primary border-border'
+                    : 'bg-secondary/30 text-primary border-border'
                 }`}
                 placeholder="Edit message..."
                 autoFocus
@@ -266,20 +265,20 @@ const MessageItem: React.FC<MessageItemProps> = ({
               <div className="flex space-x-2 justify-end">
                 <button
                   onClick={onCancelEdit}
-                  className="px-3 py-1 text-xs rounded-md hover:bg-secondary transition-colors"
+                  className="px-3 py-1 text-xs rounded hover:bg-secondary transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={() => onSaveEdit(message.id)}
-                  className="px-3 py-1 text-xs bg-accent text-white rounded-md hover:bg-accent/80 transition-colors"
+                  className="px-3 py-1 text-xs bg-accent text-white rounded hover:bg-accent/80 transition-colors"
                 >
                   Save
                 </button>
               </div>
             </div>
           ) : (
-            <div>
+            <div className={message.role === 'user' ? 'bg-gray-200 text-gray-900 rounded-tl-2xl rounded-tr-none rounded-bl-2xl rounded-br-2xl px-4 py-3 inline-block' : ''}>
               {/* Wrap MessageContent in error boundary */}
               <React.Suspense fallback={<div className="text-muted">Loading...</div>}>
                 <MessageContent content={message.content} role={message.role} />
@@ -296,13 +295,6 @@ const MessageItem: React.FC<MessageItemProps> = ({
           )}
         </div>
       </div>
-      {message.role === 'user' && (
-        <div className="flex-shrink-0">
-          <div className="h-8 w-8 sm:h-8 sm:w-8 bg-gradient-to-br from-[rgb(186,12,47)] to-[rgb(212,175,55)] rounded-full flex items-center justify-center text-white text-sm sm:text-sm font-medium shadow-md">
-            {getInitials()}
-          </div>
-        </div>
-      )}
     </div>
   );
 };

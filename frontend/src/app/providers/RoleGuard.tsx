@@ -1,6 +1,7 @@
 import React from 'react';
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import useAuthStore from '../../entities/user/store';
+import { config } from '../../config/config';
 
 interface RoleGuardProps {
   roles: string[];
@@ -11,9 +12,9 @@ const RoleGuard: React.FC<RoleGuardProps> = ({ roles }) => {
   const location = useLocation();
 
   if (!user) {
-    // This case should theoretically not be hit if AuthGuard is working correctly,
-    // but as a fallback, we redirect to login.
-    return <Navigate to="/login" state={{ from: location }} replace />;
+    // Login disabled - allow access anyway
+    console.log('RoleGuard: No user, but allowing access (login disabled)');
+    return <Outlet />;
   }
 
   const hasRequiredRole = roles.includes(user.role);

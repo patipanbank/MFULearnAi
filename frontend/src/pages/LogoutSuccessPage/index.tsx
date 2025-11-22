@@ -3,16 +3,16 @@ import { FiCheckCircle, FiHome, FiLogIn } from 'react-icons/fi';
 
 const LogoutSuccessPage: React.FC = () => {
   useEffect(() => {
-    // Auto redirect after 5 seconds
+    // Auto redirect to chat after 5 seconds (login disabled)
     const timer = setTimeout(() => {
-      window.location.href = '/login';
+      window.location.href = '/chat';
     }, 5000);
 
     return () => clearTimeout(timer);
   }, []);
 
   const handleReturnToLogin = () => {
-    window.location.href = '/login';
+    window.location.href = '/chat';
   };
 
   const handleReturnToHome = () => {

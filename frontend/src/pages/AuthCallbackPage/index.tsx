@@ -21,8 +21,8 @@ const AuthCallbackPage: React.FC = () => {
       setToken(token);
       navigate('/chat', { replace: true });
     } else {
-      // No token found, redirect to login with an error
-      navigate('/login?error=token_missing', { replace: true });
+      // No token found, but login disabled - just go to chat
+      navigate('/chat', { replace: true });
     }
   }, [searchParams, setToken, navigate]);
 

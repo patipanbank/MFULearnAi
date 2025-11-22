@@ -179,13 +179,22 @@ const useAgentStore = create<AgentStore>()(
             });
           } catch (error) {
             console.error('Failed to fetch agents:', error);
-            // Ensure agents is an empty array on error
-            set({
-              agents: [],
-              selectedAgent: null,
-              isLoadingAgents: false
-            });
-            showErrorToast('Error', 'Failed to load agents. Please refresh the page.');
+            const currentState = get();
+            // Only show error if no agents exist (don't show error in dummy mode)
+            if (currentState.agents.length === 0) {
+              // Ensure agents is an empty array on error
+              set({
+                agents: [],
+                selectedAgent: null,
+                isLoadingAgents: false
+              });
+              showErrorToast('Error', 'Failed to load agents. Please refresh the page.');
+            } else {
+              // Agents already exist (dummy mode), just set loading to false
+              set({
+                isLoadingAgents: false
+              });
+            }
           }
         },
 

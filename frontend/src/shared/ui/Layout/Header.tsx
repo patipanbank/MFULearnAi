@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { FiMenu, FiUser } from 'react-icons/fi';
 import { useAuthStore, useUIStore, useLayoutStore, useChatStore } from '../../stores';
+import { config } from '../../../config/config';
 import AgentSelector from '../AgentSelector';
 import CompactTokenUsage from '../TokenUsageDisplay/CompactTokenUsage';
 import UserProfile from '../UserProfile';
@@ -9,10 +10,41 @@ import UserProfile from '../UserProfile';
 const Header: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user } = useAuthStore();
+  const user = useAuthStore((state) => state.user);
+  const token = useAuthStore((state) => state.token);
   const { toggleMobileMenu } = useLayoutStore();
   const { toggleDropdown } = useUIStore();
   const { createNewChat } = useChatStore();
+
+  // Ensure mock user is set in development mode
+  useEffect(() => {
+    if (config.isDevelopment && !user) {
+      console.log('Header: Development mode - ensuring mock user is set');
+      const currentState = useAuthStore.getState();
+      if (!currentState.user) {
+        const mockToken = 'dev-mock-token';
+        localStorage.setItem('auth_token', mockToken);
+        useAuthStore.setState({
+          token: mockToken,
+          status: 'authenticated',
+          user: {
+            _id: { $oid: 'dev-user-id' },
+            id: 'dev-user-id',
+            nameID: 'dev-user',
+            username: 'dev-user',
+            email: 'dev@localhost.local',
+            firstName: 'Development',
+            lastName: 'User',
+            department: 'Development',
+            role: 'Students',
+            groups: [],
+            created: new Date().toISOString(),
+            updated: new Date().toISOString(),
+          },
+        });
+      }
+    }
+  }, [user]);
    
   // Show AgentSelector only on chat routes
   const showAgentSelector = location.pathname.startsWith('/chat');
