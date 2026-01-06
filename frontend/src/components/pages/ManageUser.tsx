@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { config } from '../../config/config';
 import { FiLoader, FiRefreshCw, FiAlertCircle, FiEdit2, FiX, FiCheck } from 'react-icons/fi';
 
@@ -19,6 +19,7 @@ const ManageUser: React.FC = () => {
   const [saving, setSaving] = useState<boolean>(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [formData, setFormData] = useState<Partial<User>>({});
+  const [search, setSearch] = useState<string>('');
 
   const fetchUsers = async () => {
     try {
@@ -48,6 +49,25 @@ const ManageUser: React.FC = () => {
   useEffect(() => {
     fetchUsers();
   }, []);
+
+  const filteredUsers = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    if (!term) return users;
+    return users.filter((u) => {
+      const values = [
+        u.username,
+        u.email,
+        u.firstName,
+        u.lastName,
+        u.department,
+        u.role,
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+      return values.includes(term);
+    });
+  }, [users, search]);
 
   const startEdit = (user: User) => {
     setEditingUser(user);
@@ -123,21 +143,32 @@ const ManageUser: React.FC = () => {
 
   return (
     <div className="container mx-auto p-6 max-w-6xl">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
-        <div>
+      <div className="flex flex-col gap-3 mb-6 sm:flex-row sm:items-center sm:justify-between">
+        <div className="space-y-1">
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Manage Users</h1>
           <p className="text-gray-600 dark:text-gray-400 mt-1">
             View and edit all users with their key details.
           </p>
         </div>
-        <button
-          onClick={fetchUsers}
-          disabled={loading}
-          className="inline-flex items-center px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-60"
-        >
-          {loading ? <FiLoader className="animate-spin mr-2" /> : <FiRefreshCw className="mr-2" />}
-          Refresh
-        </button>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <div className="relative w-full sm:w-64">
+            <input
+              type="text"
+              placeholder="Search username, email, name, department..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 pr-3 text-sm text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+            />
+          </div>
+          <button
+            onClick={fetchUsers}
+            disabled={loading}
+            className="inline-flex items-center justify-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-60"
+          >
+            {loading ? <FiLoader className="mr-2 animate-spin" /> : <FiRefreshCw className="mr-2" />}
+            Refresh
+          </button>
+        </div>
       </div>
 
       {editingUser && (
@@ -298,7 +329,7 @@ const ManageUser: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                {users.length === 0 ? (
+                {filteredUsers.length === 0 ? (
                   <tr>
                     <td
                       colSpan={6}
@@ -308,7 +339,7 @@ const ManageUser: React.FC = () => {
                     </td>
                   </tr>
                 ) : (
-                  users.map((user) => (
+                  filteredUsers.map((user) => (
                     <tr key={user._id} className="text-sm">
                       <td className="px-4 py-3 whitespace-nowrap text-gray-900 dark:text-white">
                         {user.username}
