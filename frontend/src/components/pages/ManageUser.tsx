@@ -278,7 +278,7 @@ const ManageUser: React.FC = () => {
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider w-[14%]">
                     Username
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider w-[26%]">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider w-[20%]">
                     Email
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider w-[14%]">
@@ -314,7 +314,7 @@ const ManageUser: React.FC = () => {
                       <td className="px-4 py-3 whitespace-nowrap text-gray-900 dark:text-white">
                         {user.username}
                       </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-gray-900 dark:text-white max-w-[240px] overflow-hidden text-ellipsis">
+                      <td className="px-4 py-3 whitespace-nowrap text-gray-900 dark:text-white max-w-[180px] overflow-hidden text-ellipsis">
                         {user.email || '-'}
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap text-gray-900 dark:text-white">
