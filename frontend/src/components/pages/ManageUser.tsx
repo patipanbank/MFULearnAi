@@ -100,7 +100,7 @@ const ManageUser: React.FC = () => {
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider w-[14%]">
                     Last Name
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider w-[22%] hidden lg:table-cell">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider w-[16%] hidden lg:table-cell">
                     Department
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider w-[10%]">
@@ -133,7 +133,7 @@ const ManageUser: React.FC = () => {
                       <td className="px-4 py-3 whitespace-nowrap text-gray-900 dark:text-white">
                         {user.lastName || '-'}
                       </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-gray-900 dark:text-white hidden lg:table-cell">
+                      <td className="px-4 py-3 text-gray-900 dark:text-white hidden lg:table-cell max-w-[180px] truncate">
                         {user.department || '-'}
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap text-gray-900 dark:text-white font-semibold">
