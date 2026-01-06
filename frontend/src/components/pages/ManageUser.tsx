@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { config } from '../../config/config';
-import { FiLoader, FiRefreshCw, FiAlertCircle } from 'react-icons/fi';
+import { FiLoader, FiRefreshCw, FiAlertCircle, FiEdit2, FiX, FiCheck } from 'react-icons/fi';
 
 interface User {
   _id: string;
@@ -16,6 +16,9 @@ const ManageUser: React.FC = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState<boolean>(false);
+  const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [formData, setFormData] = useState<Partial<User>>({});
 
   const fetchUsers = async () => {
     try {
@@ -46,13 +49,85 @@ const ManageUser: React.FC = () => {
     fetchUsers();
   }, []);
 
+  const startEdit = (user: User) => {
+    setEditingUser(user);
+    setFormData({
+      username: user.username,
+      email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      department: user.department,
+      role: user.role,
+    });
+  };
+
+  const cancelEdit = () => {
+    setEditingUser(null);
+    setFormData({});
+    setError(null);
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingUser) return;
+
+    if (
+      !formData.username ||
+      !formData.email ||
+      !formData.firstName ||
+      !formData.lastName ||
+      !formData.department ||
+      !formData.role
+    ) {
+      setError('Please fill in all required fields.');
+      return;
+    }
+
+    try {
+      setSaving(true);
+      setError(null);
+
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch(`${config.apiUrl}/api/admin/users/${editingUser._id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token || ''}`,
+        },
+        body: JSON.stringify(formData),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Failed to update user');
+      }
+
+      // update local list
+      setUsers((prev) =>
+        prev.map((u) => (u._id === editingUser._id ? { ...u, ...(data.user as User) } : u)),
+      );
+
+      cancelEdit();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error updating user');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <div className="container mx-auto p-6 max-w-6xl">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
         <div>
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Manage Users</h1>
           <p className="text-gray-600 dark:text-gray-400 mt-1">
-            View all users with their key details.
+            View and edit all users with their key details.
           </p>
         </div>
         <button
@@ -64,6 +139,118 @@ const ManageUser: React.FC = () => {
           Refresh
         </button>
       </div>
+
+      {editingUser && (
+        <div className="mb-6 rounded-lg bg-white p-6 shadow dark:bg-gray-800">
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+              Edit User: <span className="font-mono text-blue-600">{editingUser.username}</span>
+            </h2>
+            <button
+              onClick={cancelEdit}
+              className="inline-flex items-center rounded-md border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
+            >
+              <FiX className="mr-1.5" /> Cancel
+            </button>
+          </div>
+          <form onSubmit={handleEditSubmit} className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div>
+              <label className="mb-1 block text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">
+                Username *
+              </label>
+              <input
+                type="text"
+                name="username"
+                value={formData.username || ''}
+                onChange={handleInputChange}
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">
+                Email *
+              </label>
+              <input
+                type="email"
+                name="email"
+                value={formData.email || ''}
+                onChange={handleInputChange}
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">
+                First Name *
+              </label>
+              <input
+                type="text"
+                name="firstName"
+                value={formData.firstName || ''}
+                onChange={handleInputChange}
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">
+                Last Name *
+              </label>
+              <input
+                type="text"
+                name="lastName"
+                value={formData.lastName || ''}
+                onChange={handleInputChange}
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">
+                Department *
+              </label>
+              <input
+                type="text"
+                name="department"
+                value={formData.department || ''}
+                onChange={handleInputChange}
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">
+                Role *
+              </label>
+              <select
+                name="role"
+                value={formData.role || ''}
+                onChange={handleInputChange}
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+              >
+                <option value="">Select role</option>
+                <option value="Students">Students</option>
+                <option value="Staffs">Staffs</option>
+                <option value="Admin">Admin</option>
+                <option value="SuperAdmin">SuperAdmin</option>
+              </select>
+            </div>
+            <div className="md:col-span-2 mt-2 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={cancelEdit}
+                className="inline-flex items-center rounded-md border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
+              >
+                <FiX className="mr-1.5" /> Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={saving}
+                className="inline-flex items-center rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-60"
+              >
+                {saving ? <FiLoader className="mr-1.5 animate-spin" /> : <FiCheck className="mr-1.5" />}
+                Save
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
 
       {error && (
         <div className="mb-4 flex items-center gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-red-700 dark:border-red-800 dark:bg-red-900/30 dark:text-red-200">
@@ -106,6 +293,9 @@ const ManageUser: React.FC = () => {
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider w-[10%]">
                     Role
                   </th>
+                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider w-[8%]">
+                    Edit
+                  </th>
                 </tr>
               </thead>
               <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
@@ -138,6 +328,16 @@ const ManageUser: React.FC = () => {
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap text-gray-900 dark:text-white font-semibold">
                         {user.role}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <button
+                          type="button"
+                          onClick={() => startEdit(user)}
+                          className="inline-flex items-center rounded-md border border-blue-500 px-2.5 py-1 text-xs font-medium text-blue-600 hover:bg-blue-50 dark:border-blue-400 dark:text-blue-300 dark:hover:bg-blue-900/30"
+                        >
+                          <FiEdit2 className="mr-1.5" />
+                          Edit
+                        </button>
                       </td>
                     </tr>
                   ))

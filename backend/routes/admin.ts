@@ -37,6 +37,51 @@ router.get('/users', roleGuard(['SuperAdmin'] as UserRole[]), async (req: Reques
   }
 });
 
+// Update any user (SuperAdmin only)
+router.put('/users/:id', roleGuard(['SuperAdmin'] as UserRole[]), async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const { username, email, firstName, lastName, department, role, groups } = req.body;
+
+    const updateData: any = {};
+    if (username !== undefined) updateData.username = username;
+    if (email !== undefined) updateData.email = email;
+    if (firstName !== undefined) updateData.firstName = firstName;
+    if (lastName !== undefined) updateData.lastName = lastName;
+    if (department !== undefined) updateData.department = department;
+    if (role !== undefined) updateData.role = role;
+    if (groups !== undefined) updateData.groups = groups;
+    updateData.updated = new Date();
+
+    const existingUserWithUsername = username
+      ? await User.findOne({ username, _id: { $ne: id } })
+      : null;
+
+    if (existingUserWithUsername) {
+      res.status(400).json({ message: 'This username already exists' });
+      return;
+    }
+
+    const updatedUser = await User.findByIdAndUpdate(id, updateData, {
+      new: true,
+      select: 'username nameID email firstName lastName department role groups created updated',
+    });
+
+    if (!updatedUser) {
+      res.status(404).json({ message: 'User not found' });
+      return;
+    }
+
+    res.status(200).json({
+      message: 'User updated successfully',
+      user: updatedUser,
+    });
+  } catch (error) {
+    console.error('Error updating user:', error);
+    res.status(500).json({ message: 'Error updating user' });
+  }
+});
+
 // อ่าน system prompt - Define this BEFORE the /:id route to prevent conflicts
 router.get('/system-prompt', roleGuard(['SuperAdmin']), async (req: Request, res: Response) => {
   try {
