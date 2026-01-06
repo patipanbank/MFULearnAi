@@ -15,6 +15,7 @@ import Statistics from './components/pages/Statistics';
 import SystemPrompt from './components/pages/SystemPrompt';
 import ManageDepartment from './components/pages/ManageDepartment';
 import ManageAdmin from './components/pages/ManageAdmin';
+import ManageUser from './components/pages/ManageUser';
  
 
 const App = () => {
@@ -92,6 +93,18 @@ const App = () => {
               <RoleGuard allowedGroups={['SuperAdmin']}>
                 <MainLayout>
                   <ManageAdmin />
+                </MainLayout>
+              </RoleGuard>
+            </AuthGuard>
+          }
+        />
+        <Route
+          path="/users/manage"
+          element={
+            <AuthGuard>
+              <RoleGuard allowedGroups={['SuperAdmin']}>
+                <MainLayout>
+                  <ManageUser />
                 </MainLayout>
               </RoleGuard>
             </AuthGuard>

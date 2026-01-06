@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { FaComments, FaBars, FaTrash, FaEdit, FaAndroid, FaSearch, FaBookOpen, FaUserPlus, FaQuestionCircle, FaChartBar, FaCog, FaUsers, FaBuilding, FaMoon, FaSun } from 'react-icons/fa';
+import { FaComments, FaBars, FaTrash, FaEdit, FaAndroid, FaSearch, FaBookOpen, FaUserPlus, FaQuestionCircle, FaChartBar, FaCog, FaUsers, FaBuilding, FaMoon, FaSun, FaIdBadge } from 'react-icons/fa';
 import { config } from '../../config/config';
 import { useUIStore } from '../chat/store/uiStore';
 
@@ -686,6 +686,16 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
                           <div>
                             <div className="font-medium">Manage Admins</div>
                            
+                          </div>
+                        </Link>
+                        <Link to="/users/manage" className="group w-full flex items-center px-3 py-2.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-gradient-to-r hover:from-cyan-50 hover:to-sky-50 dark:hover:from-cyan-900/20 dark:hover:to-sky-900/20 rounded-xl transition-all duration-200 hover:scale-[1.02] hover:shadow-sm"
+                          onClick={() => { if (isMobile) { setShowSettingsPopup(false); localStorage.setItem('showSettingsPopup', 'false'); if (onClose) onClose(); } }}>
+                          <div className="w-8 h-8 rounded-lg bg-cyan-100 dark:bg-cyan-900/30 flex items-center justify-center mr-3 group-hover:scale-110 transition-transform duration-200">
+                            <FaIdBadge className="w-4 h-4 text-cyan-600 dark:text-cyan-400" />
+                          </div>
+                          <div>
+                            <div className="font-medium">Manage Users</div>
+                            
                           </div>
                         </Link>
                         <Link to="/departments/manage" className="group w-full flex items-center px-3 py-2.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-gradient-to-r hover:from-violet-50 hover:to-purple-50 dark:hover:from-violet-900/20 dark:hover:to-purple-900/20 rounded-xl transition-all duration-200 hover:scale-[1.02] hover:shadow-sm"

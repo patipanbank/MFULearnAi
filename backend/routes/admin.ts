@@ -22,6 +22,21 @@ router.get('/all', roleGuard(['SuperAdmin'] as UserRole[]), async (req: Request,
   }
 });
 
+// Get all users (SuperAdmin only)
+router.get('/users', roleGuard(['SuperAdmin'] as UserRole[]), async (req: Request, res: Response): Promise<void> => {
+  try {
+    const users = await User.find({})
+      .select('username nameID email firstName lastName department role groups created updated') // exclude password
+      .sort({ created: -1 })
+      .lean();
+
+    res.status(200).json(users);
+  } catch (error) {
+    console.error('Error fetching users:', error);
+    res.status(500).json({ message: 'Error fetching users' });
+  }
+});
+
 // อ่าน system prompt - Define this BEFORE the /:id route to prevent conflicts
 router.get('/system-prompt', roleGuard(['SuperAdmin']), async (req: Request, res: Response) => {
   try {
