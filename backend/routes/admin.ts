@@ -49,7 +49,13 @@ router.put('/users/:id', roleGuard(['SuperAdmin'] as UserRole[]), async (req: Re
     if (firstName !== undefined) updateData.firstName = firstName;
     if (lastName !== undefined) updateData.lastName = lastName;
     if (department !== undefined) updateData.department = department;
-    if (role !== undefined) updateData.role = role;
+    if (role !== undefined) {
+      if (role === 'SuperAdmin') {
+        res.status(400).json({ message: 'Cannot set role to SuperAdmin via this endpoint' });
+        return;
+      }
+      updateData.role = role;
+    }
     if (groups !== undefined) updateData.groups = groups;
     updateData.updated = new Date();
 

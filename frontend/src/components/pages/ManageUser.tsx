@@ -228,7 +228,6 @@ const ManageUser: React.FC = () => {
                 <option value="Students">Students</option>
                 <option value="Staffs">Staffs</option>
                 <option value="Admin">Admin</option>
-                <option value="SuperAdmin">SuperAdmin</option>
               </select>
             </div>
             <div className="md:col-span-2 mt-2 flex justify-end gap-3">
