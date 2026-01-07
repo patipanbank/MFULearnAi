@@ -933,7 +933,7 @@ const TrainingDashboard: React.FC = () => {
     }
 
     // Validate file before upload
-    const maxSize = 1000 * 1024 * 1024; // 10MB
+    const maxSize = 10 * 1024 * 1024; // 10MB
     if (file.size > maxSize) {
       setUploadProgress({
         status: 'error',

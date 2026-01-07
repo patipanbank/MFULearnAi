@@ -89,7 +89,7 @@ export function validateFileType(filename: string, mimetype?: string): FileValid
 /**
  * Validates file size
  */
-export function validateFileSize(fileSize: number, maxSize: number = 1000 * 1024 * 1024): FileValidationResult {
+export function validateFileSize(fileSize: number, maxSize: number = 10 * 1024 * 1024): FileValidationResult {
   if (fileSize > maxSize) {
     const maxSizeMB = (maxSize / (1024 * 1024)).toFixed(2);
     return {
