@@ -27,8 +27,8 @@ const ManageUser: React.FC = () => {
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [formData, setFormData] = useState<Partial<User>>({});
   const [search, setSearch] = useState<string>('');
-  const [filterRole, setFilterRole] = useState<string>('');
-  const [filterDepartment, setFilterDepartment] = useState<string>('');
+  const [filterRole, setFilterRole] = useState<string[]>([]);
+  const [filterDepartment, setFilterDepartment] = useState<string[]>([]);
   const [showFilterModal, setShowFilterModal] = useState<boolean>(false);
 
   const fetchUsers = async () => {
@@ -103,13 +103,13 @@ const ManageUser: React.FC = () => {
     }
 
     // Apply role filter
-    if (filterRole) {
-      filtered = filtered.filter((u) => u.role === filterRole);
+    if (filterRole.length > 0) {
+      filtered = filtered.filter((u) => filterRole.includes(u.role));
     }
 
     // Apply department filter
-    if (filterDepartment) {
-      filtered = filtered.filter((u) => u.department === filterDepartment);
+    if (filterDepartment.length > 0) {
+      filtered = filtered.filter((u) => u.department && filterDepartment.includes(u.department));
     }
 
     return filtered;
@@ -286,16 +286,16 @@ const ManageUser: React.FC = () => {
           >
             <FiFilter className="mr-2" />
             Filter
-            {(filterRole || filterDepartment) && (
+            {(filterRole.length > 0 || filterDepartment.length > 0) && (
               <span className="ml-2 inline-flex items-center justify-center rounded-full bg-blue-600 px-2 py-0.5 text-xs font-medium text-white">
-                {(filterRole ? 1 : 0) + (filterDepartment ? 1 : 0)}
+                {filterRole.length + filterDepartment.length}
               </span>
             )}
           </button>
         </div>
 
         {/* Active Filters Display */}
-        {(search || filterRole || filterDepartment) && (
+        {(search || filterRole.length > 0 || filterDepartment.length > 0) && (
           <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Active filters:</span>
@@ -310,33 +310,39 @@ const ManageUser: React.FC = () => {
                   </button>
                 </span>
               )}
-              {filterRole && (
-                <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300">
-                  Role: {filterRole}
+              {filterRole.map((role) => (
+                <span
+                  key={role}
+                  className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300"
+                >
+                  Role: {role}
                   <button
-                    onClick={() => setFilterRole('')}
+                    onClick={() => setFilterRole(filterRole.filter((r) => r !== role))}
                     className="hover:text-purple-600 dark:hover:text-purple-200"
                   >
                     <FiX className="h-3 w-3" />
                   </button>
                 </span>
-              )}
-              {filterDepartment && (
-                <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">
-                  Department: {filterDepartment}
+              ))}
+              {filterDepartment.map((dept) => (
+                <span
+                  key={dept}
+                  className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300"
+                >
+                  Dept: {dept}
                   <button
-                    onClick={() => setFilterDepartment('')}
+                    onClick={() => setFilterDepartment(filterDepartment.filter((d) => d !== dept))}
                     className="hover:text-green-600 dark:hover:text-green-200"
                   >
                     <FiX className="h-3 w-3" />
                   </button>
                 </span>
-              )}
+              ))}
               <button
                 onClick={() => {
                   setSearch('');
-                  setFilterRole('');
-                  setFilterDepartment('');
+                  setFilterRole([]);
+                  setFilterDepartment([]);
                 }}
                 className="text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 underline"
               >
@@ -475,46 +481,112 @@ const ManageUser: React.FC = () => {
             
             {/* Role Filter */}
             <div>
-              <label className="mb-2 block text-sm font-semibold text-gray-700 dark:text-gray-300">
+              <label className="mb-3 block text-sm font-semibold text-gray-700 dark:text-gray-300">
                 Filter by Role
               </label>
-              <select
-                value={filterRole}
-                onChange={(e) => setFilterRole(e.target.value)}
-                className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-              >
-                <option value="">All Roles</option>
-                <option value="Students">Students</option>
-                <option value="Staffs">Staffs</option>
-                <option value="Admin">Admin</option>
-              </select>
+              <div className="space-y-2 max-h-48 overflow-y-auto border border-gray-200 dark:border-gray-700 rounded-lg p-3 bg-gray-50 dark:bg-gray-900/50">
+                {['Students', 'Staffs', 'Admin'].map((role) => (
+                  <label
+                    key={role}
+                    className="flex items-center gap-3 p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer transition-colors"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={filterRole.includes(role)}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setFilterRole([...filterRole, role]);
+                        } else {
+                          setFilterRole(filterRole.filter((r) => r !== role));
+                        }
+                      }}
+                      className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:ring-offset-gray-800"
+                    />
+                    <span className="text-sm text-gray-900 dark:text-white flex-1">{role}</span>
+                    <span
+                      className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                        role === 'Admin'
+                          ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
+                          : role === 'Staffs'
+                          ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300'
+                          : 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
+                      }`}
+                    >
+                      {role}
+                    </span>
+                  </label>
+                ))}
+              </div>
             </div>
 
             {/* Department Filter */}
             <div>
-              <label className="mb-2 block text-sm font-semibold text-gray-700 dark:text-gray-300">
+              <label className="mb-3 block text-sm font-semibold text-gray-700 dark:text-gray-300">
                 Filter by Department
               </label>
-              <select
-                value={filterDepartment}
-                onChange={(e) => setFilterDepartment(e.target.value)}
-                className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-              >
-                <option value="">All Departments</option>
-                {departments.map((dept) => (
-                  <option key={dept._id} value={dept.name}>
-                    {dept.name}
-                  </option>
-                ))}
-              </select>
+              {departments.length === 0 ? (
+                <div className="text-sm text-gray-500 dark:text-gray-400 p-3 border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-900/50">
+                  No departments available
+                </div>
+              ) : (
+                <div className="space-y-2 max-h-64 overflow-y-auto border border-gray-200 dark:border-gray-700 rounded-lg p-3 bg-gray-50 dark:bg-gray-900/50">
+                  {departments.map((dept) => (
+                    <label
+                      key={dept._id}
+                      className="flex items-center gap-3 p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer transition-colors"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={filterDepartment.includes(dept.name)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setFilterDepartment([...filterDepartment, dept.name]);
+                          } else {
+                            setFilterDepartment(filterDepartment.filter((d) => d !== dept.name));
+                          }
+                        }}
+                        className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:ring-offset-gray-800"
+                      />
+                      <span className="text-sm text-gray-900 dark:text-white flex-1">{dept.name}</span>
+                    </label>
+                  ))}
+                </div>
+              )}
             </div>
+
+            {/* Selected Filters Summary */}
+            {(filterRole.length > 0 || filterDepartment.length > 0) && (
+              <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                <p className="text-xs font-medium text-blue-800 dark:text-blue-300 mb-2">
+                  Selected: {filterRole.length + filterDepartment.length} filter(s)
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {filterRole.map((role) => (
+                    <span
+                      key={role}
+                      className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300"
+                    >
+                      {role}
+                    </span>
+                  ))}
+                  {filterDepartment.map((dept) => (
+                    <span
+                      key={dept}
+                      className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300"
+                    >
+                      {dept}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Action Buttons */}
             <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
               <button
                 onClick={() => {
-                  setFilterRole('');
-                  setFilterDepartment('');
+                  setFilterRole([]);
+                  setFilterDepartment([]);
                 }}
                 className="inline-flex items-center rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
               >
@@ -591,12 +663,12 @@ const ManageUser: React.FC = () => {
                             ? 'No users found matching your filters'
                             : 'No users found'}
                         </p>
-                        {(search || filterRole || filterDepartment) && (
+                        {(search || filterRole.length > 0 || filterDepartment.length > 0) && (
                           <button
                             onClick={() => {
                               setSearch('');
-                              setFilterRole('');
-                              setFilterDepartment('');
+                              setFilterRole([]);
+                              setFilterDepartment([]);
                             }}
                             className="mt-2 text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 underline"
                           >
