@@ -1,15 +1,13 @@
 import nlp from 'compromise';
+import { normalizeText } from './dataQuality';
 
 export function splitTextIntoChunks(text: string, chunkSize: number = 2000): string[] {
-  // Clean the text
-  const cleanText = text
-    .trim()
-    .replace(/\s+/g, ' ') // Replace multiple whitespace with single space
-    .replace(/\n+/g, ' '); // Replace newlines with space
+  // Normalize text first (handles unicode, whitespace, etc.)
+  const cleanText = normalizeText(text);
 
   // If text is shorter than or equal to chunkSize, return as a single chunk
   if (cleanText.length <= chunkSize) {
-    return [cleanText];
+    return cleanText ? [cleanText] : [];
   }
 
   // Use compromise for sentence tokenization

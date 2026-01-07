@@ -71,6 +71,8 @@ export class DocumentService {
 
   async processFile(file: Express.Multer.File): Promise<string> {
     const ext = path.extname(file.originalname).toLowerCase();
+    let worker: any = null;
+    const tempFiles: string[] = [];
     
     try {
       let text = '';
@@ -84,21 +86,52 @@ export class DocumentService {
               const outputPath = `${file.path}-page`;
               await execAsync(`pdftoppm -png "${file.path}" "${outputPath}"`);
               
-              const worker = await createWorker('eng+tha');
+              worker = await createWorker('eng+tha');
               const pages = await fs.readdir(path.dirname(file.path));
               
               let ocrText = '';
               for (const page of pages.filter(p => p.startsWith(path.basename(outputPath)))) {
                 const pagePath = path.join(path.dirname(file.path), page);
+                tempFiles.push(pagePath);
                 const { data: { text: pageText } } = await worker.recognize(pagePath);
                 ocrText += pageText + '\n';
-                await fs.unlink(pagePath);
               }
-              await worker.terminate();
+              
+              // Cleanup OCR worker
+              if (worker) {
+                await worker.terminate();
+                worker = null;
+              }
+              
+              // Cleanup temporary files
+              for (const tempFile of tempFiles) {
+                try {
+                  await fs.unlink(tempFile);
+                } catch (err) {
+                  console.error(`Failed to delete temp file ${tempFile}:`, err);
+                }
+              }
+              tempFiles.length = 0;
+              
               text = this.cleanText(ocrText);
             }
           } catch (error) {
             console.error('PDF processing error:', error);
+            // Ensure cleanup on error
+            if (worker) {
+              try {
+                await worker.terminate();
+              } catch (err) {
+                console.error('Error terminating OCR worker:', err);
+              }
+            }
+            for (const tempFile of tempFiles) {
+              try {
+                await fs.unlink(tempFile);
+              } catch (err) {
+                console.error(`Failed to delete temp file ${tempFile}:`, err);
+              }
+            }
             throw error;
           }
           break;
@@ -133,12 +166,25 @@ export class DocumentService {
           throw new Error('Unsupported file type');
       }
 
-      await fs.unlink(file.path);
+      // Cleanup uploaded file
+      try {
+        await fs.unlink(file.path);
+      } catch (err) {
+        console.error(`Failed to delete uploaded file ${file.path}:`, err);
+      }
+      
       return text;
       
     } catch (error) {
       console.error(`Error processing file ${file.originalname}:`, error);
-      await fs.unlink(file.path).catch(console.error);
+      
+      // Ensure cleanup on error
+      try {
+        await fs.unlink(file.path);
+      } catch (err) {
+        console.error(`Failed to delete uploaded file ${file.path}:`, err);
+      }
+      
       throw error;
     }
   }
