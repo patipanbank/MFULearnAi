@@ -152,7 +152,7 @@ export async function checkFileContent(filePath: string, expectedExt: string): P
  */
 export async function validateFile(
   file: Express.Multer.File,
-  maxSize: number = 10 * 1024 * 1024
+  maxSize: number = 1000 * 1024 * 1024
 ): Promise<FileValidationResult> {
   // Validate file type
   const typeValidation = validateFileType(file.originalname, file.mimetype);

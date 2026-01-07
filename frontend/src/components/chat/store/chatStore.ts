@@ -615,7 +615,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
         const file = item.getAsFile();
         if (file) {
           // Validate image file size
-          const maxSize = 20 * 1024 * 1024;
+          const maxSize = 1000 * 1024 * 1024;
           if (file.size > maxSize) {
             alert('Image size must not exceed 20MB');
           } else {
