@@ -20,6 +20,7 @@ import {
   validateCollectionName, 
   validateModelId, 
   validateCollectionId,
+  validatePermission,
   sanitizeRequestBody,
   checkValidation
 } from '../middleware/inputValidation';
