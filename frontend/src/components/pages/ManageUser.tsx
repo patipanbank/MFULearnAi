@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { config } from '../../config/config';
-import { FiLoader, FiRefreshCw, FiAlertCircle, FiEdit2, FiX, FiCheck } from 'react-icons/fi';
+import { FiLoader, FiRefreshCw, FiAlertCircle, FiEdit2, FiX, FiCheck, FiSearch } from 'react-icons/fi';
+import { BaseModal } from '../models/ui/BaseModal';
 
 interface User {
   _id: string;
@@ -12,14 +13,23 @@ interface User {
   role: string;
 }
 
+interface Department {
+  _id: string;
+  name: string;
+}
+
 const ManageUser: React.FC = () => {
   const [users, setUsers] = useState<User[]>([]);
+  const [departments, setDepartments] = useState<Department[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState<boolean>(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [formData, setFormData] = useState<Partial<User>>({});
   const [search, setSearch] = useState<string>('');
+  const [filterRole, setFilterRole] = useState<string>('');
+  const [filterDepartment, setFilterDepartment] = useState<string>('');
+  const [showSearchModal, setShowSearchModal] = useState<boolean>(false);
 
   const fetchUsers = async () => {
     try {
@@ -46,28 +56,64 @@ const ManageUser: React.FC = () => {
     }
   };
 
+  const fetchDepartments = async () => {
+    try {
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch(`${config.apiUrl}/api/departments`, {
+        headers: {
+          Authorization: `Bearer ${token || ''}`,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setDepartments(data);
+      }
+    } catch (err) {
+      // Silently fail - departments filter is optional
+      console.error('Failed to fetch departments:', err);
+    }
+  };
+
   useEffect(() => {
     fetchUsers();
+    fetchDepartments();
   }, []);
 
   const filteredUsers = useMemo(() => {
+    let filtered = users;
+
+    // Apply search filter
     const term = search.trim().toLowerCase();
-    if (!term) return users;
-    return users.filter((u) => {
-      const values = [
-        u.username,
-        u.email,
-        u.firstName,
-        u.lastName,
-        u.department,
-        u.role,
-      ]
-        .filter(Boolean)
-        .join(' ')
-        .toLowerCase();
-      return values.includes(term);
-    });
-  }, [users, search]);
+    if (term) {
+      filtered = filtered.filter((u) => {
+        const values = [
+          u.username,
+          u.email,
+          u.firstName,
+          u.lastName,
+          u.department,
+          u.role,
+        ]
+          .filter(Boolean)
+          .join(' ')
+          .toLowerCase();
+        return values.includes(term);
+      });
+    }
+
+    // Apply role filter
+    if (filterRole) {
+      filtered = filtered.filter((u) => u.role === filterRole);
+    }
+
+    // Apply department filter
+    if (filterDepartment) {
+      filtered = filtered.filter((u) => u.department === filterDepartment);
+    }
+
+    return filtered;
+  }, [users, search, filterRole, filterDepartment]);
 
   const startEdit = (user: User) => {
     setEditingUser(user);
@@ -151,15 +197,18 @@ const ManageUser: React.FC = () => {
           </p>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-          <div className="relative w-full sm:w-64">
-            <input
-              type="text"
-              placeholder="Search username, email, name, department..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 pr-3 text-sm text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-            />
-          </div>
+          <button
+            onClick={() => setShowSearchModal(true)}
+            className="inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
+          >
+            <FiSearch className="mr-2" />
+            Search & Filter
+            {(search || filterRole || filterDepartment) && (
+              <span className="ml-2 inline-flex items-center justify-center rounded-full bg-blue-600 px-2 py-0.5 text-xs font-medium text-white">
+                {(search ? 1 : 0) + (filterRole ? 1 : 0) + (filterDepartment ? 1 : 0)}
+              </span>
+            )}
+          </button>
           <button
             onClick={fetchUsers}
             disabled={loading}
@@ -280,6 +329,87 @@ const ManageUser: React.FC = () => {
             </div>
           </form>
         </div>
+      )}
+
+      {showSearchModal && (
+        <BaseModal
+          onClose={() => setShowSearchModal(false)}
+          containerClasses="w-full max-w-2xl"
+        >
+          <div className="space-y-6">
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Search & Filter Users</h2>
+            
+            {/* Search Input */}
+            <div>
+              <label className="mb-2 block text-sm font-semibold text-gray-700 dark:text-gray-300">
+                Search
+              </label>
+              <input
+                type="text"
+                placeholder="Search username, email, name, department..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+              />
+            </div>
+
+            {/* Role Filter */}
+            <div>
+              <label className="mb-2 block text-sm font-semibold text-gray-700 dark:text-gray-300">
+                Filter by Role
+              </label>
+              <select
+                value={filterRole}
+                onChange={(e) => setFilterRole(e.target.value)}
+                className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+              >
+                <option value="">All Roles</option>
+                <option value="Students">Students</option>
+                <option value="Staffs">Staffs</option>
+                <option value="Admin">Admin</option>
+              </select>
+            </div>
+
+            {/* Department Filter */}
+            <div>
+              <label className="mb-2 block text-sm font-semibold text-gray-700 dark:text-gray-300">
+                Filter by Department
+              </label>
+              <select
+                value={filterDepartment}
+                onChange={(e) => setFilterDepartment(e.target.value)}
+                className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+              >
+                <option value="">All Departments</option>
+                {departments.map((dept) => (
+                  <option key={dept._id} value={dept.name}>
+                    {dept.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+              <button
+                onClick={() => {
+                  setSearch('');
+                  setFilterRole('');
+                  setFilterDepartment('');
+                }}
+                className="inline-flex items-center rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
+              >
+                Clear All
+              </button>
+              <button
+                onClick={() => setShowSearchModal(false)}
+                className="inline-flex items-center rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+              >
+                Apply Filters
+              </button>
+            </div>
+          </div>
+        </BaseModal>
       )}
 
       {error && (
