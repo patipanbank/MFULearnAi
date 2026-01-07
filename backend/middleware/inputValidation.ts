@@ -90,13 +90,14 @@ export function sanitizeRequestBody(req: Request, res: Response, next: NextFunct
 /**
  * Check validation results
  */
-export function checkValidation(req: Request, res: Response, next: NextFunction) {
+export function checkValidation(req: Request, res: Response, next: NextFunction): void {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
-    return res.status(400).json({
+    res.status(400).json({
       error: 'Validation failed',
       errors: errors.array()
     });
+    return;
   }
   next();
 }
