@@ -35,10 +35,11 @@ chromaService.ensureDefaultCollection().catch(error => {
 // -------------------------------------------------
 // Multer Configuration for File Uploads
 // -------------------------------------------------
+// Multer configuration - use dynamic limits based on user role
 const upload = multer({ 
   dest: 'uploads/',
   limits: {
-    fileSize: 10 * 1024 * 1024, // 10MB (consistent with validation)
+    fileSize: 1000 * 1024 * 1024, // 1GB (1000MB) - matches resourceLimits
   },
   fileFilter: (req, file, cb) => {
     const allowedTypes = ['.pdf', '.txt', '.doc', '.docx', '.xls', '.xlsx', '.csv', '.json', '.xml'];

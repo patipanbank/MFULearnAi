@@ -385,7 +385,7 @@ const CollectionModal: React.FC<CollectionModalProps> = ({
                 accept=".pdf,.txt,.doc,.docx,.xls,.xlsx,.csv,.json,.xml"
               />
               <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                Supported formats: PDF, TXT, DOC, DOCX, XLS, XLSX, CSV, JSON, XML (Max 10MB)
+                Supported formats: PDF, TXT, DOC, DOCX, XLS, XLSX, CSV, JSON, XML (Max 1GB)
               </p>
               <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
                 Please upload files without images. Files will be validated and processed automatically.
@@ -933,7 +933,7 @@ const TrainingDashboard: React.FC = () => {
     }
 
     // Validate file before upload
-    const maxSize = 1000 * 1024 * 1024; // 10MB
+    const maxSize = 1000 * 1024 * 1024; // 1GB (1000MB)
     if (file.size > maxSize) {
       setUploadProgress({
         status: 'error',

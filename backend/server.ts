@@ -44,8 +44,8 @@ app.use(cors({
   credentials: true
 }));
 
-app.use(bodyParser.json({limit: '500mb'}));
-app.use(bodyParser.urlencoded({limit: '500mb', extended: true}));
+app.use(bodyParser.json({limit: '1000mb'})); // 1GB limit to match file upload size
+app.use(bodyParser.urlencoded({limit: '1000mb', extended: true})); // 1GB limit to match file upload size
 
 app.use(session({
   secret: process.env.SESSION_SECRET || 'your-secret-key',
