@@ -534,6 +534,79 @@ router.get('/documents', roleGuard(['Students', 'Staffs', 'Admin', 'SuperAdmin']
 });
 
 /**
+ * GET /documents/:filename/content
+ * Retrieves the content (chunks) of a specific document by filename
+ */
+router.get('/documents/:filename/content', roleGuard(['Students', 'Staffs', 'Admin', 'SuperAdmin'] as UserRole[]), async (req: Request, res: Response): Promise<void> => {
+  try {
+    const filename = decodeURIComponent(req.params.filename);
+    const { collectionName } = req.query;
+    const user = (req as any).user;
+    
+    if (!collectionName || typeof collectionName !== 'string') {
+      res.status(400).json({ error: 'Collection name is required' });
+      return;
+    }
+    
+    const collection: CollectionDocument | null = await CollectionModel.findOne({ name: collectionName }).exec();
+    if (!collection) {
+      res.status(404).json({ error: 'Collection not found' });
+      return;
+    }
+    
+    // Check user permission
+    const userId = user.nameID || user.username;
+    const canAccess = 
+      collection.permission === CollectionPermission.PUBLIC || collection.createdBy === userId;
+    if (!canAccess) {
+      res.status(403).json({ error: 'No permission to access this collection' });
+      return;
+    }
+    
+    // Get all documents to find chunks by filename
+    const docsData = await chromaService.getAllDocuments(collectionName);
+    
+    // Find chunks that belong to this file (by matching filename in metadata)
+    const chunks = docsData.documents
+      .map((doc: string, index: number) => ({
+        id: docsData.ids[index],
+        text: doc,
+        metadata: docsData.metadatas[index]
+      }))
+      .filter((chunk: any) => {
+        // Match by filename
+        return chunk.metadata?.filename === filename;
+      })
+      .sort((a: any, b: any) => {
+        // Sort by chunk order if available, otherwise by id
+        return (a.metadata?.chunkIndex || 0) - (b.metadata?.chunkIndex || 0);
+      });
+    
+    if (chunks.length === 0) {
+      res.status(404).json({ error: 'Document not found' });
+      return;
+    }
+    
+    // Return chunks with metadata
+    const result = {
+      filename: chunks[0].metadata?.filename || filename,
+      uploadedBy: chunks[0].metadata?.uploadedBy || 'Unknown',
+      timestamp: chunks[0].metadata?.timestamp || new Date().toISOString(),
+      chunks: chunks.map((chunk: any, index: number) => ({
+        id: chunk.id,
+        text: chunk.text,
+        chunkIndex: index + 1
+      }))
+    };
+    
+    res.json(result);
+  } catch (error) {
+    console.error('Error fetching document content:', error);
+    res.status(500).json({ error: 'Error fetching document content' });
+  }
+});
+
+/**
  * DELETE /documents/:id
  * Deletes a single document given its ID and the collectionName in query.
  */

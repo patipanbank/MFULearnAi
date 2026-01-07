@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, ChangeEvent, FormEvent, useRef, useMemo } from 'react';
 import { config } from '../../config/config';
-import { FaPlus, FaTimes, FaCog, FaEllipsisH, FaTrash } from 'react-icons/fa';
+import { FaPlus, FaTimes, FaCog, FaEllipsisH, FaTrash, FaEye, FaChevronUp } from 'react-icons/fa';
 import { Collection, CollectionPermission } from '../../types/collection';
 import UploadProgress from './UploadProgress';
 
@@ -18,6 +18,11 @@ interface UploadedFile {
   uploadedBy: string;
   timestamp: string;
   ids: string[];
+  chunks?: Array<{
+    id: string;
+    text: string;
+    chunkIndex: number;
+  }>;
 }
 
 interface MongoFile {
@@ -290,6 +295,7 @@ interface CollectionModalProps {
     error?: string;
   };
   file: File | null;
+  collectionName: string;
 }
 
 const CollectionModal: React.FC<CollectionModalProps> = ({
@@ -303,7 +309,11 @@ const CollectionModal: React.FC<CollectionModalProps> = ({
   onDeleteFile,
   uploadProgress,
   file,
+  collectionName,
 }) => {
+  const [expandedFiles, setExpandedFiles] = useState<Set<string>>(new Set());
+  const [fileContents, setFileContents] = useState<Map<string, Array<{ id: string; text: string; chunkIndex: number }>>>(new Map());
+  const [loadingContents, setLoadingContents] = useState<Set<string>>(new Set());
   // Add ref for click outside detection
   const modalRef = useRef<HTMLDivElement>(null);
 
@@ -434,42 +444,154 @@ const CollectionModal: React.FC<CollectionModalProps> = ({
           
           {uploadedFiles.length > 0 ? (
             <div className="space-y-3">
-              {uploadedFiles.map((fileItem, index) => (
-                <div 
-                  key={index} 
-                  className="group relative bg-white dark:bg-gray-800 rounded-xl shadow-sm 
-                  border border-gray-200 dark:border-gray-700 p-4 hover:shadow-md 
-                  transition-all duration-200"
-                >
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1 min-w-0">
-                      <h4 className="text-lg font-medium text-gray-900 dark:text-gray-100 truncate">
-                        {fileItem.filename}
-                      </h4>
-                      <div className="mt-2 flex flex-col sm:flex-row sm:flex-wrap sm:space-x-4 text-sm">
-                        <p className="text-gray-600 dark:text-gray-300">
-                          {fileItem.uploadedBy}
-                        </p>
-                        <p className="text-gray-500 dark:text-gray-400">
-                          {new Date(fileItem.timestamp).toLocaleString()}
-                        </p>
-                        <p className="text-gray-500 dark:text-gray-400">
-                          {fileItem.ids.length} chunks
-                        </p>
+              {uploadedFiles.map((fileItem, index) => {
+                const isExpanded = expandedFiles.has(fileItem.filename);
+                const chunks = fileContents.get(fileItem.filename) || [];
+                const isLoading = loadingContents.has(fileItem.filename);
+                
+                const handleToggleContent = async () => {
+                  if (isExpanded) {
+                    setExpandedFiles(prev => {
+                      const newSet = new Set(prev);
+                      newSet.delete(fileItem.filename);
+                      return newSet;
+                    });
+                  } else {
+                    // Load content if not already loaded
+                    if (!fileContents.has(fileItem.filename)) {
+                      setLoadingContents(prev => new Set(prev).add(fileItem.filename));
+                      try {
+                        const encodedFilename = encodeURIComponent(fileItem.filename);
+                        const response = await fetch(
+                          `${config.apiUrl}/api/training/documents/${encodedFilename}/content?collectionName=${encodeURIComponent(collectionName)}`,
+                          {
+                            headers: {
+                              'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+                              'Content-Type': 'application/json',
+                            },
+                          }
+                        );
+                        
+                        if (response.ok) {
+                          const data = await response.json();
+                          setFileContents(prev => {
+                            const newMap = new Map(prev);
+                            newMap.set(fileItem.filename, data.chunks || []);
+                            return newMap;
+                          });
+                        } else {
+                          const errorData = await response.json().catch(() => ({ error: 'Failed to load content' }));
+                          console.error('Error loading file content:', errorData);
+                        }
+                      } catch (error) {
+                        console.error('Error loading file content:', error);
+                      } finally {
+                        setLoadingContents(prev => {
+                          const newSet = new Set(prev);
+                          newSet.delete(fileItem.filename);
+                          return newSet;
+                        });
+                      }
+                    }
+                    setExpandedFiles(prev => new Set(prev).add(fileItem.filename));
+                  }
+                };
+                
+                return (
+                  <div 
+                    key={index} 
+                    className="group relative bg-white dark:bg-gray-800 rounded-xl shadow-sm 
+                    border border-gray-200 dark:border-gray-700 p-4 hover:shadow-md 
+                    transition-all duration-200"
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1 min-w-0">
+                        <h4 className="text-lg font-medium text-gray-900 dark:text-gray-100 truncate">
+                          {fileItem.filename}
+                        </h4>
+                        <div className="mt-2 flex flex-col sm:flex-row sm:flex-wrap sm:space-x-4 text-sm">
+                          <p className="text-gray-600 dark:text-gray-300">
+                            {fileItem.uploadedBy}
+                          </p>
+                          <p className="text-gray-500 dark:text-gray-400">
+                            {new Date(fileItem.timestamp).toLocaleString()}
+                          </p>
+                          <p className="text-gray-500 dark:text-gray-400">
+                            {fileItem.ids.length} chunks
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 ml-4">
+                        <button
+                          onClick={handleToggleContent}
+                          className="p-2 text-gray-400 hover:text-blue-500 dark:text-gray-500 
+                          dark:hover:text-blue-400 transition-colors duration-200 rounded-lg 
+                          hover:bg-gray-100 dark:hover:bg-gray-700"
+                          title={isExpanded ? "Hide Content" : "View Content"}
+                        >
+                          {isLoading ? (
+                            <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                          ) : isExpanded ? (
+                            <FaChevronUp size={16} />
+                          ) : (
+                            <FaEye size={16} />
+                          )}
+                        </button>
+                        <button
+                          onClick={() => onDeleteFile(fileItem)}
+                          className="p-2 text-gray-400 hover:text-red-500 dark:text-gray-500 
+                          dark:hover:text-red-400 transition-colors duration-200 rounded-lg 
+                          hover:bg-gray-100 dark:hover:bg-gray-700"
+                          title="Delete Document"
+                        >
+                          <FaTrash size={16} />
+                        </button>
                       </div>
                     </div>
-                    <button
-                      onClick={() => onDeleteFile(fileItem)}
-                      className="ml-4 p-2 text-gray-400 hover:text-red-500 dark:text-gray-500 
-                      dark:hover:text-red-400 transition-colors duration-200 rounded-lg 
-                      hover:bg-gray-100 dark:hover:bg-gray-700"
-                      title="Delete Document"
-                    >
-                      <FaTrash size={16} />
-                    </button>
+                    
+                    {/* Content Preview */}
+                    {isExpanded && (
+                      <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                        <h5 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
+                          Document Content ({chunks.length} chunks)
+                        </h5>
+                        <div className="space-y-3 max-h-96 overflow-y-auto">
+                          {chunks.length > 0 ? (
+                            chunks.map((chunk, chunkIndex) => (
+                              <div
+                                key={chunk.id}
+                                className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3 border border-gray-200 dark:border-gray-600"
+                              >
+                                <div className="flex items-center justify-between mb-2">
+                                  <span className="text-xs font-medium text-gray-500 dark:text-gray-400">
+                                    Chunk {chunk.chunkIndex || chunkIndex + 1}
+                                  </span>
+                                  <span className="text-xs text-gray-400 dark:text-gray-500">
+                                    {chunk.text.length} characters
+                                  </span>
+                                </div>
+                                <p 
+                                  data-chunk-id={chunk.id}
+                                  className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap break-words"
+                                >
+                                  {chunk.text}
+                                </p>
+                              </div>
+                            ))
+                          ) : (
+                            <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-4">
+                              No content available
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           ) : (
             <div className="text-center py-12 bg-gradient-to-br from-gray-50 to-gray-100 
@@ -1336,6 +1458,7 @@ const TrainingDashboard: React.FC = () => {
           onDeleteFile={handleDeleteFile}
           uploadProgress={uploadProgress}
           file={file}
+          collectionName={selectedCollection.name}
         />
       )}
 
