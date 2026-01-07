@@ -85,14 +85,13 @@ class ChromaService {
       }));
 
       // Check for duplicate files (optimized: query only metadata instead of all documents)
-      // Use a more efficient query to check for duplicates
-      const fileKey = `${documents[0].metadata.filename}_${documents[0].metadata.uploadedBy}`;
-      
-      // Query only for documents with matching filename and uploadedBy
+      // ChromaDB requires $and operator for multiple conditions
       const existingDocs = await collection.get({
         where: {
-          filename: documents[0].metadata.filename,
-          uploadedBy: documents[0].metadata.uploadedBy
+          $and: [
+            { filename: { $eq: documents[0].metadata.filename } },
+            { uploadedBy: { $eq: documents[0].metadata.uploadedBy } }
+          ]
         }
       });
       
