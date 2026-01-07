@@ -283,13 +283,6 @@ interface CollectionModalProps {
   uploadLoading: boolean;
   onShowSettings: () => void;
   onDeleteFile: (file: UploadedFile) => void;
-  uploadProgress: {
-    status: 'idle' | 'validating' | 'extracting' | 'chunking' | 'embedding' | 'uploading' | 'success' | 'error';
-    progress: number;
-    message: string;
-    error?: string;
-  };
-  file: File | null;
 }
 
 const CollectionModal: React.FC<CollectionModalProps> = ({
@@ -301,8 +294,6 @@ const CollectionModal: React.FC<CollectionModalProps> = ({
   uploadLoading,
   onShowSettings,
   onDeleteFile,
-  uploadProgress,
-  file,
 }) => {
   // Add ref for click outside detection
   const modalRef = useRef<HTMLDivElement>(null);
@@ -1334,8 +1325,6 @@ const TrainingDashboard: React.FC = () => {
           uploadLoading={uploadLoading}
           onShowSettings={userInfo?.role === 'Admin' || userInfo?.role === 'SuperAdmin' ? () => setShowSettings(true) : () => {}}
           onDeleteFile={handleDeleteFile}
-          uploadProgress={uploadProgress}
-          file={file}
         />
       )}
 
