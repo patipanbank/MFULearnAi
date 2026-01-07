@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { config } from '../../config/config';
-import { FiLoader, FiRefreshCw, FiAlertCircle, FiEdit2, FiX, FiCheck, FiFilter } from 'react-icons/fi';
+import { FiLoader, FiRefreshCw, FiAlertCircle, FiEdit2, FiX, FiCheck, FiFilter, FiSearch, FiUsers } from 'react-icons/fi';
 import { BaseModal } from '../models/ui/BaseModal';
 
 interface User {
@@ -187,28 +187,102 @@ const ManageUser: React.FC = () => {
     }
   };
 
+  // Calculate stats
+  const stats = useMemo(() => {
+    const total = users.length;
+    const students = users.filter((u) => u.role === 'Students').length;
+    const staffs = users.filter((u) => u.role === 'Staffs').length;
+    const admins = users.filter((u) => u.role === 'Admin').length;
+    return { total, students, staffs, admins };
+  }, [users]);
+
   return (
-    <div className="container mx-auto p-6 max-w-6xl">
-      <div className="flex flex-col gap-3 mb-6 sm:flex-row sm:items-center sm:justify-between">
+    <div className="container mx-auto p-6 max-w-7xl">
+      {/* Header Section */}
+      <div className="flex flex-col gap-4 mb-6 sm:flex-row sm:items-center sm:justify-between">
         <div className="space-y-1">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Manage Users</h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-1">
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+            <FiUsers className="text-blue-600 dark:text-blue-400" />
+            Manage Users
+          </h1>
+          <p className="text-gray-600 dark:text-gray-400">
             View and edit all users with their key details.
           </p>
         </div>
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-          <div className="relative w-full sm:w-64">
+        <button
+          onClick={fetchUsers}
+          disabled={loading}
+          className="inline-flex items-center justify-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-60 transition-colors"
+        >
+          {loading ? <FiLoader className="mr-2 animate-spin" /> : <FiRefreshCw className="mr-2" />}
+          Refresh
+        </button>
+      </div>
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 border border-gray-200 dark:border-gray-700">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Users</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats.total}</p>
+            </div>
+            <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+              <FiUsers className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+            </div>
+          </div>
+        </div>
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 border border-gray-200 dark:border-gray-700">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Students</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats.students}</p>
+            </div>
+            <div className="p-3 bg-green-100 dark:bg-green-900/30 rounded-lg">
+              <span className="text-green-600 dark:text-green-400 font-semibold">S</span>
+            </div>
+          </div>
+        </div>
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 border border-gray-200 dark:border-gray-700">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Staffs</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats.staffs}</p>
+            </div>
+            <div className="p-3 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
+              <span className="text-purple-600 dark:text-purple-400 font-semibold">St</span>
+            </div>
+          </div>
+        </div>
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 border border-gray-200 dark:border-gray-700">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Admins</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats.admins}</p>
+            </div>
+            <div className="p-3 bg-red-100 dark:bg-red-900/30 rounded-lg">
+              <span className="text-red-600 dark:text-red-400 font-semibold">A</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Search and Filter Section */}
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 mb-6 border border-gray-200 dark:border-gray-700">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+          <div className="relative flex-1">
+            <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
             <input
               type="text"
               placeholder="Search username, email, name, department..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 pr-3 text-sm text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+              className="w-full rounded-lg border border-gray-300 bg-white pl-10 pr-3 py-2 text-sm text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
             />
           </div>
           <button
             onClick={() => setShowFilterModal(true)}
-            className="inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
+            className="inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600 transition-colors"
           >
             <FiFilter className="mr-2" />
             Filter
@@ -218,15 +292,59 @@ const ManageUser: React.FC = () => {
               </span>
             )}
           </button>
-          <button
-            onClick={fetchUsers}
-            disabled={loading}
-            className="inline-flex items-center justify-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-60"
-          >
-            {loading ? <FiLoader className="mr-2 animate-spin" /> : <FiRefreshCw className="mr-2" />}
-            Refresh
-          </button>
         </div>
+
+        {/* Active Filters Display */}
+        {(search || filterRole || filterDepartment) && (
+          <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Active filters:</span>
+              {search && (
+                <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
+                  Search: {search}
+                  <button
+                    onClick={() => setSearch('')}
+                    className="hover:text-blue-600 dark:hover:text-blue-200"
+                  >
+                    <FiX className="h-3 w-3" />
+                  </button>
+                </span>
+              )}
+              {filterRole && (
+                <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300">
+                  Role: {filterRole}
+                  <button
+                    onClick={() => setFilterRole('')}
+                    className="hover:text-purple-600 dark:hover:text-purple-200"
+                  >
+                    <FiX className="h-3 w-3" />
+                  </button>
+                </span>
+              )}
+              {filterDepartment && (
+                <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">
+                  Department: {filterDepartment}
+                  <button
+                    onClick={() => setFilterDepartment('')}
+                    className="hover:text-green-600 dark:hover:text-green-200"
+                  >
+                    <FiX className="h-3 w-3" />
+                  </button>
+                </span>
+              )}
+              <button
+                onClick={() => {
+                  setSearch('');
+                  setFilterRole('');
+                  setFilterDepartment('');
+                }}
+                className="text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 underline"
+              >
+                Clear all
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {editingUser && (
@@ -295,13 +413,19 @@ const ManageUser: React.FC = () => {
               <label className="mb-1 block text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">
                 Department *
               </label>
-              <input
-                type="text"
+              <select
                 name="department"
                 value={formData.department || ''}
                 onChange={handleInputChange}
                 className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-              />
+              >
+                <option value="">Select department</option>
+                {departments.map((dept) => (
+                  <option key={dept._id} value={dept.name}>
+                    {dept.name}
+                  </option>
+                ))}
+              </select>
             </div>
             <div>
               <label className="mb-1 block text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">
@@ -457,15 +581,37 @@ const ManageUser: React.FC = () => {
                 {filteredUsers.length === 0 ? (
                   <tr>
                     <td
-                      colSpan={6}
-                      className="px-6 py-4 text-center text-gray-500 dark:text-gray-400"
+                      colSpan={7}
+                      className="px-6 py-12 text-center"
                     >
-                      No users found
+                      <div className="flex flex-col items-center justify-center">
+                        <FiUsers className="h-12 w-12 text-gray-400 dark:text-gray-500 mb-4" />
+                        <p className="text-gray-500 dark:text-gray-400 font-medium">
+                          {search || filterRole || filterDepartment
+                            ? 'No users found matching your filters'
+                            : 'No users found'}
+                        </p>
+                        {(search || filterRole || filterDepartment) && (
+                          <button
+                            onClick={() => {
+                              setSearch('');
+                              setFilterRole('');
+                              setFilterDepartment('');
+                            }}
+                            className="mt-2 text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 underline"
+                          >
+                            Clear filters
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ) : (
                   filteredUsers.map((user) => (
-                    <tr key={user._id} className="text-sm">
+                    <tr
+                      key={user._id}
+                      className="text-sm hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+                    >
                       <td className="px-4 py-3 whitespace-nowrap text-gray-900 dark:text-white">
                         {user.username}
                       </td>
@@ -481,8 +627,18 @@ const ManageUser: React.FC = () => {
                       <td className="px-4 py-3 text-gray-900 dark:text-white hidden lg:table-cell max-w-[180px] truncate">
                         {user.department || '-'}
                       </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-gray-900 dark:text-white font-semibold">
-                        {user.role}
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        <span
+                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                            user.role === 'Admin'
+                              ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
+                              : user.role === 'Staffs'
+                              ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300'
+                              : 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
+                          }`}
+                        >
+                          {user.role}
+                        </span>
                       </td>
                       <td className="px-4 py-3 text-right">
                         <button
