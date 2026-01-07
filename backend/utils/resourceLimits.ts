@@ -12,7 +12,7 @@ export interface ResourceLimits {
 }
 
 export const DEFAULT_LIMITS: ResourceLimits = {
-  maxFileSize: 1000 * 1024 * 1024, // 
+  maxFileSize: 10 * 1024 * 1024, // 10MB
   maxChunksPerFile: 1000,
   maxFilesPerCollection: 100,
   maxCollectionsPerUser: 50,
@@ -21,7 +21,7 @@ export const DEFAULT_LIMITS: ResourceLimits = {
 };
 
 export const STUDENT_LIMITS: ResourceLimits = {
-  maxFileSize: 1000 * 1024 * 1024, // 
+  maxFileSize: 5 * 1024 * 1024, // 5MB
   maxChunksPerFile: 500,
   maxFilesPerCollection: 50,
   maxCollectionsPerUser: 20,
@@ -30,7 +30,7 @@ export const STUDENT_LIMITS: ResourceLimits = {
 };
 
 export const STAFF_LIMITS: ResourceLimits = {
-  maxFileSize: 1000 * 1024 * 1024, // 20MB
+  maxFileSize: 20 * 1024 * 1024, // 20MB
   maxChunksPerFile: 2000,
   maxFilesPerCollection: 200,
   maxCollectionsPerUser: 100,
