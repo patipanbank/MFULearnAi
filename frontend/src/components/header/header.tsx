@@ -147,7 +147,11 @@ const Header = () => {
                             {userData.groups.map((group: string, index: number) => (
                               <span 
                                 key={index}
-                                className="px-2 py-1 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 text-xs rounded-full"
+                                className={`px-2 py-1 text-xs rounded-full ${
+                                  group === 'SuperAdmin'
+                                    ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300'
+                                    : 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300'
+                                }`}
                               >
                                 {group}
                               </span>

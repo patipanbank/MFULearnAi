@@ -193,7 +193,8 @@ const ManageUser: React.FC = () => {
     const students = users.filter((u) => u.role === 'Students').length;
     const staffs = users.filter((u) => u.role === 'Staffs').length;
     const admins = users.filter((u) => u.role === 'Admin').length;
-    return { total, students, staffs, admins };
+    const superAdmins = users.filter((u) => u.role === 'SuperAdmin').length;
+    return { total, students, staffs, admins, superAdmins };
   }, [users]);
 
   return (
@@ -220,7 +221,7 @@ const ManageUser: React.FC = () => {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 border border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between">
             <div>
@@ -262,6 +263,17 @@ const ManageUser: React.FC = () => {
             </div>
             <div className="p-3 bg-red-100 dark:bg-red-900/30 rounded-lg">
               <span className="text-red-600 dark:text-red-400 font-semibold">A</span>
+            </div>
+          </div>
+        </div>
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 border border-gray-200 dark:border-gray-700">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">SuperAdmins</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats.superAdmins}</p>
+            </div>
+            <div className="p-3 bg-yellow-100 dark:bg-yellow-900/30 rounded-lg">
+              <span className="text-yellow-600 dark:text-yellow-400 font-semibold">SA</span>
             </div>
           </div>
         </div>
@@ -353,121 +365,120 @@ const ManageUser: React.FC = () => {
         )}
       </div>
 
+      {/* Edit User Modal */}
       {editingUser && (
-        <div className="mb-6 rounded-lg bg-white p-6 shadow dark:bg-gray-800">
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-              Edit User: <span className="font-mono text-blue-600">{editingUser.username}</span>
+        <BaseModal
+          onClose={cancelEdit}
+          containerClasses="w-full max-w-2xl"
+        >
+          <div className="space-y-6">
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+              Edit User: <span className="font-mono text-blue-600 dark:text-blue-400">{editingUser.username}</span>
             </h2>
-            <button
-              onClick={cancelEdit}
-              className="inline-flex items-center rounded-md border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
-            >
-              <FiX className="mr-1.5" /> Cancel
-            </button>
+            <form onSubmit={handleEditSubmit} className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div>
+                <label className="mb-2 block text-sm font-semibold text-gray-700 dark:text-gray-300">
+                  Username *
+                </label>
+                <input
+                  type="text"
+                  name="username"
+                  value={formData.username || ''}
+                  onChange={handleInputChange}
+                  className="w-full rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                />
+              </div>
+              <div>
+                <label className="mb-2 block text-sm font-semibold text-gray-700 dark:text-gray-300">
+                  Email *
+                </label>
+                <input
+                  type="email"
+                  name="email"
+                  value={formData.email || ''}
+                  onChange={handleInputChange}
+                  className="w-full rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                />
+              </div>
+              <div>
+                <label className="mb-2 block text-sm font-semibold text-gray-700 dark:text-gray-300">
+                  First Name *
+                </label>
+                <input
+                  type="text"
+                  name="firstName"
+                  value={formData.firstName || ''}
+                  onChange={handleInputChange}
+                  className="w-full rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                />
+              </div>
+              <div>
+                <label className="mb-2 block text-sm font-semibold text-gray-700 dark:text-gray-300">
+                  Last Name *
+                </label>
+                <input
+                  type="text"
+                  name="lastName"
+                  value={formData.lastName || ''}
+                  onChange={handleInputChange}
+                  className="w-full rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                />
+              </div>
+              <div>
+                <label className="mb-2 block text-sm font-semibold text-gray-700 dark:text-gray-300">
+                  Department *
+                </label>
+                <select
+                  name="department"
+                  value={formData.department || ''}
+                  onChange={handleInputChange}
+                  className="w-full rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                >
+                  <option value="">Select department</option>
+                  {departments.map((dept) => (
+                    <option key={dept._id} value={dept.name}>
+                      {dept.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="mb-2 block text-sm font-semibold text-gray-700 dark:text-gray-300">
+                  Role *
+                </label>
+                <select
+                  name="role"
+                  value={formData.role || ''}
+                  onChange={handleInputChange}
+                  className="w-full rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                >
+                  <option value="">Select role</option>
+                  <option value="Students">Students</option>
+                  <option value="Staffs">Staffs</option>
+                  <option value="Admin">Admin</option>
+                  <option value="SuperAdmin">SuperAdmin</option>
+                </select>
+              </div>
+              <div className="md:col-span-2 mt-2 flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+                <button
+                  type="button"
+                  onClick={cancelEdit}
+                  className="inline-flex items-center rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
+                >
+                  <FiX className="mr-1.5" /> Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="inline-flex items-center rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-60"
+                >
+                  {saving ? <FiLoader className="mr-1.5 animate-spin" /> : <FiCheck className="mr-1.5" />}
+                  Save
+                </button>
+              </div>
+            </form>
           </div>
-          <form onSubmit={handleEditSubmit} className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <div>
-              <label className="mb-1 block text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">
-                Username *
-              </label>
-              <input
-                type="text"
-                name="username"
-                value={formData.username || ''}
-                onChange={handleInputChange}
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">
-                Email *
-              </label>
-              <input
-                type="email"
-                name="email"
-                value={formData.email || ''}
-                onChange={handleInputChange}
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">
-                First Name *
-              </label>
-              <input
-                type="text"
-                name="firstName"
-                value={formData.firstName || ''}
-                onChange={handleInputChange}
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">
-                Last Name *
-              </label>
-              <input
-                type="text"
-                name="lastName"
-                value={formData.lastName || ''}
-                onChange={handleInputChange}
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">
-                Department *
-              </label>
-              <select
-                name="department"
-                value={formData.department || ''}
-                onChange={handleInputChange}
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-              >
-                <option value="">Select department</option>
-                {departments.map((dept) => (
-                  <option key={dept._id} value={dept.name}>
-                    {dept.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="mb-1 block text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">
-                Role *
-              </label>
-              <select
-                name="role"
-                value={formData.role || ''}
-                onChange={handleInputChange}
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-              >
-                <option value="">Select role</option>
-                <option value="Students">Students</option>
-                <option value="Staffs">Staffs</option>
-                <option value="Admin">Admin</option>
-              </select>
-            </div>
-            <div className="md:col-span-2 mt-2 flex justify-end gap-3">
-              <button
-                type="button"
-                onClick={cancelEdit}
-                className="inline-flex items-center rounded-md border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
-              >
-                <FiX className="mr-1.5" /> Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={saving}
-                className="inline-flex items-center rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-60"
-              >
-                {saving ? <FiLoader className="mr-1.5 animate-spin" /> : <FiCheck className="mr-1.5" />}
-                Save
-              </button>
-            </div>
-          </form>
-        </div>
+        </BaseModal>
       )}
 
       {/* Filter Modal */}
@@ -485,7 +496,7 @@ const ManageUser: React.FC = () => {
                 Filter by Role
               </label>
               <div className="space-y-2 max-h-48 overflow-y-auto border border-gray-200 dark:border-gray-700 rounded-lg p-3 bg-gray-50 dark:bg-gray-900/50">
-                {['Students', 'Staffs', 'Admin'].map((role) => (
+                {['Students', 'Staffs', 'Admin', 'SuperAdmin'].map((role) => (
                   <label
                     key={role}
                     className="flex items-center gap-3 p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer transition-colors"
@@ -505,7 +516,9 @@ const ManageUser: React.FC = () => {
                     <span className="text-sm text-gray-900 dark:text-white flex-1">{role}</span>
                     <span
                       className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                        role === 'Admin'
+                        role === 'SuperAdmin'
+                          ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300'
+                          : role === 'Admin'
                           ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
                           : role === 'Staffs'
                           ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300'
@@ -702,7 +715,9 @@ const ManageUser: React.FC = () => {
                       <td className="px-4 py-3 whitespace-nowrap">
                         <span
                           className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                            user.role === 'Admin'
+                            user.role === 'SuperAdmin'
+                              ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300'
+                              : user.role === 'Admin'
                               ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
                               : user.role === 'Staffs'
                               ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300'
