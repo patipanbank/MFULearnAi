@@ -12,17 +12,6 @@ import iconv from 'iconv-lite';
 import { CollectionPermission } from '../models/Collection';
 import { UserRole } from '../models/User';
 import { TrainingHistory } from '../models/TrainingHistory';
-import { validateFile, sanitizeFilename } from '../utils/fileValidation';
-import { validateExtractedText, validateAndNormalizeChunks } from '../utils/dataQuality';
-import { getLimitsForRole, validateChunkCount, estimateMemoryUsage } from '../utils/resourceLimits';
-import { createRateLimitMiddleware, uploadRateLimiter } from '../middleware/rateLimiter';
-import { 
-  validateCollectionName, 
-  validateModelId, 
-  validateCollectionId,
-  sanitizeRequestBody,
-  checkValidation
-} from '../middleware/inputValidation';
 
 const router = Router();
 
@@ -37,7 +26,7 @@ chromaService.ensureDefaultCollection().catch(error => {
 const upload = multer({ 
   dest: 'uploads/',
   limits: {
-    fileSize: 10 * 1024 * 1024, // 10MB (consistent with validation)
+    fileSize: 1 * 1024 * 1024, // 500MB
   },
   fileFilter: (req, file, cb) => {
     const allowedTypes = ['.pdf', '.txt', '.doc', '.docx', '.xls', '.xlsx', '.csv', '.json', '.xml'];
@@ -64,75 +53,24 @@ async function checkCollectionAccess(user: any, collection: any): Promise<boolea
 }
 
 /**
- * Processes a file upload with validation and quality checks:
- * 1. Validates and sanitizes the file
- * 2. Decodes the filename
- * 3. Extracts text from the file
- * 4. Validates extracted text quality
- * 5. Splits the text into chunks
- * 6. Validates and normalizes chunks
- * 7. Embeds each chunk
- * 8. Returns the array of document objects
+ * Processes a file upload:
+ * 1. Decodes the filename.
+ * 2. Extracts text from the file.
+ * 3. Splits the text into chunks.
+ * 4. Embeds each chunk.
+ * 5. Returns the array of document objects.
  */
-async function processFileDocuments(
-  file: Express.Multer.File, 
-  user: any, 
-  modelId: string, 
-  collectionName: string
-): Promise<{ text: string; metadata: any; embedding: number[] }[]> {
-  // Get resource limits based on user role
-  const limits = getLimitsForRole(user.role || 'Students');
-  
-  // Validate file
-  const fileValidation = await validateFile(file, limits.maxFileSize);
-  if (!fileValidation.isValid) {
-    throw new Error(fileValidation.error || 'File validation failed');
-  }
-  
-  // Decode and sanitize filename
-  const originalFilename = iconv.decode(Buffer.from(file.originalname, 'binary'), 'utf-8');
-  const filename = fileValidation.sanitizedFilename || sanitizeFilename(originalFilename);
-  
-  // Extract text from file
-  const rawText = await documentService.processFile(file);
-  
-  // Validate extracted text quality
-  const textValidation = validateExtractedText(rawText, 100);
-  if (!textValidation.isValid) {
-    throw new Error(textValidation.error || 'Extracted text validation failed');
-  }
-  
-  const text = textValidation.normalizedText || rawText;
-  
-  // Split into chunks
-  const rawChunks = splitTextIntoChunks(text);
-  
-  // Validate chunk count
-  const chunkCountValidation = validateChunkCount(rawChunks.length, limits.maxChunksPerFile);
-  if (!chunkCountValidation.valid) {
-    throw new Error(chunkCountValidation.error || 'Chunk count exceeds limit');
-  }
-  
-  // Validate and normalize chunks
-  const { validChunks, invalidCount, errors } = validateAndNormalizeChunks(rawChunks);
-  
-  if (validChunks.length === 0) {
-    throw new Error('No valid chunks were created from the file');
-  }
-  
-  if (invalidCount > 0) {
-    console.warn(`Warning: ${invalidCount} invalid chunks were removed:`, errors.slice(0, 5));
-  }
-  
-  // Estimate memory usage
-  const estimatedMemory = estimateMemoryUsage(file.size, validChunks.length);
-  if (estimatedMemory > limits.maxMemoryUsage) {
-    throw new Error(`File processing would exceed memory limit (estimated: ${(estimatedMemory / 1024 / 1024).toFixed(2)}MB, limit: ${(limits.maxMemoryUsage / 1024 / 1024).toFixed(2)}MB)`);
-  }
-  
-  // Create documents with embeddings
+async function processFileDocuments(file: Express.Multer.File, user: any, modelId: string, collectionName: string): Promise<{ text: string; metadata: any; embedding: number[] }[]> {
+  // Decode filename to UTF-8
+  const filename = iconv.decode(Buffer.from(file.originalname, 'binary'), 'utf-8');
+  // console.log(`Processing file: ${filename}`);
+  const text = await documentService.processFile(file);
+  // console.log(`Text length (${text.length}) exceeds chunk size; splitting into chunks`);
+  const chunks = splitTextIntoChunks(text);
+  // console.log(`Created ${chunks.length} chunks`);
+
   const documents = await Promise.all(
-    validChunks.map(async (chunk) => {
+    chunks.map(async (chunk) => {
       const embedResult = await titanEmbedService.embedText(chunk);
       return {
         text: chunk,
@@ -147,7 +85,6 @@ async function processFileDocuments(
       };
     })
   );
-  
   return documents;
 }
 
@@ -159,34 +96,18 @@ async function processFileDocuments(
  * POST /upload
  * Staff-only endpoint that processes a file upload and stores document chunks with embeddings.
  */
-router.post('/upload', 
-  roleGuard(['Staffs', 'Admin', 'Students', 'SuperAdmin'] as UserRole[]),
-  createRateLimitMiddleware(uploadRateLimiter),
-  upload.single('file'), 
-  async (req: Request, res: Response): Promise<void> => {
+router.post('/upload', roleGuard(['Staffs', 'Admin', 'Students', 'SuperAdmin'] as UserRole[]), upload.single('file'), async (req: Request, res: Response): Promise<void> => {
   try {
     const file = req.file;
     if (!file) {
-      res.status(400).json({ 
-        error: 'No file uploaded',
-        message: 'Please select a file to upload'
-      });
+      res.status(400).json({ error: 'No file uploaded' });
       return;
     }
-    
     const { modelId, collectionName } = req.body;
     const user = (req as any).user;
-    
-    // Validate required fields
-    if (!modelId || !collectionName) {
-      res.status(400).json({ 
-        error: 'Missing required fields',
-        message: 'Both modelId and collectionName are required'
-      });
-      return;
-    }
 
     const documents = await processFileDocuments(file, user, modelId, collectionName);
+    // console.log(`Adding ${documents.length} document chunks with embeddings to collection ${collectionName}`);
     await chromaService.addDocuments(collectionName, documents);
     
     const userId = user.nameID || user.username;
@@ -203,23 +124,17 @@ router.post('/upload',
       action: 'upload',
       details: {
         modelId,
-        chunks: documents.length,
-        fileSize: file.size
+        chunks: documents.length
       }
     });
     
     res.json({ 
       message: 'File processed successfully with vector embeddings',
-      chunks: documents.length,
-      filename: file.originalname
+      chunks: documents.length
     });
   } catch (error) {
     console.error('Upload error:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Error processing upload';
-    res.status(500).json({ 
-      error: 'Error processing upload',
-      message: errorMessage
-    });
+    res.status(500).json({ error: 'Error processing upload' });
   }
 });
 
@@ -228,51 +143,31 @@ router.post('/upload',
  * Endpoint for Students and Staffs to upload a file.
  * Also ensures collection exists before processing.
  */
-router.post('/documents', 
-  roleGuard(['Students', 'Staffs', 'Admin', 'SuperAdmin'] as UserRole[]),
-  createRateLimitMiddleware(uploadRateLimiter),
-  upload.single('file'), 
-  async (req: Request, res: Response): Promise<void> => {
+router.post('/documents', roleGuard(['Students', 'Staffs', 'Admin', 'SuperAdmin'] as UserRole[]), upload.single('file'), async (req: Request, res: Response): Promise<void> => {
   try {
     const { modelId, collectionName } = req.body;
     const user = (req as any).user;
-    
-    // Validate required fields
-    if (!modelId || !collectionName) {
-      res.status(400).json({ 
-        error: 'Missing required fields',
-        message: 'Both modelId and collectionName are required'
-      });
-      return;
-    }
 
     // Ensure the collection exists (creates if needed)
     await chromaService.ensureCollectionExists(collectionName, user);
 
     const file = req.file;
     if (!file) {
-      res.status(400).json({ 
-        error: 'No file uploaded',
-        message: 'Please select a file to upload'
-      });
+      res.status(400).json({ error: 'No file uploaded' });
       return;
     }
 
     const documents = await processFileDocuments(file, user, modelId, collectionName);
+    // console.log(`Adding documents with embeddings to collection ${collectionName}`);
     await chromaService.addDocuments(collectionName, documents);
     
     res.json({ 
       message: 'File processed successfully with embeddings',
-      chunks: documents.length,
-      filename: file.originalname
+      chunks: documents.length
     });
   } catch (error) {
     console.error('Error processing document:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Error processing document';
-    res.status(500).json({ 
-      error: 'Error processing document',
-      message: errorMessage
-    });
+    res.status(500).json({ error: 'Error processing document' });
   }
 });
 
@@ -306,13 +201,7 @@ router.get('/collections', roleGuard(['Students', 'Staffs', 'Admin', 'SuperAdmin
  * POST /collections
  * Creates a new collection.
  */
-router.post('/collections', 
-  roleGuard(['Staffs', 'Admin', 'Students', 'SuperAdmin'] as UserRole[]),
-  sanitizeRequestBody,
-  validateCollectionName,
-  validatePermission,
-  checkValidation,
-  async (req: Request, res: Response) => {
+router.post('/collections', roleGuard(['Staffs', 'Admin', 'Students', 'SuperAdmin'] as UserRole[]), async (req: Request, res: Response) => {
   try {
     const { name, permission } = req.body;
     const user = (req as any).user;

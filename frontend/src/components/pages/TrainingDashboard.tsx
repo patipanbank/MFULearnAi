@@ -2,7 +2,6 @@ import React, { useState, useEffect, useCallback, ChangeEvent, FormEvent, useRef
 import { config } from '../../config/config';
 import { FaPlus, FaTimes, FaCog, FaEllipsisH, FaTrash } from 'react-icons/fa';
 import { Collection, CollectionPermission } from '../../types/collection';
-import UploadProgress from './UploadProgress';
 
 // ----------------------
 // Type Definitions
@@ -351,14 +350,6 @@ const CollectionModal: React.FC<CollectionModalProps> = ({
           <h3 className="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100">
             Upload Document
           </h3>
-          
-          {uploadProgress.status !== 'idle' && file && (
-            <UploadProgress 
-              progress={uploadProgress}
-              fileName={file.name}
-            />
-          )}
-          
           <form onSubmit={onFileUpload} className="space-y-4">
             <div className="relative">
               <input
@@ -376,10 +367,10 @@ const CollectionModal: React.FC<CollectionModalProps> = ({
                 accept=".pdf,.txt,.doc,.docx,.xls,.xlsx,.csv,.json,.xml"
               />
               <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                Supported formats: PDF, TXT, DOC, DOCX, XLS, XLSX, CSV, JSON, XML (Max 10MB)
+                Supported formats: PDF, TXT, DOC, DOCX, XLS, XLSX, CSV, JSON, XML (Max 1MB)
               </p>
               <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                Please upload files without images. Files will be validated and processed automatically.
+                Please upload files without images.
               </p>
             </div>
             <button
@@ -595,16 +586,6 @@ const TrainingDashboard: React.FC = () => {
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const [file, setFile] = useState<File | null>(null);
   const [uploadLoading, setUploadLoading] = useState<boolean>(false);
-  const [uploadProgress, setUploadProgress] = useState<{
-    status: 'idle' | 'validating' | 'extracting' | 'chunking' | 'embedding' | 'uploading' | 'success' | 'error';
-    progress: number;
-    message: string;
-    error?: string;
-  }>({
-    status: 'idle',
-    progress: 0,
-    message: ''
-  });
 
   const [showSettings, setShowSettings] = useState<boolean>(false);
   const [updatedCollectionName, setUpdatedCollectionName] = useState<string>('');
@@ -914,45 +895,15 @@ const TrainingDashboard: React.FC = () => {
   const handleFileUpload = async (e: FormEvent) => {
     e.preventDefault();
     if (!file || !selectedCollection) {
-      setUploadProgress({
-        status: 'error',
-        progress: 0,
-        message: 'Please select a file and collection',
-        error: 'File and collection are required'
-      });
+      alert('Please choose a file.');
       return;
     }
-
-    // Validate file before upload
-    const maxSize = 10 * 1024 * 1024; // 10MB
-    if (file.size > maxSize) {
-      setUploadProgress({
-        status: 'error',
-        progress: 0,
-        message: 'File size exceeds limit',
-        error: `File size (${(file.size / 1024 / 1024).toFixed(2)}MB) exceeds maximum allowed size of ${(maxSize / 1024 / 1024).toFixed(0)}MB`
-      });
-      return;
-    }
-
     setUploadLoading(true);
-    setUploadProgress({
-      status: 'validating',
-      progress: 10,
-      message: 'Validating file...'
-    });
-
     try {
       const formData = new FormData();
       formData.append('file', file);
       formData.append('modelId', 'default');
       formData.append('collectionName', selectedCollection.name);
-
-      setUploadProgress({
-        status: 'extracting',
-        progress: 30,
-        message: 'Extracting text from file...'
-      });
 
       const response = await fetch(`${config.apiUrl}/api/training/upload`, {
         method: 'POST',
@@ -961,44 +912,17 @@ const TrainingDashboard: React.FC = () => {
         },
         body: formData,
       });
-
       if (response.ok) {
-        const data = await response.json();
-        setUploadProgress({
-          status: 'success',
-          progress: 100,
-          message: `File processed successfully! Created ${data.chunks || 0} chunks.`
-        });
-        
+        alert('File uploaded successfully');
         setFile(null);
         // Refresh file list after successful upload
         await fetchUploadedFiles(selectedCollection.name);
-        
-        // Reset progress after 3 seconds
-        setTimeout(() => {
-          setUploadProgress({
-            status: 'idle',
-            progress: 0,
-            message: ''
-          });
-        }, 3000);
       } else {
-        const errorData = await response.json().catch(() => ({ error: 'Unknown error', message: 'Failed to upload file' }));
-        setUploadProgress({
-          status: 'error',
-          progress: 0,
-          message: 'Upload failed',
-          error: errorData.message || errorData.error || 'Failed to upload file'
-        });
+        alert('Failed to upload file');
       }
     } catch (error) {
       console.error('Error uploading file:', error);
-      setUploadProgress({
-        status: 'error',
-        progress: 0,
-        message: 'Upload error',
-        error: error instanceof Error ? error.message : 'Error uploading file. Please try again.'
-      });
+      alert('Error uploading file. Please try again.');
     } finally {
       setUploadLoading(false);
     }

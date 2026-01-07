@@ -16,7 +16,6 @@ import compression from 'compression';
 import adminRoutes from './routes/admin';
 import statsRoutes from './routes/stats';
 import departmentRoutes from './routes/department';
-import usageRoutes from './routes/usage';
 
 const app = express();
 
@@ -68,7 +67,6 @@ app.use('/api/models', modelsRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/stats', statsRoutes);
 app.use('/api/departments', departmentRoutes);
-app.use('/api/usage', usageRoutes);
 
 // เพิ่มการตั้งค่า timeout
 app.use((req, res, next) => {

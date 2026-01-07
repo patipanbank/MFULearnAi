@@ -84,19 +84,16 @@ class ChromaService {
         embedding: doc.embedding // Use the precomputed embedding
       }));
 
-      // Check for duplicate files (optimized: query only metadata instead of all documents)
-      // Use a more efficient query to check for duplicates
-      const fileKey = `${documents[0].metadata.filename}_${documents[0].metadata.uploadedBy}`;
-      
-      // Query only for documents with matching filename and uploadedBy
-      const existingDocs = await collection.get({
-        where: {
-          filename: documents[0].metadata.filename,
-          uploadedBy: documents[0].metadata.uploadedBy
-        }
-      });
-      
-      if (existingDocs.ids && existingDocs.ids.length > 0) {
+      // Check for duplicate files (avoid duplicate ingestion)
+      const existingDocs = await collection.get();
+      const existingMetadata = existingDocs.metadatas || [];
+
+      const fileExists = existingMetadata.some((existing: DocumentMetadata) =>
+        existing.filename === documents[0].metadata.filename &&
+        existing.uploadedBy === documents[0].metadata.uploadedBy
+      );
+
+      if (fileExists) {
         // console.log(`File ${documents[0].metadata.filename} already exists, skipping upload`);
         return;
       }
