@@ -385,7 +385,7 @@ const ManageUser: React.FC = () => {
                   name="username"
                   value={formData.username || ''}
                   onChange={handleInputChange}
-                  className="w-full rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                  className="w-full rounded-lg border border-gray-300 dark:border-gray-600 px-4 py-2 text-sm text-gray-900 dark:text-white bg-white dark:bg-gray-700 shadow-sm focus:border-blue-500 dark:focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:focus:ring-blue-400"
                 />
               </div>
               <div>
@@ -397,7 +397,7 @@ const ManageUser: React.FC = () => {
                   name="email"
                   value={formData.email || ''}
                   onChange={handleInputChange}
-                  className="w-full rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                  className="w-full rounded-lg border border-gray-300 dark:border-gray-600 px-4 py-2 text-sm text-gray-900 dark:text-white bg-white dark:bg-gray-700 shadow-sm focus:border-blue-500 dark:focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:focus:ring-blue-400"
                 />
               </div>
               <div>
@@ -409,7 +409,7 @@ const ManageUser: React.FC = () => {
                   name="firstName"
                   value={formData.firstName || ''}
                   onChange={handleInputChange}
-                  className="w-full rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                  className="w-full rounded-lg border border-gray-300 dark:border-gray-600 px-4 py-2 text-sm text-gray-900 dark:text-white bg-white dark:bg-gray-700 shadow-sm focus:border-blue-500 dark:focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:focus:ring-blue-400"
                 />
               </div>
               <div>
@@ -421,7 +421,7 @@ const ManageUser: React.FC = () => {
                   name="lastName"
                   value={formData.lastName || ''}
                   onChange={handleInputChange}
-                  className="w-full rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                  className="w-full rounded-lg border border-gray-300 dark:border-gray-600 px-4 py-2 text-sm text-gray-900 dark:text-white bg-white dark:bg-gray-700 shadow-sm focus:border-blue-500 dark:focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:focus:ring-blue-400"
                 />
               </div>
               <div>
@@ -432,11 +432,11 @@ const ManageUser: React.FC = () => {
                   name="department"
                   value={formData.department || ''}
                   onChange={handleInputChange}
-                  className="w-full rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                  className="w-full rounded-lg border border-gray-300 dark:border-gray-600 px-4 py-2 text-sm text-gray-900 dark:text-white bg-white dark:bg-gray-700 shadow-sm focus:border-blue-500 dark:focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:focus:ring-blue-400"
                 >
-                  <option value="">Select department</option>
+                  <option value="" className="bg-white dark:bg-gray-700 text-gray-900 dark:text-white">Select department</option>
                   {departments.map((dept) => (
-                    <option key={dept._id} value={dept.name}>
+                    <option key={dept._id} value={dept.name} className="bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
                       {dept.name}
                     </option>
                   ))}
@@ -450,13 +450,13 @@ const ManageUser: React.FC = () => {
                   name="role"
                   value={formData.role || ''}
                   onChange={handleInputChange}
-                  className="w-full rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                  className="w-full rounded-lg border border-gray-300 dark:border-gray-600 px-4 py-2 text-sm text-gray-900 dark:text-white bg-white dark:bg-gray-700 shadow-sm focus:border-blue-500 dark:focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:focus:ring-blue-400"
                 >
-                  <option value="">Select role</option>
-                  <option value="Students">Students</option>
-                  <option value="Staffs">Staffs</option>
-                  <option value="Admin">Admin</option>
-                  <option value="SuperAdmin">SuperAdmin</option>
+                  <option value="" className="bg-white dark:bg-gray-700 text-gray-900 dark:text-white">Select role</option>
+                  <option value="Students" className="bg-white dark:bg-gray-700 text-gray-900 dark:text-white">Students</option>
+                  <option value="Staffs" className="bg-white dark:bg-gray-700 text-gray-900 dark:text-white">Staffs</option>
+                  <option value="Admin" className="bg-white dark:bg-gray-700 text-gray-900 dark:text-white">Admin</option>
+                  <option value="SuperAdmin" className="bg-white dark:bg-gray-700 text-gray-900 dark:text-white">SuperAdmin</option>
                 </select>
               </div>
               <div className="md:col-span-2 mt-2 flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
