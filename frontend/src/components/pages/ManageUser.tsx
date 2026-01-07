@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { config } from '../../config/config';
-import { FiLoader, FiRefreshCw, FiAlertCircle, FiEdit2, FiX, FiCheck, FiSearch } from 'react-icons/fi';
+import { FiLoader, FiRefreshCw, FiAlertCircle, FiEdit2, FiX, FiCheck, FiSearch, FiFilter } from 'react-icons/fi';
 import { BaseModal } from '../models/ui/BaseModal';
 
 interface User {
@@ -30,6 +30,7 @@ const ManageUser: React.FC = () => {
   const [filterRole, setFilterRole] = useState<string>('');
   const [filterDepartment, setFilterDepartment] = useState<string>('');
   const [showSearchModal, setShowSearchModal] = useState<boolean>(false);
+  const [showFilterModal, setShowFilterModal] = useState<boolean>(false);
 
   const fetchUsers = async () => {
     try {
@@ -202,10 +203,22 @@ const ManageUser: React.FC = () => {
             className="inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
           >
             <FiSearch className="mr-2" />
-            Search & Filter
-            {(search || filterRole || filterDepartment) && (
+            Search
+            {search && (
               <span className="ml-2 inline-flex items-center justify-center rounded-full bg-blue-600 px-2 py-0.5 text-xs font-medium text-white">
-                {(search ? 1 : 0) + (filterRole ? 1 : 0) + (filterDepartment ? 1 : 0)}
+                1
+              </span>
+            )}
+          </button>
+          <button
+            onClick={() => setShowFilterModal(true)}
+            className="inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
+          >
+            <FiFilter className="mr-2" />
+            Filter
+            {(filterRole || filterDepartment) && (
+              <span className="ml-2 inline-flex items-center justify-center rounded-full bg-blue-600 px-2 py-0.5 text-xs font-medium text-white">
+                {(filterRole ? 1 : 0) + (filterDepartment ? 1 : 0)}
               </span>
             )}
           </button>
@@ -331,13 +344,14 @@ const ManageUser: React.FC = () => {
         </div>
       )}
 
+      {/* Search Modal */}
       {showSearchModal && (
         <BaseModal
           onClose={() => setShowSearchModal(false)}
-          containerClasses="w-full max-w-2xl"
+          containerClasses="w-full max-w-lg"
         >
           <div className="space-y-6">
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Search & Filter Users</h2>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Search Users</h2>
             
             {/* Search Input */}
             <div>
@@ -350,9 +364,40 @@ const ManageUser: React.FC = () => {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                autoFocus
               />
             </div>
 
+            {/* Action Buttons */}
+            <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+              <button
+                onClick={() => {
+                  setSearch('');
+                }}
+                className="inline-flex items-center rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
+              >
+                Clear
+              </button>
+              <button
+                onClick={() => setShowSearchModal(false)}
+                className="inline-flex items-center rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+              >
+                Apply
+              </button>
+            </div>
+          </div>
+        </BaseModal>
+      )}
+
+      {/* Filter Modal */}
+      {showFilterModal && (
+        <BaseModal
+          onClose={() => setShowFilterModal(false)}
+          containerClasses="w-full max-w-lg"
+        >
+          <div className="space-y-6">
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Filter Users</h2>
+            
             {/* Role Filter */}
             <div>
               <label className="mb-2 block text-sm font-semibold text-gray-700 dark:text-gray-300">
@@ -393,7 +438,6 @@ const ManageUser: React.FC = () => {
             <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
               <button
                 onClick={() => {
-                  setSearch('');
                   setFilterRole('');
                   setFilterDepartment('');
                 }}
@@ -402,7 +446,7 @@ const ManageUser: React.FC = () => {
                 Clear All
               </button>
               <button
-                onClick={() => setShowSearchModal(false)}
+                onClick={() => setShowFilterModal(false)}
                 className="inline-flex items-center rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
               >
                 Apply Filters
