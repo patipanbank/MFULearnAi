@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { config } from '../../config/config';
-import { FiLoader, FiRefreshCw, FiAlertCircle, FiEdit2, FiX, FiCheck, FiSearch, FiFilter } from 'react-icons/fi';
+import { FiLoader, FiRefreshCw, FiAlertCircle, FiEdit2, FiX, FiCheck, FiFilter } from 'react-icons/fi';
 import { BaseModal } from '../models/ui/BaseModal';
 
 interface User {
@@ -29,7 +29,6 @@ const ManageUser: React.FC = () => {
   const [search, setSearch] = useState<string>('');
   const [filterRole, setFilterRole] = useState<string>('');
   const [filterDepartment, setFilterDepartment] = useState<string>('');
-  const [showSearchModal, setShowSearchModal] = useState<boolean>(false);
   const [showFilterModal, setShowFilterModal] = useState<boolean>(false);
 
   const fetchUsers = async () => {
@@ -198,18 +197,15 @@ const ManageUser: React.FC = () => {
           </p>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-          <button
-            onClick={() => setShowSearchModal(true)}
-            className="inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
-          >
-            <FiSearch className="mr-2" />
-            Search
-            {search && (
-              <span className="ml-2 inline-flex items-center justify-center rounded-full bg-blue-600 px-2 py-0.5 text-xs font-medium text-white">
-                1
-              </span>
-            )}
-          </button>
+          <div className="relative w-full sm:w-64">
+            <input
+              type="text"
+              placeholder="Search username, email, name, department..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 pr-3 text-sm text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+            />
+          </div>
           <button
             onClick={() => setShowFilterModal(true)}
             className="inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
@@ -342,51 +338,6 @@ const ManageUser: React.FC = () => {
             </div>
           </form>
         </div>
-      )}
-
-      {/* Search Modal */}
-      {showSearchModal && (
-        <BaseModal
-          onClose={() => setShowSearchModal(false)}
-          containerClasses="w-full max-w-lg"
-        >
-          <div className="space-y-6">
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Search Users</h2>
-            
-            {/* Search Input */}
-            <div>
-              <label className="mb-2 block text-sm font-semibold text-gray-700 dark:text-gray-300">
-                Search
-              </label>
-              <input
-                type="text"
-                placeholder="Search username, email, name, department..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-                autoFocus
-              />
-            </div>
-
-            {/* Action Buttons */}
-            <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
-              <button
-                onClick={() => {
-                  setSearch('');
-                }}
-                className="inline-flex items-center rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
-              >
-                Clear
-              </button>
-              <button
-                onClick={() => setShowSearchModal(false)}
-                className="inline-flex items-center rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
-              >
-                Apply
-              </button>
-            </div>
-          </div>
-        </BaseModal>
       )}
 
       {/* Filter Modal */}
