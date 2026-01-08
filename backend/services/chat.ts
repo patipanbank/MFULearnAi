@@ -8,8 +8,6 @@ import { usageService } from './usageService';
 import { ChatStats } from '../models/ChatStats';
 import { webSearchService } from './webSearch';
 import { SystemPrompt } from '../models/SystemPrompt';
-import { CollectionModel } from '../models/Collection';
-import { CollectionPermission } from '../models/Collection';
 
 interface QueryResult {
   text: string;
@@ -103,112 +101,6 @@ class ChatService {
     baseDelay: 1000,
     maxDelay: 5000
   };
-
-  private getTools(): any[] {
-    return [
-      {
-        toolSpec: {
-          name: 'query_knowledge_base',
-          description: 'Search the knowledge base (vector database) for relevant documents and information. Use this when the user asks questions that might be answered by uploaded documents or training data.',
-          inputSchema: {
-            json: {
-              type: 'object',
-              properties: {
-                query: {
-                  type: 'string',
-                  description: 'The search query to find relevant documents'
-                },
-                collectionNames: {
-                  type: 'array',
-                  items: { type: 'string' },
-                  description: 'List of collection names to search in. If empty, search all available collections.'
-                },
-                topK: {
-                  type: 'number',
-                  description: 'Number of top results to return (default: 5)',
-                  default: 5
-                }
-              },
-              required: ['query']
-            }
-          }
-        }
-      },
-      {
-        toolSpec: {
-          name: 'search_web',
-          description: 'Search the web for current information, news, or information not available in the knowledge base. Use this for real-time information, recent events, or when knowledge base search doesn\'t provide sufficient results.',
-          inputSchema: {
-            json: {
-              type: 'object',
-              properties: {
-                query: {
-                  type: 'string',
-                  description: 'The search query to search the web'
-                }
-              },
-              required: ['query']
-            }
-          }
-        }
-      }
-    ];
-  }
-
-  private async executeTool(toolName: string, input: any, userId: string, modelIdOrCollections: string | string[]): Promise<string> {
-    try {
-      switch (toolName) {
-        case 'query_knowledge_base': {
-          const { query, collectionNames, topK = 5 } = input;
-          const collectionsToSearch = collectionNames && collectionNames.length > 0 
-            ? collectionNames 
-            : await this.resolveCollections(modelIdOrCollections);
-          
-          if (collectionsToSearch.length === 0) {
-            return 'No collections available to search.';
-          }
-
-          const sanitizedCollections = collectionsToSearch.map(name => 
-            this.sanitizeCollectionName(name)
-          );
-
-          const queryEmbedding = await chromaService.getQueryEmbedding(query.slice(0, 512));
-          const batches = this.createBatches(sanitizedCollections, this.BATCH_SIZE);
-          let allResults: CollectionQueryResult[] = [];
-          
-          for (const batch of batches) {
-            const batchResults = await this.processBatch(batch, queryEmbedding);
-            allResults = allResults.concat(batchResults);
-          }
-
-          const context = this.processResults(allResults);
-          
-          if (!context || context.trim().length === 0) {
-            return `No relevant documents found in the knowledge base for query: "${query}"`;
-          }
-
-          return `Found relevant information from knowledge base:\n\n${context}`;
-        }
-
-        case 'search_web': {
-          const { query } = input;
-          const webResults = await webSearchService.searchWeb(query);
-          
-          if (!webResults || webResults.trim().length === 0) {
-            return `No web search results found for query: "${query}"`;
-          }
-
-          return `Web search results:\n\n${webResults}`;
-        }
-
-        default:
-          return `Unknown tool: ${toolName}`;
-      }
-    } catch (error) {
-      console.error(`Error executing tool ${toolName}:`, error);
-      return `Error executing ${toolName}: ${error instanceof Error ? error.message : 'Unknown error'}`;
-    }
-  }
   // You are DinDin, a male AI. Keep responses brief and to the point.
 
   private isRelevantQuestion(query: string): boolean {
@@ -477,6 +369,32 @@ class ChatService {
         recentMessages = [...messages];
       }
       
+      // Skip context retrieval for image generation
+      let context = '';
+      if (!isImageGeneration) {
+        const imageBase64 = lastMessage.images?.[0]?.data;
+        try {
+          // Ensure query doesn't exceed reasonable length
+          const MAX_QUERY_FOR_CONTEXT = 4000;
+          const trimmedQuery = query.length > MAX_QUERY_FOR_CONTEXT 
+            ? query.substring(0, MAX_QUERY_FOR_CONTEXT) 
+            : query;
+            
+          context = await this.retryOperation(
+            async () => this.getContext(trimmedQuery, modelIdOrCollections, imageBase64),
+            'Failed to get context'
+          );
+        } catch (error) {
+          console.error('Error getting context:', error);
+          // Continue without context if there's an error
+        }
+      }
+      
+      // console.log('Retrieved context length:', context.length);
+
+      const questionType = isImageGeneration ? 'imageGeneration' : this.detectQuestionType(query);
+      // console.log('Question type:', questionType);
+
       // ดึง system prompt จากฐานข้อมูล
       const dynamicSystemPrompt = await this.getSystemPrompt();
 
@@ -494,6 +412,14 @@ class ChatService {
         systemMessages.push({
           role: 'system',
           content: this.summarizeOldMessages(olderMessages)
+        });
+      }
+
+      // Only add context if we have it and not in image generation mode
+      if (context && !isImageGeneration) {
+        systemMessages.push({
+          role: 'system',
+          content: `Context from documents:\n${context}`
         });
       }
 
@@ -526,83 +452,16 @@ class ChatService {
             query = `${query}\n\n[Attached files]\n${fileInfo}`;
           }
 
-          // Get tools for tool calling
-          const tools = this.getTools();
-          let toolResults: any[] = [];
-          let maxToolIterations = 5; // Prevent infinite loops
-          let iteration = 0;
-
-          while (iteration < maxToolIterations) {
-            iteration++;
-            
-            // Generate response with tools
-            const toolCalls: any[] = [];
-            let responseText = '';
-            let hasToolCalls = false;
-            
-            for await (const chunk of bedrockService.chat(
-              augmentedMessages, 
-              isImageGeneration ? bedrockService.models.titanImage : bedrockService.chatModel,
-              iteration === 1 ? tools : undefined,
-              toolResults.length > 0 ? toolResults : undefined
-            )) {
-              if (typeof chunk === 'string') {
-                responseText += chunk;
-                yield chunk;
-              } else if (chunk && typeof chunk === 'object' && chunk.type === 'tool_use') {
-                hasToolCalls = true;
-                toolCalls.push(chunk);
-              }
+          // Generate response and send chunks
+          let totalTokens = 0;
+          for await (const chunk of bedrockService.chat(augmentedMessages, isImageGeneration ? bedrockService.models.titanImage : bedrockService.chatModel)) {
+            if (typeof chunk === 'string') {
+              yield chunk;
             }
-
-            // If no tool calls, we're done
-            if (!hasToolCalls || toolCalls.length === 0) {
-              break;
-            }
-
-            // Execute tools
-            const newToolResults: any[] = [];
-            for (const toolCall of toolCalls) {
-              const result = await this.executeTool(
-                toolCall.name,
-                toolCall.input,
-                userId,
-                modelIdOrCollections
-              );
-              
-              newToolResults.push({
-                toolUseId: toolCall.toolUseId,
-                name: toolCall.name,
-                input: toolCall.input,
-                content: result,
-                status: 'success'
-              });
-            }
-
-            toolResults = newToolResults;
-            
-            // Prepare messages for next iteration with tool results
-            // Don't modify augmentedMessages directly, create new array
-            const messagesWithToolResults = [...augmentedMessages];
-            
-            // Add assistant message with tool use
-            messagesWithToolResults.push({
-              role: 'assistant',
-              content: JSON.stringify(toolCalls.map(tc => ({ name: tc.name, input: tc.input })))
-            });
-            
-            // Add user message with tool results
-            messagesWithToolResults.push({
-              role: 'user',
-              content: toolResults.map(r => r.content).join('\n\n')
-            });
-            
-            augmentedMessages.length = 0;
-            augmentedMessages.push(...messagesWithToolResults);
           }
 
           // อัพเดท token usage หลังจากได้ response ทั้งหมด
-          const totalTokens = bedrockService.getLastTokenUsage();
+          totalTokens = bedrockService.getLastTokenUsage();
           if (totalTokens > 0) {
             const usage = await usageService.updateTokenUsage(userId, totalTokens);
             console.log(`[Chat] Token usage updated for ${userId}:`, {

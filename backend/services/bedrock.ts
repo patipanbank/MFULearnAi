@@ -1,4 +1,4 @@
-import { BedrockRuntimeClient, ConverseStreamCommand, InvokeModelCommand } from "@aws-sdk/client-bedrock-runtime";
+import { BedrockRuntimeClient, InvokeModelWithResponseStreamCommand, InvokeModelCommand } from "@aws-sdk/client-bedrock-runtime";
 import { ChatMessage } from '../types/chat';
 
 interface ModelConfig {
@@ -184,14 +184,11 @@ export class BedrockService {
     }
   }
 
-  async *chat(
-    messages: ChatMessage[], 
-    modelId: string,
-    tools?: any[],
-    toolResults?: any[]
-  ): AsyncGenerator<string | { type: 'tool_use', toolUseId: string, name: string, input: any }> {
+  async *chat(messages: ChatMessage[], modelId: string): AsyncGenerator<string> {
     try {
       const config = this.getModelConfig(messages);
+      // console.log('Using model config:', config);
+
       const lastMessage = messages[messages.length - 1];
       const isImageGeneration = lastMessage.isImageGeneration;
 
@@ -210,152 +207,119 @@ export class BedrockService {
         }
       }
 
-      // Convert messages to Converse API format
-      const converseMessages: any[] = [];
-      
-      for (const msg of messages) {
-        if (msg.role === 'system') {
-          continue; // System messages go in system parameter
-        }
-
-        const hasImages = msg.images && msg.images.length > 0;
-        const hasFiles = msg.files && msg.files.length > 0;
-        
-        if (!hasImages && !hasFiles) {
-          converseMessages.push({
-            role: msg.role === 'user' ? 'user' : 'assistant',
-            content: [{ text: msg.content }]
-          });
-        } else {
-          const content: any[] = [{ text: msg.content }];
-          
-          if (hasImages && msg.images) {
-            msg.images.forEach(img => {
-              content.push({
-                image: {
-                  format: img.mediaType === 'image/png' ? 'png' : 'jpeg',
-                  source: {
-                    bytes: Buffer.from(img.data, 'base64')
-                  }
-                }
-              });
-            });
-          }
-          
-          if (hasFiles && msg.files) {
-            msg.files.forEach(file => {
-              content.push({ 
-                text: `\n\n=== File: ${file.name} (${file.mediaType}) ===\n${file.content || `[Cannot read file content ${file.name}]`}\n=== End of file ===\n`
-              });
-            });
-          }
-          
-          converseMessages.push({
-            role: msg.role === 'user' ? 'user' : 'assistant',
-            content: content
-          });
-        }
-      }
-
-      // Extract system messages
-      const systemMessages = messages
-        .filter(msg => msg.role === 'system')
-        .map(msg => ({ text: msg.content }));
-
-      const input: any = {
+      const command = new InvokeModelWithResponseStreamCommand({
         modelId: this.models.claude35,
-        messages: converseMessages,
-        inferenceConfig: {
-          maxTokens: config.maxTokens,
+        contentType: "application/json",
+        accept: "application/json",
+        body: JSON.stringify({
+          anthropic_version: "bedrock-2023-05-31",
+          max_tokens: config.maxTokens,
           temperature: config.temperature,
-          topP: config.topP,
-          ...(config.stopSequences && { stopSequences: config.stopSequences })
-        }
-      };
-
-      if (systemMessages.length > 0) {
-        input.system = systemMessages;
-      }
-
-      if (tools && tools.length > 0) {
-        input.toolConfig = { tools: tools };
-      }
-
-      if (toolResults && toolResults.length > 0) {
-        // Add tool use and tool result messages
-        const toolUseContent = toolResults.map((result: any) => ({
-          toolUse: {
-            toolUseId: result.toolUseId,
-            name: result.name,
-            input: result.input
-          }
-        }));
-        
-        const toolResultContent = toolResults.map((result: any) => ({
-          toolResult: {
-            toolUseId: result.toolUseId,
-            content: [{ text: result.content }],
-            status: result.status || 'success'
-          }
-        }));
-
-        // Add assistant message with tool use
-        converseMessages.push({
-          role: 'assistant',
-          content: toolUseContent
-        });
-        
-        // Add user message with tool results
-        converseMessages.push({
-          role: 'user',
-          content: toolResultContent
-        });
-        
-        // Update input messages
-        input.messages = converseMessages;
-      }
-
-      const command = new ConverseStreamCommand(input);
-      const response = await this.client.send(command);
-
-      if (response.stream) {
-        let inputTokens = 0;
-        let outputTokens = 0;
-        let currentToolUse: any = null;
-
-        for await (const chunk of response.stream) {
-          // Handle message start
-          if (chunk.messageStart) {
-            if (chunk.messageStart.message?.usage) {
-              inputTokens = chunk.messageStart.message.usage.inputTokens || 0;
-            }
-          }
-
-          // Handle content block start (tool use)
-          if (chunk.contentBlockStart) {
-            if (chunk.contentBlockStart.start?.toolUse) {
-              currentToolUse = chunk.contentBlockStart.start.toolUse;
-              yield {
-                type: 'tool_use',
-                toolUseId: currentToolUse.toolUseId,
-                name: currentToolUse.name,
-                input: currentToolUse.input || {}
+          top_p: config.topP,
+          stop_sequences: config.stopSequences,
+          messages: messages.map(msg => {
+            // ตรวจสอบว่ามีไฟล์หรือรูปภาพหรือไม่
+            const hasImages = msg.images && msg.images.length > 0;
+            const hasFiles = msg.files && msg.files.length > 0;
+            
+            // ถ้าไม่มีไฟล์หรือรูปภาพ ส่งแค่ข้อความอย่างเดียว
+            if (!hasImages && !hasFiles) {
+              return {
+                role: msg.role === 'user' ? 'user' : 'assistant',
+                content: msg.content
               };
             }
-          }
-
-          // Handle content block delta (text streaming)
-          if (chunk.contentBlockDelta) {
-            if (chunk.contentBlockDelta.delta?.text) {
-              yield chunk.contentBlockDelta.delta.text;
+            
+            // สร้าง content array แบบ multimodal
+            let content = [];
+            
+            // เพิ่มข้อความหลัก
+            content.push({ type: 'text', text: msg.content });
+            
+            // เพิ่มรูปภาพถ้ามี
+            if (hasImages && msg.images) {
+              msg.images.forEach(img => {
+                content.push({
+                  type: 'image',
+                  source: {
+                    type: 'base64',
+                    media_type: img.mediaType,
+                    data: img.data
+                  }
+                });
+              });
             }
-          }
+            
+            // เพิ่มข้อมูลไฟล์ถ้ามี
+            if (hasFiles && msg.files) {
+              msg.files.forEach(file => {
+                // เพิ่มชื่อไฟล์
+                content.push({ 
+                  type: 'text', 
+                  text: `\n\n=== File: ${file.name} (${file.mediaType}) ===\n`
+                });
+                
+                // เพิ่มเนื้อหาของไฟล์
+                if (file.content) {
+                  content.push({
+                    type: 'text',
+                    text: file.content
+                  });
+                } else {
+                  content.push({
+                    type: 'text',
+                    text: `[Cannot read file content ${file.name}]`
+                  });
+                }
+                
+                content.push({
+                  type: 'text',
+                  text: '\n=== End of file ===\n'
+                });
+              });
+            }
+            
+            return {
+              role: msg.role === 'user' ? 'user' : 'assistant',
+              content: content
+            };
+          })
+        })
+      });
 
-          // Handle message stop
-          if (chunk.messageStop) {
-            if (chunk.messageStop.usage) {
-              inputTokens = chunk.messageStop.usage.inputTokens || inputTokens;
-              outputTokens = chunk.messageStop.usage.outputTokens || 0;
+      const response = await this.client.send(command);
+
+      if (response.body) {
+        let inputTokens = 0;
+        let outputTokens = 0;
+
+        for await (const chunk of response.body) {
+          if (chunk.chunk?.bytes) {
+            const decodedChunk = new TextDecoder().decode(chunk.chunk.bytes);
+            try {
+              const parsedChunk = JSON.parse(decodedChunk);
+              
+              if (parsedChunk.type === 'message_start' && parsedChunk.message?.usage?.input_tokens) {
+                inputTokens = parsedChunk.message.usage.input_tokens;
+              }
+
+              if (parsedChunk.type === 'message_delta' && parsedChunk.usage?.output_tokens) {
+                outputTokens = parsedChunk.usage.output_tokens;
+              }
+
+              if (parsedChunk.type === 'message_stop' && parsedChunk['amazon-bedrock-invocationMetrics']) {
+                const metrics = parsedChunk['amazon-bedrock-invocationMetrics'];
+                inputTokens = metrics.inputTokenCount;
+                outputTokens = metrics.outputTokenCount;
+              }
+
+              if (parsedChunk.type === 'content_block_delta' && 
+                  parsedChunk.delta?.type === 'text_delta' && 
+                  parsedChunk.delta?.text) {
+                yield parsedChunk.delta.text;
+              }
+            } catch (e) {
+              console.error('Error parsing chunk:', e);
             }
           }
         }
@@ -370,7 +334,7 @@ export class BedrockService {
         });
       }
     } catch (error) {
-      console.error('Converse API error:', error);
+      console.error('Claude chat error:', error);
       throw error;
     }
   }
