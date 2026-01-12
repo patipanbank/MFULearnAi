@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useAuthStore } from '../components/auth/store/userStore';
 
 interface User {
   username: string;
@@ -18,55 +18,36 @@ interface AuthState {
 }
 
 export const useAuth = (): AuthState => {
-  const [state, setState] = useState<AuthState>({
-    user: null,
-    isLoading: true,
-    isStaff: false,
-    isAdmin: false,
-    isSuperAdmin: false,
-  });
+  const { user, isLoading } = useAuthStore();
 
-  useEffect(() => {
-    const token = localStorage.getItem('auth_token');
-    if (token) {
-      try {
-        const tokenPayload = JSON.parse(atob(token.split('.')[1]));
-        const userGroups = tokenPayload.groups || [];
-        const user = {
-          username: tokenPayload.username,
-          groups: userGroups,
-          nameID: tokenPayload.nameID,
-          firstName: tokenPayload.firstName,
-          department: tokenPayload.department,
-          role: userGroups.includes('Admin') ? 'Admin' : userGroups.includes('Staffs') ? 'Staffs' : 'Students'
-        };
-        setState({
-          user,
-          isLoading: false,
-          isStaff: userGroups.includes('Staffs') || userGroups.includes('Admin'),
-          isAdmin: userGroups.includes('Admin'),
-          isSuperAdmin: userGroups.includes('SuperAdmin'),
-        });
-      } catch (error) {
-        console.error('Error parsing auth token:', error);
-        setState({
-          user: null,
-          isLoading: false,
-          isStaff: false,
-          isAdmin: false,
-          isSuperAdmin: false,
-        });
-      }
-    } else {
-      setState({
-        user: null,
-        isLoading: false,
-        isStaff: false,
-        isAdmin: false,
-        isSuperAdmin: false,
-      });
-    }
-  }, []);
+  if (!user) {
+    return {
+      user: null,
+      isLoading,
+      isStaff: false,
+      isAdmin: false,
+      isSuperAdmin: false,
+    };
+  }
 
-  return state;
+  const groups = user.groups || [];
+
+  // Transform store user to hook user interface if needed, or just use as is
+  // The structure seems identical based on previous file content
+  const mappedUser: User = {
+    username: user.username,
+    role: groups.includes('Admin') ? 'Admin' : groups.includes('Staffs') ? 'Staffs' : 'Students',
+    groups: groups,
+    nameID: user.nameID,
+    firstName: user.firstName,
+    department: user.department,
+  };
+
+  return {
+    user: mappedUser,
+    isLoading,
+    isStaff: groups.includes('Staffs') || groups.includes('Admin'),
+    isAdmin: groups.includes('Admin'),
+    isSuperAdmin: groups.includes('SuperAdmin'),
+  };
 }; 

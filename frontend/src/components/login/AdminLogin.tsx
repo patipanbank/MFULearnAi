@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { config } from '../../config/config';
 import { FiEye, FiEyeOff, FiLock, FiUser } from 'react-icons/fi';
+import { useAuthStore } from '../auth/store/userStore';
 
 const AdminLogin: React.FC = () => {
   const [username, setUsername] = useState('');
@@ -12,22 +13,23 @@ const AdminLogin: React.FC = () => {
   const [isPasswordError, setIsPasswordError] = useState(false);
   const [isUsernameError, setIsUsernameError] = useState(false);
   const navigate = useNavigate();
+  const { setToken, setUser } = useAuthStore();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setIsPasswordError(false);
     setIsUsernameError(false);
-    
+
     try {
       const response = await axios.post(`${config.apiUrl}/api/auth/admin/login`, {
         username,
         password
       });
 
-      localStorage.setItem('auth_token', response.data.token);
-      localStorage.setItem('user_data', JSON.stringify(response.data.user));
-      
+      setToken(response.data.token);
+      setUser(response.data.user);
+
       navigate('/mfuchatbot');
     } catch (error: unknown) {
       if (axios.isAxiosError(error) && error.response?.data?.message) {
@@ -46,7 +48,7 @@ const AdminLogin: React.FC = () => {
   };
 
   return (
-    <div 
+    <div
       className="min-h-screen flex items-center justify-center bg-cover bg-center relative"
       style={{
         backgroundImage: "url('/mfu_background_login_admin.png')"
@@ -56,7 +58,7 @@ const AdminLogin: React.FC = () => {
       <div className="max-w-md w-full space-y-8 p-10 bg-white/80 backdrop-blur-md rounded-2xl shadow-xl relative z-10 transform transition-all duration-300 hover:shadow-2xl mx-4">
         <div className="text-center">
           <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2 whitespace-nowrap">
-            Admin <span style={{ 
+            Admin <span style={{
               background: 'linear-gradient(to right, rgb(186, 12, 47), rgb(212, 175, 55))',
               WebkitBackgroundClip: 'text',
               WebkitTextFillColor: 'transparent',
@@ -151,8 +153,8 @@ const AdminLogin: React.FC = () => {
               {isLoading ? 'Logging in...' : 'Log in'}
             </button>
             <div className="flex justify-end mt-2">
-              <a 
-                href="/login" 
+              <a
+                href="/login"
                 className="text-xs text-gray-600 hover:text-blue-600 transition-colors duration-200 underline"
               >
                 Back to main login

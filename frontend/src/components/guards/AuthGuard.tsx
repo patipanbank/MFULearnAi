@@ -1,13 +1,17 @@
 import { Navigate } from 'react-router-dom';
+import { useAuthStore } from '../auth/store/userStore';
 
 interface AuthGuardProps {
   children: React.ReactNode;
 }
 
 const AuthGuard = ({ children }: AuthGuardProps) => {
-  const isAuthenticated = !!localStorage.getItem('auth_token');
+  const { isAuthenticated, token } = useAuthStore();
 
-  if (!isAuthenticated) {
+  // Double check both store state and legacy check to prevent flash of login redirect
+  const hasAuth = isAuthenticated || !!token || !!localStorage.getItem('auth_token');
+
+  if (!hasAuth) {
     return <Navigate to="/login" />;
   }
 

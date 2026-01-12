@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { config } from '../../config/config';
 import { FiEdit, FiTrash2, FiPlus, FiX, FiCheck, FiLoader, FiEye, FiEyeOff } from 'react-icons/fi';
 import Select from 'react-select';
+import { useAuthStore } from '../auth/store/userStore';
 
 interface Admin {
   _id: string;
@@ -23,7 +24,7 @@ interface Department {
 const ManageAdmin: React.FC = () => {
   const navigate = useNavigate();
   const [admins, setAdmins] = useState<Admin[]>([]);
-  const [departments, setDepartments] = useState<{value: string, label: string}[]>([]);
+  const [departments, setDepartments] = useState<{ value: string, label: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [editingAdmin, setEditingAdmin] = useState<Admin | null>(null);
@@ -40,7 +41,7 @@ const ManageAdmin: React.FC = () => {
   const fetchAdmins = async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem('auth_token');
+      const token = useAuthStore.getState().token;
       const response = await fetch(`${config.apiUrl}/api/admin/all`, {
         headers: {
           'Authorization': `Bearer ${token}`
@@ -63,7 +64,7 @@ const ManageAdmin: React.FC = () => {
 
   const fetchDepartments = async () => {
     try {
-      const token = localStorage.getItem('auth_token');
+      const token = useAuthStore.getState().token;
       const response = await fetch(`${config.apiUrl}/api/departments`, {
         headers: {
           'Authorization': `Bearer ${token}`
@@ -113,7 +114,7 @@ const ManageAdmin: React.FC = () => {
 
   const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!editingAdmin) {
       return;
     }
@@ -126,7 +127,7 @@ const ManageAdmin: React.FC = () => {
 
     try {
       setLoading(true);
-      const token = localStorage.getItem('auth_token');
+      const token = useAuthStore.getState().token;
       const response = await fetch(`${config.apiUrl}/api/admin/${editingAdmin._id}`, {
         method: 'PUT',
         headers: {
@@ -156,7 +157,7 @@ const ManageAdmin: React.FC = () => {
 
     try {
       setLoading(true);
-      const token = localStorage.getItem('auth_token');
+      const token = useAuthStore.getState().token;
       const response = await fetch(`${config.apiUrl}/api/admin/${id}`, {
         method: 'DELETE',
         headers: {
@@ -353,26 +354,26 @@ const ManageAdmin: React.FC = () => {
                     }),
                     option: (base, state) => ({
                       ...base,
-                      backgroundColor: state.isSelected 
-                        ? 'rgb(37 99 235)' 
-                        : state.isFocused 
-                          ? 'rgba(37, 99, 235, 0.1)' 
+                      backgroundColor: state.isSelected
+                        ? 'rgb(37 99 235)'
+                        : state.isFocused
+                          ? 'rgba(37, 99, 235, 0.1)'
                           : undefined,
-                      color: state.isSelected 
-                        ? 'white' 
+                      color: state.isSelected
+                        ? 'white'
                         : 'inherit',
                       '.dark &': {
-                        backgroundColor: state.isSelected 
-                          ? 'rgb(37 99 235)' 
-                          : state.isFocused 
-                            ? 'rgba(37, 99, 235, 0.3)' 
+                        backgroundColor: state.isSelected
+                          ? 'rgb(37 99 235)'
+                          : state.isFocused
+                            ? 'rgba(37, 99, 235, 0.3)'
                             : undefined,
                         color: state.isSelected ? 'white' : 'white'
                       },
                       ':active': {
                         ...base[':active'],
-                        backgroundColor: state.isSelected 
-                          ? 'rgb(29 78 216)' 
+                        backgroundColor: state.isSelected
+                          ? 'rgb(29 78 216)'
                           : 'rgba(29, 78, 216, 0.2)',
                       }
                     }),

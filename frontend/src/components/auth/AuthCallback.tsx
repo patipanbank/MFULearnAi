@@ -1,9 +1,11 @@
 import { useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useAuthStore } from './store/userStore';
 
 const AuthCallback = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const { setToken, setUser } = useAuthStore();
 
   useEffect(() => {
     const token = searchParams.get('token');
@@ -16,12 +18,9 @@ const AuthCallback = () => {
         // แปลง JSON string เป็น object
         const userData = JSON.parse(userDataStr);
 
-        // บันทึกข้อมูลลง localStorage
-        localStorage.setItem('auth_token', token);
-        localStorage.setItem('user_data', JSON.stringify(userData));
-
-        // console.log('Saved token:', token);
-        // console.log('Saved user data:', userData);
+        // Update store (which also handles localStorage)
+        setToken(token);
+        setUser(userData);
 
         // redirect ไปที่หน้า MFUChatbot
         navigate('/mfuchatbot');

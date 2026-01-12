@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { config } from '../../config/config';
+import { useAuthStore } from '../auth/store/userStore';
 
 interface ChatHistory {
   _id: string;
@@ -40,7 +41,7 @@ const ChatManager: React.FC<ChatManagerProps> = ({ onSelectChat, onCreateNewChat
 
   const loadChats = async () => {
     try {
-      const token = localStorage.getItem('auth_token');
+      const token = useAuthStore.getState().token;
       if (!token) return;
 
       const queryParams = new URLSearchParams();
@@ -56,7 +57,7 @@ const ChatManager: React.FC<ChatManagerProps> = ({ onSelectChat, onCreateNewChat
       if (response.ok) {
         const data = await response.json() as ChatHistory[];
         setChats(data);
-        
+
         // Extract unique folders
         const uniqueFolders = [...new Set(data.map(chat => chat.folder || 'default'))];
         setFolders(['default', ...uniqueFolders.filter(f => f !== 'default')]);
@@ -68,7 +69,7 @@ const ChatManager: React.FC<ChatManagerProps> = ({ onSelectChat, onCreateNewChat
 
   const handleRename = async (chatId: string, newName: string) => {
     try {
-      const token = localStorage.getItem('auth_token');
+      const token = useAuthStore.getState().token;
       const response = await fetch(`${config.apiUrl}/api/chat/history/${chatId}/rename`, {
         method: 'PUT',
         headers: {
@@ -91,7 +92,7 @@ const ChatManager: React.FC<ChatManagerProps> = ({ onSelectChat, onCreateNewChat
     if (!window.confirm('Are you sure you want to delete this chat?')) return;
 
     try {
-      const token = localStorage.getItem('auth_token');
+      const token = useAuthStore.getState().token;
       const response = await fetch(`${config.apiUrl}/api/chat/history/${chatId}`, {
         method: 'DELETE',
         headers: {
@@ -109,7 +110,7 @@ const ChatManager: React.FC<ChatManagerProps> = ({ onSelectChat, onCreateNewChat
 
   const handleMoveToFolder = async (chatId: string, folder: string) => {
     try {
-      const token = localStorage.getItem('auth_token');
+      const token = useAuthStore.getState().token;
       const response = await fetch(`${config.apiUrl}/api/chat/history/${chatId}/folder`, {
         method: 'PUT',
         headers: {
@@ -129,7 +130,7 @@ const ChatManager: React.FC<ChatManagerProps> = ({ onSelectChat, onCreateNewChat
 
   const handleTogglePin = async (chatId: string) => {
     try {
-      const token = localStorage.getItem('auth_token');
+      const token = useAuthStore.getState().token;
       const response = await fetch(`${config.apiUrl}/api/chat/history/${chatId}/toggle-pin`, {
         method: 'PUT',
         headers: {
@@ -147,7 +148,7 @@ const ChatManager: React.FC<ChatManagerProps> = ({ onSelectChat, onCreateNewChat
 
   const handleExport = async (chatId: string) => {
     try {
-      const token = localStorage.getItem('auth_token');
+      const token = useAuthStore.getState().token;
       const response = await fetch(`${config.apiUrl}/api/chat/history/${chatId}/export`, {
         headers: {
           'Authorization': `Bearer ${token}`
@@ -157,6 +158,7 @@ const ChatManager: React.FC<ChatManagerProps> = ({ onSelectChat, onCreateNewChat
       if (response.ok) {
         const data = await response.json();
         const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
@@ -173,7 +175,7 @@ const ChatManager: React.FC<ChatManagerProps> = ({ onSelectChat, onCreateNewChat
 
   const handleCreateNewChat = async () => {
     if (isCreatingChat) return;
-    
+
     try {
       setIsCreatingChat(true);
       await onCreateNewChat();
@@ -197,24 +199,22 @@ const ChatManager: React.FC<ChatManagerProps> = ({ onSelectChat, onCreateNewChat
           <button
             onClick={handleCreateNewChat}
             disabled={isCreatingChat}
-            className={`px-4 py-2 bg-blue-500 text-white rounded-lg ${
-              isCreatingChat ? 'opacity-50 cursor-not-allowed' : 'hover:bg-blue-600'
-            }`}
+            className={`px-4 py-2 bg-blue-500 text-white rounded-lg ${isCreatingChat ? 'opacity-50 cursor-not-allowed' : 'hover:bg-blue-600'
+              }`}
           >
             {isCreatingChat ? 'Creating...' : 'New Chat'}
           </button>
         </div>
-        
+
         <div className="flex gap-2 overflow-x-auto pb-2">
           {folders.map(folder => (
             <button
               key={folder}
               onClick={() => setSelectedFolder(folder)}
-              className={`px-3 py-1 rounded-full text-sm whitespace-nowrap ${
-                selectedFolder === folder
+              className={`px-3 py-1 rounded-full text-sm whitespace-nowrap ${selectedFolder === folder
                   ? 'bg-blue-500 text-white'
                   : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
-              }`}
+                }`}
             >
               {folder}
             </button>
@@ -226,9 +226,8 @@ const ChatManager: React.FC<ChatManagerProps> = ({ onSelectChat, onCreateNewChat
         {chats.map(chat => (
           <div
             key={chat._id}
-            className={`p-4 border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 ${
-              selectedChatId === chat._id ? 'bg-blue-50 dark:bg-gray-800' : ''
-            }`}
+            className={`p-4 border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 ${selectedChatId === chat._id ? 'bg-blue-50 dark:bg-gray-800' : ''
+              }`}
           >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 flex-1">
@@ -238,7 +237,7 @@ const ChatManager: React.FC<ChatManagerProps> = ({ onSelectChat, onCreateNewChat
                 >
                   📌
                 </button>
-                
+
                 {isRenaming === chat._id ? (
                   <input
                     type="text"

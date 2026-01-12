@@ -1,9 +1,10 @@
 import React from 'react';
+import { useAuthStore } from '../../auth/store/userStore';
 
 const WelcomeMessage: React.FC = () => {
-  // Get user data from localStorage
-  const userData = JSON.parse(localStorage.getItem('user_data') || '{}');
-  const userName = userData.firstName || userData.username || 'User';
+  // Get user data from store
+  const user = useAuthStore(state => state.user);
+  const userName = user?.firstName || user?.username || 'User';
 
   return (
     <div className="flex flex-col items-center justify-center h-full">

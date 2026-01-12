@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { config } from '../../config/config';
 import { FiLoader, FiRefreshCw, FiAlertCircle, FiEdit2, FiX, FiCheck, FiFilter, FiSearch, FiUsers } from 'react-icons/fi';
 import { BaseModal } from '../models/ui/BaseModal';
+import { useAuthStore } from '../auth/store/userStore';
 
 interface User {
   _id: string;
@@ -36,7 +37,7 @@ const ManageUser: React.FC = () => {
       setLoading(true);
       setError(null);
 
-      const token = localStorage.getItem('auth_token');
+      const token = useAuthStore.getState().token;
       const response = await fetch(`${config.apiUrl}/api/admin/users`, {
         headers: {
           Authorization: `Bearer ${token || ''}`,
@@ -58,7 +59,7 @@ const ManageUser: React.FC = () => {
 
   const fetchDepartments = async () => {
     try {
-      const token = localStorage.getItem('auth_token');
+      const token = useAuthStore.getState().token;
       const response = await fetch(`${config.apiUrl}/api/departments`, {
         headers: {
           Authorization: `Bearer ${token || ''}`,
@@ -158,7 +159,7 @@ const ManageUser: React.FC = () => {
       setSaving(true);
       setError(null);
 
-      const token = localStorage.getItem('auth_token');
+      const token = useAuthStore.getState().token;
       const response = await fetch(`${config.apiUrl}/api/admin/users/${editingUser._id}`, {
         method: 'PUT',
         headers: {
@@ -489,7 +490,7 @@ const ManageUser: React.FC = () => {
         >
           <div className="space-y-6">
             <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Filter Users</h2>
-            
+
             {/* Role Filter */}
             <div>
               <label className="mb-3 block text-sm font-semibold text-gray-700 dark:text-gray-300">
@@ -515,15 +516,14 @@ const ManageUser: React.FC = () => {
                     />
                     <span className="text-sm text-gray-900 dark:text-white flex-1">{role}</span>
                     <span
-                      className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                        role === 'SuperAdmin'
+                      className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${role === 'SuperAdmin'
                           ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300'
                           : role === 'Admin'
-                          ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
-                          : role === 'Staffs'
-                          ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300'
-                          : 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
-                      }`}
+                            ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
+                            : role === 'Staffs'
+                              ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300'
+                              : 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
+                        }`}
                     >
                       {role}
                     </span>
@@ -714,15 +714,14 @@ const ManageUser: React.FC = () => {
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap">
                         <span
-                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                            user.role === 'SuperAdmin'
+                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${user.role === 'SuperAdmin'
                               ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300'
                               : user.role === 'Admin'
-                              ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
-                              : user.role === 'Staffs'
-                              ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300'
-                              : 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
-                          }`}
+                                ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
+                                : user.role === 'Staffs'
+                                  ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300'
+                                  : 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
+                            }`}
                         >
                           {user.role}
                         </span>

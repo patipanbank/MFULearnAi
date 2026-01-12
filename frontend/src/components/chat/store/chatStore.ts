@@ -5,6 +5,7 @@ import { isValidObjectId } from '../utils/formatters';
 import { config } from '../../../config/config';
 import { useModelStore } from './modelStore';
 import { useUIStore } from './uiStore';
+import { useAuthStore } from '../../auth/store/userStore';
 
 export interface ChatState {
   // State
@@ -14,11 +15,11 @@ export interface ChatState {
   selectedFiles: File[];
   wsRef: WebSocket | null;
   editingMessage: Message | null;
-  
+
   // Refs (to be set by components)
   messagesEndRef: React.RefObject<HTMLDivElement> | null;
   chatContainerRef: React.RefObject<HTMLDivElement> | null;
-  
+
   // Actions - Basic state setters
   setMessages: (messages: Message[] | ((prev: Message[]) => Message[])) => void;
   setCurrentChatId: (chatId: string | null) => void;
@@ -27,7 +28,7 @@ export interface ChatState {
   setMessagesEndRef: (ref: React.RefObject<HTMLDivElement>) => void;
   setChatContainerRef: (ref: React.RefObject<HTMLDivElement>) => void;
   setEditingMessage: (message: Message | null) => void;
-  
+
   // Actions - Complex operations
   initWebSocket: () => void;
   loadChatHistory: (chatId: string | null) => Promise<void>;
@@ -57,7 +58,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   messagesEndRef: null,
   chatContainerRef: null,
   editingMessage: null,
-  
+
   // Basic state setters
   setMessages: (messagesOrFn) => {
     if (typeof messagesOrFn === 'function') {
@@ -66,9 +67,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
       set({ messages: messagesOrFn });
     }
   },
-  
+
   setCurrentChatId: (chatId) => set({ currentChatId: chatId }),
-  
+
   setSelectedImages: (imagesOrFn) => {
     if (typeof imagesOrFn === 'function') {
       set((state) => ({ selectedImages: imagesOrFn(state.selectedImages) }));
@@ -76,7 +77,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       set({ selectedImages: imagesOrFn });
     }
   },
-  
+
   setSelectedFiles: (filesOrFn) => {
     if (typeof filesOrFn === 'function') {
       set((state) => ({ selectedFiles: filesOrFn(state.selectedFiles) }));
@@ -84,34 +85,35 @@ export const useChatStore = create<ChatState>((set, get) => ({
       set({ selectedFiles: filesOrFn });
     }
   },
-  
+
   setMessagesEndRef: (ref) => set({ messagesEndRef: ref }),
   setChatContainerRef: (ref) => set({ chatContainerRef: ref }),
   setEditingMessage: (message) => set({ editingMessage: message }),
-  
+
   // WebSocket connection
   initWebSocket: () => {
-    const token = localStorage.getItem('auth_token');
+    // Get token from auth store
+    const token = useAuthStore.getState().token;
     if (!token) return;
 
     const wsUrl = new URL(import.meta.env.VITE_WS_URL);
     wsUrl.searchParams.append('token', token);
-    
+
     const { currentChatId } = get();
-    
+
     // Only append chatId if it's a valid ObjectId
     if (currentChatId && isValidObjectId(currentChatId)) {
       wsUrl.searchParams.append('chat', currentChatId);
     }
-    
+
     // Close existing connection if any
     const currentWs = get().wsRef;
     if (currentWs && currentWs.readyState === WebSocket.OPEN) {
       currentWs.close();
     }
-    
+
     const ws = new WebSocket(wsUrl.toString());
-    
+
     ws.onopen = () => {
       console.log('WebSocket connection established');
     };
@@ -119,10 +121,10 @@ export const useChatStore = create<ChatState>((set, get) => ({
     ws.onmessage = async (event) => {
       try {
         const data = JSON.parse(event.data);
-        
+
         if (data.error) {
           console.error('Received error from WebSocket:', data.error);
-          get().setMessages((prev) => prev.map((msg, index) => 
+          get().setMessages((prev) => prev.map((msg, index) =>
             index === prev.length - 1 && msg.role === 'assistant' ? {
               ...msg,
               content: `Error: ${data.error}`,
@@ -137,19 +139,19 @@ export const useChatStore = create<ChatState>((set, get) => ({
           case 'chat_created':
             // Store the chatId internally
             get().setCurrentChatId(data.chatId);
-            
+
             // Check if we're waiting for chat ID for early navigation
             const { awaitingChatId, setAwaitingChatId } = useUIStore.getState();
             if (awaitingChatId && data.chatId) {
               // Navigate to chat URL immediately
               setAwaitingChatId(false);
-              
+
               // Use history.replaceState to update URL without causing a navigation event
               window.history.replaceState(null, '', `/mfuchatbot?chat=${data.chatId}`);
-              
+
               // Trigger an event to notify that we've updated the URL
-              window.dispatchEvent(new CustomEvent('chatUrlUpdated', { 
-                detail: { chatId: data.chatId, early: true } 
+              window.dispatchEvent(new CustomEvent('chatUrlUpdated', {
+                detail: { chatId: data.chatId, early: true }
               }));
             }
             break;
@@ -160,21 +162,21 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
           case 'complete':
             get().completeAssistantMessage(data.sources);
-            
+
             // Now that the response is complete, update URL with chatId if not done already
             if (data.chatId) {
               get().setCurrentChatId(data.chatId);
-              
+
               // Only navigate if we haven't done early navigation
               const { awaitingChatId } = useUIStore.getState();
               if (!awaitingChatId) {
                 // Signal to components that chat has been updated with completed response
-                window.dispatchEvent(new CustomEvent('chatUpdated', { 
-                  detail: { chatId: data.chatId, complete: true } 
+                window.dispatchEvent(new CustomEvent('chatUpdated', {
+                  detail: { chatId: data.chatId, complete: true }
                 }));
               }
             }
-            
+
             // อัพเดทจำนวน token ที่ใช้ไป
             if (data.tokensUsed) {
               useModelStore.getState().updateTokenUsage(data.tokensUsed);
@@ -189,7 +191,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
           case 'error':
             console.error('Error from server:', data.error);
-            get().setMessages((prev) => prev.map((msg, index) => 
+            get().setMessages((prev) => prev.map((msg, index) =>
               index === prev.length - 1 && msg.role === 'assistant' ? {
                 ...msg,
                 content: `Error: ${data.error}`,
@@ -206,13 +208,13 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
         // เปิดเหตุการณ์ scroll event เมื่อรับข้อความใหม่หรืออัพเดท
         if (['message', 'update', 'complete'].includes(data.type)) {
-          window.dispatchEvent(new CustomEvent('chatMessageReceived', { 
-            detail: { messageType: data.type } 
+          window.dispatchEvent(new CustomEvent('chatMessageReceived', {
+            detail: { messageType: data.type }
           }));
         }
       } catch (error) {
         console.error('Error handling WebSocket message:', error);
-        get().setMessages((prev) => prev.map((msg, index) => 
+        get().setMessages((prev) => prev.map((msg, index) =>
           index === prev.length - 1 && msg.role === 'assistant' ? {
             ...msg,
             content: 'Error processing response. Please try again.',
@@ -232,41 +234,41 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
     set({ wsRef: ws });
   },
-  
+
   // Helper methods for WebSocket responses
   updateMessageContent: (content) => {
-    get().setMessages((prev) => prev.map((msg, index) => 
+    get().setMessages((prev) => prev.map((msg, index) =>
       index === prev.length - 1 && msg.role === 'assistant' ? {
         ...msg,
         content: msg.content + content
       } : msg
     ));
-    
+
     // แจ้งเตือนการอัพเดตเนื้อหาผ่าน CustomEvent แทนการเรียกใช้ scrollStore โดยตรง
     window.dispatchEvent(new CustomEvent('chatContentUpdated', {
-      detail: { 
+      detail: {
         type: 'update',
         forceScroll: false
       }
     }));
   },
-  
+
   completeAssistantMessage: (sources) => {
     // Re-enable auto-scrolling when message is complete
     const { setIsLoading } = useUIStore.getState();
-    
+
     // ตั้งค่า isLoading เป็น false เมื่อข้อความเสร็จสมบูรณ์
     setIsLoading(false);
-    
+
     // แจ้งเตือนว่าข้อความเสร็จสมบูรณ์แล้วผ่าน CustomEvent
     window.dispatchEvent(new CustomEvent('chatContentUpdated', {
-      detail: { 
+      detail: {
         type: 'complete',
         forceScroll: true
       }
     }));
-    
-    get().setMessages((prev) => prev.map((msg, index) => 
+
+    get().setMessages((prev) => prev.map((msg, index) =>
       index === prev.length - 1 && msg.role === 'assistant' ? {
         ...msg,
         sources: sources || [],
@@ -274,22 +276,22 @@ export const useChatStore = create<ChatState>((set, get) => ({
       } : msg
     ));
   },
-  
+
   // Load chat history
   loadChatHistory: async (chatId) => {
     if (!chatId) {
       get().resetChat();
       return;
     }
-    
+
     if (!isValidObjectId(chatId)) {
       console.warn(`Invalid chat ID format: ${chatId}, starting new chat`);
       get().resetChat();
       return;
     }
-    
+
     try {
-      const token = localStorage.getItem('auth_token');
+      const token = useAuthStore.getState().token;
       if (!token) {
         return;
       }
@@ -302,12 +304,12 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
       if (response.ok) {
         const chat: ChatHistory = await response.json();
-        
+
         set({
           messages: chat.messages || [],
           currentChatId: chatId
         });
-        
+
         // Set selected model
         if (chat.modelId) {
           useModelStore.getState().setSelectedModel(chat.modelId);
@@ -321,55 +323,55 @@ export const useChatStore = create<ChatState>((set, get) => ({
       get().resetChat();
     }
   },
-  
+
   // Submit a new message
   handleSubmit: async (e) => {
     e.preventDefault();
-    
+
     const { selectedModel } = useModelStore.getState();
     const { messages, selectedImages, selectedFiles, currentChatId, wsRef, editingMessage } = get();
-    
+
     const { isImageGenerationMode, setIsLoading, setAwaitingChatId, inputMessage } = useUIStore.getState();
-    
+
     if ((!inputMessage.trim() && !isImageGenerationMode) || !selectedModel) {
       console.log('Cannot submit: empty message or no model selected');
       return;
     }
-    
+
     try {
       setIsLoading(true);
-      
+
       // แปลงรูปภาพและไฟล์
       let images: { data: string; mediaType: string }[] = [];
       let files: MessageFile[] = [];
-      
+
       // จัดการรูปภาพ
       if (selectedImages.length > 0) {
         images = await Promise.all(selectedImages.map(async (file) => await compressImage(file)));
       }
-      
+
       // จัดการไฟล์
       if (selectedFiles.length > 0) {
         files = await prepareMessageFiles(selectedFiles);
       }
-      
+
       // Handle message edit mode
       if (editingMessage) {
         // หาตำแหน่งของข้อความที่ต้องการแก้ไข
         const messageIndex = messages.findIndex(m => m.id === editingMessage.id);
         if (messageIndex === -1) return;
-        
+
         // ถ้าเป็นข้อความของผู้ใช้
         if (editingMessage.role === 'user') {
           console.log('[chatStore] กำลังแก้ไขข้อความผู้ใช้:', editingMessage);
           console.log('[chatStore] ข้อมูลที่จะใช้แก้ไข:', {
-            content: inputMessage, 
-            images, 
+            content: inputMessage,
+            images,
             files,
             existingImages: editingMessage.images,
             existingFiles: editingMessage.files
           });
-          
+
           // สร้างข้อความผู้ใช้ที่แก้ไขแล้ว
           const updatedUserMessage: Message = {
             ...editingMessage,
@@ -380,14 +382,14 @@ export const useChatStore = create<ChatState>((set, get) => ({
             files: files.length > 0 || editingMessage.files ? [...(files || []), ...(editingMessage.files || [])] : undefined,
             isEdited: true
           };
-          
+
           // ไม่ลบข้อความหลังจากนี้ แต่อัพเดทข้อความที่แก้ไข
           const updatedMessages = [...messages];
           updatedMessages[messageIndex] = updatedUserMessage;
-          
+
           // อัพเดทข้อความในสถานะ
           set({ messages: updatedMessages });
-          
+
           // สร้างข้อความผู้ใช้ใหม่ (คัดลอกจากข้อความที่แก้ไข)
           const newUserMessage: Message = {
             id: Date.now(),
@@ -398,7 +400,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
             timestamp: { $date: new Date().toISOString() },
             isImageGeneration: isImageGenerationMode
           };
-          
+
           // สร้างข้อความตอบกลับใหม่จาก AI
           const newAssistantMessage: Message = {
             id: `temp-assistant-${Date.now()}`,
@@ -409,13 +411,13 @@ export const useChatStore = create<ChatState>((set, get) => ({
             modelId: selectedModel,
             isComplete: false
           };
-          
+
           // เพิ่มข้อความใหม่ต่อท้าย
           const newMessages = [...updatedMessages, newUserMessage, newAssistantMessage];
-          
+
           // อัปเดตข้อความทั้งหมด
           set({ messages: newMessages });
-          
+
           // ส่งข้อความที่แก้ไขผ่าน WebSocket
           if (wsRef) {
             // ส่งการแก้ไข
@@ -425,7 +427,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
               messageId: editingMessage.id,
               content: inputMessage
             }));
-            
+
             // จากนั้นส่งข้อความใหม่
             setAwaitingChatId(true);
             wsRef.send(JSON.stringify({
@@ -441,10 +443,10 @@ export const useChatStore = create<ChatState>((set, get) => ({
               path: window.location.pathname
             }));
           }
-          
+
           // ล้างค่าต่างๆ
           useUIStore.getState().setInputMessage('');
-          set({ 
+          set({
             selectedImages: [],
             selectedFiles: [],
             editingMessage: null
@@ -455,17 +457,17 @@ export const useChatStore = create<ChatState>((set, get) => ({
           // แก้ไขข้อความใน store
           const updatedMessages = [...messages];
           const messageIndex = messages.findIndex(m => m.id === editingMessage.id);
-          
+
           if (messageIndex !== -1) {
             updatedMessages[messageIndex] = {
               ...editingMessage,
               content: inputMessage,
               isEdited: true
             };
-            
+
             // อัพเดทข้อความในสถานะ
             set({ messages: updatedMessages });
-            
+
             // ส่งไปยัง API และ WebSocket
             try {
               // ส่งการแก้ไขไปยัง WebSocket เพื่อแจ้งเตือนอุปกรณ์อื่น
@@ -477,9 +479,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
                   content: inputMessage
                 }));
               }
-              
+
               // ส่ง API request เพื่อบันทึกลงฐานข้อมูล
-              const token = localStorage.getItem('auth_token');
+              const token = useAuthStore.getState().token;
               if (token && currentChatId) {
                 fetch(`${config.apiUrl}/api/chat/edit-message`, {
                   method: 'POST',
@@ -495,27 +497,27 @@ export const useChatStore = create<ChatState>((set, get) => ({
                     isEdited: true
                   })
                 })
-                .then(response => {
-                  if (!response.ok) {
-                    throw new Error(`การแก้ไขข้อความล้มเหลว: ${response.status}`);
-                  }
-                  return response.json();
-                })
-                .then(data => {
-                  console.log('Message edit saved successfully:', data);
-                })
-                .catch(error => {
-                  console.error('Error saving message edit:', error);
-                });
+                  .then(response => {
+                    if (!response.ok) {
+                      throw new Error(`การแก้ไขข้อความล้มเหลว: ${response.status}`);
+                    }
+                    return response.json();
+                  })
+                  .then(data => {
+                    console.log('Message edit saved successfully:', data);
+                  })
+                  .catch(error => {
+                    console.error('Error saving message edit:', error);
+                  });
               }
             } catch (error) {
               console.error('Error sending message edit request:', error);
             }
           }
-          
+
           // ล้างค่าต่างๆ
           useUIStore.getState().setInputMessage('');
-          set({ 
+          set({
             editingMessage: null
           });
         }
@@ -529,7 +531,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
           images: images.length > 0 ? images : undefined,
           files: files.length > 0 ? files : undefined
         };
-        
+
         // Create a loading assistant message
         const newAssistantMessage: Message = {
           id: `temp-assistant-${Date.now()}`,
@@ -540,15 +542,15 @@ export const useChatStore = create<ChatState>((set, get) => ({
           modelId: selectedModel,
           isComplete: false
         };
-        
+
         // สร้างอาร์เรย์ข้อความที่อัปเดตแล้ว (รวมข้อความของผู้ใช้ที่เพิ่มเข้ามาใหม่)
         const updatedMessages = [...messages, newUserMessage];
-        
+
         // Add both messages to the state
         set((state) => ({
           messages: [...state.messages, newUserMessage, newAssistantMessage]
         }));
-        
+
         // Send message via WebSocket
         if (wsRef) {
           setAwaitingChatId(true);
@@ -567,42 +569,42 @@ export const useChatStore = create<ChatState>((set, get) => ({
         } else {
           console.error('WebSocket not connected');
           set((state) => ({
-            messages: state.messages.map((msg) => 
-              msg.id === newAssistantMessage.id 
-                ? { ...msg, content: 'Error: WebSocket not connected. Please refresh and try again.', loading: false, error: true } 
+            messages: state.messages.map((msg) =>
+              msg.id === newAssistantMessage.id
+                ? { ...msg, content: 'Error: WebSocket not connected. Please refresh and try again.', loading: false, error: true }
                 : msg
             )
           }));
-          
+
           // Set isLoading to false in case of error
           useUIStore.getState().setIsLoading(false);
         }
-        
+
         // Clear the input and selected files
         useUIStore.getState().setInputMessage('');
-        set({ 
+        set({
           selectedImages: [],
           selectedFiles: [],
           editingMessage: null
         });
-        
+
         // ไม่ reset isLoading ที่นี่ เพราะต้องรอให้ streaming เสร็จก่อน
       }
     } catch (error) {
       console.error('Error submitting message:', error);
     }
   },
-  
+
   // Handle keyboard events
   handleKeyDown: (e) => {
     const { isMobile } = useUIStore.getState();
-    
+
     if (e.key === 'Enter' && !isMobile && !e.shiftKey) {
       e.preventDefault();
       get().handleSubmit(e as any);
     }
   },
-  
+
   // Handle paste events (for images)
   handlePaste: async (e) => {
     const items = e.clipboardData?.items;
@@ -626,34 +628,34 @@ export const useChatStore = create<ChatState>((set, get) => ({
       }
     }
   },
-  
+
   // Continue writing feature
   handleContinueClick: (e: React.MouseEvent) => {
     e.preventDefault();
-    
+
     const { setIsLoading } = useUIStore.getState();
     const { selectedModel } = useModelStore.getState();
     const { messages, wsRef, currentChatId } = get();
-    
+
     if (!wsRef || messages.length === 0 || !selectedModel) {
       console.error('Cannot continue: WebSocket not connected, no messages, or no model selected');
       return;
     }
-    
+
     // แจ้งเตือนให้เปิดใช้งานการเลื่อนอัตโนมัติ
     window.dispatchEvent(new CustomEvent('chatScrollAction', {
-      detail: { 
+      detail: {
         action: 'enableAutoScroll',
         forceScroll: true
       }
     }));
-    
+
     try {
       setIsLoading(true);
-      
+
       const lastMessage = messages[messages.length - 1];
       const lastUserMessage = [...messages].reverse().find(m => m.role === 'user');
-      
+
       // สร้างข้อความสำหรับการสั่งให้ AI ทำงานต่อ (ไม่แสดงใน UI)
       const continueMessage: Message = {
         id: `temp-continue-${Date.now()}`,
@@ -661,7 +663,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
         content: "Continue writing",
         timestamp: { $date: new Date().toISOString() }
       };
-      
+
       // Create new assistant message
       const newAssistantMessage: Message = {
         id: `temp-assistant-${Date.now()}`,
@@ -671,15 +673,15 @@ export const useChatStore = create<ChatState>((set, get) => ({
         modelId: selectedModel,
         isComplete: false
       };
-      
+
       // ข้อความทั้งหมดรวมกับข้อความ "Continue writing"
       const updatedMessages = [...messages, continueMessage];
-      
+
       // Add the assistant message to UI (but not the continue message)
       set((state) => ({
         messages: [...state.messages, newAssistantMessage]
       }));
-      
+
       // Send continue command via WebSocket
       wsRef.send(JSON.stringify({
         type: 'continue',
@@ -696,86 +698,86 @@ export const useChatStore = create<ChatState>((set, get) => ({
       setIsLoading(false);
     }
   },
-  
+
   // File selection
   handleFileSelect: (e) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
-    
+
     // Process all files, categorizing them into images and documents
     Array.from(files).forEach(file => {
       const isImage = file.type.startsWith('image/');
-      
+
       // Add to selected images if it's an image
       if (isImage) {
         get().setSelectedImages(prev => [...prev, file]);
-      } 
+      }
       // Add to selected files if it's a document
       else {
         get().setSelectedFiles(prev => [...prev, file]);
       }
     });
-    
+
     // Reset input to allow selecting the same file again
     e.target.value = '';
   },
-  
+
   // File removal
   handleRemoveImage: (index) => {
     get().setSelectedImages((prev) => prev.filter((_, i) => i !== index));
   },
-  
+
   handleRemoveFile: (index) => {
     get().setSelectedFiles((prev) => prev.filter((_, i) => i !== index));
   },
-  
+
   // Submission validation
   canSubmit: () => {
     const { selectedFiles, selectedImages } = get();
-    
+
     const { isLoading, inputMessage } = useUIStore.getState();
     const { selectedModel } = useModelStore.getState();
-    
+
     const hasText = inputMessage.trim() !== '';
     const hasFiles = selectedFiles.length > 0;
     const hasImages = selectedImages.length > 0;
     const hasModel = !!selectedModel;
-    
+
     //console.log('canSubmit conditions:', { hasText, hasFiles, hasImages, hasModel, isLoading, selectedModel });
-    
+
     return (hasText || hasFiles || hasImages) && hasModel && !isLoading;
   },
-  
+
   // Reset chat state
   resetChat: () => {
-    set({ 
-      messages: [], 
-      currentChatId: null, 
+    set({
+      messages: [],
+      currentChatId: null,
       selectedImages: [],
-      selectedFiles: [], 
-      editingMessage: null 
+      selectedFiles: [],
+      editingMessage: null
     });
     useUIStore.getState().setIsImageGenerationMode(false);
   },
-  
+
   // Cancel the current generation
   handleCancelGeneration: (e) => {
     e.preventDefault();
-    
+
     const { wsRef, messages } = get();
     const { setIsLoading } = useUIStore.getState();
-    
+
     if (!wsRef) {
       return;
     }
-    
+
     try {
       // Send a cancel message to the WebSocket server
-      wsRef.send(JSON.stringify({ 
+      wsRef.send(JSON.stringify({
         type: 'cancel',
         chatId: get().currentChatId
       }));
-      
+
       // Update the last message to show it's been cancelled
       const updatedMessages = [...messages];
       if (updatedMessages.length > 0) {
@@ -789,7 +791,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
           set({ messages: updatedMessages });
         }
       }
-      
+
       // Reset loading state
       setIsLoading(false);
     } catch (error) {
@@ -798,13 +800,13 @@ export const useChatStore = create<ChatState>((set, get) => ({
       setIsLoading(false);
     }
   },
-  
+
   // Edit a message
   handleEditMessage: (message) => {
     const { messages, wsRef, currentChatId } = get();
     const { selectedModel, fetchUsage } = useModelStore.getState();
     const { setIsLoading } = useUIStore.getState();
-    
+
     if (message.role === 'user') {
       // ค้นหาข้อความเดิมและตำแหน่ง
       const messageIndex = messages.findIndex(m => m.id === message.id);
@@ -812,7 +814,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
         console.error('Message to edit not found');
         return;
       }
-      
+
       // เมื่อแก้ไขข้อความของ user: เป็นการส่งข้อความใหม่ (resubmit)
       // สร้างข้อความผู้ใช้ใหม่จากข้อความที่แก้ไข
       const newUserMessage: Message = {
@@ -825,12 +827,12 @@ export const useChatStore = create<ChatState>((set, get) => ({
         isImageGeneration: false,
         files: message.files // ใช้ไฟล์ที่ได้รับจากการแก้ไข (รวมไฟล์เดิมและไฟล์ใหม่)
       };
-      
+
       // ตรวจสอบและแสดงข้อมูลไฟล์ที่จะส่ง
       if (message.files && message.files.length > 0) {
         console.log(`กำลังส่งข้อความพร้อมไฟล์ ${message.files.length} ไฟล์`);
       }
-      
+
       // สร้างข้อความใหม่ของ assistant สำหรับการตอบกลับ
       const newAssistantMessage: Message = {
         id: Date.now() + 1,
@@ -842,26 +844,26 @@ export const useChatStore = create<ChatState>((set, get) => ({
         isImageGeneration: false,
         isComplete: false
       };
-      
+
       // อัพเดทข้อความโดยเพิ่มข้อความใหม่ต่อท้าย
       set({ messages: [...messages, newUserMessage, newAssistantMessage] });
       setIsLoading(true);
-      
+
       // แจ้งเตือนให้เปิดใช้งานการเลื่อนอัตโนมัติ
       window.dispatchEvent(new CustomEvent('chatScrollAction', {
-        detail: { 
+        detail: {
           action: 'enableAutoScroll',
           forceScroll: true
         }
       }));
-      
+
       // ส่งคำขอไปยัง websocket
       try {
         if (!wsRef) {
           console.error('WebSocket connection not available');
           return;
         }
-        
+
         // ส่งข้อความใหม่สำหรับการตอบกลับ
         const payload = {
           messages: [newUserMessage],
@@ -872,7 +874,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
           type: 'message',
           files: newUserMessage.files // ส่งไฟล์ไปด้วย
         };
-        
+
         // ตรวจสอบไฟล์แนบก่อนส่ง
         if (newUserMessage.files && newUserMessage.files.length > 0) {
           console.log('ไฟล์แนบที่จะส่ง:', newUserMessage.files.map(file => ({
@@ -882,21 +884,21 @@ export const useChatStore = create<ChatState>((set, get) => ({
             dataPreview: file.data ? file.data.substring(0, 50) + '...' : 'No data'
           })));
         }
-        
+
         console.log('ส่งข้อความที่แก้ไขพร้อมไฟล์:', {
           messageContent: newUserMessage.content.substring(0, 50) + '...',
           filesCount: newUserMessage.files?.length || 0
         });
-        
+
         wsRef.send(JSON.stringify(payload));
-        
+
         // อัพเดทการใช้งาน
         fetchUsage();
       } catch (error) {
         console.error('Error in handleEditMessage (resubmit):', error);
         setIsLoading(false);
       }
-      
+
       // บันทึกข้อความใหม่ลงฐานข้อมูล
       try {
         const token = localStorage.getItem('auth_token');
@@ -911,21 +913,21 @@ export const useChatStore = create<ChatState>((set, get) => ({
               message: newUserMessage
             })
           })
-          .then(response => {
-            if (!response.ok) {
-              throw new Error(`การบันทึกข้อความล้มเหลว: ${response.status}`);
-            }
-            return response.json();
-          })
-          .then(data => {
-            console.log('Message saved with attachments successfully:', { 
-              success: data.success,
-              filesCount: newUserMessage.files?.length || 0 
+            .then(response => {
+              if (!response.ok) {
+                throw new Error(`การบันทึกข้อความล้มเหลว: ${response.status}`);
+              }
+              return response.json();
+            })
+            .then(data => {
+              console.log('Message saved with attachments successfully:', {
+                success: data.success,
+                filesCount: newUserMessage.files?.length || 0
+              });
+            })
+            .catch(error => {
+              console.error('Error saving new message:', error);
             });
-          })
-          .catch(error => {
-            console.error('Error saving new message:', error);
-          });
         }
       } catch (error) {
         console.error('Error sending save message request:', error);
@@ -937,17 +939,17 @@ export const useChatStore = create<ChatState>((set, get) => ({
         console.error('Message to edit not found');
         return;
       }
-      
+
       // อัพเดทข้อความที่แก้ไขโดยตรง 
       const updatedMessages = [...messages];
       updatedMessages[messageIndex] = {
         ...message,
         isEdited: true // เพิ่ม flag isEdited สำหรับข้อความ assistant ที่ถูกแก้ไข
       };
-      
+
       // อัพเดทข้อความในสถานะ
       set({ messages: updatedMessages });
-      
+
       // ส่งการแก้ไขไปยัง WebSocket เพื่อแจ้งเตือนอุปกรณ์อื่น (ถ้ามี)
       if (wsRef) {
         wsRef.send(JSON.stringify({
@@ -957,7 +959,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
           content: message.content
         }));
       }
-      
+
       // ส่ง API request ไปยัง backend เพื่อบันทึกข้อมูลลงฐานข้อมูล
       try {
         const token = localStorage.getItem('auth_token');
@@ -965,7 +967,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
           console.error('Token or chat ID not found');
           return;
         }
-        
+
         fetch(`${config.apiUrl}/api/chat/edit-message`, {
           method: 'POST',
           headers: {
@@ -980,51 +982,51 @@ export const useChatStore = create<ChatState>((set, get) => ({
             isEdited: true
           })
         })
-        .then(response => {
-          if (!response.ok) {
-            throw new Error(`Failed to edit message: ${response.status}`);
-          }
-          return response.json();
-        })
-        .then(data => {
-          console.log('Message edit saved successfully:', data);
-        })
-        .catch(error => {
-          console.error('Error saving message edit:', error);
-        });
+          .then(response => {
+            if (!response.ok) {
+              throw new Error(`Failed to edit message: ${response.status}`);
+            }
+            return response.json();
+          })
+          .then(data => {
+            console.log('Message edit saved successfully:', data);
+          })
+          .catch(error => {
+            console.error('Error saving message edit:', error);
+          });
       } catch (error) {
         console.error('Error sending message edit request:', error);
       }
     }
   },
-  
+
   // Regenerate the last assistant message
   handleRegenerateMessage: (e: React.MouseEvent, messageIndex?: number) => {
     e.preventDefault();
-    
+
     const { messages, wsRef, currentChatId } = get();
     const { selectedModel, fetchUsage } = useModelStore.getState();
     const { setIsLoading } = useUIStore.getState();
-    
+
     if (!selectedModel || !wsRef) {
       alert('Please select a model first');
       return;
     }
-    
+
     // แจ้งเตือนให้เปิดใช้งานการเลื่อนอัตโนมัติ
     window.dispatchEvent(new CustomEvent('chatScrollAction', {
-      detail: { 
+      detail: {
         action: 'enableAutoScroll',
         forceScroll: true
       }
     }));
-    
+
     // ถ้ามีการระบุ messageIndex ให้ลบข้อความที่ใหม่กว่าออกทั้งหมด
     // แต่ไม่ให้กระทบกับข้อความที่เคยถูกแก้ไขแล้ว (isEdited = true)
     if (messageIndex !== undefined && messageIndex >= 0 && messageIndex < messages.length) {
       // หาข้อความ user ที่อยู่ก่อนหรือที่ตำแหน่ง messageIndex
       let lastUserMessageIndex = messageIndex;
-      
+
       // ถ้าข้อความที่เลือกเป็น assistant ให้หาข้อความ user ก่อนหน้านี้
       if (messages[messageIndex].role === 'assistant') {
         for (let i = messageIndex; i >= 0; i--) {
@@ -1034,16 +1036,16 @@ export const useChatStore = create<ChatState>((set, get) => ({
           }
         }
       }
-      
+
       // ถ้าไม่เจอข้อความผู้ใช้ ยกเลิกการทำงาน
       if (messages[lastUserMessageIndex].role !== 'user') {
         console.error('Related user message not found');
         return;
       }
-      
+
       // เก็บเฉพาะข้อความถึงข้อความผู้ใช้ที่เกี่ยวข้อง
       const messagesToKeep = messages.slice(0, lastUserMessageIndex + 1);
-      
+
       // Add placeholder for new AI response
       const assistantMessage: Message = {
         id: Date.now(),
@@ -1055,11 +1057,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
         isImageGeneration: false,
         isComplete: false
       };
-      
+
       // Update messages and set loading state
       set({ messages: [...messagesToKeep, assistantMessage] });
       setIsLoading(true);
-      
+
       try {
         // Send regenerate request to websocket
         const messagePayload = {
@@ -1070,14 +1072,14 @@ export const useChatStore = create<ChatState>((set, get) => ({
           chatId: currentChatId,
           type: 'regenerate'
         };
-        
+
         wsRef.send(JSON.stringify(messagePayload));
-        
+
         // Update usage
         fetchUsage();
       } catch (error) {
         console.error('Error in handleRegenerateMessage:', error);
-        set({ 
+        set({
           messages: [...messagesToKeep, {
             id: Date.now(),
             role: 'assistant',
@@ -1091,19 +1093,19 @@ export const useChatStore = create<ChatState>((set, get) => ({
         });
         setIsLoading(false);
       }
-      
+
       return;
     }
-    
+
     // ถ้าไม่ระบุ messageIndex ให้ทำงานตามแบบเดิม (regenerate ข้อความสุดท้าย)
     // Find the last user message
     const lastUserMessageIndex = [...messages].reverse().findIndex(msg => msg.role === 'user');
     if (lastUserMessageIndex === -1) return;
-    
+
     // Get all messages up to and including the last user message
     const lastUserRealIndex = messages.length - 1 - lastUserMessageIndex;
     const messagesToKeep = messages.slice(0, lastUserRealIndex + 1);
-    
+
     // Add placeholder for new AI response
     const assistantMessage: Message = {
       id: Date.now(),
@@ -1115,11 +1117,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
       isImageGeneration: false,
       isComplete: false
     };
-    
+
     // Update messages and set loading state
     set({ messages: [...messagesToKeep, assistantMessage] });
     setIsLoading(true);
-    
+
     try {
       // Send regenerate request to websocket
       const messagePayload = {
@@ -1130,14 +1132,14 @@ export const useChatStore = create<ChatState>((set, get) => ({
         chatId: currentChatId,
         type: 'regenerate'
       };
-      
+
       wsRef.send(JSON.stringify(messagePayload));
-      
+
       // Update usage
       fetchUsage();
     } catch (error) {
       console.error('Error in handleRegenerateMessage:', error);
-      set({ 
+      set({
         messages: [...messagesToKeep, {
           id: Date.now(),
           role: 'assistant',

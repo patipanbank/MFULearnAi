@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { config } from '../../config/config';
 import { FiEdit, FiTrash2, FiPlus, FiX, FiCheck, FiLoader } from 'react-icons/fi';
+import { useAuthStore } from '../auth/store/userStore';
 
 interface Department {
   _id: string;
@@ -62,7 +63,7 @@ const ManageDepartment: React.FC = () => {
 
   const handleAddSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!formData.name.trim()) {
       setError('Department name is required');
       return;
@@ -96,7 +97,7 @@ const ManageDepartment: React.FC = () => {
 
   const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!formData.name.trim() || !editingDepartment) {
       setError('Department name is required');
       return;
@@ -104,7 +105,7 @@ const ManageDepartment: React.FC = () => {
 
     try {
       setLoading(true);
-      const token = localStorage.getItem('auth_token');
+      const token = useAuthStore.getState().token;
       const response = await fetch(`${config.apiUrl}/api/departments/${editingDepartment._id}`, {
         method: 'PUT',
         headers: {
@@ -133,7 +134,7 @@ const ManageDepartment: React.FC = () => {
 
     try {
       setLoading(true);
-      const token = localStorage.getItem('auth_token');
+      const token = useAuthStore.getState().token;
       const response = await fetch(`${config.apiUrl}/api/departments/${id}`, {
         method: 'DELETE',
         headers: {

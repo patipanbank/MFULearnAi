@@ -23,6 +23,12 @@ module.exports = {
           size: '2px',
         },
       },
+      colors: {
+        mfu: {
+          red: 'rgb(186, 12, 47)',
+          gold: 'rgb(212, 175, 55)',
+        }
+      },
       // Custom animations
       animation: {
         'spin-slow': 'spin 3s linear infinite',

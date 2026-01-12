@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { FaComments, FaBars, FaTrash, FaEdit, FaAndroid, FaSearch, FaBookOpen, FaUserPlus, FaQuestionCircle, FaChartBar, FaCog, FaUsers, FaBuilding, FaMoon, FaSun, FaIdBadge } from 'react-icons/fa';
 import { config } from '../../config/config';
 import { useUIStore } from '../chat/store/uiStore';
+import { useAuthStore } from '../auth/store/userStore';
 
 interface SidebarProps {
   onClose?: () => void;
@@ -46,8 +47,8 @@ interface RenameState {
 const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
   const location = useLocation();
   const navigate = useNavigate();
-  const userData = JSON.parse(localStorage.getItem('user_data') || '{}');
-  const isSuperAdmin = userData.groups?.includes('SuperAdmin');
+  const { user } = useAuthStore();
+  const isSuperAdmin = user?.groups?.includes('SuperAdmin');
   const [chatHistories, setChatHistories] = useState<ChatHistory[]>([]);
   const searchParams = new URLSearchParams(location.search);
   const currentChatId = searchParams.get('chat');
@@ -61,7 +62,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
     const savedMode = localStorage.getItem('darkMode');
     return savedMode === 'true';
   });
-  
+
   // Add scroll position state with localStorage persistence
   const [scrollPosition, setScrollPosition] = useState(() => {
     const savedPosition = localStorage.getItem('settingsPopupScrollPosition');
@@ -111,13 +112,14 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
 
   // Get UI store states
   const { isSidebarPinned, toggleSidebarPin, isSidebarHovered, setIsSidebarHovered, isMobile } = useUIStore();
-  
+
   // Determine if sidebar should show expanded content
   const shouldShowContent = isMobile ? true : (isSidebarHovered || isSidebarPinned);
 
+  const { logout } = useAuthStore();
+
   const handleTokenExpired = () => {
-    localStorage.clear();
-    navigate('/login');
+    logout();
   };
 
   const toggleSettingsPopup = () => {
@@ -139,7 +141,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
 
   const fetchChatHistories = async () => {
     try {
-      const token = localStorage.getItem('auth_token');
+      const token = useAuthStore.getState().token;
       // console.log('Auth token present:', !!token); 
       // Debug if token exists
 
@@ -223,7 +225,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
   }, [showSettingsPopup]);
 
   useEffect(() => {
-    const token = localStorage.getItem('auth_token');
+    const token = useAuthStore.getState().token;
     if (!token) {
       // console.log('No auth token found, redirecting to login...');
       window.location.href = `${config.apiUrl}/api/auth/login/saml`;
@@ -290,7 +292,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
     if (!confirm('Are you sure you want to delete this chat?')) return;
 
     try {
-      const token = localStorage.getItem('auth_token');
+      const token = useAuthStore.getState().token;
       const response = await fetch(`${config.apiUrl}/api/chat/history/${chatId}`, {
         method: 'DELETE',
         headers: {
@@ -342,7 +344,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
       // Sanitize chat name
       const sanitizedName = renameState.newName.trim().replace(/[<>]/g, '');
 
-      const token = localStorage.getItem('auth_token');
+      const token = useAuthStore.getState().token;
       if (!token) {
         handleTokenExpired();
         return;
@@ -434,14 +436,13 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
   }
 
   return (
-    <aside 
-      className={`flex flex-col h-full bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 transition-all duration-300 ease-in-out ${
-        shouldShowContent ? 'w-64' : 'w-16'
-      }`}
+    <aside
+      className={`flex flex-col h-full bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 transition-all duration-300 ease-in-out ${shouldShowContent ? 'w-64' : 'w-16'
+        }`}
       onMouseEnter={() => !isSidebarPinned && setIsSidebarHovered(true)}
       onMouseLeave={() => !isSidebarPinned && setIsSidebarHovered(false)}
     >
-            <div className="flex-none p-2 border-gray-200 dark:border-gray-700">
+      <div className="flex-none p-2 border-gray-200 dark:border-gray-700">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             {/* Pin button - always visible */}
@@ -449,11 +450,10 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
               <div className="group relative">
                 <button
                   onClick={toggleSidebarPin}
-                  className={`${shouldShowContent ? 'px-2' : 'justify-center px-2'} py-2 rounded-lg transition-all duration-200 ${
-                    isSidebarPinned 
-                      ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400' 
-                      : 'hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400'
-                  }`}
+                  className={`${shouldShowContent ? 'px-2' : 'justify-center px-2'} py-2 rounded-lg transition-all duration-200 ${isSidebarPinned
+                    ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400'
+                    : 'hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400'
+                    }`}
                 >
                   <FaBars className="w-4 h-4 transition-transform duration-200" />
                 </button>
@@ -469,7 +469,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
               </button>
             )}
           </div>
-          
+
 
         </div>
       </div>
@@ -651,7 +651,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
           {showSettingsPopup && (
             <div className="absolute bottom-full left-2 mb-2 w-72 bg-white/95 dark:bg-gray-800/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-gray-200/50 dark:border-gray-600/50 z-50 overflow-hidden animate-scale-in" data-settings-popup>
               {/* Content container with scrolling */}
-              <div 
+              <div
                 ref={scrollContainerRef}
                 onScroll={handleScroll}
                 className="max-h-[calc(100vh-12rem)] overflow-y-auto"
@@ -661,7 +661,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
                   {isSuperAdmin && (
                     <div className="mb-1">
                       <div className="px-3 py-2">
-                        
+
                         <h4 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider flex items-center gap-2">
                           <FaCog className="w-4 h-4 animate-spin-slow" />
                           Admin Tools
@@ -675,7 +675,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
                           </div>
                           <div>
                             <div className="font-medium">Create Admin</div>
-                           
+
                           </div>
                         </Link>
                         <Link to="/admin/manage" className="group w-full flex items-center px-3 py-2.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 dark:hover:from-blue-900/20 dark:hover:to-indigo-900/20 rounded-xl transition-all duration-200 hover:scale-[1.02] hover:shadow-sm"
@@ -685,7 +685,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
                           </div>
                           <div>
                             <div className="font-medium">Manage Admins</div>
-                           
+
                           </div>
                         </Link>
                         <Link to="/users/manage" className="group w-full flex items-center px-3 py-2.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-gradient-to-r hover:from-cyan-50 hover:to-sky-50 dark:hover:from-cyan-900/20 dark:hover:to-sky-900/20 rounded-xl transition-all duration-200 hover:scale-[1.02] hover:shadow-sm"
@@ -695,7 +695,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
                           </div>
                           <div>
                             <div className="font-medium">Manage Users</div>
-                            
+
                           </div>
                         </Link>
                         <Link to="/departments/manage" className="group w-full flex items-center px-3 py-2.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-gradient-to-r hover:from-violet-50 hover:to-purple-50 dark:hover:from-violet-900/20 dark:hover:to-purple-900/20 rounded-xl transition-all duration-200 hover:scale-[1.02] hover:shadow-sm"
@@ -705,7 +705,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
                           </div>
                           <div>
                             <div className="font-medium">Departments</div>
-                            
+
                           </div>
                         </Link>
                         <Link to="/statistics" className="group w-full flex items-center px-3 py-2.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-gradient-to-r hover:from-orange-50 hover:to-amber-50 dark:hover:from-orange-900/20 dark:hover:to-amber-900/20 rounded-xl transition-all duration-200 hover:scale-[1.02] hover:shadow-sm"
@@ -715,7 +715,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
                           </div>
                           <div>
                             <div className="font-medium">Statistics</div>
-                            
+
                           </div>
                         </Link>
                         <Link to="/system-prompt" className="group w-full flex items-center px-3 py-2.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-gradient-to-r hover:from-rose-50 hover:to-pink-50 dark:hover:from-rose-900/20 dark:hover:to-pink-900/20 rounded-xl transition-all duration-200 hover:scale-[1.02] hover:shadow-sm"
@@ -725,7 +725,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
                           </div>
                           <div>
                             <div className="font-medium">System Prompt</div>
-                            
+
                           </div>
                         </Link>
                       </div>
@@ -733,14 +733,14 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
                     </div>
                   )}
 
-                                     {/* General tools section */}
-                   <div className="mb-1">
-                     <div className="px-3 py-2">
-                       <h4 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider flex items-center gap-2">
-                         <FaCog className="w-4 h-4 animate-spin-slow" />
-                         Tools & Resources
-                       </h4>
-                     </div>
+                  {/* General tools section */}
+                  <div className="mb-1">
+                    <div className="px-3 py-2">
+                      <h4 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider flex items-center gap-2">
+                        <FaCog className="w-4 h-4 animate-spin-slow" />
+                        Tools & Resources
+                      </h4>
+                    </div>
                     <div className="space-y-1">
                       <Link
                         to="/modelCreation"
@@ -752,7 +752,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
                         </div>
                         <div>
                           <div className="font-medium">Build Model</div>
-                         
+
                         </div>
                       </Link>
                       <Link
@@ -765,7 +765,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
                         </div>
                         <div>
                           <div className="font-medium">Knowledge Base</div>
-                          
+
                         </div>
                       </Link>
                       <Link
@@ -778,7 +778,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
                         </div>
                         <div>
                           <div className="font-medium">Help</div>
-                          
+
                         </div>
                       </Link>
                     </div>
@@ -790,11 +790,10 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
                       onClick={toggleTheme}
                       className="group w-full flex items-center px-3 py-2.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-gradient-to-r hover:from-gray-50 hover:to-slate-50 dark:hover:from-gray-700/50 dark:hover:to-gray-600/50 rounded-xl transition-all duration-200 hover:scale-[1.02] hover:shadow-sm"
                     >
-                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center mr-3 group-hover:scale-110 transition-all duration-200 ${
-                        isDarkMode 
-                          ? 'bg-gradient-to-br from-yellow-100 to-orange-100 dark:from-yellow-900/30 dark:to-orange-900/30' 
-                          : 'bg-gradient-to-br from-slate-100 to-gray-100 dark:from-slate-900/30 dark:to-gray-900/30'
-                      }`}>
+                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center mr-3 group-hover:scale-110 transition-all duration-200 ${isDarkMode
+                        ? 'bg-gradient-to-br from-yellow-100 to-orange-100 dark:from-yellow-900/30 dark:to-orange-900/30'
+                        : 'bg-gradient-to-br from-slate-100 to-gray-100 dark:from-slate-900/30 dark:to-gray-900/30'
+                        }`}>
                         {isDarkMode ? (
                           <FaSun className="w-4 h-4 text-yellow-500 group-hover:rotate-12 transition-transform duration-200" />
                         ) : (

@@ -10,11 +10,13 @@ import FileIcon from './FileIcon';
 import { useChatInputStore } from '../store/chatInputStore';
 import { useChatStore } from '../store/chatStore';
 import { prepareMessageFiles, compressImage } from '../utils/fileProcessing';
+import { useAuthStore } from '../../auth/store/userStore';
 
 // Function to generate user initials for avatar
 const getUserInitials = () => {
-  const userData = JSON.parse(localStorage.getItem('user_data') || '{}');
-  return `${userData.firstName?.charAt(0) || ''}${userData.lastName?.charAt(0) || ''}`.toUpperCase();
+  const user = useAuthStore.getState().user;
+  if (!user) return 'US';
+  return `${user.firstName?.charAt(0) || ''}${user.lastName?.charAt(0) || ''}`.toUpperCase();
 };
 
 interface ChatBubbleProps {
@@ -30,10 +32,10 @@ interface ChatBubbleProps {
   isLastAssistantMessage?: boolean;
 }
 
-const ChatBubble: React.FC<ChatBubbleProps> = ({ 
-  message, 
-  isLoading, 
-  onContinueClick, 
+const ChatBubble: React.FC<ChatBubbleProps> = ({
+  message,
+  isLoading,
+  onContinueClick,
   onEditClick,
   onRegenerateClick,
   selectedModel,
@@ -41,14 +43,14 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
   isLastAssistantMessage = false
 }) => {
   const [isCopied, setIsCopied] = useState(false);
-  
+
   // ใช้ chatStore สำหรับ attach file
   const chatStore = useChatStore();
-  const { 
-    selectedImages, 
-    selectedFiles, 
-    handleFileSelect, 
-    handleRemoveImage, 
+  const {
+    selectedImages,
+    selectedFiles,
+    handleFileSelect,
+    handleRemoveImage,
     handleRemoveFile,
   } = chatStore;
 
@@ -75,28 +77,28 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
     // รีเซ็ตไฟล์ที่เลือกใน chatStore
     chatStore.setSelectedImages([]);
     chatStore.setSelectedFiles([]);
-    
+
     // เริ่มการแก้ไขใน chatInputStore
     useChatInputStore.getState().handleStartEdit(message);
   };
 
   const onSaveEdit = () => {
     // console.log('Saving message edit:', message.id);
-    
+
     // Separate logic for user and assistant messages
     if (message.role === 'user') {
       // For user: send a new message as in normal submission
       const chatStore = useChatStore.getState();
-      
+
       // ใช้ข้อมูลจาก chatStore
-      const { 
-        selectedImages, 
-        selectedFiles, 
-        wsRef, 
-        currentChatId, 
-        messages 
+      const {
+        selectedImages,
+        selectedFiles,
+        wsRef,
+        currentChatId,
+        messages
       } = chatStore;
-      
+
       // Prepare data for sending a new message
       // ใช้ฟังก์ชันการประมวลผลไฟล์เดียวกับที่ chatStore ใช้
       const processFiles = async () => {
@@ -106,16 +108,16 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
           // ใช้ compressImage เพื่อบีบอัดรูปภาพก่อนแปลงเป็น base64
           images = await Promise.all(selectedImages.map(async (file) => await compressImage(file)));
         }
-        
+
         // จัดการไฟล์เอกสาร - ใช้ prepareMessageFiles จาก fileProcessing.ts
         let files: MessageFile[] = [];
         if (selectedFiles.length > 0) {
           files = await prepareMessageFiles(selectedFiles);
         }
-        
+
         return { images, files };
       };
-      
+
       // Process all files
       processFiles().then(({ images, files }) => {
         // Create a new user message
@@ -127,7 +129,7 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
           images: images.length > 0 ? images : undefined,
           files: files.length > 0 ? files : undefined
         };
-        
+
         // Create a waiting assistant message
         const newAssistantMessage: Message = {
           id: `new-assistant-${Date.now()}`,
@@ -137,10 +139,10 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
           modelId: selectedModel,
           isComplete: false
         };
-        
+
         // Add new messages to state
         chatStore.setMessages([...messages, newUserMessage, newAssistantMessage]);
-        
+
         // Send message via WebSocket
         if (wsRef && currentChatId) {
           wsRef.send(JSON.stringify({
@@ -154,7 +156,7 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
             path: window.location.pathname
           }));
         }
-        
+
         // Reset state after sending message
         chatStore.setSelectedImages([]);
         chatStore.setSelectedFiles([]);
@@ -164,16 +166,16 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
           editingMessage: null
         });
       })
-      .catch(error => {
-        console.error('Error processing files:', error);
-      });
+        .catch(error => {
+          console.error('Error processing files:', error);
+        });
     } else {
       // For assistant: use the chatInputStore's handleSaveEdit function
       const updatedMessage: Message = {
         ...message,
         content: inputMessage
       };
-      
+
       // ใช้ function handleSaveEdit จาก chatInputStore
       useChatInputStore.getState().handleSaveEdit(updatedMessage, onEditClick);
     }
@@ -202,7 +204,7 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
               <MdClose className="h-6 w-6" />
             </button>
           </div>
-          
+
           <div className="p-4 flex-grow overflow-auto">
             <textarea
               value={inputMessage}
@@ -222,7 +224,7 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
               onChange={handleFileSelect}
               className="hidden"
             />
-            
+
             <button
               type="button"
               className="px-3 py-1.5 flex items-center gap-2 rounded-full border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200"
@@ -233,20 +235,20 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
               <RiFileAddFill className="h-4 w-4 text-gray-600 dark:text-gray-300" />
               <span className="text-xs text-gray-700 dark:text-gray-300">Attach File</span>
             </button>
-            
+
             {/* คำแนะนำสำหรับผู้ใช้ */}
             <div className="text-xs text-gray-500 dark:text-gray-400 px-4 py-1">
               * You must upload all new files you want to attach (old files will not be used)
             </div>
           </div>
-          
+
           {/* Combined Attached Files Preview */}
           {(selectedImages.length > 0 || selectedFiles.length > 0) && (
             <div className="flex flex-wrap gap-2 mt-2 px-4 pb-2">
               <div className="w-full text-xs text-gray-500 dark:text-gray-400 mb-1">
                 Attached Files ({selectedImages.length + selectedFiles.length})
               </div>
-              
+
               {/* Image previews */}
               {selectedImages.map((image, index) => (
                 <div key={`img-${index}`} className="relative">
@@ -264,7 +266,7 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
                   </button>
                 </div>
               ))}
-              
+
               {/* Document previews */}
               {selectedFiles.map((file, index) => (
                 <div key={`doc-${index}`} className="relative">
@@ -287,7 +289,7 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
               ))}
             </div>
           )}
-          
+
           <div className="p-4 border-t dark:border-gray-700 flex justify-end gap-2">
             <button
               onClick={handleCancelEdit}
@@ -320,7 +322,7 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
               <MdClose className="h-6 w-6" />
             </button>
           </div>
-          
+
           <div className="p-4 flex-grow overflow-auto">
             <textarea
               value={inputMessage}
@@ -329,7 +331,7 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
               placeholder="Edit assistant message..."
             />
           </div>
-          
+
           {/* Display existing files (read-only) */}
           {message.files && message.files.length > 0 && (
             <div className="px-4 pb-2">
@@ -343,7 +345,7 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
               </div>
             </div>
           )}
-          
+
           <div className="p-4 border-t dark:border-gray-700 flex justify-end gap-2">
             <button
               onClick={handleCancelEdit}
@@ -367,14 +369,12 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
     <div className="message relative">
       {isEditing && message.id === useChatInputStore.getState().editingMessage?.id && renderEditCanvas()}
 
-      <div className={`flex items-start gap-3 ${
-        message.role === 'user' ? 'flex-row-reverse' : 'flex-row'
-      } w-full max-w-[98%] md:max-w-[80%] lg:max-w-[50%] mx-auto`}>
-        <div className={`flex-shrink-0 w-8 h-8 rounded-full overflow-hidden flex items-center justify-center ${
-          message.role === 'user' ? '' : 'bg-transparent'
-        }`}>
+      <div className={`flex items-start gap-3 ${message.role === 'user' ? 'flex-row-reverse' : 'flex-row'
+        } w-full max-w-[98%] md:max-w-[80%] lg:max-w-[50%] mx-auto`}>
+        <div className={`flex-shrink-0 w-8 h-8 rounded-full overflow-hidden flex items-center justify-center ${message.role === 'user' ? '' : 'bg-transparent'
+          }`}>
           {message.role === 'user' ? (
-            <div 
+            <div
               className="w-full h-full flex items-center justify-center text-white text-sm font-semibold select-none"
               style={{
                 background: 'linear-gradient(to right, rgb(186, 12, 47), rgb(212, 175, 55))',
@@ -394,18 +394,16 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
             />
           )}
         </div>
- 
-        <div className={`flex flex-col space-y-2 max-w-[80%] ${
-          message.role === 'user' ? 'items-end' : 'items-start'
-        }`}>
+
+        <div className={`flex flex-col space-y-2 max-w-[80%] ${message.role === 'user' ? 'items-end' : 'items-start'
+          }`}>
           <div className="text-sm text-gray-500 dark:text-gray-400">
             {formatMessageTime(message.timestamp)}
           </div>
-          <div className={`rounded-lg p-3 ${
-            message.role === 'user'
+          <div className={`rounded-lg p-3 ${message.role === 'user'
               ? 'bg-blue-500 text-white'
               : 'bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-white'
-          }`}>
+            }`}>
             {message.role === 'assistant' && message.content === '' && isLoading ? (
               <LoadingDots />
             ) : (
@@ -421,11 +419,10 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
                 <button
                   type="button"
                   onClick={onContinueClick}
-                  className={`p-2 rounded-md transition-colors ${
-                    selectedModel 
-                      ? 'text-gray-700 hover:text-blue-600 dark:text-gray-300 dark:hover:text-blue-400' 
+                  className={`p-2 rounded-md transition-colors ${selectedModel
+                      ? 'text-gray-700 hover:text-blue-600 dark:text-gray-300 dark:hover:text-blue-400'
                       : 'text-gray-400 dark:text-gray-600 cursor-not-allowed'
-                  }`}
+                    }`}
                   disabled={!selectedModel}
                   title="Continue"
                   data-verify="false"
@@ -433,24 +430,23 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
                   <VscDebugContinue className="h-4 w-4" />
                 </button>
               )}
-              
+
               {/* Regenerate button - for all assistant messages */}
               {onRegenerateClick && (
                 <button
                   type="button"
                   onClick={handleRegenerateClick}
-                  className={`p-2 rounded-md transition-colors ${
-                    selectedModel 
-                      ? 'text-gray-700 hover:text-blue-600 dark:text-gray-300 dark:hover:text-blue-400' 
+                  className={`p-2 rounded-md transition-colors ${selectedModel
+                      ? 'text-gray-700 hover:text-blue-600 dark:text-gray-300 dark:hover:text-blue-400'
                       : 'text-gray-400 dark:text-gray-600 cursor-not-allowed'
-                  }`}
+                    }`}
                   disabled={!selectedModel}
                   title={isLastAssistantMessage ? "Regenerate response" : "Clear newer history and regenerate response"}
                 >
                   <MdRefresh className="h-4 w-4" />
                 </button>
               )}
-              
+
               {/* Copy to clipboard button */}
               <button
                 type="button"
@@ -460,7 +456,7 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
               >
                 <MdContentCopy className="h-4 w-4" />
               </button>
-              
+
               {/* Edit button */}
               <button
                 type="button"
