@@ -1,10 +1,5 @@
 import React from 'react';
-import { config } from '../../config/config';
-
 const Login: React.FC = () => {
-  const handleMFUSSOLogin = () => {
-    window.location.href = `${config.apiUrl}/api/auth/login/saml`;
-  };
 
   const handleAdminLogin = () => {
     window.location.href = import.meta.env.VITE_ADMIN_LOGIN_URL;
@@ -35,12 +30,26 @@ const Login: React.FC = () => {
           </p>
         </div>
         <div className="mt-8">
-          <button
-            onClick={handleMFUSSOLogin}
-            className="w-full flex items-center justify-center px-4 py-3 border border-transparent text-base font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-          >
-            Login with MFU SSO
-          </button>
+          <div className="space-y-4">
+            <button
+              onClick={() => window.location.href = `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/auth/login/google`}
+              className="w-full flex justify-center items-center gap-3 py-3 px-4 bg-white hover:bg-gray-50 text-gray-700 font-semibold rounded-lg border border-gray-300 shadow-sm transition-all transform hover:-translate-y-0.5 duration-200"
+            >
+              <img
+                src="https://www.google.com/favicon.ico"
+                alt="Google"
+                className="w-5 h-5"
+              />
+              <span>Sign in with Google</span>
+            </button>
+
+            <button
+              onClick={() => window.location.href = `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/auth/login/saml`}
+              className="w-full flex justify-center items-center gap-3 py-3 px-4 bg-gradient-to-r from-mfu-red to-mfu-red-dark hover:from-red-700 hover:to-red-900 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all transform hover:-translate-y-0.5 duration-200"
+            >
+              Login with MFU SSO
+            </button>
+          </div>
           <div className="mt-2 text-right">
             <button
               onClick={handleAdminLogin}

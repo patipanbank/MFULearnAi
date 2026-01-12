@@ -12,6 +12,15 @@ authController.initializeSamlStrategy();
 router.get('/login/saml', authController.samlLogin);
 router.post('/saml/callback', ...authController.samlCallback);
 
+// Initialize Google strategy
+authController.initializeGoogleStrategy();
+
+/**
+ * Google Authentication
+ */
+router.get('/login/google', authController.googleLogin);
+router.get('/google/callback', ...authController.googleCallback);
+
 /**
  * Admin Authentication
  */

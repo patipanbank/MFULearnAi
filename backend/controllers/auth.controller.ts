@@ -110,7 +110,109 @@ export const initializeSamlStrategy = (): void => {
   passport.deserializeUser((user: any, done) => {
     done(null, user);
   });
+  passport.deserializeUser((user: any, done) => {
+    done(null, user);
+  });
 };
+
+import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
+
+/**
+ * Initialize Google Strategy
+ */
+export const initializeGoogleStrategy = (): void => {
+  passport.use(
+    new GoogleStrategy(
+      {
+        clientID: process.env.GOOGLE_CLIENT_ID || '',
+        clientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
+        callbackURL: '/api/auth/google/callback',
+      },
+      async (accessToken, refreshToken, profile, done) => {
+        try {
+          const email = profile.emails?.[0]?.value;
+          const firstName = profile.name?.givenName || '';
+          const lastName = profile.name?.familyName || '';
+          const googleId = profile.id;
+
+          if (!email) {
+            return done(new Error('No email found in Google profile'));
+          }
+
+          // Default role mapping based on email domain (optional logic)
+          // For now, defaulting to 'Students' if not explicitly defined
+          const role = email.endsWith('@mfu.ac.th') ? 'Students' : 'Students';
+          const department = 'General'; // Default department
+
+          await ensureDepartmentExists(department);
+
+          // Find or create user
+          const user = await User.findOneAndUpdate(
+            { email }, // Match by email
+            {
+              googleId,
+              username: email.split('@')[0],
+              email,
+              firstName,
+              lastName,
+              department,
+              role, // careful with overwriting existing roles
+              groups: ['google_user'],
+              updated: new Date(),
+            },
+            { upsert: true, new: true, setDefaultsOnInsert: true }
+          );
+
+          const token = jwt.sign(
+            { userId: user._id },
+            JWT_SECRET,
+            { expiresIn: '24h' }
+          );
+
+          const userData = {
+            nameID: user.nameID || googleId,
+            username: user.username,
+            email: user.email,
+            first_name: user.firstName,
+            last_name: user.lastName,
+            depart_name: user.department,
+            groups: user.groups,
+          };
+
+          return done(null, { token, userData });
+        } catch (error) {
+          console.error('Google Strategy Error:', error);
+          return done(error);
+        }
+      }
+    )
+  );
+};
+
+/**
+ * GET /api/auth/login/google - Initiate Google login
+ */
+export const googleLogin = passport.authenticate('google', {
+  scope: ['profile', 'email'],
+});
+
+/**
+ * GET /api/auth/google/callback - Google callback handler
+ */
+export const googleCallback = [
+  passport.authenticate('google', { session: false, failureRedirect: '/login' }),
+  asyncHandler(async (req: any, res: Response): Promise<void> => {
+    const { token, userData } = req.user;
+
+    const encodedUserData = Buffer.from(JSON.stringify(userData)).toString('base64');
+
+    const redirectUrl = new URL(`${process.env.FRONTEND_URL}/auth-callback`);
+    redirectUrl.searchParams.append('token', token);
+    redirectUrl.searchParams.append('user_data', encodedUserData);
+
+    res.redirect(redirectUrl.toString());
+  }),
+];
 
 /**
  * GET /api/auth/login/saml - Initiate SAML login
