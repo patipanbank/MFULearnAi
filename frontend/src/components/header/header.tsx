@@ -18,7 +18,7 @@ const Header = () => {
       localStorage.clear();
       document.cookie = "MSISAuth=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
       // Open login page in new tab
-      window.open('https://dindinai.mfu.ac.th/login', '_blank');
+      window.open('https://mfulearnai.mfu.ac.th/login', '_blank');
       // Then redirect current tab to SAML logout
       window.location.href = `${config.apiUrl}/api/auth/logout/saml`;
     } catch (error) {

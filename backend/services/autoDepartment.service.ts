@@ -1,4 +1,4 @@
-import { getDepartmentByName, createDepartment } from './department_service';
+import { getDepartmentByName, createDepartment } from './department.service';
 
 /**
  * Ensure that a department exists by name.

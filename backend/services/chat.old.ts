@@ -4,7 +4,7 @@ import { ChatMessage } from '../types/chat';
 import { HydratedDocument } from 'mongoose';
 import { ModelModel } from '../models/Model';
 import { Chat } from '../models/Chat';
-import { usageService } from './usageService';
+import { usageService } from './usage.service';
 import { ChatStats } from '../models/ChatStats';
 import { webSearchService } from './webSearch';
 import { SystemPrompt } from '../models/SystemPrompt';

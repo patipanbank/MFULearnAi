@@ -1,48 +1,19 @@
 import { Router } from 'express';
-import { roleGuard } from '../middleware/roleGuard';
-import { ChatStats } from '../models/ChatStats';
+import { UserRole } from '../models/User';
+import { authenticate, authorize } from '../middleware/auth';
+import * as statsController from '../controllers/stats.controller';
 
 const router = Router();
 
-// ดึงสถิติรายวัน
-router.get('/daily', roleGuard(['SuperAdmin']), async (req, res) => {
-  try {
-    const { startDate, endDate } = req.query;
-    
-    const query: any = {};
-    if (startDate && endDate) {
-      // แปลงวันที่เป็นเวลาไทย
-      const start = new Date(startDate as string);
-      const end = new Date(endDate as string);
-      
-      // ปรับเวลาเป็น UTC+7
-      start.setHours(start.getHours() + 7);
-      end.setHours(end.getHours() + 7);
-      
-      // รีเซ็ตเวลาเป็นต้นวันและสิ้นวัน
-      start.setHours(0, 0, 0, 0);
-      end.setHours(23, 59, 59, 999);
+// All stats routes require authentication
+router.use(authenticate);
 
-      query.date = {
-        $gte: start,
-        $lte: end
-      };
-    }
+// SuperAdmin only access
+const superAdminOnly: UserRole[] = ['SuperAdmin'];
 
-    const stats = await ChatStats.find(query).sort({ date: -1 });
-    
-    const formattedStats = stats.map(stat => ({
-      date: stat.date,
-      uniqueUsers: stat.uniqueUsers.length,
-      totalChats: stat.totalChats,
-      totalTokens: stat.totalTokens || 0
-    }));
-
-    res.json(formattedStats);
-  } catch (error) {
-    console.error('Error fetching chat stats:', error);
-    res.status(500).json({ error: 'Failed to fetch chat statistics' });
-  }
-});
+/**
+ * GET /api/stats/daily - Get daily chat statistics (SuperAdmin only)
+ */
+router.get('/daily', authorize(superAdminOnly), statsController.getDailyStats);
 
 export default router; 
