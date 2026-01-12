@@ -44,7 +44,14 @@ class ChromaService {
   async getCollections(): Promise<string[]> {
     try {
       const collections = await this.client.listCollections();
-      return collections;
+      // ChromaDB returns Collection[] objects, extract names
+      return collections.map((collection: any) => {
+        // Collection object may have 'name' property or be a string already
+        if (typeof collection === 'string') {
+          return collection;
+        }
+        return collection.name || collection.id || String(collection);
+      });
     } catch (error) {
       console.error('Error getting collections:', error);
       throw error;
