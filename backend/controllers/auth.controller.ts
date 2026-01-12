@@ -59,7 +59,7 @@ export const initializeSamlStrategy = (): void => {
         }
 
         const user = await User.findOneAndUpdate(
-          { username },
+          { nameID },
           {
             nameID,
             username,
@@ -172,9 +172,9 @@ export const adminLogin = asyncHandler(async (
     throw new BadRequestError('Please provide username and password');
   }
 
-  const user = await User.findOne({ 
-    username, 
-    role: { $in: ['Admin', 'SuperAdmin'] } 
+  const user = await User.findOne({
+    username,
+    role: { $in: ['Admin', 'SuperAdmin'] }
   });
 
   if (!user) {
