@@ -39,7 +39,7 @@ export const initializeSamlStrategy = (): void => {
     async function (req: any, profile: any, done: any) {
       try {
         const nameID = profile.nameID;
-        const username = profile['User.Username'];
+        const username = profile['User.Userrname'];
         const email = profile['User.Email'];
         const firstName = profile['first_name'];
         const lastName = profile['last_name'];
@@ -58,11 +58,14 @@ export const initializeSamlStrategy = (): void => {
           await ensureDepartmentExists(department);
         }
 
+        // Fallback for username if undefined (extract from nameID or email)
+        const finalUsername = username || nameID.split('@')[0] || email.split('@')[0];
+
         const user = await User.findOneAndUpdate(
           { nameID },
           {
             nameID,
-            username,
+            username: finalUsername,
             email,
             firstName,
             lastName,
