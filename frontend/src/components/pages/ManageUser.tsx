@@ -340,7 +340,7 @@ const ManageUser: React.FC = () => {
               {filterDepartment.map((dept) => (
                 <span
                   key={dept}
-                  className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300 capitalize"
+                  className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300"
                 >
                   Dept: {dept}
                   <button
@@ -517,12 +517,12 @@ const ManageUser: React.FC = () => {
                     <span className="text-sm text-gray-900 dark:text-white flex-1">{role}</span>
                     <span
                       className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${role === 'SuperAdmin'
-                        ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300'
-                        : role === 'Admin'
-                          ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
-                          : role === 'Staffs'
-                            ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300'
-                            : 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
+                          ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300'
+                          : role === 'Admin'
+                            ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
+                            : role === 'Staffs'
+                              ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300'
+                              : 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
                         }`}
                     >
                       {role}
@@ -560,7 +560,7 @@ const ManageUser: React.FC = () => {
                         }}
                         className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:ring-offset-gray-800"
                       />
-                      <span className="text-sm text-gray-900 dark:text-white flex-1 capitalize">{dept.name}</span>
+                      <span className="text-sm text-gray-900 dark:text-white flex-1">{dept.name}</span>
                     </label>
                   ))}
                 </div>
@@ -585,7 +585,7 @@ const ManageUser: React.FC = () => {
                   {filterDepartment.map((dept) => (
                     <span
                       key={dept}
-                      className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300 capitalize"
+                      className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300"
                     >
                       {dept}
                     </span>
@@ -709,18 +709,18 @@ const ManageUser: React.FC = () => {
                       <td className="px-4 py-3 whitespace-nowrap text-gray-900 dark:text-white">
                         {user.lastName || '-'}
                       </td>
-                      <td className="px-4 py-3 text-gray-900 dark:text-white hidden lg:table-cell max-w-[180px] truncate capitalize">
+                      <td className="px-4 py-3 text-gray-900 dark:text-white hidden lg:table-cell max-w-[180px] truncate">
                         {user.department || '-'}
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap">
                         <span
                           className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${user.role === 'SuperAdmin'
-                            ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300'
-                            : user.role === 'Admin'
-                              ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
-                              : user.role === 'Staffs'
-                                ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300'
-                                : 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
+                              ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300'
+                              : user.role === 'Admin'
+                                ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
+                                : user.role === 'Staffs'
+                                  ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300'
+                                  : 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
                             }`}
                         >
                           {user.role}
