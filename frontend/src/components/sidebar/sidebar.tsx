@@ -112,11 +112,11 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose, isOpen = false }) => {
   });
 
   // Get UI store states
-  const { isSidebarPinned, toggleSidebarPin, isSidebarHovered, setIsSidebarHovered, isMobile } = useUIStore();
+  const { isSidebarPinned, toggleSidebarPin, isMobile } = useUIStore();
 
   // Determine if sidebar should show expanded content
-  // Show content if mobile, or if manually opened (for tablet/mobile drawer), or if hovered/pinned
-  const shouldShowContent = isMobile || isOpen ? true : (isSidebarHovered || isSidebarPinned);
+  // Show content if mobile, or if manually opened (for tablet/mobile drawer), or if pinned
+  const shouldShowContent = isMobile || isOpen ? true : isSidebarPinned;
 
   const { logout } = useAuthStore();
 
@@ -441,8 +441,6 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose, isOpen = false }) => {
     <aside
       className={`flex flex-col h-full bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 transition-all duration-300 ease-in-out ${shouldShowContent ? 'w-64' : 'w-16'
         }`}
-      onMouseEnter={() => !isSidebarPinned && setIsSidebarHovered(true)}
-      onMouseLeave={() => !isSidebarPinned && setIsSidebarHovered(false)}
     >
       <div className="flex-none p-2 border-gray-200 dark:border-gray-700">
         <div className="flex items-center justify-between">
