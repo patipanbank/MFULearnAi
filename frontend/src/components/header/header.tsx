@@ -62,7 +62,7 @@ const Header = () => {
               {showPopup && (
                 <div className="absolute right-0 mt-2 w-80 bg-white dark:bg-gray-800 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 z-50 overflow-hidden">
                   {/* Header section */}
-                  <div className="p-6 text-white bg-gradient-to-r from-mfu-red to-mfu-gold">
+                  <div className="p-6 text-white bg-gradient-to-r from-red-500 to-yellow-400">
                     <div className="flex items-center gap-4">
                       <div className="w-12 h-12 rounded-full flex items-center justify-center text-white text-lg font-bold bg-white/20 backdrop-blur-sm">
                         {getUserInitials(user.firstName, user.lastName)}
