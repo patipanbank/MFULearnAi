@@ -10,10 +10,10 @@ interface MainLayoutProps {
 
 const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const { isSidebarPinned, initMobileDetection } = useUIStore();
+  const { isSidebarHovered, setIsSidebarHovered, isSidebarPinned, initMobileDetection } = useUIStore();
 
-  // Determine if sidebar should be expanded (only pinned now)
-  const isSidebarExpanded = isSidebarPinned;
+  // Determine if sidebar should be expanded (either hovered or pinned)
+  const isSidebarExpanded = isSidebarHovered || isSidebarPinned;
 
   useEffect(() => {
     initMobileDetection();
@@ -29,6 +29,8 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
           ${isSidebarExpanded ? 'lg:w-64' : 'lg:w-16'}
           scrollbar-thin scrollbar-thumb-gray-500 scrollbar-track-gray-200 dark:scrollbar-thumb-gray-400 dark:scrollbar-track-gray-700
         `}
+        onMouseEnter={() => !isSidebarPinned && setIsSidebarHovered(true)}
+        onMouseLeave={() => !isSidebarPinned && setIsSidebarHovered(false)}
       >
         <Sidebar onClose={() => setIsSidebarOpen(false)} isOpen={isSidebarOpen} />
       </div>

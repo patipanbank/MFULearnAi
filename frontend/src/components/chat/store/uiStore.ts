@@ -6,17 +6,19 @@ export interface UIState {
   isImageGenerationMode: boolean;
   inputMessage: string;
   awaitingChatId: boolean;
+  isSidebarHovered: boolean;
   isSidebarPinned: boolean;
-
+  
   // Actions
   setIsLoading: (isLoading: boolean) => void;
   setIsMobile: (isMobile: boolean) => void;
   setIsImageGenerationMode: (mode: boolean) => void;
   setInputMessage: (message: string) => void;
   setAwaitingChatId: (awaiting: boolean) => void;
+  setIsSidebarHovered: (hovered: boolean) => void;
   setIsSidebarPinned: (pinned: boolean) => void;
   toggleSidebarPin: () => void;
-
+  
   // Derived actions
   initMobileDetection: () => void;
 }
@@ -28,23 +30,25 @@ export const useUIStore = create<UIState>((set, _get) => ({
   isImageGenerationMode: false,
   inputMessage: '',
   awaitingChatId: false,
+  isSidebarHovered: false,
   isSidebarPinned: false,
-
+  
   // Actions
   setIsLoading: (isLoading) => set({ isLoading }),
   setIsMobile: (isMobile) => set({ isMobile }),
   setIsImageGenerationMode: (mode) => set({ isImageGenerationMode: mode }),
   setInputMessage: (message) => set({ inputMessage: message }),
   setAwaitingChatId: (awaiting) => set({ awaitingChatId: awaiting }),
+  setIsSidebarHovered: (hovered) => set({ isSidebarHovered: hovered }),
   setIsSidebarPinned: (pinned) => set({ isSidebarPinned: pinned }),
   toggleSidebarPin: () => set((state) => ({ isSidebarPinned: !state.isSidebarPinned })),
-
+  
   // ตรวจสอบขนาดหน้าจอ
   initMobileDetection: () => {
     const checkIfMobile = () => {
       set({ isMobile: window.innerWidth < 768 });
     };
-
+    
     checkIfMobile();
     window.addEventListener('resize', checkIfMobile);
     return () => window.removeEventListener('resize', checkIfMobile);

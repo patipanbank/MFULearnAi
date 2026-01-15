@@ -13,7 +13,7 @@ import useScrollManager from '../../hooks/useScrollManager';
 const MFUChatbot: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-
+  
   // Using useScrollManager hook for scroll management
   const {
     messagesEndRef,
@@ -23,7 +23,7 @@ const MFUChatbot: React.FC = () => {
     setMessageCount,
     handleScrollToBottom
   } = useScrollManager();
-
+  
   // Chat state from Zustand
   const {
     messages,
@@ -46,7 +46,7 @@ const MFUChatbot: React.FC = () => {
     handleRemoveFile,
     canSubmit
   } = useChatStore();
-
+  
   // UI state from Zustand
   const {
     isLoading,
@@ -55,9 +55,10 @@ const MFUChatbot: React.FC = () => {
     inputMessage,
     setInputMessage,
     setIsImageGenerationMode,
+    isSidebarHovered,
     isSidebarPinned,
   } = useUIStore();
-
+  
   // Model state from Zustand
   const {
     models,
@@ -67,26 +68,26 @@ const MFUChatbot: React.FC = () => {
     fetchUsage,
     fetchModels
   } = useModelStore();
-
-  // Determine if sidebar is expanded (only pinned now)
-  const isSidebarExpanded = isSidebarPinned;
-
+  
+  // Determine if sidebar is expanded (either hovered or pinned)
+  const isSidebarExpanded = isSidebarHovered || isSidebarPinned;
+  
   // Update message count when messages change
   useEffect(() => {
     setMessageCount(messages.length);
   }, [messages, setMessageCount]);
-
+  
   // Initialize WebSocket when component mounts
   useEffect(() => {
     initWebSocket();
   }, [initWebSocket]);
-
+  
   // Fetch models when component mounts
   useEffect(() => {
     console.log('Fetching models...');
     fetchModels();
   }, [fetchModels]);
-
+  
   // Only update URL when response is complete - not during streaming
   useEffect(() => {
     const handleChatUpdated = (event: CustomEvent) => {
@@ -99,7 +100,7 @@ const MFUChatbot: React.FC = () => {
         setCurrentChatId(chatId);
       }
     };
-
+    
     // Handle the early URL updates from WebSocket messages
     const handleChatUrlUpdated = (event: CustomEvent) => {
       const { chatId, early } = event.detail || {};
@@ -108,21 +109,21 @@ const MFUChatbot: React.FC = () => {
         setCurrentChatId(chatId);
       }
     };
-
+    
     window.addEventListener('chatUpdated', handleChatUpdated as EventListener);
     window.addEventListener('chatUrlUpdated', handleChatUrlUpdated as EventListener);
-
+    
     return () => {
       window.removeEventListener('chatUpdated', handleChatUpdated as EventListener);
       window.removeEventListener('chatUrlUpdated', handleChatUrlUpdated as EventListener);
     };
   }, [currentChatId, setCurrentChatId, navigate]);
-
+  
   // Load chat history from URL params
   useEffect(() => {
     const urlParams = new URLSearchParams(location.search);
     const chatId = urlParams.get('chat');
-
+    
     if (chatId && isValidObjectId(chatId)) {
       console.log('Loading chat history for:', chatId);
       loadChatHistory(chatId);
@@ -133,30 +134,31 @@ const MFUChatbot: React.FC = () => {
       useChatStore.getState().resetChat();
     }
   }, [location.search, loadChatHistory, setCurrentChatId]);
-
+  
   // Fetch usage data when component mounts
   useEffect(() => {
     fetchUsage();
-
+    
     // Update token data when there's a new message or response
     const handleUpdateUsage = () => {
       fetchUsage();
     };
-
+    
     window.addEventListener('chatMessageReceived', handleUpdateUsage);
     window.addEventListener('chatUpdated', handleUpdateUsage);
-
+    
     return () => {
       window.removeEventListener('chatMessageReceived', handleUpdateUsage);
       window.removeEventListener('chatUpdated', handleUpdateUsage);
     };
   }, [fetchUsage]);
-
+  
   return (
     <div className="flex flex-col h-full relative">
-      <div
-        className={`flex-1 overflow-y-auto overflow-x-hidden py-4 space-y-6 pb-32 overscroll-contain scroll-smooth ${isSidebarExpanded ? 'pl-4 pr-4' : 'pl-2 pr-4'
-          }`}
+      <div 
+        className={`flex-1 overflow-y-auto overflow-x-hidden py-4 space-y-6 pb-32 overscroll-contain scroll-smooth ${
+          isSidebarExpanded ? 'pl-4 pr-4' : 'pl-2 pr-4'
+        }`}
         ref={chatContainerRef}
         id="chat-messages"
         data-testid="chat-messages-container"
@@ -180,7 +182,7 @@ const MFUChatbot: React.FC = () => {
               })();
 
               return (
-                <ChatBubble
+                <ChatBubble 
                   key={message.id}
                   message={message}
                   isLastMessage={index === messages.length - 1}
@@ -195,8 +197,8 @@ const MFUChatbot: React.FC = () => {
                 />
               );
             })}
-            <div
-              ref={messagesEndRef}
+            <div 
+              ref={messagesEndRef} 
               id="chat-bottom-anchor"
               data-testid="chat-bottom-anchor"
               className="h-2 w-full my-2"
@@ -205,18 +207,19 @@ const MFUChatbot: React.FC = () => {
         )}
       </div>
 
-      <div className={`fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-800 z-10 transition-all duration-300 ${isSidebarExpanded ? 'lg:ml-64' : 'lg:ml-16'
-        }`}>
+      <div className={`fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-800 z-10 transition-all duration-300 ${
+        isSidebarExpanded ? 'lg:ml-64' : 'lg:ml-16'
+      }`}>
         {/* Show scroll to bottom button when there are messages and user is not at the bottom */}
         {messages.length > 0 && (
           <div className="relative w-full max-w-[98%] lg:max-w-[90%] mx-auto h-0">
-            <ScrollToBottomButton
+            <ScrollToBottomButton 
               isNearBottom={isNearBottom}
               onClick={handleScrollToBottom}
             />
           </div>
         )}
-
+        
         <ChatInput
           inputMessage={inputMessage}
           setInputMessage={setInputMessage}
@@ -241,7 +244,7 @@ const MFUChatbot: React.FC = () => {
           handleCancelGeneration={handleCancelGeneration}
         />
       </div>
-
+      
     </div>
   );
 };
