@@ -456,18 +456,11 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose, isOpen = false }) => {
                   : 'hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400'
                   }`}
               >
-                <FaBars className="w-4 h-4 transition-transform duration-200" />
+                <FaBars className="w-6 h-6 transition-transform duration-200" />
               </button>
             </div>
             {/* Mobile close button */}
-            {shouldShowContent && !isMobile && (
-              <button
-                onClick={onClose}
-                className="lg:hidden p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors duration-200"
-              >
-                <FaBars className="w-6 h-6 text-gray-600 dark:text-gray-400" />
-              </button>
-            )}
+
           </div>
 
 

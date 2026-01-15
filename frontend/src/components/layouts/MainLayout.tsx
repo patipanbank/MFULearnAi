@@ -10,7 +10,7 @@ interface MainLayoutProps {
 
 const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const { isSidebarHovered, setIsSidebarHovered, isSidebarPinned, initMobileDetection } = useUIStore();
+  const { isSidebarHovered, setIsSidebarHovered, isSidebarPinned, setIsSidebarPinned, initMobileDetection } = useUIStore();
 
   // Determine if sidebar should be expanded (either hovered or pinned)
   const isSidebarExpanded = isSidebarHovered || isSidebarPinned;
@@ -26,7 +26,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
         className={`
           fixed top-0 left-0 z-40 h-full transform transition-all duration-300 ease-in-out
           ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
-          ${isSidebarOpen || isSidebarExpanded ? 'w-64' : 'w-16'}
+          ${isSidebarExpanded ? 'w-64' : 'w-16'}
           scrollbar-thin scrollbar-thumb-gray-500 scrollbar-track-gray-200 dark:scrollbar-thumb-gray-400 dark:scrollbar-track-gray-700
         `}
         onMouseEnter={() => !isSidebarPinned && setIsSidebarHovered(true)}
@@ -43,7 +43,10 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
           <div className="flex items-center px-4 h-16">
             <button
               className="p-2 lg:hidden"
-              onClick={() => setIsSidebarOpen(true)}
+              onClick={() => {
+                setIsSidebarOpen(true);
+                setIsSidebarPinned(true);
+              }}
             >
               <FaBars className="h-6 w-6 dark:text-gray-200" />
             </button>
