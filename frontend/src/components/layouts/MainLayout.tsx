@@ -38,7 +38,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
       {/* Main content container - Full width with padding to avoid sidebar overlap */}
       <div className="flex flex-col w-full min-w-0">
         {/* Header - Fixed positioned with padding to avoid sidebar overlap */}
-        <div className={`fixed top-0 left-0 right-0 z-30 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 transition-all duration-300 ${isSidebarPinned ? 'lg:pl-64' : 'lg:pl-16'
+        <div className={`fixed top-0 left-0 right-0 z-30 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 transition-all duration-300 ${isSidebarExpanded ? 'lg:pl-64' : 'lg:pl-16'
           }`}>
           <div className="flex items-center px-4 h-16">
             <button
@@ -60,7 +60,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
         )}
 
         {/* Main content - Full width with padding to avoid sidebar overlap */}
-        <main className={`flex-1 overflow-auto mt-16 bg-white dark:bg-gray-800 scrollbar scrollbar-thumb-gray-500 scrollbar-track-gray-200 dark:scrollbar-thumb-gray-400 dark:scrollbar-track-gray-700 pb-4 transition-all duration-300 ${isSidebarPinned ? 'lg:pl-64' : 'lg:pl-16'
+        <main className={`flex-1 overflow-auto mt-16 bg-white dark:bg-gray-800 scrollbar scrollbar-thumb-gray-500 scrollbar-track-gray-200 dark:scrollbar-thumb-gray-400 dark:scrollbar-track-gray-700 pb-4 transition-all duration-300 ${isSidebarExpanded ? 'lg:pl-64' : 'lg:pl-16'
           }`}>
           {children}
         </main>
