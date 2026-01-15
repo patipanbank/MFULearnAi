@@ -14,10 +14,9 @@ const Login: React.FC = () => {
           <img src="/mfu_logo_chatbot.PNG" alt="MFU Logo" className="mx-auto h-24 w-auto mb-4" />
           <h2 className="mt-6 text-3xl font-bold text-gray-900">
             Login to{' '}
-            <span className="bg-gradient-to-r from-mfu-red to-mfu-gold bg-clip-text text-transparent">
+            <span className="bg-gradient-to-r from-orange-500 to-yellow-400 bg-clip-text text-transparent">
               DIN
-            </span>
-            DIN{' '}
+            </span>{' '}
             <span className="bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">
               AI
             </span>
