@@ -44,7 +44,7 @@ const Header = () => {
               >
                 {/* Avatar */}
                 <div
-                  className="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-semibold select-none bg-gradient-to-r from-mfu-red to-mfu-gold"
+                  className="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-semibold select-none bg-gradient-to-r from-red-500 to-yellow-400"
                 >
                   {getUserInitials(user.firstName, user.lastName)}
                 </div>
