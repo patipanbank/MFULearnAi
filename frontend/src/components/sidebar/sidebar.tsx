@@ -474,8 +474,9 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
         </div>
       </div>
 
-      <div className={`flex-1 overflow-y-auto overflow-x-hidden py-2 px-1 pb-[calc(72px+env(safe-area-inset-bottom))]`}>
+      <div className={`flex-1 overflow-y-auto overflow-x-hidden py-2 px-1`}>
         <nav className="space-y-2">
+          {/* ... (content same as before, no changes inside nav) ... */}
           <div className="space-y-1">
             {/* New Chat with dropdown indicator */}
             <div className="relative">
@@ -635,7 +636,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
       </div>
 
       {/* Settings icon at bottom */}
-      <div className={`fixed bottom-0 left-0 ${shouldShowContent ? 'w-64' : 'w-16'} bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 pb-[env(safe-area-inset-bottom)] z-40 transition-all duration-300`}>
+      <div className={`flex-none mt-auto border-t border-gray-200 dark:border-gray-700 pb-[env(safe-area-inset-bottom)] z-40 bg-white dark:bg-gray-800 transition-all duration-300 w-full`}>
         <div className="p-2 relative" data-settings-popup>
           <button
             onClick={toggleSettingsPopup}
