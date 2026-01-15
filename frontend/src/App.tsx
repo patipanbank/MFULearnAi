@@ -16,7 +16,7 @@ import SystemPrompt from './components/pages/SystemPrompt';
 import ManageDepartment from './components/pages/ManageDepartment';
 import ManageAdmin from './components/pages/ManageAdmin';
 import ManageUser from './components/pages/ManageUser';
- 
+  
 
 const App = () => {
   return (

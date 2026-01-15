@@ -23,7 +23,7 @@ const Header = () => {
         <div className="flex items-center">
           <Link to="/mfuchatbot">
             <h2 className="text-2xl font-bold text-gray-800 dark:text-white cursor-pointer hover:opacity-90 transition-opacity">
-              <span className="bg-gradient-to-r from-mfu-red to-mfu-gold bg-clip-text text-transparent">
+              <span className="bg-gradient-to-r from-orange-500 to-yellow-400 bg-clip-text text-transparent">
                 DIN
               </span>
               <span>DIN</span>
