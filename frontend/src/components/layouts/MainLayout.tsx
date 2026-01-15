@@ -32,7 +32,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
         onMouseEnter={() => !isSidebarPinned && setIsSidebarHovered(true)}
         onMouseLeave={() => !isSidebarPinned && setIsSidebarHovered(false)}
       >
-        <Sidebar onClose={() => setIsSidebarOpen(false)} />
+        <Sidebar onClose={() => setIsSidebarOpen(false)} isOpen={isSidebarOpen} />
       </div>
 
       {/* Main content container - Full width with padding to avoid sidebar overlap */}

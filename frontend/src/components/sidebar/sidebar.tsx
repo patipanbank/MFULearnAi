@@ -7,6 +7,7 @@ import { useAuthStore } from '../auth/store/userStore';
 
 interface SidebarProps {
   onClose?: () => void;
+  isOpen?: boolean;
 }
 
 interface Message {
@@ -44,7 +45,7 @@ interface RenameState {
   error: string | null;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
+const Sidebar: React.FC<SidebarProps> = ({ onClose, isOpen = false }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const { user } = useAuthStore();
@@ -114,7 +115,8 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
   const { isSidebarPinned, toggleSidebarPin, isSidebarHovered, setIsSidebarHovered, isMobile } = useUIStore();
 
   // Determine if sidebar should show expanded content
-  const shouldShowContent = isMobile ? true : (isSidebarHovered || isSidebarPinned);
+  // Show content if mobile, or if manually opened (for tablet/mobile drawer), or if hovered/pinned
+  const shouldShowContent = isMobile || isOpen ? true : (isSidebarHovered || isSidebarPinned);
 
   const { logout } = useAuthStore();
 
