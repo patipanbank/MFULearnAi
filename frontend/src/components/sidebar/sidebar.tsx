@@ -116,7 +116,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose, isOpen = false }) => {
 
   // Determine if sidebar should show expanded content
   // Show content if mobile, or if manually opened (for tablet/mobile drawer), or if hovered/pinned
-  const shouldShowContent = isMobile || isOpen ? true : (isSidebarHovered || isSidebarPinned);
+  const shouldShowContent = isSidebarHovered || isSidebarPinned;
 
   const { logout } = useAuthStore();
 
@@ -448,19 +448,17 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose, isOpen = false }) => {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             {/* Pin button - always visible */}
-            {!isMobile && (
-              <div className="group relative">
-                <button
-                  onClick={toggleSidebarPin}
-                  className={`${shouldShowContent ? 'px-2' : 'justify-center px-2'} py-2 rounded-lg transition-all duration-200 ${isSidebarPinned
-                    ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400'
-                    : 'hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400'
-                    }`}
-                >
-                  <FaBars className="w-4 h-4 transition-transform duration-200" />
-                </button>
-              </div>
-            )}
+            <div className="group relative">
+              <button
+                onClick={toggleSidebarPin}
+                className={`${shouldShowContent ? 'px-2' : 'justify-center px-2'} py-2 rounded-lg transition-all duration-200 ${isSidebarPinned
+                  ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400'
+                  : 'hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400'
+                  }`}
+              >
+                <FaBars className="w-4 h-4 transition-transform duration-200" />
+              </button>
+            </div>
             {/* Mobile close button */}
             {shouldShowContent && !isMobile && (
               <button
