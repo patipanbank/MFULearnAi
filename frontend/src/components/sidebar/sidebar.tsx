@@ -45,7 +45,7 @@ interface RenameState {
   error: string | null;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ onClose, isOpen = false }) => {
+const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const { user } = useAuthStore();
