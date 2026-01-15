@@ -2,7 +2,7 @@ import React from 'react';
 const Login: React.FC = () => {
 
   const handleAdminLogin = () => {
-    window.location.href = import.meta.env.VITE_ADMIN_LOGIN_URL;
+    window.location.href = '/admin/login';
   };
 
   return (
