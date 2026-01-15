@@ -45,7 +45,7 @@ interface RenameState {
   error: string | null;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
+const Sidebar: React.FC<SidebarProps> = ({ onClose, isOpen = false }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const { user } = useAuthStore();
@@ -116,7 +116,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
 
   // Determine if sidebar should show expanded content
   // Show content if mobile, or if manually opened (for tablet/mobile drawer), or if hovered/pinned
-  const shouldShowContent = isSidebarHovered || isSidebarPinned;
+  const shouldShowContent = isOpen || isSidebarHovered || isSidebarPinned;
 
   const { logout } = useAuthStore();
 

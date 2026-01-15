@@ -26,7 +26,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
         className={`
           fixed top-0 left-0 z-40 h-full transform transition-all duration-300 ease-in-out
           ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
-          ${isSidebarExpanded ? 'w-64' : 'w-16'}
+          ${isSidebarOpen || isSidebarExpanded ? 'w-64' : 'w-16'}
           scrollbar-thin scrollbar-thumb-gray-500 scrollbar-track-gray-200 dark:scrollbar-thumb-gray-400 dark:scrollbar-track-gray-700
         `}
         onMouseEnter={() => !isSidebarPinned && setIsSidebarHovered(true)}
