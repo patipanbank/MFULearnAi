@@ -791,7 +791,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
                       className="group w-full flex items-center px-3 py-2.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-gradient-to-r hover:from-gray-50 hover:to-slate-50 dark:hover:from-gray-700/50 dark:hover:to-gray-600/50 rounded-xl transition-all duration-200 hover:scale-[1.02] hover:shadow-sm"
                     >
                       <div className={`w-8 h-8 rounded-lg flex items-center justify-center mr-3 group-hover:scale-110 transition-all duration-200 ${isDarkMode
-                        ? 'bg-gradient-to-br from-yellow-100 to-orange-100 dark:from-yellow-900/30 dark:to-orange-900/30'
+                        ? 'bg-gradient-to-br from-red-100 to-yellow-100 dark:from-red-900/30 dark:to-yellow-900/30'
                         : 'bg-gradient-to-br from-slate-100 to-gray-100 dark:from-slate-900/30 dark:to-gray-900/30'
                         }`}>
                         {isDarkMode ? (
