@@ -16,7 +16,8 @@ const Login: React.FC = () => {
             Login to{' '}
             <span className="bg-gradient-to-r from-orange-500 to-yellow-400 bg-clip-text text-transparent">
               DIN
-            </span>{' '}
+            </span>
+            <span className="text-black">DIN</span>{' '}
             <span className="bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">
               AI
             </span>
