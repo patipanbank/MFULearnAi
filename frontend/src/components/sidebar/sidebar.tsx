@@ -643,7 +643,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose, isOpen = false }) => {
 
           {/* Settings popup */}
           {showSettingsPopup && (
-            <div className="absolute bottom-full left-2 mb-2 w-72 bg-white/95 dark:bg-gray-800/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-gray-200/50 dark:border-gray-600/50 z-50 overflow-hidden animate-pop-up origin-bottom-left" data-settings-popup>
+            <div className="absolute bottom-full left-2 mb-2 w-72 bg-white/95 dark:bg-gray-800/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-gray-200/50 dark:border-gray-600/50 z-50 overflow-hidden animate-scale-in" data-settings-popup>
               {/* Content container with scrolling */}
               <div
                 ref={scrollContainerRef}
