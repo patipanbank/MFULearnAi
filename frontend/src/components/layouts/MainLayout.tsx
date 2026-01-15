@@ -25,7 +25,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
       <div
         className={`
           fixed top-0 left-0 z-40 h-full transform transition-all duration-300 ease-in-out
-          ${isSidebarOpen ? 'translate-x-0 w-full lg:w-64' : '-translate-x-full lg:translate-x-0'}
+          ${isSidebarOpen ? 'translate-x-0 w-64' : '-translate-x-full lg:translate-x-0'}
           ${isSidebarExpanded ? 'lg:w-64' : 'lg:w-16'}
           scrollbar-thin scrollbar-thumb-gray-500 scrollbar-track-gray-200 dark:scrollbar-thumb-gray-400 dark:scrollbar-track-gray-700
         `}
