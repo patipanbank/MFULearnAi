@@ -1,81 +1,99 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { computed, ref } from 'vue'
 
 const props = defineProps({
-  modelValue: { type: Boolean, default: true },
+  modelValue: { type: Boolean, required: true },
   sessions: { type: Array, default: () => [] },
   currentSessionId: { type: String, default: null },
-  isDark: { type: Boolean, default: true },
-  lang: { type: String, default: 'th' },
-  t: { type: Function, required: true }
+  t: { type: Function, required: true },
+  isDark: { type: Boolean, default: false },
+  lang: { type: String, default: 'th' }
 })
 
 const emit = defineEmits([
-  'update:modelValue', 
-  'new-chat', 
-  'select-session', 
+  'update:modelValue',
+  'new-chat',
+  'select-session',
   'toggle-theme', 
   'toggle-lang', 
   'logout'
 ])
 
-// Sidebar is controlled by parent, but we can also toggle it internally if needed
-// Actually parent passed modelValue for expanded state
-const isExpanded = computed({
-  get: () => props.modelValue,
-  set: (val) => emit('update:modelValue', val)
-})
+// Settings Menu State
+const showSettings = ref(false)
+const toggleSettings = () => showSettings.value = !showSettings.value
+const closeSettings = () => showSettings.value = false
 
-const showSettingsMenu = ref(false)
-const toggleSettings = () => showSettingsMenu.value = !showSettingsMenu.value
-const closeSettings = () => showSettingsMenu.value = false
+// Toggle Sidebar
+// Note: The parent controls the state via v-model, but we can emit update
+const toggleSidebar = () => {
+  emit('update:modelValue', !props.modelValue)
+}
 </script>
 
 <template>
-  <aside class="sidebar" :class="{ collapsed: !isExpanded }">
+  <!-- Main Sidebar Element -->
+  <!-- We use dynamic width classes based on props.modelValue -->
+  <aside 
+    class="sidebar-container"
+    :class="[modelValue ? 'w-expanded' : 'w-collapsed']"
+  >
     <div class="sidebar-content">
       
-      <!-- TOP: Toggle Button (Mini Sidebar Mode) -->
-     <!-- Only show toggle if we want internal control, but here header has toggle. 
-          Actually, let's keep it clean. Top is New Chat. -->
-
-      <!-- New Chat Button -->
-      <div class="action-section">
-        <button class="btn-new-chat" @click="emit('new-chat')" :title="t('newChat')">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M12 5v14M5 12h14"/>
-          </svg>
-          <span class="label" v-if="isExpanded">{{ t('newChat') }}</span>
-        </button>
-      </div>
-      
-      <!-- Sessions List -->
-      <div class="sessions-section">
-        <div class="section-label" v-if="isExpanded">{{ t('recentChats') }}</div>
-        
-        <div 
-          v-for="session in sessions.slice(0, 10)" 
-          :key="session.sessionId"
-          class="session-item"
-          :class="{ active: session.sessionId === currentSessionId }"
-          @click="emit('select-session', session.sessionId)"
-          :title="isExpanded ? '' : 'Chat ' + (session.metadata?.messageCount || 0)"
+      <!-- top: New Chat -->
+      <div class="section-top">
+        <button 
+          class="btn-new-chat" 
+          @click="emit('new-chat')"
+          :title="t('newChat')"
         >
-          <div class="item-icon">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/>
+          <div class="icon-wrapper">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 5v14M5 12h14"/>
             </svg>
           </div>
-          <span class="item-text" v-if="isExpanded">Chat {{ session.metadata?.messageCount || 0 }}</span>
+          <span class="label-text" :class="{ 'opacity-0': !modelValue }">
+            {{ t('newChat') }}
+          </span>
+        </button>
+      </div>
+
+      <!-- middle: Chat List -->
+      <div class="section-list">
+        <div class="list-header" :class="{ 'opacity-0': !modelValue }">
+          {{ t('recentChats') }}
+        </div>
+        
+        <div class="scroll-area">
+          <button 
+            v-for="session in sessions.slice(0, 10)" 
+            :key="session.sessionId"
+            class="list-item"
+            :class="{ 'active': session.sessionId === currentSessionId }"
+            @click="emit('select-session', session.sessionId)"
+            :title="!modelValue ? ('Chat ' + (session.metadata?.messageCount || '0')) : ''"
+          >
+            <div class="icon-wrapper item-icon">
+              <!-- Chat Bubble Icon -->
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/>
+              </svg>
+            </div>
+            <span class="label-text list-text" :class="{ 'opacity-0': !modelValue }">
+              Chat {{ session.metadata?.messageCount || 0 }}
+            </span>
+          </button>
         </div>
       </div>
-      
-      <!-- Bottom: Settings -->
-      <div class="bottom-section">
-        <div class="settings-wrapper" v-click-outside="closeSettings">
-          <!-- Popup Menu -->
+
+      <!-- bottom: Settings -->
+      <div class="section-bottom">
+        <div class="settings-container" v-click-outside="closeSettings">
+          
+          <!-- Popup Menu (Absolute) -->
           <Transition name="fade-up">
-            <div v-if="showSettingsMenu" class="settings-popup">
+            <div v-if="showSettings" class="settings-popup">
+              <!-- Theme -->
               <button class="popup-item" @click="emit('toggle-theme')">
                 <svg v-if="isDark" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <circle cx="12" cy="12" r="5"/>
@@ -84,19 +102,21 @@ const closeSettings = () => showSettingsMenu.value = false
                 <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
                 </svg>
-                <span>{{ isDark ? 'Light' : 'Dark' }}</span>
+                <span>{{ isDark ? 'Light Mode' : 'Dark Mode' }}</span>
               </button>
               
+              <!-- Lang -->
               <button class="popup-item" @click="emit('toggle-lang')">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <circle cx="12" cy="12" r="10"/>
                   <path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
                 </svg>
-                <span>{{ lang === 'th' ? 'English' : 'Thai' }}</span>
+                <span>{{ lang === 'th' ? 'English' : 'ภาษาไทย' }}</span>
               </button>
               
-              <div class="popup-divider"></div>
+              <div class="divider"></div>
               
+              <!-- Logout -->
               <button class="popup-item danger" @click="emit('logout')">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
@@ -107,175 +127,201 @@ const closeSettings = () => showSettingsMenu.value = false
               </button>
             </div>
           </Transition>
-          
-          <!-- Settings Trigger Button -->
-          <button class="btn-settings" @click="toggleSettings" :class="{ active: showSettingsMenu }" :title="t('settings')">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="12" cy="12" r="3"/>
-              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-            </svg>
-            <span class="label" v-if="isExpanded">{{ t('settings') }}</span>
+
+          <!-- Main Settings Button -->
+          <button 
+            class="btn-settings" 
+            :class="{ 'active': showSettings }"
+            @click="toggleSettings"
+            :title="t('settings')"
+          >
+            <div class="icon-wrapper">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="3"/>
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+              </svg>
+            </div>
+            <span class="label-text" :class="{ 'opacity-0': !modelValue }">
+              {{ t('settings') }}
+            </span>
           </button>
         </div>
       </div>
+
     </div>
   </aside>
 </template>
 
 <style scoped>
-.sidebar {
-  width: 280px; /* Expanded Width */
+/* Container Layout */
+.sidebar-container {
   height: 100vh;
-  background: var(--color-bg-secondary);
+  background-color: var(--color-bg-secondary);
   border-right: 1px solid var(--color-border);
-  flex-shrink: 0;
-  transition: width 0.3s cubic-bezier(0.2, 0, 0, 1);
   display: flex;
   flex-direction: column;
-  overflow: visible; /* Needed for popup */
+  flex-shrink: 0; /* Important! Prevent shrinking beyond defined width */
+  transition: width 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+  overflow: visible; /* Must check this carefully, usually hidden but popup needs visible */
   position: relative;
   z-index: 100;
 }
 
-.sidebar.collapsed {
-  width: 68px; /* Mini Sidebar Width */
+/* Width Control */
+.w-expanded {
+  width: 260px;
+}
+.w-collapsed {
+  width: 64px;
 }
 
+/* Internal Content Structure */
 .sidebar-content {
   flex: 1;
   display: flex;
   flex-direction: column;
-  padding: 12px;
-  overflow: hidden;
+  overflow: hidden; /* Hide overflow of inner text when shrinking */
   width: 100%;
 }
 
-/* New Chat Button */
-.action-section {
-  margin-bottom: 24px;
+/* Top New Chat */
+.section-top {
+  padding: 12px;
 }
 
 .btn-new-chat {
   width: 100%;
   height: 44px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 0 12px;
-  background: var(--color-accent);
+  background-color: var(--color-accent);
   color: white;
   border: none;
-  border-radius: var(--radius-md);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
   cursor: pointer;
-  white-space: nowrap;
-  transition: all 0.2s;
-  justify-content: flex-start;
   overflow: hidden;
-}
-
-.sidebar.collapsed .btn-new-chat {
-  justify-content: center;
+  transition: background-color 0.2s;
   padding: 0;
 }
 
 .btn-new-chat:hover {
-  background: var(--color-accent-hover);
+  background-color: var(--color-accent-hover);
 }
 
-/* Sessions */
-.sessions-section {
+/* Common Icon Wrapper to ensure alignment */
+.icon-wrapper {
+  width: 64px; /* Matches sidebar collapsed width approx */
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+/* Text Labels */
+.label-text {
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+  opacity: 1;
+  transition: opacity 0.2s;
+  pointer-events: none; /* Let clicks pass through */
+}
+.opacity-0 {
+  opacity: 0;
+  width: 0; /* Help collapse */
+}
+
+/* List Section */
+.section-list {
   flex: 1;
-  overflow-y: auto;
-  overflow-x: hidden;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  overflow: hidden;
+  padding: 0 8px; /* Slight padding for hover effect bounds */
 }
 
-.section-label {
+.list-header {
+  height: 32px;
+  display: flex;
+  align-items: center;
+  padding-left: 12px;
   font-size: 11px;
   font-weight: 700;
   color: var(--color-text-muted);
   text-transform: uppercase;
-  margin-bottom: 8px;
-  padding-left: 8px;
   white-space: nowrap;
+  transition: opacity 0.2s;
 }
 
-.session-item {
+.scroll-area {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.list-item {
+  width: 100%;
   height: 40px;
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 0 8px;
-  border-radius: var(--radius-md);
+  border: none;
+  background: transparent;
+  border-radius: 8px;
   cursor: pointer;
   color: var(--color-text-secondary);
-  transition: all 0.15s;
+  transition: background-color 0.15s;
+  margin-bottom: 2px;
+  padding: 0;
   overflow: hidden;
 }
 
-.sidebar.collapsed .session-item {
-  justify-content: center;
-}
-
-.session-item:hover {
-  background: var(--color-bg-hover);
+.list-item:hover {
+  background-color: var(--color-bg-hover);
   color: var(--color-text-primary);
 }
 
-.session-item.active {
-  background: var(--color-accent-light);
+.list-item.active {
+  background-color: var(--color-accent-light);
   color: var(--color-accent);
 }
 
 .item-icon {
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
+  width: 48px; /* Slightly narrower than main container width to fit padding */
   justify-content: center;
 }
 
-.item-text {
-  font-size: 14px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+.list-text {
+  padding-right: 12px;
 }
 
-/* Bottom Settings */
-.bottom-section {
-  margin-top: auto;
-  padding-top: 16px;
+/* Bottom Section */
+.section-bottom {
+  padding: 12px;
   border-top: 1px solid var(--color-border);
 }
 
-.settings-wrapper {
+.settings-container {
   position: relative;
 }
 
 .btn-settings {
   width: 100%;
   height: 44px;
+  border: 1px solid transparent;
+  background: transparent;
+  border-radius: 12px;
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 0 8px;
-  background: transparent;
-  border: 1px solid transparent;
-  border-radius: var(--radius-md);
-  color: var(--color-text-secondary);
   cursor: pointer;
+  color: var(--color-text-secondary);
   transition: all 0.2s;
+  padding: 0;
   overflow: hidden;
 }
 
-.sidebar.collapsed .btn-settings {
-  justify-content: center;
-}
-
 .btn-settings:hover, .btn-settings.active {
-  background: var(--color-bg-hover);
+  background-color: var(--color-bg-hover);
   color: var(--color-text-primary);
 }
 
@@ -284,13 +330,16 @@ const closeSettings = () => showSettingsMenu.value = false
   position: absolute;
   bottom: 100%;
   left: 0;
-  width: 200px; /* Fixed width popup */
   margin-bottom: 8px;
-  background: var(--color-bg-secondary);
+  width: 220px;
+  background-color: var(--color-bg-secondary);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-lg);
-  padding: 6px;
+  border-radius: 16px;
+  padding: 8px;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
   z-index: 200;
 }
 
@@ -298,40 +347,44 @@ const closeSettings = () => showSettingsMenu.value = false
   display: flex;
   align-items: center;
   gap: 12px;
-  width: 100%;
   padding: 10px 12px;
-  background: transparent;
+  width: 100%;
   border: none;
-  border-radius: var(--radius-md);
+  background: transparent;
+  border-radius: 8px;
   color: var(--color-text-primary);
   font-size: 14px;
   cursor: pointer;
   text-align: left;
+  transition: background-color 0.15s;
 }
 
 .popup-item:hover {
-  background: var(--color-bg-hover);
+  background-color: var(--color-bg-hover);
 }
 
 .popup-item.danger {
   color: var(--color-error);
 }
-
 .popup-item.danger:hover {
-  background: rgba(239, 68, 68, 0.1);
+  background-color: rgba(239, 68, 68, 0.1);
 }
 
-.popup-divider {
+.divider {
+  width: 100%;
   height: 1px;
-  background: var(--color-border);
+  background-color: var(--color-border);
   margin: 4px 0;
 }
 
-/* Transition */
-.fade-up-enter-active, .fade-up-leave-active {
+/* Transitions */
+.fade-up-enter-active,
+.fade-up-leave-active {
   transition: all 0.2s ease;
 }
-.fade-up-enter-from, .fade-up-leave-to {
+
+.fade-up-enter-from,
+.fade-up-leave-to {
   opacity: 0;
   transform: translateY(10px);
 }
