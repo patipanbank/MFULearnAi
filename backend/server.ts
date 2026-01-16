@@ -36,6 +36,9 @@ import './websocket/ChatWebSocket';
 function createApp(): Express {
   const app = express();
 
+  // Trust Nginx proxy
+  app.set('trust proxy', 1);
+
   // Connect to MongoDB
   connectDB();
 
