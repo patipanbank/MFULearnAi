@@ -53,7 +53,7 @@ const Login: React.FC = () => {
           <div className="mt-2 text-right">
             <button
               onClick={handleAdminLogin}
-              className="text-xs text-gray-500 hover:text-black underline px-1 py-0.5 transition-colors duration-200"
+              className="text-xs text-gray-500 hover:text-black underline px-1 py-0.5 transition-colors duration-200 cursor-pointer"
             >
               admin login
             </button>
