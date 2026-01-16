@@ -29,40 +29,41 @@ const formatTime = (timestamp) => {
 </script>
 
 <template>
-  <div class="message" :class="message.role">
-    <!-- USER MESSAGE: Bubble style, right aligned -->
+  <div class="message-wrapper" :class="message.role">
+    <!-- USER: Bubble style -->
     <template v-if="message.role === 'user'">
-      <div class="user-message">
-        <div class="bubble">
+      <div class="user-bubble-container">
+        <div class="bubble user">
           <p>{{ message.content }}</p>
           <span class="time">{{ formatTime(message.timestamp) }}</span>
         </div>
-        <div class="avatar user">{{ userInitial }}</div>
+        <div class="avatar-circle user">{{ userInitial }}</div>
       </div>
     </template>
     
-    <!-- ASSISTANT MESSAGE: Canvas style, full width -->
+    <!-- ASSISTANT: Canvas style (improved) -->
     <template v-else>
-      <div class="assistant-message">
-        <div class="assistant-header">
-          <div class="avatar assistant">🤖</div>
-          <span class="name">AI Assistant</span>
-          <span class="time">{{ formatTime(message.timestamp) }}</span>
-        </div>
+      <div class="assistant-canvas">
+        <div class="avatar-circle assistant">🤖</div>
         
-        <div class="canvas">
-          <div class="prose" v-html="render(message.content)"></div>
-        </div>
-        
-        <div class="actions" v-if="message.content">
-          <button class="btn-action" @click="handleCopy" :class="{ copied }">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <rect v-if="!copied" x="9" y="9" width="13" height="13" rx="2"/>
-              <path v-if="!copied" d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
-              <polyline v-else points="20 6 9 17 4 12"/>
-            </svg>
-            <span>{{ copied ? t('copied') : t('copy') }}</span>
-          </button>
+        <div class="content-col">
+          <div class="assistant-header">
+            <span class="name">AI Assistant</span>
+            <span class="time">{{ formatTime(message.timestamp) }}</span>
+          </div>
+          
+          <div class="prose-content" v-html="render(message.content)"></div>
+          
+          <div class="actions" v-if="message.content">
+            <button class="btn-copy" @click="handleCopy" :class="{ copied }">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect v-if="!copied" x="9" y="9" width="13" height="13" rx="2"/>
+                <path v-if="!copied" d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                <polyline v-else points="20 6 9 17 4 12"/>
+              </svg>
+              <span>{{ copied ? t('copied') : t('copy') }}</span>
+            </button>
+          </div>
         </div>
       </div>
     </template>
@@ -70,148 +71,131 @@ const formatTime = (timestamp) => {
 </template>
 
 <style scoped>
-.message {
-  margin-bottom: 24px;
+.message-wrapper {
+  margin-bottom: 32px;
 }
 
-/* === USER MESSAGE === */
-.user-message {
-  display: flex;
-  align-items: flex-end;
-  gap: 12px;
-  justify-content: flex-end;
-  padding-left: 60px;
-}
-
-.bubble {
-  background: var(--color-accent);
-  color: white;
-  padding: 12px 16px;
-  border-radius: var(--radius-lg);
-  border-bottom-right-radius: 4px;
-  max-width: 400px;
-}
-
-.bubble p {
-  margin: 0;
-  font-size: 14px;
-  line-height: 1.5;
-}
-
-.bubble .time {
-  display: block;
-  font-size: 10px;
-  opacity: 0.7;
-  margin-top: 4px;
-  text-align: right;
-}
-
-.avatar {
-  width: 32px;
-  height: 32px;
+/* Common Avatar */
+.avatar-circle {
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 14px;
   flex-shrink: 0;
-}
-
-.avatar.user {
-  background: var(--color-accent);
-  color: white;
   font-weight: 600;
 }
 
-/* === ASSISTANT MESSAGE (Canvas Style) === */
-.assistant-message {
-  padding-right: 60px;
+.avatar-circle.user {
+  background: var(--color-accent);
+  color: white;
+}
+
+.avatar-circle.assistant {
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  font-size: 18px;
+}
+
+/* === USER STYLES === */
+.user-bubble-container {
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-end;
+  gap: 12px;
+  padding-left: 20%;
+}
+
+.bubble.user {
+  background: var(--color-accent);
+  color: white;
+  padding: 12px 18px;
+  border-radius: 18px;
+  border-bottom-right-radius: 4px;
+  position: relative;
+  box-shadow: var(--shadow-md);
+}
+
+.bubble.user p {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+
+.bubble.user .time {
+  display: block;
+  font-size: 11px;
+  opacity: 0.8;
+  margin-top: 6px;
+  text-align: right;
+  font-weight: 500;
+}
+
+/* === ASSISTANT STYLES === */
+.assistant-canvas {
+  display: flex;
+  gap: 16px;
+  padding-right: 5%;
+}
+
+.content-col {
+  flex: 1;
+  min-width: 0;
 }
 
 .assistant-header {
   display: flex;
-  align-items: center;
-  gap: 8px;
+  align-items: baseline;
+  gap: 10px;
   margin-bottom: 8px;
 }
 
-.avatar.assistant {
-  background: var(--color-bg-tertiary);
-  border: 1px solid var(--color-border);
-  font-size: 16px;
-}
-
 .assistant-header .name {
-  font-size: 13px;
-  font-weight: 500;
+  font-size: 14px;
+  font-weight: 600;
   color: var(--color-text-primary);
 }
 
 .assistant-header .time {
   font-size: 11px;
   color: var(--color-text-muted);
-  margin-left: auto;
 }
 
-.canvas {
-  background: transparent;
-  padding: 0;
-  padding-left: 40px;
-}
-
-.canvas .prose {
-  font-size: 14px;
-  line-height: 1.7;
+/* Improved Prose (Markdown) */
+.prose-content {
+  font-size: 15px;
+  line-height: 1.75;
   color: var(--color-text-primary);
 }
 
 .actions {
-  display: flex;
-  gap: 8px;
-  margin-top: 8px;
-  padding-left: 40px;
+  margin-top: 12px;
 }
 
-.btn-action {
+.btn-copy {
   display: flex;
   align-items: center;
-  gap: 4px;
-  padding: 4px 10px;
+  gap: 6px;
+  padding: 6px 10px;
   background: transparent;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   color: var(--color-text-muted);
   font-size: 12px;
   cursor: pointer;
-  transition: all 0.15s;
+  transition: all 0.2s;
 }
 
-.btn-action:hover {
+.btn-copy:hover {
   background: var(--color-bg-tertiary);
   color: var(--color-text-secondary);
 }
 
-.btn-action.copied {
+.btn-copy.copied {
   color: var(--color-success);
   border-color: var(--color-success);
-}
-
-/* Responsive */
-@media (max-width: 768px) {
-  .user-message {
-    padding-left: 20px;
-  }
-  
-  .assistant-message {
-    padding-right: 20px;
-  }
-  
-  .canvas {
-    padding-left: 0;
-  }
-  
-  .actions {
-    padding-left: 0;
-  }
 }
 </style>

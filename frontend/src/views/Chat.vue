@@ -1,8 +1,8 @@
 <script setup>
 /**
- * Chat View - Final Customization
- * - Sidebar: New Chat, Sessions, Settings Button (pops up menu)
- * - Header: Displays User Name
+ * Chat View - Final Layout
+ * - Sidebar: New Chat + Search, Collapsible (width:0)
+ * - Header: Title Left, User Dropdown Right
  */
 import { ref, computed, watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
@@ -35,18 +35,17 @@ const inputRef = ref(null)
 const showSidebar = ref(true)
 const inputMessage = ref('')
 
-// Environment (used for Welcome screen only now)
+// Environment
 const envName = import.meta.env.VITE_ENV_NAME || 'MFULearnAI'
 
 // Composables
 const { scrollToBottom } = useScrollToBottom(messagesRef)
 
-// Computed
+// Computeds
 const userInitial = computed(() => 
   authStore.displayName?.charAt(0)?.toUpperCase() || 'U'
 )
-
-const headerTitle = computed(() => authStore.displayName || 'Guest User')
+const userName = computed(() => authStore.displayName || 'Guest')
 
 // Lifecycle
 onMounted(() => {
@@ -101,30 +100,33 @@ const handleCopyMessage = (content) => {
 
 <template>
   <div class="chat-layout">
-    <!-- Sidebar with Settings Button -->
+    <!-- Sidebar -->
     <ChatSidebar
       v-model="showSidebar"
       :sessions="chatStore.sessions"
       :current-session-id="chatStore.currentSessionId"
-      :is-dark="isDark"
-      :lang="lang"
       :t="t"
       @new-chat="handleNewChat"
       @select-session="handleSelectSession"
-      @toggle-theme="toggleTheme"
-      @toggle-lang="toggleLang"
-      @logout="handleLogout"
     />
     
-    <!-- Main Area -->
+    <!-- Main Content -->
     <main class="chat-main">
-      <!-- Header with User Name -->
+      <!-- Header -->
       <ChatHeader
-        :title="headerTitle"
+        :env-name="envName"
+        :user-name="userName"
+        :user-initial="userInitial"
+        :is-dark="isDark"
+        :lang="lang"
+        :t="t"
         @toggle-sidebar="showSidebar = !showSidebar"
+        @toggle-theme="toggleTheme"
+        @toggle-lang="toggleLang"
+        @logout="handleLogout"
       />
       
-      <!-- Messages -->
+      <!-- Chat Area -->
       <div class="messages-area" ref="messagesRef">
         <ChatWelcome
           v-if="chatStore.messages.length === 0"
@@ -149,7 +151,7 @@ const handleCopyMessage = (content) => {
         </div>
       </div>
       
-      <!-- Input -->
+      <!-- Input Area -->
       <ChatInput
         ref="inputRef"
         v-model="inputMessage"
@@ -175,7 +177,7 @@ const handleCopyMessage = (content) => {
   flex: 1;
   display: flex;
   flex-direction: column;
-  min-width: 0;
+  min-width: 0; /* Prevents flex items from overflowing */
   background: var(--color-bg-primary);
   position: relative;
 }
@@ -192,6 +194,7 @@ const handleCopyMessage = (content) => {
   padding: 24px;
 }
 
+/* Transitions */
 .fade-slide-enter-active {
   animation: fadeSlide 0.3s ease-out;
 }

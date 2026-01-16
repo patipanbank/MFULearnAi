@@ -93,13 +93,15 @@ const toggleSearch = () => {
   border-right: 1px solid var(--color-border);
   flex-shrink: 0;
   transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  overflow: hidden; /* Critical for collapsing */
-  white-space: nowrap; /* Prevent content wrapping during collapse */
+  overflow: hidden;
+  white-space: nowrap;
+  min-width: 0; /* Critical fix for flex item collapse */
 }
 
 .sidebar.collapsed {
-  width: 0;
+  width: 0 !important;
   border-right: none;
+  min-width: 0 !important;
 }
 
 .sidebar-inner {

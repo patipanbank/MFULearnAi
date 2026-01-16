@@ -2,7 +2,7 @@
 import { ref } from 'vue'
 
 const props = defineProps({
-  envName: { type: String, default: 'MFULearnAI' }, // Title on Left
+  envName: { type: String, default: 'MFULearnAI' },
   userName: { type: String, default: 'User' },
   userInitial: { type: String, default: 'U' },
   isDark: { type: Boolean, default: true },
@@ -28,8 +28,8 @@ const closeUserMenu = () => {
 
 <template>
   <header class="chat-header">
-    <!-- LEFT: Burger + Title (MFULearnAI) -->
     <div class="header-left">
+      <!-- Menu Button -->
       <button class="btn-menu" @click="emit('toggle-sidebar')">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <line x1="3" y1="12" x2="21" y2="12"/>
@@ -38,13 +38,14 @@ const closeUserMenu = () => {
         </svg>
       </button>
       
+      <!-- Brand Title (Left Side) -->
       <div class="app-brand">
         <span class="logo-emoji">🤖</span>
         <h1>{{ envName }}</h1>
       </div>
     </div>
     
-    <!-- RIGHT: User Dropdown -->
+    <!-- User Dropdown (Right Side) -->
     <div class="header-right">
       <div class="user-dropdown" v-click-outside="closeUserMenu">
         <button class="btn-user" @click="toggleUserMenu" :class="{ active: showUserMenu }">
@@ -57,7 +58,6 @@ const closeUserMenu = () => {
         
         <Transition name="dropdown">
           <div v-if="showUserMenu" class="dropdown-menu">
-            <!-- Theme -->
             <button class="menu-item" @click="emit('toggle-theme')">
               <svg v-if="isDark" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <circle cx="12" cy="12" r="5"/>
@@ -69,7 +69,6 @@ const closeUserMenu = () => {
               <span>{{ isDark ? 'Light Mode' : 'Dark Mode' }}</span>
             </button>
             
-            <!-- Language -->
             <button class="menu-item" @click="emit('toggle-lang')">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <circle cx="12" cy="12" r="10"/>
@@ -80,7 +79,6 @@ const closeUserMenu = () => {
             
             <div class="divider"></div>
             
-            <!-- Logout -->
             <button class="menu-item danger" @click="emit('logout')">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
@@ -102,15 +100,13 @@ const closeUserMenu = () => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 20px;
+  padding: 0 24px;
   background: var(--color-bg-primary);
   border-bottom: 1px solid var(--color-border);
   flex-shrink: 0;
-  position: relative;
   z-index: 50;
 }
 
-/* Left Section */
 .header-left {
   display: flex;
   align-items: center;
@@ -139,22 +135,22 @@ const closeUserMenu = () => {
 .app-brand {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
 }
 
 .logo-emoji {
-  font-size: 24px;
+  font-size: 28px;
+  line-height: 1;
 }
 
 .app-brand h1 {
-  font-size: 18px;
-  font-weight: 600;
+  font-size: 20px;
+  font-weight: 700;
   color: var(--color-text-primary);
   margin: 0;
   letter-spacing: -0.5px;
 }
 
-/* Right Section - User Dropdown */
 .header-right {
   display: flex;
   align-items: center;
@@ -167,8 +163,8 @@ const closeUserMenu = () => {
 .btn-user {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 6px 12px 6px 6px;
+  gap: 12px;
+  padding: 8px 16px 8px 8px;
   background: transparent;
   border: 1px solid transparent;
   border-radius: 50px;
@@ -182,8 +178,8 @@ const closeUserMenu = () => {
 }
 
 .user-avatar {
-  width: 32px;
-  height: 32px;
+  width: 36px;
+  height: 36px;
   background: var(--color-accent);
   border-radius: 50%;
   display: flex;
@@ -191,11 +187,11 @@ const closeUserMenu = () => {
   justify-content: center;
   color: white;
   font-weight: 600;
-  font-size: 14px;
+  font-size: 15px;
 }
 
 .user-name {
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 500;
   color: var(--color-text-primary);
 }
@@ -209,32 +205,31 @@ const closeUserMenu = () => {
   transform: rotate(180deg);
 }
 
-/* Dropdown Menu */
 .dropdown-menu {
   position: absolute;
   top: calc(100% + 8px);
   right: 0;
-  width: 200px;
+  width: 220px;
   background: var(--color-bg-secondary);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-lg);
-  padding: 6px;
+  padding: 8px;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 4px;
 }
 
 .menu-item {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
+  gap: 12px;
+  padding: 12px 16px;
   background: transparent;
   border: none;
   border-radius: var(--radius-md);
   color: var(--color-text-secondary);
-  font-size: 13px;
+  font-size: 14px;
   cursor: pointer;
   transition: all 0.15s;
   text-align: left;
@@ -256,10 +251,9 @@ const closeUserMenu = () => {
 .divider {
   height: 1px;
   background: var(--color-border);
-  margin: 4px 0;
+  margin: 6px 0;
 }
 
-/* Transition */
 .dropdown-enter-active,
 .dropdown-leave-active {
   transition: all 0.2s ease;
@@ -268,13 +262,12 @@ const closeUserMenu = () => {
 .dropdown-enter-from,
 .dropdown-leave-to {
   opacity: 0;
-  transform: translateY(-8px);
+  transform: translateY(-10px);
 }
 
-/* Responsive */
 @media (max-width: 640px) {
-  .user-name {
-    display: none;
-  }
+  .user-name { display: none; }
+  .btn-user { padding: 4px; border: none; }
+  .chevron { display: none; }
 }
 </style>
