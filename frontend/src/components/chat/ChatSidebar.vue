@@ -187,6 +187,14 @@ const toggleSidebar = () => {
 /* Top New Chat */
 .section-top {
   padding: 12px;
+  transition: padding 0.3s;
+}
+
+.sidebar-container.w-collapsed .section-top {
+  padding-left: 0;
+  padding-right: 0;
+  display: flex;
+  justify-content: center;
 }
 
 .btn-new-chat {
@@ -200,8 +208,13 @@ const toggleSidebar = () => {
   align-items: center;
   cursor: pointer;
   overflow: hidden;
-  transition: background-color 0.2s;
+  transition: all 0.2s;
   padding: 0;
+}
+
+.sidebar-container.w-collapsed .btn-new-chat {
+  width: 44px; /* Make it square-ish or just centered */
+  border-radius: 12px;
 }
 
 .btn-new-chat:hover {
@@ -210,12 +223,22 @@ const toggleSidebar = () => {
 
 /* Common Icon Wrapper to ensure alignment */
 .icon-wrapper {
-  width: 64px; /* Matches sidebar collapsed width approx */
+  width: 44px; /* Match button height/icon area, not full sidebar width yet */
   height: 100%;
+  border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+}
+/* In expanded mode, we might want it larger or just left aligned? 
+   Actually original code had 64px width. Let's make it consistent.
+*/ 
+.sidebar-container.w-expanded .icon-wrapper {
+  width: 52px; /* Slightly larger in expanded for spacing */
+}
+.sidebar-container.w-expanded .btn-new-chat {
+  width: 100%;
 }
 
 /* Text Labels */
@@ -225,11 +248,11 @@ const toggleSidebar = () => {
   white-space: nowrap;
   opacity: 1;
   transition: opacity 0.2s;
-  pointer-events: none; /* Let clicks pass through */
+  pointer-events: none;
 }
 .opacity-0 {
   opacity: 0;
-  width: 0; /* Help collapse */
+  width: 0; 
 }
 
 /* List Section */
@@ -238,7 +261,14 @@ const toggleSidebar = () => {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  padding: 0 8px; /* Slight padding for hover effect bounds */
+  padding: 0 8px;
+  transition: padding 0.3s;
+}
+
+.sidebar-container.w-collapsed .section-list {
+  padding-left: 0;
+  padding-right: 0;
+  align-items: center; /* Center items in the list */
 }
 
 .list-header {
@@ -258,6 +288,14 @@ const toggleSidebar = () => {
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center; /* Important for collapsed centering */
+}
+
+.sidebar-container.w-expanded .scroll-area {
+  display: block; /* Return to block for full width items */
 }
 
 .list-item {
@@ -276,6 +314,12 @@ const toggleSidebar = () => {
   overflow: hidden;
 }
 
+.sidebar-container.w-collapsed .list-item {
+  width: 44px; /* Square items */
+  justify-content: center;
+  border-radius: 12px;
+}
+
 .list-item:hover {
   background-color: var(--color-bg-hover);
   color: var(--color-text-primary);
@@ -287,22 +331,42 @@ const toggleSidebar = () => {
 }
 
 .item-icon {
-  width: 48px; /* Slightly narrower than main container width to fit padding */
+  width: 44px; /* Match standard icon size */
+  height: 100%;
+  display: flex;
+  align-items: center;
   justify-content: center;
+  flex-shrink: 0;
 }
 
 .list-text {
   padding-right: 12px;
+  white-space: nowrap;
 }
 
 /* Bottom Section */
 .section-bottom {
   padding: 12px;
   border-top: 1px solid var(--color-border);
+  transition: padding 0.3s;
+}
+
+.sidebar-container.w-collapsed .section-bottom {
+  padding-left: 0;
+  padding-right: 0;
+  display: flex;
+  justify-content: center;
 }
 
 .settings-container {
   position: relative;
+  width: 100%; /* Default full width */
+  display: flex;
+  justify-content: center; /* Default center for button inside */
+}
+
+.sidebar-container.w-expanded .settings-container {
+  display: block; /* Block for full width button */
 }
 
 .btn-settings {
@@ -318,6 +382,11 @@ const toggleSidebar = () => {
   transition: all 0.2s;
   padding: 0;
   overflow: hidden;
+}
+
+.sidebar-container.w-collapsed .btn-settings {
+  width: 44px;
+  justify-content: center;
 }
 
 .btn-settings:hover, .btn-settings.active {
