@@ -15,6 +15,12 @@ const chatStore = useChatStore()
 const messageInput = ref('')
 const messagesContainer = ref<HTMLElement | null>(null)
 
+// Add onMounted to fetch chats
+import { onMounted } from 'vue'
+onMounted(() => {
+  chatStore.fetchChats()
+})
+
 const currentSession = computed(() => 
   chatStore.sessions.find(s => s.id === chatStore.currentSessionId)
 )

@@ -16,14 +16,11 @@ const showCreateModal = ref(false)
 const newCollectionName = ref('')
 const newCollectionDesc = ref('')
 const urlInput = ref('')
-
-const selectedCollection = computed(() => 
-  kbStore.collections.find(c => c.id === kbStore.selectedCollectionId)
-)
+const isPrivate = ref(true)
 
 const handleCreateCollection = () => {
   if (!newCollectionName.value) return
-  kbStore.createCollection(newCollectionName.value, newCollectionDesc.value)
+  kbStore.createCollection(newCollectionName.value, newCollectionDesc.value, isPrivate.value)
   showCreateModal.value = false
   newCollectionName.value = ''
   newCollectionDesc.value = ''
@@ -33,16 +30,7 @@ const handleFileUpload = (event: Event) => {
   const target = event.target as HTMLInputElement
   if (!target.files?.length || !kbStore.selectedCollectionId) return
   
-  // Simulate upload for each file
-  Array.from(target.files).forEach(file => {
-    kbStore.addDocument(kbStore.selectedCollectionId!, {
-      id: Date.now().toString() + Math.random(),
-      filename: file.name,
-      size: file.size,
-      uploadedAt: new Date(),
-      type: 'file'
-    })
-  })
+  kbStore.uploadFiles(Array.from(target.files))
   
   target.value = '' // Reset input
 }
@@ -50,24 +38,19 @@ const handleFileUpload = (event: Event) => {
 const handleAddUrl = () => {
   if (!urlInput.value || !kbStore.selectedCollectionId) return
   
-  kbStore.addDocument(kbStore.selectedCollectionId, {
-    id: Date.now().toString(),
-    filename: urlInput.value,
-    size: 0,
-    uploadedAt: new Date(),
-    type: 'url'
-  })
+  kbStore.addUrl(urlInput.value)
   
   urlInput.value = ''
 }
 
-function formatSize(bytes: number) {
-  if (bytes === 0) return '0 B'
-  const k = 1024
-  const sizes = ['B', 'KB', 'MB', 'GB']
-  const i = Math.floor(Math.log(bytes) / Math.log(k))
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
-}
+import { onMounted } from 'vue'
+onMounted(() => {
+  kbStore.fetchCollections()
+})
+
+const selectedCollection = computed(() => 
+  kbStore.collections.find(c => c.id === kbStore.selectedCollectionId)
+)
 </script>
 
 <template>
@@ -109,7 +92,7 @@ function formatSize(bytes: number) {
         <p class="text-sm text-gray-500 line-clamp-2 mb-4 h-10">{{ collection.description || 'No description' }}</p>
         <div class="flex items-center gap-2 text-xs text-gray-400">
           <FileText class="w-4 h-4" />
-          <span>{{ collection.documents.length }} documents</span>
+          <span>{{ collection.documentCount }} documents</span>
         </div>
       </div>
     </div>
@@ -128,7 +111,7 @@ function formatSize(bytes: number) {
           <div class="h-6 w-px bg-gray-300"></div>
           <div>
             <h2 class="font-semibold text-gray-900">{{ selectedCollection.name }}</h2>
-            <p class="text-xs text-gray-500">Last updated: {{ new Date(selectedCollection.createdAt).toLocaleDateString() }}</p>
+            <p class="text-xs text-gray-500">Last updated: {{ new Date(selectedCollection.updatedAt).toLocaleDateString() }}</p>
           </div>
         </div>
         <div class="flex gap-2">
@@ -189,25 +172,25 @@ function formatSize(bytes: number) {
             </tr>
           </thead>
           <tbody>
-            <tr v-if="selectedCollection.documents.length === 0">
+            <tr v-if="kbStore.documents.length === 0">
                <td colspan="5" class="py-8 text-center text-gray-500">No documents found</td>
             </tr>
             <tr 
-              v-for="doc in selectedCollection.documents" 
+              v-for="doc in kbStore.documents" 
               :key="doc.id"
               class="border-b border-gray-50 hover:bg-gray-50 group"
             >
               <td class="px-4 py-3 font-medium text-gray-900 flex items-center gap-3">
                 <FileText v-if="doc.type === 'file'" class="w-4 h-4 text-blue-500" />
                 <LinkIcon v-else class="w-4 h-4 text-purple-500" />
-                <span class="truncate max-w-md">{{ doc.filename }}</span>
+                <span class="truncate max-w-md">{{ doc.title }}</span>
               </td>
               <td class="px-4 py-3 text-gray-500 capitalize">{{ doc.type }}</td>
-              <td class="px-4 py-3 text-gray-500">{{ doc.type === 'file' ? formatSize(doc.size) : '-' }}</td>
+              <td class="px-4 py-3 text-gray-500">{{ doc.type === 'file' ? doc.size : '-' }}</td>
               <td class="px-4 py-3 text-gray-500">{{ new Date(doc.uploadedAt).toLocaleDateString() }}</td>
               <td class="px-4 py-3 text-right">
                 <button 
-                  @click="kbStore.deleteDocument(selectedCollection!.id, doc.id)"
+                  @click="kbStore.deleteDocument(doc.id)"
                   class="text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
                 >
                   <Trash2 class="w-4 h-4" />

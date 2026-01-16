@@ -11,22 +11,20 @@ const adminEmail = ref('')
 const adminPassword = ref('')
 
 const handleSamlLogin = () => {
-  // In production, this would redirect to backend SAML endpoint
-  // window.location.href = '/api/auth/login/saml'
-  authStore.loginMock('Student')
-  router.push('/')
+  window.location.href = '/api/auth/login/saml'
 }
 
 const handleGoogleLogin = () => {
-  // window.location.href = '/api/auth/login/google'
-  authStore.loginMock('Staff')
-  router.push('/')
+  window.location.href = '/api/auth/login/google'
 }
 
-const handleAdminLogin = () => {
-  // API Call to /api/auth/admin/login
-  authStore.loginMock('SuperAdmin')
-  router.push('/')
+const handleAdminLogin = async () => {
+  try {
+    await authStore.loginAdmin(adminEmail.value, adminPassword.value)
+    router.push('/')
+  } catch (error) {
+    alert('Login failed. Please check your credentials.')
+  }
 }
 </script>
 

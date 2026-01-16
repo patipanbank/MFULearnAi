@@ -10,6 +10,12 @@ const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
     {
+      path: '/auth-callback',
+      name: 'auth-callback',
+      component: () => import('../views/AuthCallbackView.vue'),
+      meta: { guest: true }
+    },
+    {
       path: '/login',
       name: 'login',
       component: LoginView,
