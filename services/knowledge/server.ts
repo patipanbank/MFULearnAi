@@ -267,7 +267,7 @@ app.post('/api/knowledge', upload.single('file'), async (req: any, res: Response
             });
         }
 
-        const col = await chroma.getCollection({ name: GLOBAL_CHROMA_COLLECTION });
+        const col = await chroma.getCollection({ name: GLOBAL_CHROMA_COLLECTION } as any);
         await col.add({ ids, embeddings, metadatas, documents });
 
         res.json({ success: true, knowledge: kb });
@@ -446,7 +446,7 @@ app.post('/api/knowledge/search', async (req: Request, res: Response) => {
 
         // Chroma Query
         const embedding = await getEmbedding(query);
-        const col = await chroma.getCollection({ name: GLOBAL_CHROMA_COLLECTION });
+        const col = await chroma.getCollection({ name: GLOBAL_CHROMA_COLLECTION } as any);
 
         // Filter by logical OR of knowledgeIds. 
         // Chroma $in syntax: { knowledgeId: { $in: [id1, id2] } }
