@@ -45,7 +45,7 @@ export const useChatStore = defineStore('chat', () => {
     }
 
     // Send message with streaming
-    async function sendMessage(content, modelId = 'anthropic.claude-v2') {
+    async function sendMessage(content, modelId = 'anthropic.claude-3-5-sonnet-20240620-v1:0') {
         if (!content.trim() || isStreaming.value) return
 
         // Add user message
