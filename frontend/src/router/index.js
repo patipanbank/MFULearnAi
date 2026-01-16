@@ -10,6 +10,7 @@ const TheContainer_Project = () => import('@/containers/TheContainer_Project')
 // Views
 const Dashboard = () => import('@/views/Dashboard')
 const Chat = () => import('@/views/chat/Chat')
+const KnowledgeBase = () => import('@/views/knowledge/KnowledgeBase')
 
 import Login from '@/views/pages/Login'
 // const Login = () => import('@/projects/views/Login.vue')
@@ -36,9 +37,27 @@ export default new Router({
                     component: Chat
                 },
                 {
+                    path: 'knowledge',
+                    name: 'Knowledge Base',
+                    component: KnowledgeBase
+                },
+                {
                     path: 'dashboard',
                     name: 'Dashboard',
-                    component: Dashboard
+                    component: Dashboard,
+                    beforeEnter: (to, from, next) => {
+                        try {
+                            const userStr = localStorage.getItem('user');
+                            const user = userStr ? JSON.parse(userStr) : {};
+                            if (user.role === 'SuperAdmin') {
+                                next();
+                            } else {
+                                next('/chat');
+                            }
+                        } catch (e) {
+                            next('/chat');
+                        }
+                    }
                 },
 
 
