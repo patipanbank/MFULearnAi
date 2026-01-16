@@ -1,9 +1,8 @@
 <script setup>
 /**
- * Chat View - Fixed Layout Issues
- * - Sidebar properly collapses (width: 0)
- * - Logout moved to header settings dropdown
- * - Settings button with theme/lang toggles
+ * Chat View - Redesigned Layout
+ * - Sidebar contains: New Chat, Sessions, Settings (theme/lang), User + Logout
+ * - Header: Menu toggle + centered Logo + Title
  */
 import { ref, computed, watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
@@ -100,29 +99,27 @@ const handleCopyMessage = (content) => {
 
 <template>
   <div class="chat-layout">
-    <!-- Sidebar (properly collapses) -->
+    <!-- Sidebar with Settings -->
     <ChatSidebar
       v-model="showSidebar"
       :sessions="chatStore.sessions"
       :current-session-id="chatStore.currentSessionId"
-      :env-name="envName"
+      :is-dark="isDark"
+      :lang="lang"
       :t="t"
       @new-chat="handleNewChat"
       @select-session="handleSelectSession"
+      @toggle-theme="toggleTheme"
+      @toggle-lang="toggleLang"
+      @logout="handleLogout"
     />
     
     <!-- Main Area -->
     <main class="chat-main">
-      <!-- Header with Settings & Logout -->
+      <!-- Header with Title -->
       <ChatHeader
         :env-name="envName"
-        :is-dark="isDark"
-        :lang="lang"
-        :t="t"
         @toggle-sidebar="showSidebar = !showSidebar"
-        @toggle-theme="toggleTheme"
-        @toggle-lang="toggleLang"
-        @logout="handleLogout"
       />
       
       <!-- Messages -->
