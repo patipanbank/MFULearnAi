@@ -474,3 +474,4 @@ app.post('/api/chat', authenticateToken, rateLimiter, async (req: any, res: Resp
         app.listen(PORT, () => {
             console.log(`[Orchestrator] Running on port ${PORT} [Env: ${ENV_TYPE}]`);
         });
+    }
