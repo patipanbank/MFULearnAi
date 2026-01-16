@@ -196,6 +196,44 @@ app.post('/api/knowledge/search', async (req: Request, res: Response) => {
     }
 });
 
+// List Documents API
+app.get('/api/knowledge/documents', async (req: Request, res: Response) => {
+    try {
+        const collection = await getCollection();
+        // Chroma doesn't support "distinct" directly easily without fetching metadata.
+        // We'll fetch all metadata (limit 1000 for now) and aggregate.
+        // In a real prod app, you'd store file metadata in Mongo/Postgres.
+        const result = await collection.get({
+            limit: 1000,
+            include: ["metadatas"] as any
+        });
+
+        const files = new Map();
+
+        result.metadatas.forEach((meta: any) => {
+            if (meta && meta.source) {
+                if (!files.has(meta.source)) {
+                    files.set(meta.source, {
+                        name: meta.source,
+                        uploadedBy: meta.uploadedBy,
+                        timestamp: meta.timestamp,
+                        chunks: 1
+                    });
+                } else {
+                    const file = files.get(meta.source);
+                    file.chunks++;
+                }
+            }
+        });
+
+        res.json({ documents: Array.from(files.values()) });
+
+    } catch (error: any) {
+        console.error('[Knowledge] List error:', error);
+        res.status(500).json({ error: 'Failed to list documents' });
+    }
+});
+
 // Reset Collection (Dev helper)
 app.delete('/api/knowledge/reset', async (req: Request, res: Response) => {
     try {

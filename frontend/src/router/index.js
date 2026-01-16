@@ -25,6 +25,12 @@ const router = createRouter({
             component: () => import('../views/AuthCallback.vue')
         },
         {
+            path: '/knowledge',
+            name: 'Knowledge',
+            component: () => import('../views/Knowledge.vue'),
+            meta: { requiresAuth: true }
+        },
+        {
             path: '/:pathMatch(.*)*',
             redirect: '/login'
         }
