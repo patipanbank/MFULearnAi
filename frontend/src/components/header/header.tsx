@@ -18,7 +18,7 @@ const Header = () => {
 
   return (
     <header className="w-full">
-      <nav className="flex items-center justify-between px-6 py-4 w-full">
+      <nav className="flex items-center justify-between pl-6 pr-2 py-4 w-full">
         {/* DINDIN AI branding on the left */}
         <div className="flex items-center">
           <Link to="/mfuchatbot">
