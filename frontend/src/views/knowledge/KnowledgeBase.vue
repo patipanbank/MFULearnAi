@@ -13,13 +13,13 @@
           v-for="collection in collections" 
           :key="collection.id"
           class="p-2 mb-1 rounded cursor-pointer d-flex justify-content-between align-items-center"
-          :class="{'bg-light': currentCollection?.name !== collection.name, 'bg-primary text-white': currentCollection?.name === collection.name}"
+          :class="{'bg-light': !currentCollection || currentCollection.name !== collection.name, 'bg-primary text-white': currentCollection && currentCollection.name === collection.name}"
           @click="selectCollection(collection)"
           style="cursor: pointer;"
         >
           <span class="text-truncate">{{ collection.name }}</span>
           <CButton 
-            v-if="currentCollection?.name === collection.name"
+            v-if="currentCollection && currentCollection.name === collection.name"
             size="sm" 
             color="danger" 
             variant="ghost" 
@@ -173,7 +173,7 @@ export default {
         this.showCreateCollectionModal = false;
         this.newCollectionName = '';
       } catch (error) {
-        alert('Failed to create collection: ' + (error.response?.data?.message || error.message));
+        alert('Failed to create collection: ' + (error.response && error.response.data && error.response.data.message || error.message));
       } finally {
         this.isLoading = false;
       }
@@ -183,13 +183,13 @@ export default {
       this.isLoading = true;
       try {
         await Service.training('delete-collection', { id: collection.id });
-        if (this.currentCollection?.id === collection.id) {
+        if (this.currentCollection && this.currentCollection.id === collection.id) {
             this.currentCollection = null;
             this.documents = [];
         }
         await this.fetchCollections();
       } catch (error) {
-        alert('Failed to delete collection: ' + (error.response?.data?.message || error.message));
+        alert('Failed to delete collection: ' + (error.response && error.response.data && error.response.data.message || error.message));
       } finally {
         this.isLoading = false;
       }
@@ -211,7 +211,7 @@ export default {
         this.selectCollection(this.currentCollection);
         alert('File uploaded successfully');
       } catch (error) {
-        alert('Upload failed: ' + (error.response?.data?.message || error.message));
+        alert('Upload failed: ' + (error.response && error.response.data && error.response.data.message || error.message));
       } finally {
         this.isLoading = false;
         // Reset input
@@ -232,7 +232,7 @@ export default {
             this.newUrl = '';
             alert('URL processed successfully');
         } catch (error) {
-             alert('Failed to add URL: ' + (error.response?.data?.message || error.message));
+             alert('Failed to add URL: ' + (error.response && error.response.data && error.response.data.message || error.message));
         } finally {
             this.isLoading = false;
         }
@@ -281,7 +281,7 @@ export default {
             
         } catch (error) {
             console.error(error);
-             alert('Failed to delete document');
+             alert('Failed to delete document: ' + (error.response && error.response.data && error.response.data.message || error.message));
         } finally {
             this.isLoading = false;
         }
