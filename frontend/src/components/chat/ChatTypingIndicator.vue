@@ -1,88 +1,75 @@
 <script setup>
+defineProps({
+  t: { type: Function, required: true }
+})
 </script>
 
 <template>
-  <div class="typing-indicator">
-    <div class="message-avatar">
-      <div class="avatar-ring pulse">
-        <span>🤖</span>
-      </div>
-    </div>
-    <div class="typing-bubble">
-      <div class="typing-dots">
+  <div class="typing">
+    <div class="typing-avatar">🤖</div>
+    <div class="typing-content">
+      <div class="dots">
         <span></span>
         <span></span>
         <span></span>
       </div>
-      <span class="typing-text">กำลังคิด...</span>
+      <span class="text">{{ t('thinking') }}</span>
     </div>
   </div>
 </template>
 
 <style scoped>
-.typing-indicator {
+.typing {
   display: flex;
+  align-items: center;
   gap: 12px;
-  margin-top: 24px;
+  padding-left: 0;
 }
 
-.message-avatar {
-  flex-shrink: 0;
-}
-
-.avatar-ring {
-  width: 40px;
-  height: 40px;
-  background: var(--glass-bg);
-  border: 2px solid var(--color-primary);
+.typing-avatar {
+  width: 32px;
+  height: 32px;
+  background: var(--color-bg-tertiary);
+  border: 1px solid var(--color-border);
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 20px;
+  font-size: 16px;
 }
 
-.avatar-ring.pulse {
-  animation: ring-pulse 1.5s ease-in-out infinite;
-}
-
-@keyframes ring-pulse {
-  0%, 100% { border-color: var(--color-primary); }
-  50% { border-color: var(--color-accent); }
-}
-
-.typing-bubble {
+.typing-content {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 16px 20px;
-  background: var(--glass-bg);
-  border: 1px solid var(--glass-border);
-  border-radius: 16px;
+  gap: 10px;
+  padding: 12px 16px;
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
 }
 
-.typing-dots {
+.dots {
   display: flex;
   gap: 4px;
 }
 
-.typing-dots span {
-  width: 8px;
-  height: 8px;
-  background: var(--color-primary);
+.dots span {
+  width: 6px;
+  height: 6px;
+  background: var(--color-text-muted);
   border-radius: 50%;
-  animation: typing-bounce 1.4s infinite ease-in-out both;
+  animation: bounce 1.4s infinite ease-in-out both;
 }
 
-.typing-dots span:nth-child(1) { animation-delay: -0.32s; }
-.typing-dots span:nth-child(2) { animation-delay: -0.16s; }
+.dots span:nth-child(1) { animation-delay: -0.32s; }
+.dots span:nth-child(2) { animation-delay: -0.16s; }
 
-@keyframes typing-bounce {
-  0%, 80%, 100% { transform: scale(0.6); opacity: 0.5; }
+@keyframes bounce {
+  0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
   40% { transform: scale(1); opacity: 1; }
 }
 
-.typing-text {
+.text {
   font-size: 13px;
   color: var(--color-text-muted);
 }

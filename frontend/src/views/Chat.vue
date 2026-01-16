@@ -1,19 +1,19 @@
 <script setup>
 /**
- * Chat View - Main chat interface
- * Composes smaller components following Vue best practices:
- * - Single Responsibility: Each component handles one concern
- * - Props Down / Events Up: Clear data flow
- * - Composables for shared logic
- * - Scoped styles in components
+ * Chat View - Customized Design
+ * - Pure dark mode with light mode toggle
+ * - Canvas-style AI responses, bubble-style user messages
+ * - Enhanced sidebar with proper alignment
+ * - Thai/English language toggle
+ * - File upload support
  */
 import { ref, computed, watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useChatStore } from '@/stores/chat'
+import { useTheme, useLanguage } from '@/composables/useSettings'
 import { useScrollToBottom } from '@/composables/useUtils'
 
-// Import components
 import {
   ChatSidebar,
   ChatHeader,
@@ -28,6 +28,10 @@ const router = useRouter()
 const authStore = useAuthStore()
 const chatStore = useChatStore()
 
+// Settings
+const { isDark, toggle: toggleTheme, init: initTheme } = useTheme()
+const { lang, toggle: toggleLang, t, init: initLang } = useLanguage()
+
 // Refs
 const messagesRef = ref(null)
 const inputRef = ref(null)
@@ -36,7 +40,6 @@ const inputMessage = ref('')
 
 // Environment
 const envName = import.meta.env.VITE_ENV_NAME || 'MFULearnAI'
-const envType = import.meta.env.VITE_ENV_TYPE || 'TEST'
 
 // Composables
 const { scrollToBottom } = useScrollToBottom(messagesRef)
@@ -48,6 +51,10 @@ const userInitial = computed(() =>
 
 // Lifecycle
 onMounted(() => {
+  // Initialize settings
+  initTheme()
+  initLang()
+  
   // Auth check
   if (!authStore.isAuthenticated) {
     router.push('/login')
@@ -59,20 +66,12 @@ onMounted(() => {
     chatStore.newSession()
   }
   
-  // Load history
   chatStore.loadSessions()
 })
 
-// Watchers - Auto scroll on new messages
-watch(
-  () => chatStore.messages.length,
-  () => scrollToBottom()
-)
-
-watch(
-  () => chatStore.messages[chatStore.messages.length - 1]?.content,
-  () => scrollToBottom()
-)
+// Watchers
+watch(() => chatStore.messages.length, () => scrollToBottom())
+watch(() => chatStore.messages[chatStore.messages.length - 1]?.content, () => scrollToBottom())
 
 // Methods
 const handleNewChat = () => {
@@ -90,207 +89,124 @@ const handleSendMessage = async (message) => {
   inputRef.value?.focus()
 }
 
-const handleSelectPrompt = (promptText) => {
-  handleSendMessage(promptText)
-}
-
 const handleLogout = () => {
   authStore.logout()
   router.push('/login')
 }
 
+const handleFileUpload = (files) => {
+  console.log('Files to upload:', files)
+  // TODO: Implement file upload to backend
+}
+
 const handleCopyMessage = (content) => {
-  // Optional: Show toast notification
-  console.log('Copied:', content.substring(0, 50) + '...')
+  console.log('Copied message')
 }
 </script>
 
 <template>
-  <div class="chat-app" :data-theme="envType === 'PROD' ? 'dindin' : ''">
-    <!-- Animated Background -->
-    <div class="bg-effects">
-      <div class="gradient-orb orb-1"></div>
-      <div class="gradient-orb orb-2"></div>
-      <div class="gradient-orb orb-3"></div>
-    </div>
-
-    <!-- Sidebar Component -->
+  <div class="chat-layout">
+    <!-- Sidebar -->
     <ChatSidebar
       v-model="showSidebar"
       :sessions="chatStore.sessions"
       :current-session-id="chatStore.currentSessionId"
       :env-name="envName"
-      :env-type="envType"
+      :t="t"
       @new-chat="handleNewChat"
       @select-session="handleSelectSession"
       @logout="handleLogout"
+      @toggle-theme="toggleTheme"
+      @toggle-lang="toggleLang"
     />
     
-    <!-- Main Chat Area -->
+    <!-- Main Area -->
     <main class="chat-main">
-      <!-- Header Component -->
+      <!-- Header -->
       <ChatHeader
         :env-name="envName"
-        model-name="Claude 3.5"
+        :t="t"
         @toggle-sidebar="showSidebar = !showSidebar"
       />
       
-      <!-- Messages Container -->
-      <div class="messages-wrapper" ref="messagesRef">
-        <!-- Welcome Screen (Empty State) -->
+      <!-- Messages -->
+      <div class="messages-area" ref="messagesRef">
+        <!-- Welcome -->
         <ChatWelcome
           v-if="chatStore.messages.length === 0"
           :user-name="authStore.user?.firstName"
           :env-name="envName"
-          @select-prompt="handleSelectPrompt"
+          :t="t"
         />
         
         <!-- Messages List -->
         <div v-else class="messages-list">
-          <TransitionGroup name="message">
+          <TransitionGroup name="fade-slide">
             <ChatMessage
               v-for="(msg, idx) in chatStore.messages"
               :key="idx"
               :message="msg"
               :user-initial="userInitial"
+              :t="t"
               @copy="handleCopyMessage"
             />
           </TransitionGroup>
           
-          <!-- Typing Indicator -->
-          <ChatTypingIndicator v-if="chatStore.isStreaming" />
+          <!-- Typing -->
+          <ChatTypingIndicator v-if="chatStore.isStreaming" :t="t" />
         </div>
       </div>
       
-      <!-- Input Component -->
+      <!-- Input -->
       <ChatInput
         ref="inputRef"
         v-model="inputMessage"
         :disabled="chatStore.isStreaming"
         :loading="chatStore.isStreaming"
+        :t="t"
         @send="handleSendMessage"
+        @upload="handleFileUpload"
       />
     </main>
   </div>
 </template>
 
 <style scoped>
-/* === Layout Variables === */
-.chat-app {
-  --sidebar-width: 300px;
-  --header-height: 64px;
-  --glass-bg: rgba(30, 41, 59, 0.8);
-  --glass-border: rgba(255, 255, 255, 0.1);
-  --glow-primary: rgba(59, 130, 246, 0.5);
-  --glow-accent: rgba(139, 92, 246, 0.5);
-  
+.chat-layout {
   display: flex;
   height: 100vh;
-  background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%);
-  position: relative;
-  overflow: hidden;
+  background: var(--color-bg-primary);
 }
 
-/* DinDin Theme */
-.chat-app[data-theme="dindin"] {
-  --glow-primary: rgba(5, 150, 105, 0.5);
-  --glow-accent: rgba(16, 185, 129, 0.5);
-  background: linear-gradient(135deg, #111827 0%, #064e3b 50%, #111827 100%);
-}
-
-/* === Background Effects === */
-.bg-effects {
-  position: absolute;
-  inset: 0;
-  overflow: hidden;
-  pointer-events: none;
-  z-index: 0;
-}
-
-.gradient-orb {
-  position: absolute;
-  border-radius: 50%;
-  filter: blur(80px);
-  opacity: 0.4;
-  animation: float 20s ease-in-out infinite;
-}
-
-.orb-1 {
-  width: 600px;
-  height: 600px;
-  background: var(--color-primary);
-  top: -200px;
-  right: -100px;
-}
-
-.orb-2 {
-  width: 400px;
-  height: 400px;
-  background: var(--color-accent);
-  bottom: -100px;
-  left: -100px;
-  animation-delay: -7s;
-}
-
-.orb-3 {
-  width: 300px;
-  height: 300px;
-  background: var(--color-primary);
-  top: 40%;
-  left: 30%;
-  animation-delay: -14s;
-}
-
-@keyframes float {
-  0%, 100% { transform: translate(0, 0) scale(1); }
-  33% { transform: translate(30px, -30px) scale(1.05); }
-  66% { transform: translate(-20px, 20px) scale(0.95); }
-}
-
-/* === Glass Effect === */
-.glass {
-  background: var(--glass-bg);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid var(--glass-border);
-}
-
-.glass-light {
-  background: rgba(255, 255, 255, 0.05);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-/* === Main Layout === */
 .chat-main {
   flex: 1;
   display: flex;
   flex-direction: column;
-  position: relative;
-  z-index: 10;
   min-width: 0;
+  background: var(--color-bg-primary);
 }
 
-.messages-wrapper {
+.messages-area {
   flex: 1;
   overflow-y: auto;
   scroll-behavior: smooth;
 }
 
 .messages-list {
+  max-width: 800px;
+  margin: 0 auto;
   padding: 24px;
-  min-height: 100%;
 }
 
-/* === Transitions === */
-.message-enter-active {
-  animation: slide-up 0.3s ease-out;
+/* Transitions */
+.fade-slide-enter-active {
+  animation: fadeSlide 0.3s ease-out;
 }
 
-@keyframes slide-up {
+@keyframes fadeSlide {
   from {
     opacity: 0;
-    transform: translateY(20px);
+    transform: translateY(10px);
   }
   to {
     opacity: 1;
@@ -298,10 +214,10 @@ const handleCopyMessage = (content) => {
   }
 }
 
-/* === Responsive === */
+/* Responsive */
 @media (max-width: 768px) {
-  .chat-app {
-    --sidebar-width: 280px;
+  .messages-list {
+    padding: 16px;
   }
 }
 </style>

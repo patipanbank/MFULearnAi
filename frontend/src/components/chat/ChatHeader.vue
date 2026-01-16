@@ -1,103 +1,75 @@
 <script setup>
 defineProps({
-  envName: {
-    type: String,
-    default: 'MFULearnAI'
-  },
-  modelName: {
-    type: String,
-    default: 'Claude 3.5'
-  }
+  envName: { type: String, default: 'MFULearnAI' },
+  t: { type: Function, required: true }
 })
 
 const emit = defineEmits(['toggle-sidebar'])
 </script>
 
 <template>
-  <header class="chat-header glass">
-    <button class="btn-toggle" @click="emit('toggle-sidebar')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+  <header class="chat-header">
+    <button class="btn-menu" @click="emit('toggle-sidebar')">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <line x1="3" y1="12" x2="21" y2="12"/>
         <line x1="3" y1="6" x2="21" y2="6"/>
         <line x1="3" y1="18" x2="21" y2="18"/>
       </svg>
     </button>
     
-    <div class="header-title">
+    <div class="header-center">
       <h1>{{ envName }}</h1>
-      <span class="model-badge">{{ modelName }}</span>
     </div>
     
-    <div class="header-actions">
-      <slot name="actions">
-        <button class="btn-icon" title="Settings">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="12" cy="12" r="3"/>
-            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-          </svg>
-        </button>
-      </slot>
+    <div class="header-right">
+      <slot name="actions"></slot>
     </div>
   </header>
 </template>
 
 <style scoped>
 .chat-header {
-  height: var(--header-height, 64px);
-  padding: 0 20px;
+  height: var(--header-height);
   display: flex;
   align-items: center;
-  gap: 16px;
-  border-bottom: 1px solid var(--glass-border);
+  padding: 0 16px;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-bg-primary);
+  flex-shrink: 0;
 }
 
-.btn-toggle, .btn-icon {
-  width: 40px;
-  height: 40px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid var(--glass-border);
-  border-radius: 10px;
-  color: var(--color-text);
-  cursor: pointer;
+.btn-menu {
+  width: 36px;
+  height: 36px;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s;
+  background: transparent;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all 0.15s;
 }
 
-.btn-toggle:hover, .btn-icon:hover {
-  background: rgba(255, 255, 255, 0.1);
+.btn-menu:hover {
+  background: var(--color-bg-hover);
+  color: var(--color-text-primary);
 }
 
-.btn-toggle svg, .btn-icon svg {
-  width: 20px;
-  height: 20px;
-}
-
-.header-title {
+.header-center {
   flex: 1;
-  display: flex;
-  align-items: center;
-  gap: 12px;
+  text-align: center;
 }
 
-.header-title h1 {
-  font-size: 18px;
+.header-center h1 {
+  font-size: 15px;
   font-weight: 600;
-  color: var(--color-text);
+  color: var(--color-text-primary);
   margin: 0;
 }
 
-.model-badge {
-  padding: 4px 10px;
-  background: linear-gradient(135deg, var(--color-primary), var(--color-accent));
-  border-radius: 20px;
-  font-size: 11px;
-  font-weight: 600;
-  color: white;
-}
-
-.header-actions {
+.header-right {
   display: flex;
   gap: 8px;
 }
