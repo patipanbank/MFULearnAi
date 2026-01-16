@@ -4,7 +4,7 @@
     "description": "Chat Orchestrator for MFULearnAI & DinDinAI",
     "main": "dist/server.js",
     "scripts": {
-        "start": "node dist/server.js",
+        "start": "node dist/services/orchestrator/server.js",
         "dev": "ts-node-dev --respawn --transpile-only server.ts",
         "build": "tsc"
     },

@@ -13,7 +13,9 @@ services:
       - orchestrator-service
 
   auth-service:
-    build: ../../services/auth
+    build:
+      context: ../../
+      dockerfile: services/auth/Dockerfile
     environment:
       - PORT=4000
       - MONGO_URI=mongodb://mongo:27017/dindin-auth
@@ -25,7 +27,9 @@ services:
       - mongo
 
   orchestrator-service:
-    build: ../../services/orchestrator
+    build:
+      context: ../../
+      dockerfile: services/orchestrator/Dockerfile
     environment:
       - PORT=8080
       - BEDROCK_URL=http://bedrock-service:5000/api/bedrock
@@ -40,7 +44,9 @@ services:
       - logger-service
 
   bedrock-service:
-    build: ../../services/bedrock
+    build:
+      context: ../../
+      dockerfile: services/bedrock/Dockerfile
     environment:
       - PORT=5000
       - AWS_Region=ap-southeast-1
@@ -50,7 +56,9 @@ services:
     restart: always
 
   logger-service:
-    build: ../../services/logger
+    build:
+      context: ../../
+      dockerfile: services/logger/Dockerfile
     environment:
       - PORT=6000
       - MONGO_URI=mongodb://mongo:27017/dindin-logs
