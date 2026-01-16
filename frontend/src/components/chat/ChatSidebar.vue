@@ -176,11 +176,12 @@ const toggleSidebar = () => {
 }
 
 /* Internal Content Structure */
+/* Internal Content Structure */
 .sidebar-content {
   flex: 1;
   display: flex;
   flex-direction: column;
-  overflow: hidden; /* Hide overflow of inner text when shrinking */
+  overflow: visible; /* Allow popup to extend beyond sidebar */
   width: 100%;
 }
 
