@@ -11,9 +11,9 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'http://localhost:5000',
+        target: 'https://mfulearnai.mfu.ac.th',
         changeOrigin: true,
-        secure: false,
+        secure: false, // Set to true if SSL is valid, false if self-signed/dev
       },
     },
   },
