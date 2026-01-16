@@ -148,7 +148,6 @@ const handleCopyMessage = (content) => {
             />
           </TransitionGroup>
           
-          <ChatTypingIndicator v-if="chatStore.isStreaming" :t="t" />
         </div>
       </div>
       

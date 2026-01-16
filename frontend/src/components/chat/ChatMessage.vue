@@ -52,7 +52,17 @@ const formatTime = (timestamp) => {
             <span class="time">{{ formatTime(message.timestamp) }}</span>
           </div>
           
-          <div class="prose-content" v-html="render(message.content)"></div>
+          <div class="prose-content" v-if="message.content" v-html="render(message.content)"></div>
+          
+          <!-- Typing Indicator (Embedded) -->
+          <div v-else class="typing-indicator">
+            <div class="dots">
+              <span></span>
+              <span></span>
+              <span></span>
+            </div>
+            <span class="text">{{ t('thinking') }}</span>
+          </div>
           
           <div class="actions" v-if="message.content">
             <button class="btn-copy" @click="handleCopy" :class="{ copied }">
@@ -169,6 +179,40 @@ const formatTime = (timestamp) => {
   font-size: 15px;
   line-height: 1.75;
   color: var(--color-text-primary);
+}
+
+/* Typing Indicator (Embedded) */
+.typing-indicator {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+}
+
+.dots {
+  display: flex;
+  gap: 4px;
+}
+
+.dots span {
+  width: 6px;
+  height: 6px;
+  background: var(--color-text-muted);
+  border-radius: 50%;
+  animation: bounce 1.4s infinite ease-in-out both;
+}
+
+.dots span:nth-child(1) { animation-delay: -0.32s; }
+.dots span:nth-child(2) { animation-delay: -0.16s; }
+
+@keyframes bounce {
+  0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
+  40% { transform: scale(1); opacity: 1; }
+}
+
+.typing-indicator .text {
+  font-size: 13px;
+  color: var(--color-text-muted);
 }
 
 .actions {
