@@ -1,40 +1,91 @@
 <script setup>
 import { onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { useAuthStore } from '../stores/auth'
 
 const router = useRouter()
+const authStore = useAuthStore()
 
 onMounted(() => {
   const urlParams = new URLSearchParams(window.location.search)
   const token = urlParams.get('token')
-  const userStr = urlParams.get('user')
+  const userDataB64 = urlParams.get('user_data')
 
-  if (token && userStr) {
+  if (token && userDataB64) {
     try {
-      localStorage.setItem('auth_token', token)
-      localStorage.setItem('user_info', userStr)
-      console.log('Auth successful', JSON.parse(userStr))
+      // Decode base64 user data
+      const userDataStr = atob(userDataB64)
+      const userData = JSON.parse(userDataStr)
+      
+      // Store in Pinia and localStorage
+      authStore.setAuth(token, userData)
+      
+      console.log('Auth successful:', userData)
       router.push('/chat')
     } catch (e) {
-      console.error('Failed to parse user info', e)
-      router.push('/login')
+      console.error('Failed to parse auth data:', e)
+      router.push('/login?error=parse_failed')
     }
   } else {
-    // Check if error
+    // Check for error
     const error = urlParams.get('error')
     if (error) {
-       alert('Login Failed: ' + error)
+      console.error('Auth error:', error)
+      router.push(`/login?error=${error}`)
+    } else {
+      router.push('/login')
     }
-    router.push('/login')
   }
 })
 </script>
 
 <template>
-  <div class="min-vh-100 d-flex flex-row align-items-center justify-content-center">
-    <div class="spinner-border text-primary" role="status">
-      <span class="visually-hidden">Loading...</span>
+  <div class="callback-container">
+    <div class="loader-card fade-in">
+      <div class="spinner"></div>
+      <p class="loader-text">Authenticating...</p>
+      <p class="loader-subtext">Please wait while we verify your credentials</p>
     </div>
-    <span class="ms-2">Authenticating...</span>
   </div>
 </template>
+
+<style scoped>
+.callback-container {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-bg-dark);
+}
+
+.loader-card {
+  text-align: center;
+  padding: 48px;
+}
+
+.spinner {
+  width: 48px;
+  height: 48px;
+  border: 4px solid var(--color-border);
+  border-top-color: var(--color-primary);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 24px;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.loader-text {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--color-text);
+  margin-bottom: 8px;
+}
+
+.loader-subtext {
+  font-size: 14px;
+  color: var(--color-text-muted);
+}
+</style>

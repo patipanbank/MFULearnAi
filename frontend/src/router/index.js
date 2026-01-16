@@ -10,13 +10,14 @@ const router = createRouter({
         {
             path: '/login',
             name: 'Login',
-            component: () => import('../views/Login.vue')
+            component: () => import('../views/Login.vue'),
+            meta: { requiresGuest: true }
         },
         {
             path: '/chat',
             name: 'Chat',
             component: () => import('../views/Chat.vue'),
-            // Add validation here later to check localStorage for auth token
+            meta: { requiresAuth: true }
         },
         {
             path: '/auth-callback',
@@ -28,6 +29,20 @@ const router = createRouter({
             redirect: '/login'
         }
     ]
+})
+
+// Navigation guards
+router.beforeEach((to, from, next) => {
+    const token = localStorage.getItem('auth_token')
+    const isAuthenticated = !!token
+
+    if (to.meta.requiresAuth && !isAuthenticated) {
+        next('/login')
+    } else if (to.meta.requiresGuest && isAuthenticated) {
+        next('/chat')
+    } else {
+        next()
+    }
 })
 
 export default router
