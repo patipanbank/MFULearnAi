@@ -40,7 +40,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
         {/* Header - Fixed positioned with padding to avoid sidebar overlap */}
         <div className={`fixed top-0 left-0 right-0 z-30 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 transition-all duration-300 ${isSidebarExpanded ? 'lg:pl-64' : 'lg:pl-16'
           }`}>
-          <div className="flex items-center px-4 h-16">
+          <div className="flex items-center pl-4 pr-0 h-16">
             <button
               className="p-2 lg:hidden"
               onClick={() => {
