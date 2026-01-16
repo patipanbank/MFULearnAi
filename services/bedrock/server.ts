@@ -100,6 +100,29 @@ app.post('/api/bedrock/image', timeout(60000), async (req: Request, res: Respons
     }
 });
 
+    }
+});
+
+// Embedding endpoint
+app.post('/api/bedrock/embeddings', timeout(30000), async (req: Request, res: Response) => {
+    const { text } = req.body;
+
+    if (!text) {
+        return res.status(400).json({ error: 'Text is required' });
+    }
+
+    try {
+        const embedding = await bedrockService.generateEmbedding(text);
+        res.json({ success: true, embedding });
+    } catch (error: any) {
+        console.error('[Bedrock] Embedding error:', error);
+        res.status(500).json({
+            error: error.message,
+            retryable: true
+        });
+    }
+});
+
 // Get available models
 app.get('/api/bedrock/models', (req: Request, res: Response) => {
     res.json({

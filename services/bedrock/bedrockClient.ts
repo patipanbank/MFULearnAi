@@ -41,7 +41,9 @@ export class BedrockService {
         claude35: "anthropic.claude-3-5-sonnet-20240620-v1:0",
         claudeHaiku: "anthropic.claude-3-haiku-20240307-v1:0",
         claudeOpus: "anthropic.claude-3-opus-20240229-v1:0",
-        titanImage: "amazon.titan-image-generator-v1"
+        claudeOpus: "anthropic.claude-3-opus-20240229-v1:0",
+        titanImage: "amazon.titan-image-generator-v1",
+        titanEmbed: "amazon.titan-embed-text-v1"
     };
 
     private readonly defaultConfig: ModelConfig = {
@@ -161,6 +163,31 @@ export class BedrockService {
             }
 
             return responseData.images[0];
+        });
+    }
+
+    /**
+     * Generate embedding for text using Titan
+     */
+    async generateEmbedding(text: string): Promise<number[]> {
+        return this.withRetry(async () => {
+            const command = new InvokeModelCommand({
+                modelId: this.models.titanEmbed,
+                contentType: "application/json",
+                accept: "application/json",
+                body: JSON.stringify({
+                    inputText: text
+                })
+            });
+
+            const response = await this.client.send(command);
+            const responseData = JSON.parse(new TextDecoder().decode(response.body));
+
+            if (!responseData.embedding) {
+                throw new Error("No embedding generated");
+            }
+
+            return responseData.embedding;
         });
     }
 
