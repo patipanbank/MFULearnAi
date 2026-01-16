@@ -27,12 +27,27 @@ export const useAuthStore = defineStore('auth', () => {
 
   function setUser(userData: any, newToken: string) {
     token.value = newToken
+    
+    // Handle inconsistent field names from backend (SAML vs Google)
+    const firstName = userData.firstName || userData.first_name || ''
+    const lastName = userData.lastName || userData.last_name || ''
+    
+    // Map backend roles/groups to frontend roles
+    let role: User['role'] = 'Student'
+    const backendRole = userData.role || (userData.groups && userData.groups[0])
+    
+    if (backendRole) {
+      if (backendRole === 'SuperAdmin' || userData.groups?.includes('SuperAdmin')) role = 'SuperAdmin'
+      else if (backendRole === 'Admin' || userData.groups?.includes('Admin')) role = 'Admin'
+      else if (backendRole === 'Staffs' || backendRole === 'Staff' || userData.groups?.includes('Staffs')) role = 'Staff'
+    }
+
     user.value = {
       username: userData.username,
-      name: `${userData.firstName || ''} ${userData.lastName || ''}`.trim() || userData.username,
+      name: `${firstName} ${lastName}`.trim() || userData.username,
       email: userData.email,
-      role: userData.role || (userData.groups?.includes('admin') ? 'Admin' : 'Student'), // Simple mapping fallback
-      avatar: `https://ui-avatars.com/api/?name=${userData.username}`
+      role,
+      avatar: `https://ui-avatars.com/api/?name=${userData.username}&background=random`
     }
     
     // Save to local storage
