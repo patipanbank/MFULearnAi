@@ -1,42 +1,66 @@
-import express from 'express';
+import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import axios from 'axios';
 import jwt from 'jsonwebtoken';
 import Redis from 'ioredis';
+import mongoose from 'mongoose';
 import { ChatMessage, ServiceResponse } from '../../shared/types';
+import { getSystemPrompt, CONTEXT_PROMPTS } from './systemPrompts';
 
 dotenv.config();
 
 const app = express();
-app.use(express.json());
+app.use(express.json({ limit: '50mb' }));
 app.use(cors());
 
-// Services URLs
+// Environment Configuration
 const BEDROCK_URL = process.env.BEDROCK_URL || 'http://localhost:5000/api/bedrock';
 const LOGGER_URL = process.env.LOGGER_URL || 'http://localhost:6000/api/logs';
+const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/mful-chat';
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret';
 const REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379';
+const ENV_TYPE = (process.env.ENV_TYPE || 'TEST') as 'TEST' | 'PROD';
 
 // Redis Client
 const redis = new Redis(REDIS_URL);
-redis.on('error', (err) => console.error('Redis Client Error', err));
+redis.on('error', (err) => console.error('[Orchestrator] Redis Error', err));
 
-// Middleware
-const authenticateToken = (req: any, res: any, next: any) => {
-    const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1];
+// MongoDB Connection for persistent conversations
+mongoose.connect(MONGO_URI)
+    .then(() => console.log(`[Orchestrator] Connected to MongoDB (${ENV_TYPE})`))
+    .catch(err => console.error('[Orchestrator] MongoDB error:', err));
 
-    if (!token) return res.sendStatus(401);
+// Conversation Schema for persistent storage
+const ConversationSchema = new mongoose.Schema({
+    userId: { type: mongoose.Schema.Types.ObjectId, required: true, index: true },
+    sessionId: { type: String, required: true, index: true },
+    environment: { type: String, enum: ['TEST', 'PROD'], required: true },
+    messages: [{
+        role: { type: String, enum: ['user', 'assistant', 'system'] },
+        content: String,
+        timestamp: { type: Date, default: Date.now }
+    }],
+    modelId: String,
+    metadata: {
+        totalTokens: { type: Number, default: 0 },
+        estimatedCost: { type: Number, default: 0 },
+        messageCount: { type: Number, default: 0 }
+    },
+    createdAt: { type: Date, default: Date.now },
+    updatedAt: { type: Date, default: Date.now }
+});
 
-    jwt.verify(token, JWT_SECRET, (err: any, user: any) => {
-        if (err) return res.sendStatus(403);
-        req.user = user;
-        next();
-    });
-};
+ConversationSchema.index({ userId: 1, sessionId: 1 }, { unique: true });
+const Conversation = mongoose.model('Conversation', ConversationSchema);
 
-const logActivity = async (level: string, action: string, context: any, userId?: string) => {
+// --- Logging ---
+const logActivity = async (
+    level: 'debug' | 'info' | 'warn' | 'error' | 'audit',
+    action: string,
+    context: any,
+    userId?: string
+) => {
     try {
         await axios.post(LOGGER_URL, {
             level,
@@ -44,48 +68,124 @@ const logActivity = async (level: string, action: string, context: any, userId?:
             userId,
             action,
             details: context,
-            environment: process.env.ENV_TYPE || 'TEST'
+            environment: ENV_TYPE,
+            timestamp: new Date().toISOString()
         });
     } catch (err) {
-        console.error('Failed to log activity:', err);
+        console.error('[Orchestrator] Failed to log:', err);
     }
 };
 
-// Chat Endpoint
-app.post('/api/chat', authenticateToken, async (req: any, res: any) => {
-    const { message, sessionId, modelId } = req.body;
-    const userId = req.user.userId;
+// --- Middleware ---
+const authenticateToken = (req: any, res: Response, next: NextFunction) => {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
 
-    if (!message) return res.status(400).json({ error: 'Message is required' });
+    if (!token) {
+        return res.status(401).json({ error: 'No token provided' });
+    }
+
+    jwt.verify(token, JWT_SECRET, (err: any, user: any) => {
+        if (err) {
+            return res.status(403).json({ error: 'Invalid or expired token' });
+        }
+        req.user = user;
+        next();
+    });
+};
+
+// Rate limiting based on environment
+const rateLimits = new Map<string, { count: number; resetTime: number }>();
+const RATE_LIMIT = ENV_TYPE === 'PROD' ? 30 : 100; // per minute
+const RATE_WINDOW = 60 * 1000; // 1 minute
+
+const rateLimiter = (req: any, res: Response, next: NextFunction) => {
+    const userId = req.user?.userId || req.ip;
+    const now = Date.now();
+
+    const userLimit = rateLimits.get(userId);
+
+    if (!userLimit || now > userLimit.resetTime) {
+        rateLimits.set(userId, { count: 1, resetTime: now + RATE_WINDOW });
+        return next();
+    }
+
+    if (userLimit.count >= RATE_LIMIT) {
+        logActivity('warn', 'rate_limit_exceeded', { userId }, userId);
+        return res.status(429).json({
+            error: 'Rate limit exceeded',
+            retryAfter: Math.ceil((userLimit.resetTime - now) / 1000)
+        });
+    }
+
+    userLimit.count++;
+    next();
+};
+
+// --- Chat Endpoint ---
+app.post('/api/chat', authenticateToken, rateLimiter, async (req: any, res: Response) => {
+    const { message, sessionId, modelId, context } = req.body;
+    const userId = req.user.userId;
+    const userRole = req.user.role;
+
+    if (!message) {
+        return res.status(400).json({ error: 'Message is required' });
+    }
+
+    const actualSessionId = sessionId || `session-${Date.now()}`;
 
     try {
-        // 1. Log User Request
-        logActivity('info', 'chat_request_received', { sessionId, length: message.length }, userId);
+        logActivity('info', 'chat_request_received', {
+            sessionId: actualSessionId,
+            messageLength: message.length,
+            modelId
+        }, userId);
 
-        // 2. Retrieve History from Redis
-        const historyKey = `chat:${userId}:${sessionId}`;
+        // 1. Get conversation history from Redis (fast cache)
+        const historyKey = `chat:${userId}:${actualSessionId}`;
         const rawHistory = await redis.lrange(historyKey, 0, -1);
         const history: ChatMessage[] = rawHistory.map(item => JSON.parse(item));
 
-        // 3. Construct current context
-        const currentMessage: ChatMessage = { role: 'user', content: message, timestamp: new Date() };
-        const messagesToSend = [...history, currentMessage];
+        // 2. Prepare messages with system prompt
+        const systemPrompt = getSystemPrompt(ENV_TYPE);
+        const contextPrompt = context && CONTEXT_PROMPTS[context as keyof typeof CONTEXT_PROMPTS]
+            ? `\n\n${CONTEXT_PROMPTS[context as keyof typeof CONTEXT_PROMPTS]}`
+            : '';
 
-        // 4. Call Bedrock (Streaming)
-        // We need to pipe the response from Bedrock to the client
+        const systemMessage: ChatMessage = {
+            role: 'system',
+            content: systemPrompt + contextPrompt,
+            timestamp: new Date()
+        };
+
+        const currentMessage: ChatMessage = {
+            role: 'user',
+            content: message,
+            timestamp: new Date()
+        };
+
+        // Include system message only at the start
+        const messagesToSend = history.length === 0
+            ? [systemMessage, currentMessage]
+            : [...history, currentMessage];
+
+        // 3. Set up SSE headers
         res.setHeader('Content-Type', 'text/event-stream');
         res.setHeader('Cache-Control', 'no-cache');
         res.setHeader('Connection', 'keep-alive');
+        res.setHeader('X-Accel-Buffering', 'no');
 
         try {
             const response = await axios({
                 method: 'post',
                 url: `${BEDROCK_URL}/chat`,
                 data: { messages: messagesToSend, modelId },
-                responseType: 'stream'
+                responseType: 'stream',
+                timeout: 120000 // 2 minute timeout
             });
 
             let fullResponseText = '';
+            let tokenUsage = { input: 0, output: 0, total: 0 };
 
             response.data.on('data', (chunk: Buffer) => {
                 const lines = chunk.toString().split('\n');
@@ -93,53 +193,188 @@ app.post('/api/chat', authenticateToken, async (req: any, res: any) => {
                     if (line.startsWith('data: ')) {
                         const dataStr = line.replace('data: ', '').trim();
                         if (dataStr === '[DONE]') continue;
+
                         try {
                             const data = JSON.parse(dataStr);
-                            if (data.text) fullResponseText += data.text;
-                        } catch (e) { }
+                            if (data.text) {
+                                fullResponseText += data.text;
+                            }
+                            if (data.type === 'usage' && data.usage) {
+                                tokenUsage = data.usage;
+                            }
+                        } catch (e) { /* ignore parse errors */ }
                     }
                 }
-                res.write(chunk); // Forward chunk to client
+                res.write(chunk);
             });
 
             response.data.on('end', async () => {
                 res.end();
 
-                // 5. Save Context to Redis
-                const assistantMessage: ChatMessage = { role: 'assistant', content: fullResponseText, timestamp: new Date() };
-                await redis.rpush(historyKey, JSON.stringify(currentMessage), JSON.stringify(assistantMessage));
-                // Expire chat history after 1 day
+                // 4. Save to Redis cache
+                const assistantMessage: ChatMessage = {
+                    role: 'assistant',
+                    content: fullResponseText,
+                    timestamp: new Date()
+                };
+
+                await redis.rpush(historyKey,
+                    JSON.stringify(currentMessage),
+                    JSON.stringify(assistantMessage)
+                );
+
+                // Keep last 50 messages in Redis, expire after 24h
+                await redis.ltrim(historyKey, -50, -1);
                 await redis.expire(historyKey, 86400);
 
-                // 6. Log Completion
-                logActivity('info', 'chat_request_completed', { sessionId }, userId);
+                // 5. Persist to MongoDB for long-term storage
+                await Conversation.findOneAndUpdate(
+                    { userId, sessionId: actualSessionId },
+                    {
+                        $push: {
+                            messages: {
+                                $each: [currentMessage, assistantMessage]
+                            }
+                        },
+                        $inc: {
+                            'metadata.totalTokens': tokenUsage.total,
+                            'metadata.messageCount': 2
+                        },
+                        $set: {
+                            modelId,
+                            environment: ENV_TYPE,
+                            updatedAt: new Date()
+                        }
+                    },
+                    { upsert: true }
+                );
+
+                logActivity('info', 'chat_request_completed', {
+                    sessionId: actualSessionId,
+                    responseLength: fullResponseText.length,
+                    tokens: tokenUsage
+                }, userId);
+            });
+
+            response.data.on('error', async (err: Error) => {
+                console.error('[Orchestrator] Stream error:', err);
+                res.write(`event: error\ndata: ${JSON.stringify({ error: 'Stream error' })}\n\n`);
+                res.end();
+                logActivity('error', 'chat_stream_error', { error: err.message }, userId);
             });
 
         } catch (bedrockError: any) {
-            console.error('Bedrock Error:', bedrockError.message);
-            res.write(`event: error\ndata: ${JSON.stringify({ error: 'Failed to generate response' })}\n\n`);
+            console.error('[Orchestrator] Bedrock Error:', bedrockError.message);
+
+            // Attempt retry for specific errors
+            if (bedrockError.code === 'ECONNREFUSED' || bedrockError.code === 'ETIMEDOUT') {
+                res.write(`event: error\ndata: ${JSON.stringify({
+                    error: 'AI service temporarily unavailable. Please try again.',
+                    retryable: true
+                })}\n\n`);
+            } else {
+                res.write(`event: error\ndata: ${JSON.stringify({
+                    error: 'Failed to generate response'
+                })}\n\n`);
+            }
             res.end();
-            logActivity('error', 'bedrock_error', { error: bedrockError.message }, userId);
+
+            logActivity('error', 'bedrock_error', {
+                error: bedrockError.message,
+                code: bedrockError.code
+            }, userId);
         }
 
     } catch (error: any) {
-        console.error('Orchestrator Error:', error);
+        console.error('[Orchestrator] Error:', error);
         res.status(500).json({ error: 'Internal Server Error' });
+        logActivity('error', 'orchestrator_error', { error: error.message }, userId);
     }
 });
 
-// Clear History
-app.delete('/api/chat/:sessionId', authenticateToken, async (req: any, res: any) => {
+// --- Get Chat History ---
+app.get('/api/chat/:sessionId', authenticateToken, async (req: any, res: Response) => {
     const { sessionId } = req.params;
     const userId = req.user.userId;
-    const historyKey = `chat:${userId}:${sessionId}`;
-    await redis.del(historyKey);
-    res.json({ success: true });
+
+    try {
+        // Try Redis first (faster)
+        const historyKey = `chat:${userId}:${sessionId}`;
+        const rawHistory = await redis.lrange(historyKey, 0, -1);
+
+        if (rawHistory.length > 0) {
+            const messages = rawHistory.map(item => JSON.parse(item));
+            return res.json({ sessionId, messages, source: 'cache' });
+        }
+
+        // Fallback to MongoDB
+        const conversation = await Conversation.findOne({ userId, sessionId });
+        if (conversation) {
+            // Repopulate Redis cache
+            for (const msg of conversation.messages) {
+                await redis.rpush(historyKey, JSON.stringify(msg));
+            }
+            await redis.expire(historyKey, 86400);
+
+            return res.json({
+                sessionId,
+                messages: conversation.messages,
+                metadata: conversation.metadata,
+                source: 'database'
+            });
+        }
+
+        res.json({ sessionId, messages: [], source: 'none' });
+    } catch (error: any) {
+        res.status(500).json({ error: 'Failed to retrieve history' });
+    }
 });
 
-app.get('/health', (req, res) => res.json({ status: 'ok', service: 'orchestrator' }));
+// --- List User Sessions ---
+app.get('/api/chat', authenticateToken, async (req: any, res: Response) => {
+    const userId = req.user.userId;
+    const limit = parseInt(req.query.limit as string) || 20;
+
+    try {
+        const conversations = await Conversation.find({ userId })
+            .select('sessionId metadata createdAt updatedAt')
+            .sort({ updatedAt: -1 })
+            .limit(limit);
+
+        res.json({ conversations });
+    } catch (error: any) {
+        res.status(500).json({ error: 'Failed to retrieve sessions' });
+    }
+});
+
+// --- Clear Session ---
+app.delete('/api/chat/:sessionId', authenticateToken, async (req: any, res: Response) => {
+    const { sessionId } = req.params;
+    const userId = req.user.userId;
+
+    try {
+        const historyKey = `chat:${userId}:${sessionId}`;
+        await redis.del(historyKey);
+
+        // Optionally delete from MongoDB (or keep for audit)
+        // await Conversation.deleteOne({ userId, sessionId });
+
+        logActivity('info', 'session_cleared', { sessionId }, userId);
+        res.json({ success: true });
+    } catch (error: any) {
+        res.status(500).json({ error: 'Failed to clear session' });
+    }
+});
+
+// --- Health Check ---
+app.get('/health', (req, res) => res.json({
+    status: 'ok',
+    service: 'orchestrator',
+    environment: ENV_TYPE,
+    rateLimit: RATE_LIMIT
+}));
 
 const PORT = process.env.PORT || 8080;
 app.listen(PORT, () => {
-    console.log(`Orchestrator running on port ${PORT}`);
+    console.log(`[Orchestrator] Running on port ${PORT} [Env: ${ENV_TYPE}]`);
 });
