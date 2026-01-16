@@ -100,8 +100,7 @@ app.post('/api/bedrock/image', timeout(60000), async (req: Request, res: Respons
     }
 });
 
-    }
-});
+
 
 // Embedding endpoint
 app.post('/api/bedrock/embeddings', timeout(30000), async (req: Request, res: Response) => {

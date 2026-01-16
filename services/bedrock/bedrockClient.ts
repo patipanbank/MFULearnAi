@@ -41,7 +41,7 @@ export class BedrockService {
         claude35: "anthropic.claude-3-5-sonnet-20240620-v1:0",
         claudeHaiku: "anthropic.claude-3-haiku-20240307-v1:0",
         claudeOpus: "anthropic.claude-3-opus-20240229-v1:0",
-        claudeOpus: "anthropic.claude-3-opus-20240229-v1:0",
+
         titanImage: "amazon.titan-image-generator-v1",
         titanEmbed: "amazon.titan-embed-text-v1"
     };
