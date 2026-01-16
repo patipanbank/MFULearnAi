@@ -6,52 +6,57 @@
           <CCardGroup>
             <CCard class="p-4">
               <CCardBody>
-                <CForm>
-
-                  <img src="@/assets/logo.svg" height="150px"/>
+                <CForm @submit.prevent="login">
+                  <img src="@/assets/logo.svg" height="150px" class="mb-4"/>
                   <h1>Login</h1>
                   <p class="text-muted">Sign In to your account</p>
+                  
                   <CInput
                     placeholder="Username"
-                    autocomplete="username email"
+                    autocomplete="username"
+                    v-model="username"
                   >
                     <template #prepend-content><CIcon name="cil-user"/></template>
                   </CInput>
+                  
                   <CInput
                     placeholder="Password"
                     type="password"
-                    autocomplete="curent-password"
+                    autocomplete="current-password"
+                    v-model="password"
                   >
                     <template #prepend-content><CIcon name="cil-lock-locked"/></template>
                   </CInput>
+
                   <CRow>
                     <CCol col="6" class="text-left">
-                      <CButton color="primary" class="px-4">Login</CButton>
+                      <CButton color="primary" class="px-4" type="submit">Login</CButton>
                     </CCol>
                     <CCol col="6" class="text-right">
                       <CButton color="link" class="px-0">Forgot password?</CButton>
-                      <CButton color="link" class="d-lg-none">Register now!</CButton>
                     </CCol>
                   </CRow>
+
+                  <hr class="my-4"/>
+                  
+                  <div class="text-center">
+                    <p>Or sign in with</p>
+                    <CButton 
+                      color="danger" 
+                      class="mr-2"
+                      @click="loginGoogle"
+                    >
+                      <CIcon name="cib-google" class="mr-2"/> Google
+                    </CButton>
+                    <CButton 
+                      color="info"
+                      @click="loginSaml"
+                    >
+                      <CIcon name="cil-institution" class="mr-2"/> MFU Login (SAML)
+                    </CButton>
+                  </div>
+
                 </CForm>
-              </CCardBody>
-            </CCard>
-            <CCard
-              color="primary"
-              text-color="white"
-              class="text-center py-5 d-md-down-none"
-              body-wrapper
-            >
-              <CCardBody>
-                <h2>Sign up</h2>
-                <p>Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.</p>
-                <CButton
-                  color="light"
-                  variant="outline"
-                  size="lg"
-                >
-                  Register Now!
-                </CButton>
               </CCardBody>
             </CCard>
           </CCardGroup>
@@ -62,7 +67,37 @@
 </template>
 
 <script>
+import { mapActions } from 'vuex'
+
 export default {
-  name: 'Login'
+  name: 'Login',
+  data() {
+    return {
+      username: '',
+      password: ''
+    }
+  },
+  methods: {
+    ...mapActions('auth', ['signIn']), // Maps this.signIn() to store.dispatch('auth/signIn')
+    
+    login() {
+      if (!this.username || !this.password) {
+        alert('Please enter username and password');
+        return;
+      }
+      this.signIn({ 
+        email: this.username, 
+        password: this.password 
+      });
+    },
+    
+    loginGoogle() {
+      window.location.href = '/api/auth/login/google';
+    },
+    
+    loginSaml() {
+      window.location.href = '/api/auth/login/saml';
+    }
+  }
 }
 </script>

@@ -5,126 +5,75 @@ import store from "@/store/store";
 const LoginModule = {
     namespaced: true,
     state: {
-        isSignIn:false,
-        is2FA:false,
-        userId:"66d1491da8ecd8d7d08981c2"
-
+        isSignIn: false,
+        token: localStorage.getItem('token') || '',
+        user: JSON.parse(localStorage.getItem('user')) || {},
     },
 
     mutations: {
-        isSignIn(state, obj) {
-            state.isSignIn = obj
+        setToken(state, token) {
+            state.token = token;
+            localStorage.setItem('token', token);
         },
-
-        is2FA(state, obj) {
-            state.is2FA = obj
+        setUser(state, user) {
+            state.user = user;
+            localStorage.setItem('user', JSON.stringify(user));
         },
-
-        userId(state, obj) {
-            state.userId = obj
-        },
-
-
+        logout(state) {
+            state.token = '';
+            state.user = {};
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+        }
     },
 
     actions: {
-        supportReload({commit}, data) {
-
-            var objs = JSON.parse(localStorage.getItem('objs'));
-
-            store.commit('xAccessToken',objs.xAccessToken)
-            // store.commit('accounts',objs.accounts)
-            store.commit('auth/userId',objs.accounts)
-            store.dispatch('personal/config',{})
-
-        },
-
-
-        singIn({commit}, data) {
-            store.commit("dialog/loading",true)
-            Service.authen("sign-in",data)
+        signIn({ commit }, data) {
+            store.commit("dialog/loading", true)
+            Service.authen("sign-in", data)
                 .then((response) => {
+                    store.commit("dialog/loading", false);
 
-                    // store.commit("auth/isSignIn",false)
-                    // var objs = JSON.stringify(response.data.data)
-                    // localStorage.setItem('objs',objs);
-                    //
-                    // store.dispatch("auth/supportReload",{})
-                    // store.commit("dialog/loading",false)
-                    //
-                    //
-                    // router.push('/estimate/yourself');
+                    const token = response.data.token || response.data.accessToken; // Adjust based on actual API response
+                    const user = response.data.user;
+
+                    if (token) {
+                        commit('setToken', token);
+                        commit('setUser', user || {});
+                        router.push('/chat'); // Redirect to Chat after login
+                    } else {
+                        throw new Error('No token received');
+                    }
                 })
                 .catch((err) => {
-                    store.commit("dialog/loading",false)
+                    store.commit("dialog/loading", false);
+                    console.error("Login error:", err);
 
                     var dialog = {
-                        message: "Username และ Password ไม่ถูกต้อง",
-                        code:"40100",
-                        number :"1",
-                        status:true
+                        message: "Authentication Failed. Please check your credentials.",
+                        code: "401",
+                        status: true
                     }
-                    store.commit("dialog/dialog",dialog)
+                    store.commit("dialog/dialog", dialog);
                 });
         },
 
-
-        twofa({commit}, data) {
-            store.commit("dialog/loading",true)
-            Service.authen("2fa",data)
-                .then((response) => {
-                    store.commit("dialog/loading",false)
-                    // store.commit("auth/is2FA",true)
-
-                })
-                .catch((err) => {
-                    store.commit("dialog/loading",false)
-
-                    var dialog = {
-                        message: "Username และ Password ไม่ถูกต้อง",
-                        code:"40100",
-                        number :"1",
-                        status:true
-                    }
-                    store.commit("dialog/dialog",dialog)
-                });
-        },
-
-        twofaSend({commit}, data) {
-            store.commit("dialog/loading",true)
-            Service.authen("2fa-send",data)
-                .then((response) => {
-                    store.commit("dialog/loading",false)
-                    store.commit("auth/is2FA",false)
-
-                })
-                .catch((err) => {
-                    store.commit("dialog/loading",false)
-
-                    var dialog = {
-                        message: "Username และ Password ไม่ถูกต้อง",
-                        code:"40100",
-                        number :"1",
-                        status:true
-                    }
-                    store.commit("dialog/dialog",dialog)
-                });
+        logout({ commit }) {
+            commit('logout');
+            router.push('/login');
         }
-
     },
 
     getters: {
-        isSignIn(state) {
-            return state.isSignIn;
+        isAuthenticated(state) {
+            return !!state.token;
         },
-
-        is2FA(state) {
-            return state.is2FA
+        currentUser(state) {
+            return state.user;
         },
-
-        userId(state) {
-            return state.userId;
-        },
+        userRole(state) {
+            return state.user?.role;
+        }
     },
 };
 

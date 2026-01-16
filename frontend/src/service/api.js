@@ -53,7 +53,11 @@ export default {
     authen(method, data, configs) {
         switch (method) {
             case 'sign-in':
-                return instance.post("/api/v1/signin", data);
+                return instance.post("/api/auth/admin/login", data);
+            case 'google':
+                return instance.get("/api/auth/login/google");
+            case 'saml':
+                return instance.get("/api/auth/login/saml");
             case '2fa':
                 return instance.post("/api/v1/2fa", data);
             case '2fa-send':
