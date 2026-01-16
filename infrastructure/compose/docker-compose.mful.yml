@@ -65,8 +65,8 @@ services:
 
   frontend-service:
     build:
-      context: ../../
-      dockerfile: frontend/Dockerfile
+      context: ../../frontend
+      dockerfile: Dockerfile
 
 
   redis:
