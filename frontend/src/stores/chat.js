@@ -61,12 +61,14 @@ export const useChatStore = defineStore('chat', () => {
         const assistantIndex = messages.value.length
         messages.value.push({
             role: 'assistant',
-            content: '',
+            content: '', // Start empty
             timestamp: new Date()
         })
 
         try {
             const token = localStorage.getItem('auth_token')
+            console.log('[ChatStore] Sending request to /api/chat...')
+
             const response = await fetch('/api/chat', {
                 method: 'POST',
                 headers: {
@@ -80,7 +82,10 @@ export const useChatStore = defineStore('chat', () => {
                 })
             })
 
-            if (!response.ok) throw new Error('Network response was not ok')
+            if (!response.ok) {
+                const errText = await response.text()
+                throw new Error(`Server Error ${response.status}: ${errText}`)
+            }
 
             const reader = response.body.getReader()
             const decoder = new TextDecoder()
@@ -90,19 +95,27 @@ export const useChatStore = defineStore('chat', () => {
                 if (done) break
 
                 const chunk = decoder.decode(value, { stream: true })
-                const lines = chunk.split('\n')
+                // console.log('[ChatStore] Received chunk:', chunk) 
 
+                const lines = chunk.split('\n')
                 for (const line of lines) {
                     if (line.startsWith('data:')) {
                         const dataStr = line.replace('data:', '').trim()
-                        if (dataStr === '[DONE]') continue
+                        if (!dataStr || dataStr === '[DONE]') continue
 
                         try {
                             const data = JSON.parse(dataStr)
+
+                            // 1. Text Delta
                             if (data.text) {
                                 messages.value[assistantIndex].content += data.text
                             }
+
+                            // 2. Error from backend (e.g. Bedrock failure)
                             if (data.error) {
+                                console.error('[ChatStore] Backend reported error:', data.error)
+                                const errorMsg = `\n\n**Error**: ${data.error}`
+                                messages.value[assistantIndex].content += errorMsg
                                 messages.value[assistantIndex].error = data.error
                             }
                         } catch (e) {
@@ -112,11 +125,12 @@ export const useChatStore = defineStore('chat', () => {
                 }
             }
         } catch (error) {
-            console.error('Stream error:', error)
-            messages.value[assistantIndex].content = 'Error: Failed to get response. Please try again.'
+            console.error('[ChatStore] Stream error:', error)
+            messages.value[assistantIndex].content += `\n\n**System Error**: ${error.message}`
             messages.value[assistantIndex].error = true
         } finally {
             isStreaming.value = false
+            console.log('[ChatStore] Stream finished')
         }
     }
 
