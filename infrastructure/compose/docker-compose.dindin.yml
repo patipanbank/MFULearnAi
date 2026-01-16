@@ -1,0 +1,74 @@
+version: '3.8'
+
+services:
+  gateway:
+    image: nginx:alpine
+    ports:
+      - "8000:80"
+    volumes:
+      - ../gateway/nginx.conf:/etc/nginx/nginx.conf:ro
+    restart: always
+    depends_on:
+      - auth-service
+      - orchestrator-service
+
+  auth-service:
+    build: ../../services/auth
+    environment:
+      - PORT=4000
+      - MONGO_URI=mongodb://mongo:27017/dindin-auth
+      - JWT_SECRET=${PROD_JWT_SECRET}
+      - SAML_SP_ENTITY_ID=dindin-ai
+      - SAML_IDP_SSO_URL=${SAML_IDP_SSO_URL}
+    restart: always
+    depends_on:
+      - mongo
+
+  orchestrator-service:
+    build: ../../services/orchestrator
+    environment:
+      - PORT=8080
+      - BEDROCK_URL=http://bedrock-service:5000/api/bedrock
+      - LOGGER_URL=http://logger-service:6000/api/logs
+      - REDIS_URL=redis://redis:6379
+      - JWT_SECRET=${PROD_JWT_SECRET}
+      - ENV_TYPE=PROD
+    restart: always
+    depends_on:
+      - redis
+      - bedrock-service
+      - logger-service
+
+  bedrock-service:
+    build: ../../services/bedrock
+    environment:
+      - PORT=5000
+      - AWS_Region=ap-southeast-1
+      - ENV_TYPE=PROD
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+    restart: always
+
+  logger-service:
+    build: ../../services/logger
+    environment:
+      - PORT=6000
+      - MONGO_URI=mongodb://mongo:27017/dindin-logs
+    restart: always
+
+  redis:
+    image: redis:alpine
+    # No exposed ports in prod, internal only
+    command: redis-server --appendonly yes
+    volumes:
+      - redis-data-prod:/data
+
+  mongo:
+    image: mongo:latest
+    # No exposed ports in prod, internal only
+    volumes:
+      - mongo-data-prod:/data/db
+
+volumes:
+  mongo-data-prod:
+  redis-data-prod:
