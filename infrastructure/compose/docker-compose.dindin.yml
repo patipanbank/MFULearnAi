@@ -1,91 +1,164 @@
 version: '3.8'
 
+# DinDinAI - PRODUCTION Environment
+# Purpose: Official MFU AI Assistant - Stable, Secure, Compliant
+
 services:
   gateway:
     image: nginx:alpine
+    container_name: dindinai-gateway
     ports:
-      - "8000:80"
+      - "80:80"
+      - "443:443"
     volumes:
-      - ../gateway/nginx.conf:/etc/nginx/nginx.conf:ro
-    restart: always
+      - ../gateway/nginx-dindinai.conf:/etc/nginx/nginx.conf:ro
+      - /etc/letsencrypt/live/dindin.mfu.ac.th:/etc/nginx/ssl:ro
     depends_on:
       - auth-service
       - orchestrator-service
       - frontend-service
+    networks:
+      - dindinai-network
+    restart: always
+    deploy:
+      resources:
+        limits:
+          memory: 256M
 
   auth-service:
     build:
       context: ../../
       dockerfile: services/auth/Dockerfile
+    container_name: dindinai-auth
     environment:
       - PORT=4000
-      - MONGO_URI=mongodb://mongo:27017/dindin-auth
-      - JWT_SECRET=${PROD_JWT_SECRET}
-      - SAML_SP_ENTITY_ID=dindin-ai
+      - ENV_TYPE=PROD
+      - MONGO_URI=mongodb://mongo:27017/dindinai-auth
+      - JWT_SECRET=${JWT_SECRET}
+      - LOGGER_URL=http://logger-service:6000/api/logs
+      - FRONTEND_URL=https://dindin.mfu.ac.th
+      # SAML Config (MFU SSO - Production)
+      - SAML_SP_ENTITY_ID=dindin-ai-prod
+      - SAML_SP_ACS_URL=https://dindin.mfu.ac.th/api/auth/saml/callback
       - SAML_IDP_SSO_URL=${SAML_IDP_SSO_URL}
-    restart: always
+      - SAML_IDP_SLO_URL=${SAML_IDP_SLO_URL}
+      - SAML_CERTIFICATE=${SAML_CERTIFICATE}
     depends_on:
       - mongo
+    networks:
+      - dindinai-network
+    restart: always
+    deploy:
+      resources:
+        limits:
+          memory: 512M
 
   orchestrator-service:
     build:
       context: ../../
       dockerfile: services/orchestrator/Dockerfile
+    container_name: dindinai-orchestrator
     environment:
       - PORT=8080
+      - ENV_TYPE=PROD
       - BEDROCK_URL=http://bedrock-service:5000/api/bedrock
       - LOGGER_URL=http://logger-service:6000/api/logs
+      - MONGO_URI=mongodb://mongo:27017/dindinai-chat
       - REDIS_URL=redis://redis:6379
-      - JWT_SECRET=${PROD_JWT_SECRET}
-      - ENV_TYPE=PROD
-    restart: always
+      - JWT_SECRET=${JWT_SECRET}
     depends_on:
       - redis
+      - mongo
       - bedrock-service
       - logger-service
+    networks:
+      - dindinai-network
+    restart: always
+    deploy:
+      resources:
+        limits:
+          memory: 1G
 
   bedrock-service:
     build:
       context: ../../
       dockerfile: services/bedrock/Dockerfile
+    container_name: dindinai-bedrock
     environment:
       - PORT=5000
-      - AWS_Region=ap-southeast-1
       - ENV_TYPE=PROD
+      - AWS_REGION=${AWS_REGION:-ap-southeast-1}
       - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
       - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+    networks:
+      - dindinai-network
     restart: always
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 1G
 
   logger-service:
     build:
       context: ../../
       dockerfile: services/logger/Dockerfile
+    container_name: dindinai-logger
     environment:
       - PORT=6000
-      - MONGO_URI=mongodb://mongo:27017/dindin-logs
-    restart: always
+      - ENV_TYPE=PROD
+      - MONGO_URI=mongodb://mongo:27017/dindinai-logs
     depends_on:
       - mongo
+    networks:
+      - dindinai-network
+    restart: always
 
   frontend-service:
     build:
       context: ../../frontend
       dockerfile: Dockerfile
+      args:
+        - VITE_API_URL=/api
+        - VITE_ENV=production
+    container_name: dindinai-frontend
+    networks:
+      - dindinai-network
     restart: always
 
   redis:
     image: redis:alpine
-    # No exposed ports in prod, internal only
-    command: redis-server --appendonly yes
+    container_name: dindinai-redis
     volumes:
-      - redis-data-prod:/data
+      - dindinai-redis-data:/data
+    networks:
+      - dindinai-network
+    restart: always
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
 
   mongo:
-    image: mongo:latest
-    # No exposed ports in prod, internal only
+    image: mongo:6
+    container_name: dindinai-mongo
     volumes:
-      - mongo-data-prod:/data/db
+      - dindinai-mongo-data:/data/db
+      - ./mongo-backup:/backup
+    environment:
+      - MONGO_INITDB_DATABASE=dindinai
+      - MONGO_INITDB_ROOT_USERNAME=${MONGO_ROOT_USER}
+      - MONGO_INITDB_ROOT_PASSWORD=${MONGO_ROOT_PASSWORD}
+    networks:
+      - dindinai-network
+    restart: always
+    deploy:
+      resources:
+        limits:
+          memory: 2G
 
 volumes:
-  mongo-data-prod:
-  redis-data-prod:
+  dindinai-redis-data:
+  dindinai-mongo-data:
+
+networks:
+  dindinai-network:
+    driver: bridge

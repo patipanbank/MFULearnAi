@@ -1,3 +1,6 @@
+// User role type
+export type UserRole = 'student' | 'staff' | 'admin' | 'superadmin';
+
 export interface User {
   userId?: string;
   nameID: string;
@@ -6,7 +9,7 @@ export interface User {
   firstName?: string;
   lastName?: string;
   department?: string;
-  role: 'student' | 'staff' | 'admin' | 'superadmin';
+  role: UserRole;
   groups: string[];
 }
 
