@@ -1,76 +1,42 @@
 <script setup>
-const isMobile = ref(false)
-const isHovering = ref(false)
+import { computed, ref } from 'vue'
 
-// Check mobile on mount & resize
-const checkMobile = () => {
-  isMobile.value = window.innerWidth < 768
-}
-
-onMounted(() => {
-  checkMobile()
-  window.addEventListener('resize', checkMobile)
-  window.addEventListener('keydown', handleKeydown)
+const props = defineProps({
+  modelValue: { type: Boolean, required: true },
+  sessions: { type: Array, default: () => [] },
+  currentSessionId: { type: String, default: null },
+  t: { type: Function, required: true },
+  isDark: { type: Boolean, default: false },
+  lang: { type: String, default: 'th' }
 })
 
-onUnmounted(() => {
-  window.removeEventListener('resize', checkMobile)
-  window.removeEventListener('keydown', handleKeydown)
-})
+const emit = defineEmits([
+  'update:modelValue',
+  'new-chat',
+  'select-session',
+  'toggle-theme', 
+  'toggle-lang', 
+  'logout'
+])
 
-const handleKeydown = (e) => {
-  // Ctrl+B or Cmd+B to toggle sidebar
-  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'b') {
-    e.preventDefault()
-    toggleSidebar()
-  }
+// Settings Menu State
+const showSettings = ref(false)
+const toggleSettings = () => showSettings.value = !showSettings.value
+const closeSettings = () => showSettings.value = false
+
+// Toggle Sidebar
+// Note: The parent controls the state via v-model, but we can emit update
+const toggleSidebar = () => {
+  emit('update:modelValue', !props.modelValue)
 }
-
-// Hover Logic
-const handleMouseEnter = () => {
-  if (!props.modelValue && !isMobile.value) {
-    isHovering.value = true
-  }
-}
-const handleMouseLeave = () => {
-  isHovering.value = false
-}
-
-// Effective Expanded State (Model OR Hover)
-const isEffectivelyExpanded = computed(() => {
-  if (isMobile.value) return props.modelValue
-  return props.modelValue || isHovering.value
-})
-
-const sidebarClasses = computed(() => {
-  const base = []
-  if (isMobile.value) {
-    base.push('mobile-sidebar')
-    base.push(props.modelValue ? 'translate-x-0' : '-translate-x-full')
-  } else {
-    // Desktop: Expanded or Collapsed
-    base.push(isEffectivelyExpanded.value ? 'w-expanded' : 'w-collapsed')
-    // Add shadow if hovering in collapsed mode (floating effect)
-    if (!props.modelValue && isHovering.value) base.push('floating-expand')
-  }
-  return base
-})
 </script>
 
 <template>
-  <!-- Mobile Backdrop -->
-  <div 
-    v-if="isMobile && modelValue" 
-    class="mobile-backdrop"
-    @click="toggleSidebar"
-  ></div>
-
   <!-- Main Sidebar Element -->
+  <!-- We use dynamic width classes based on props.modelValue -->
   <aside 
     class="sidebar-container"
-    :class="sidebarClasses"
-    @mouseenter="handleMouseEnter"
-    @mouseleave="handleMouseLeave"
+    :class="[modelValue ? 'w-expanded' : 'w-collapsed']"
   >
     <div class="sidebar-content">
       
@@ -86,10 +52,7 @@ const sidebarClasses = computed(() => {
               <path d="M12 5v14M5 12h14"/>
             </svg>
           </div>
-          <span 
-            class="label-text" 
-            :class="{ 'opacity-0': !isEffectivelyExpanded }"
-          >
+          <span class="label-text" :class="{ 'opacity-0': !modelValue }">
             {{ t('newChat') }}
           </span>
         </button>
@@ -97,7 +60,7 @@ const sidebarClasses = computed(() => {
 
       <!-- middle: Chat List -->
       <div class="section-list">
-        <div class="list-header" :class="{ 'opacity-0': !isEffectivelyExpanded }">
+        <div class="list-header" :class="{ 'opacity-0': !modelValue }">
           {{ t('recentChats') }}
         </div>
         
@@ -108,21 +71,15 @@ const sidebarClasses = computed(() => {
             class="list-item"
             :class="{ 'active': session.sessionId === currentSessionId }"
             @click="emit('select-session', session.sessionId)"
-            :title="!isEffectivelyExpanded ? ('Chat ' + (session.metadata?.messageCount || '0')) : ''"
+            :title="!modelValue ? ('Chat ' + (session.metadata?.messageCount || '0')) : ''"
           >
-            <!-- Active Indicator -->
-            <div class="active-indicator" v-if="session.sessionId === currentSessionId"></div>
-
             <div class="icon-wrapper item-icon">
               <!-- Chat Bubble Icon -->
               <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/>
               </svg>
             </div>
-            <span 
-              class="label-text list-text" 
-              :class="{ 'opacity-0': !isEffectivelyExpanded }"
-            >
+            <span class="label-text list-text" :class="{ 'opacity-0': !modelValue }">
               Chat {{ session.metadata?.messageCount || 0 }}
             </span>
           </button>
@@ -184,10 +141,7 @@ const sidebarClasses = computed(() => {
                 <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
               </svg>
             </div>
-            <span 
-              class="label-text" 
-              :class="{ 'opacity-0': !isEffectivelyExpanded }"
-            >
+            <span class="label-text" :class="{ 'opacity-0': !modelValue }">
               {{ t('settings') }}
             </span>
           </button>
@@ -207,7 +161,7 @@ const sidebarClasses = computed(() => {
   display: flex;
   flex-direction: column;
   flex-shrink: 0; /* Important! Prevent shrinking beyond defined width */
-  transition: width 0.3s cubic-bezier(0.25, 0.8, 0.25, 1), transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1), box-shadow 0.3s;
+  transition: width 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
   overflow: visible; /* Must check this carefully, usually hidden but popup needs visible */
   position: relative;
   z-index: 100;
@@ -220,46 +174,6 @@ const sidebarClasses = computed(() => {
 .w-collapsed {
   width: 64px;
 }
-
-/* Hover Floating Effect - Expands over content */
-.floating-expand {
-  position: absolute; /* Float over */
-  width: 260px; /* Full width */
-  left: 0;
-  top: 0;
-  height: 100vh;
-  box-shadow: 4px 0 24px rgba(0,0,0,0.15); /* Drop shadow */
-  z-index: 200;
-  border-right: 1px solid var(--color-border);
-}
-
-/* Mobile Styles */
-.mobile-sidebar {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 280px; /* Wider for mobile touch */
-  height: 100vh;
-  z-index: 1000;
-  transition: transform 0.3s ease-in-out;
-  box-shadow: 4px 0 20px rgba(0,0,0,0.2);
-}
-.translate-x-0 { transform: translateX(0); }
-.-translate-x-full { transform: translateX(-100%); }
-
-.mobile-backdrop {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  background: rgba(0,0,0,0.5);
-  backdrop-filter: blur(2px);
-  z-index: 999;
-  animation: fadeIn 0.3s;
-}
-
-@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
 /* Internal Content Structure */
 /* Internal Content Structure */
@@ -283,11 +197,6 @@ const sidebarClasses = computed(() => {
   display: flex;
   justify-content: center;
 }
-/* Exception for Floating Hover: Reset padding */
-.sidebar-container.floating-expand .section-top {
-  padding: 12px;
-  display: block;
-}
 
 .btn-new-chat {
   width: 100%;
@@ -308,9 +217,6 @@ const sidebarClasses = computed(() => {
   width: 44px; /* Make it square-ish or just centered */
   border-radius: 12px;
 }
-.sidebar-container.floating-expand .btn-new-chat {
-  width: 100%; /* Restore width on hover */
-}
 
 .btn-new-chat:hover {
   background-color: var(--color-accent-hover);
@@ -329,13 +235,10 @@ const sidebarClasses = computed(() => {
 /* In expanded mode, we might want it larger or just left aligned? 
    Actually original code had 64px width. Let's make it consistent.
 */ 
-.sidebar-container.w-expanded .icon-wrapper,
-.sidebar-container.floating-expand .icon-wrapper,
-.sidebar-container.mobile-sidebar .icon-wrapper {
+.sidebar-container.w-expanded .icon-wrapper {
   width: 52px; /* Slightly larger in expanded for spacing */
 }
-.sidebar-container.w-expanded .btn-new-chat,
-.sidebar-container.mobile-sidebar .btn-new-chat {
+.sidebar-container.w-expanded .btn-new-chat {
   width: 100%;
 }
 
@@ -368,10 +271,6 @@ const sidebarClasses = computed(() => {
   padding-right: 0;
   align-items: center; /* Center items in the list */
 }
-.sidebar-container.floating-expand .section-list {
-  padding: 0 8px;
-  align-items: stretch;
-}
 
 .list-header {
   height: 32px;
@@ -396,9 +295,7 @@ const sidebarClasses = computed(() => {
   align-items: center; /* Important for collapsed centering */
 }
 
-.sidebar-container.w-expanded .scroll-area,
-.sidebar-container.floating-expand .scroll-area,
-.sidebar-container.mobile-sidebar .scroll-area {
+.sidebar-container.w-expanded .scroll-area {
   display: block; /* Return to block for full width items */
 }
 
@@ -416,17 +313,12 @@ const sidebarClasses = computed(() => {
   margin-bottom: 2px;
   padding: 0;
   overflow: hidden;
-  position: relative; /* For indicator */
 }
 
 .sidebar-container.w-collapsed .list-item {
   width: 44px; /* Square items */
   justify-content: center;
   border-radius: 12px;
-}
-.sidebar-container.floating-expand .list-item {
-  width: 100%; /* Restore */
-  justify-content: flex-start;
 }
 
 .list-item:hover {
@@ -437,17 +329,6 @@ const sidebarClasses = computed(() => {
 .list-item.active {
   background-color: var(--color-accent-light);
   color: var(--color-accent);
-}
-
-/* Active Indicator */
-.active-indicator {
-  position: absolute;
-  left: 0;
-  top: 8px;
-  bottom: 8px;
-  width: 3px;
-  background: var(--color-accent);
-  border-radius: 0 4px 4px 0;
 }
 
 .item-icon {
@@ -477,10 +358,6 @@ const sidebarClasses = computed(() => {
   display: flex;
   justify-content: center;
 }
-.sidebar-container.floating-expand .section-bottom {
-  padding: 12px;
-  display: block;
-}
 
 .settings-container {
   position: relative;
@@ -489,9 +366,7 @@ const sidebarClasses = computed(() => {
   justify-content: center; /* Default center for button inside */
 }
 
-.sidebar-container.w-expanded .settings-container,
-.sidebar-container.floating-expand .settings-container,
-.sidebar-container.mobile-sidebar .settings-container {
+.sidebar-container.w-expanded .settings-container {
   display: block; /* Block for full width button */
 }
 
