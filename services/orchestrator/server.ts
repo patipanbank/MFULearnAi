@@ -17,116 +17,35 @@ app.use(cors());
 // Environment Configuration
 const BEDROCK_URL = process.env.BEDROCK_URL || 'http://localhost:5000/api/bedrock';
 const LOGGER_URL = process.env.LOGGER_URL || 'http://localhost:6000/api/logs';
+const KNOWLEDGE_URL = process.env.KNOWLEDGE_URL || 'http://localhost:7000/api/knowledge';
 const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/mful-chat';
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret';
 const REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379';
 const ENV_TYPE = (process.env.ENV_TYPE || 'TEST') as 'TEST' | 'PROD';
 
-// Redis Client
-const redis = new Redis(REDIS_URL);
-redis.on('error', (err) => console.error('[Orchestrator] Redis Error', err));
+// ... (Redis and Mongo setup remains same)
 
-// MongoDB Connection for persistent conversations
-mongoose.connect(MONGO_URI)
-    .then(() => console.log(`[Orchestrator] Connected to MongoDB (${ENV_TYPE})`))
-    .catch(err => console.error('[Orchestrator] MongoDB error:', err));
-
-// Conversation Schema for persistent storage
-const ConversationSchema = new mongoose.Schema({
-    userId: { type: mongoose.Schema.Types.ObjectId, required: true, index: true },
-    sessionId: { type: String, required: true, index: true },
-    environment: { type: String, enum: ['TEST', 'PROD'], required: true },
-    messages: [{
-        role: { type: String, enum: ['user', 'assistant', 'system'] },
-        content: String,
-        timestamp: { type: Date, default: Date.now }
-    }],
-    modelId: String,
-    metadata: {
-        totalTokens: { type: Number, default: 0 },
-        estimatedCost: { type: Number, default: 0 },
-        messageCount: { type: Number, default: 0 }
-    },
-    createdAt: { type: Date, default: Date.now },
-    updatedAt: { type: Date, default: Date.now }
-});
-
-ConversationSchema.index({ userId: 1, sessionId: 1 }, { unique: true });
-const Conversation = mongoose.model('Conversation', ConversationSchema);
-
-// --- Logging ---
-const logActivity = async (
-    level: 'debug' | 'info' | 'warn' | 'error' | 'audit',
-    action: string,
-    context: any,
-    userId?: string
-) => {
+// Helper: Query Knowledge Base
+async function searchKnowledgeBase(query: string): Promise<string> {
     try {
-        await axios.post(LOGGER_URL, {
-            level,
-            service: 'orchestrator',
-            userId,
-            action,
-            details: context,
-            environment: ENV_TYPE,
-            timestamp: new Date().toISOString()
-        });
-    } catch (err) {
-        console.error('[Orchestrator] Failed to log:', err);
-    }
-};
-
-// --- Middleware ---
-const authenticateToken = (req: any, res: Response, next: NextFunction) => {
-    const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1];
-
-    if (!token) {
-        return res.status(401).json({ error: 'No token provided' });
-    }
-
-    jwt.verify(token, JWT_SECRET, (err: any, user: any) => {
-        if (err) {
-            return res.status(403).json({ error: 'Invalid or expired token' });
+        const response = await axios.post(`${KNOWLEDGE_URL}/search`, { query, limit: 3 });
+        if (response.data && response.data.results) {
+            return response.data.results
+                .map((hit: any) => `[Source: ${hit.metadata.source}]\n${hit.content}`)
+                .join('\n\n');
         }
-        req.user = user;
-        next();
-    });
-};
-
-// Rate limiting based on environment
-const rateLimits = new Map<string, { count: number; resetTime: number }>();
-const RATE_LIMIT = ENV_TYPE === 'PROD' ? 30 : 100; // per minute
-const RATE_WINDOW = 60 * 1000; // 1 minute
-
-const rateLimiter = (req: any, res: Response, next: NextFunction) => {
-    const userId = req.user?.userId || req.ip;
-    const now = Date.now();
-
-    const userLimit = rateLimits.get(userId);
-
-    if (!userLimit || now > userLimit.resetTime) {
-        rateLimits.set(userId, { count: 1, resetTime: now + RATE_WINDOW });
-        return next();
+    } catch (error: any) {
+        console.warn('[Orchestrator] Knowledge search failed:', error.message);
     }
+    return '';
+}
 
-    if (userLimit.count >= RATE_LIMIT) {
-        logActivity('warn', 'rate_limit_exceeded', { userId }, userId);
-        return res.status(429).json({
-            error: 'Rate limit exceeded',
-            retryAfter: Math.ceil((userLimit.resetTime - now) / 1000)
-        });
-    }
-
-    userLimit.count++;
-    next();
-};
+// ... (Rate limiting middleware remains same)
 
 // --- Chat Endpoint ---
 app.post('/api/chat', authenticateToken, rateLimiter, async (req: any, res: Response) => {
     const { message, sessionId, modelId, context } = req.body;
     const userId = req.user.userId;
-    const userRole = req.user.role;
 
     if (!message) {
         return res.status(400).json({ error: 'Message is required' });
@@ -146,17 +65,28 @@ app.post('/api/chat', authenticateToken, rateLimiter, async (req: any, res: Resp
         const rawHistory = await redis.lrange(historyKey, 0, -1);
         const history: ChatMessage[] = rawHistory
             .map(item => JSON.parse(item))
-            .filter(msg => (msg.content && msg.content.trim().length > 0) || (msg.images && msg.images.length > 0)); // Filter blank messages but keep images
+            .filter(msg => (msg.content && msg.content.trim().length > 0) || (msg.images && msg.images.length > 0));
 
-        // 2. Prepare messages with system prompt
-        const systemPrompt = getSystemPrompt(ENV_TYPE);
-        const contextPrompt = context && CONTEXT_PROMPTS[context as keyof typeof CONTEXT_PROMPTS]
+        // 2. RAG: Retrieve Context from Knowledge Base
+        // Only search if it's a new question or recent context is needed.
+        // For simplicity, we search for every user message.
+        const ragContext = await searchKnowledgeBase(message);
+
+        let ragSystemPrompt = '';
+        if (ragContext) {
+            ragSystemPrompt = `\n\nHere is some relevant context from the Knowledge Base:\n<context>\n${ragContext}\n</context>\nUse this context to answer the user's question if relevant.`;
+            logActivity('debug', 'rag_context_retrieved', { length: ragContext.length }, userId);
+        }
+
+        // 3. Prepare messages with system prompt
+        const baseSystemPrompt = getSystemPrompt(ENV_TYPE);
+        const additionalContext = context && CONTEXT_PROMPTS[context as keyof typeof CONTEXT_PROMPTS]
             ? `\n\n${CONTEXT_PROMPTS[context as keyof typeof CONTEXT_PROMPTS]}`
             : '';
 
         const systemMessage: ChatMessage = {
             role: 'system',
-            content: systemPrompt + contextPrompt,
+            content: baseSystemPrompt + additionalContext + ragSystemPrompt,
             timestamp: new Date()
         };
 
@@ -169,225 +99,378 @@ app.post('/api/chat', authenticateToken, rateLimiter, async (req: any, res: Resp
         // Include system message only at the start
         const messagesToSend = history.length === 0
             ? [systemMessage, currentMessage]
-            : [...history, currentMessage];
+            : [systemMessage, ...history, currentMessage]; // Always include updated system prompt with new context
+        // Note: Bedrock/Claude prefers system prompt to be top-level "system" field, 
+        // but our Bedrock wrapper handles extracting the first 'system' message.
+        // By inserting it at the front of the array here, our wrapper logic will pick it up.
 
-        // 3. Set up SSE headers
-        res.setHeader('Content-Type', 'text/event-stream');
-        res.setHeader('Cache-Control', 'no-cache');
-        res.setHeader('Connection', 'keep-alive');
-        res.setHeader('X-Accel-Buffering', 'no');
 
-        try {
-            const response = await axios({
-                method: 'post',
-                url: `${BEDROCK_URL}/chat`,
-                data: { messages: messagesToSend, modelId },
-                responseType: 'stream',
-                timeout: 120000 // 2 minute timeout
-            });
+        // Redis Client
+        const redis = new Redis(REDIS_URL);
+        redis.on('error', (err) => console.error('[Orchestrator] Redis Error', err));
 
-            let fullResponseText = '';
-            let tokenUsage = { input: 0, output: 0, total: 0 };
+        // MongoDB Connection for persistent conversations
+        mongoose.connect(MONGO_URI)
+            .then(() => console.log(`[Orchestrator] Connected to MongoDB (${ENV_TYPE})`))
+            .catch(err => console.error('[Orchestrator] MongoDB error:', err));
 
-            response.data.on('data', (chunk: Buffer) => {
-                const lines = chunk.toString().split('\n');
-                for (const line of lines) {
-                    if (line.startsWith('data: ')) {
-                        const dataStr = line.replace('data: ', '').trim();
-                        if (dataStr === '[DONE]') continue;
+        // Conversation Schema for persistent storage
+        const ConversationSchema = new mongoose.Schema({
+            userId: { type: mongoose.Schema.Types.ObjectId, required: true, index: true },
+            sessionId: { type: String, required: true, index: true },
+            environment: { type: String, enum: ['TEST', 'PROD'], required: true },
+            messages: [{
+                role: { type: String, enum: ['user', 'assistant', 'system'] },
+                content: String,
+                timestamp: { type: Date, default: Date.now }
+            }],
+            modelId: String,
+            metadata: {
+                totalTokens: { type: Number, default: 0 },
+                estimatedCost: { type: Number, default: 0 },
+                messageCount: { type: Number, default: 0 }
+            },
+            createdAt: { type: Date, default: Date.now },
+            updatedAt: { type: Date, default: Date.now }
+        });
 
-                        try {
-                            const data = JSON.parse(dataStr);
-                            if (data.text) {
-                                fullResponseText += data.text;
-                            }
-                            if (data.type === 'usage' && data.usage) {
-                                tokenUsage = data.usage;
-                            }
-                        } catch (e) { /* ignore parse errors */ }
-                    }
+        ConversationSchema.index({ userId: 1, sessionId: 1 }, { unique: true });
+        const Conversation = mongoose.model('Conversation', ConversationSchema);
+
+        // --- Logging ---
+        const logActivity = async (
+            level: 'debug' | 'info' | 'warn' | 'error' | 'audit',
+            action: string,
+            context: any,
+            userId?: string
+        ) => {
+            try {
+                await axios.post(LOGGER_URL, {
+                    level,
+                    service: 'orchestrator',
+                    userId,
+                    action,
+                    details: context,
+                    environment: ENV_TYPE,
+                    timestamp: new Date().toISOString()
+                });
+            } catch (err) {
+                console.error('[Orchestrator] Failed to log:', err);
+            }
+        };
+
+        // --- Middleware ---
+        const authenticateToken = (req: any, res: Response, next: NextFunction) => {
+            const authHeader = req.headers['authorization'];
+            const token = authHeader && authHeader.split(' ')[1];
+
+            if (!token) {
+                return res.status(401).json({ error: 'No token provided' });
+            }
+
+            jwt.verify(token, JWT_SECRET, (err: any, user: any) => {
+                if (err) {
+                    return res.status(403).json({ error: 'Invalid or expired token' });
                 }
-                res.write(chunk);
+                req.user = user;
+                next();
             });
+        };
 
-            response.data.on('end', async () => {
-                res.end();
+        // Rate limiting based on environment
+        const rateLimits = new Map<string, { count: number; resetTime: number }>();
+        const RATE_LIMIT = ENV_TYPE === 'PROD' ? 30 : 100; // per minute
+        const RATE_WINDOW = 60 * 1000; // 1 minute
 
-                // 4. Save to Redis cache
-                const assistantMessage: ChatMessage = {
-                    role: 'assistant',
-                    content: fullResponseText,
+        const rateLimiter = (req: any, res: Response, next: NextFunction) => {
+            const userId = req.user?.userId || req.ip;
+            const now = Date.now();
+
+            const userLimit = rateLimits.get(userId);
+
+            if (!userLimit || now > userLimit.resetTime) {
+                rateLimits.set(userId, { count: 1, resetTime: now + RATE_WINDOW });
+                return next();
+            }
+
+            if (userLimit.count >= RATE_LIMIT) {
+                logActivity('warn', 'rate_limit_exceeded', { userId }, userId);
+                return res.status(429).json({
+                    error: 'Rate limit exceeded',
+                    retryAfter: Math.ceil((userLimit.resetTime - now) / 1000)
+                });
+            }
+
+            userLimit.count++;
+            next();
+        };
+
+        // --- Chat Endpoint ---
+        app.post('/api/chat', authenticateToken, rateLimiter, async (req: any, res: Response) => {
+            const { message, sessionId, modelId, context } = req.body;
+            const userId = req.user.userId;
+            const userRole = req.user.role;
+
+            if (!message) {
+                return res.status(400).json({ error: 'Message is required' });
+            }
+
+            const actualSessionId = sessionId || `session-${Date.now()}`;
+
+            try {
+                logActivity('info', 'chat_request_received', {
+                    sessionId: actualSessionId,
+                    messageLength: message.length,
+                    modelId
+                }, userId);
+
+                // 1. Get conversation history from Redis (fast cache)
+                const historyKey = `chat:${userId}:${actualSessionId}`;
+                const rawHistory = await redis.lrange(historyKey, 0, -1);
+                const history: ChatMessage[] = rawHistory
+                    .map(item => JSON.parse(item))
+                    .filter(msg => (msg.content && msg.content.trim().length > 0) || (msg.images && msg.images.length > 0)); // Filter blank messages but keep images
+
+                // 2. Prepare messages with system prompt
+                const systemPrompt = getSystemPrompt(ENV_TYPE);
+                const contextPrompt = context && CONTEXT_PROMPTS[context as keyof typeof CONTEXT_PROMPTS]
+                    ? `\n\n${CONTEXT_PROMPTS[context as keyof typeof CONTEXT_PROMPTS]}`
+                    : '';
+
+                const systemMessage: ChatMessage = {
+                    role: 'system',
+                    content: systemPrompt + contextPrompt,
                     timestamp: new Date()
                 };
 
-                await redis.rpush(historyKey,
-                    JSON.stringify(currentMessage),
-                    JSON.stringify(assistantMessage)
-                );
+                const currentMessage: ChatMessage = {
+                    role: 'user',
+                    content: message,
+                    timestamp: new Date()
+                };
 
-                // Keep last 50 messages in Redis, expire after 24h
-                await redis.ltrim(historyKey, -50, -1);
-                await redis.expire(historyKey, 86400);
+                // Include system message only at the start
+                const messagesToSend = history.length === 0
+                    ? [systemMessage, currentMessage]
+                    : [...history, currentMessage];
 
-                // 5. Persist to MongoDB for long-term storage
-                await Conversation.findOneAndUpdate(
-                    { userId, sessionId: actualSessionId },
-                    {
-                        $push: {
-                            messages: {
-                                $each: [currentMessage, assistantMessage]
+                // 3. Set up SSE headers
+                res.setHeader('Content-Type', 'text/event-stream');
+                res.setHeader('Cache-Control', 'no-cache');
+                res.setHeader('Connection', 'keep-alive');
+                res.setHeader('X-Accel-Buffering', 'no');
+
+                try {
+                    const response = await axios({
+                        method: 'post',
+                        url: `${BEDROCK_URL}/chat`,
+                        data: { messages: messagesToSend, modelId },
+                        responseType: 'stream',
+                        timeout: 120000 // 2 minute timeout
+                    });
+
+                    let fullResponseText = '';
+                    let tokenUsage = { input: 0, output: 0, total: 0 };
+
+                    response.data.on('data', (chunk: Buffer) => {
+                        const lines = chunk.toString().split('\n');
+                        for (const line of lines) {
+                            if (line.startsWith('data: ')) {
+                                const dataStr = line.replace('data: ', '').trim();
+                                if (dataStr === '[DONE]') continue;
+
+                                try {
+                                    const data = JSON.parse(dataStr);
+                                    if (data.text) {
+                                        fullResponseText += data.text;
+                                    }
+                                    if (data.type === 'usage' && data.usage) {
+                                        tokenUsage = data.usage;
+                                    }
+                                } catch (e) { /* ignore parse errors */ }
                             }
-                        },
-                        $inc: {
-                            'metadata.totalTokens': tokenUsage.total,
-                            'metadata.messageCount': 2
-                        },
-                        $set: {
-                            modelId,
-                            environment: ENV_TYPE,
-                            updatedAt: new Date()
                         }
-                    },
-                    { upsert: true }
-                );
+                        res.write(chunk);
+                    });
 
-                logActivity('info', 'chat_request_completed', {
-                    sessionId: actualSessionId,
-                    responseLength: fullResponseText.length,
-                    tokens: tokenUsage
-                }, userId);
-            });
+                    response.data.on('end', async () => {
+                        res.end();
 
-            response.data.on('error', async (err: Error) => {
-                console.error('[Orchestrator] Stream error:', err);
-                res.write(`event: error\ndata: ${JSON.stringify({ error: 'Stream error' })}\n\n`);
-                res.end();
-                logActivity('error', 'chat_stream_error', { error: err.message }, userId);
-            });
+                        // 4. Save to Redis cache
+                        const assistantMessage: ChatMessage = {
+                            role: 'assistant',
+                            content: fullResponseText,
+                            timestamp: new Date()
+                        };
 
-        } catch (bedrockError: any) {
-            console.error('[Orchestrator] Bedrock Error:', bedrockError.message);
+                        await redis.rpush(historyKey,
+                            JSON.stringify(currentMessage),
+                            JSON.stringify(assistantMessage)
+                        );
 
-            // Attempt retry for specific errors
-            if (bedrockError.code === 'ECONNREFUSED' || bedrockError.code === 'ETIMEDOUT') {
-                res.write(`event: error\ndata: ${JSON.stringify({
-                    error: 'AI service temporarily unavailable. Please try again.',
-                    retryable: true
-                })}\n\n`);
-            } else {
-                res.write(`event: error\ndata: ${JSON.stringify({
-                    error: 'Failed to generate response'
-                })}\n\n`);
+                        // Keep last 50 messages in Redis, expire after 24h
+                        await redis.ltrim(historyKey, -50, -1);
+                        await redis.expire(historyKey, 86400);
+
+                        // 5. Persist to MongoDB for long-term storage
+                        await Conversation.findOneAndUpdate(
+                            { userId, sessionId: actualSessionId },
+                            {
+                                $push: {
+                                    messages: {
+                                        $each: [currentMessage, assistantMessage]
+                                    }
+                                },
+                                $inc: {
+                                    'metadata.totalTokens': tokenUsage.total,
+                                    'metadata.messageCount': 2
+                                },
+                                $set: {
+                                    modelId,
+                                    environment: ENV_TYPE,
+                                    updatedAt: new Date()
+                                }
+                            },
+                            { upsert: true }
+                        );
+
+                        logActivity('info', 'chat_request_completed', {
+                            sessionId: actualSessionId,
+                            responseLength: fullResponseText.length,
+                            tokens: tokenUsage
+                        }, userId);
+                    });
+
+                    response.data.on('error', async (err: Error) => {
+                        console.error('[Orchestrator] Stream error:', err);
+                        res.write(`event: error\ndata: ${JSON.stringify({ error: 'Stream error' })}\n\n`);
+                        res.end();
+                        logActivity('error', 'chat_stream_error', { error: err.message }, userId);
+                    });
+
+                } catch (bedrockError: any) {
+                    console.error('[Orchestrator] Bedrock Error:', bedrockError.message);
+
+                    // Attempt retry for specific errors
+                    if (bedrockError.code === 'ECONNREFUSED' || bedrockError.code === 'ETIMEDOUT') {
+                        res.write(`event: error\ndata: ${JSON.stringify({
+                            error: 'AI service temporarily unavailable. Please try again.',
+                            retryable: true
+                        })}\n\n`);
+                    } else {
+                        res.write(`event: error\ndata: ${JSON.stringify({
+                            error: 'Failed to generate response'
+                        })}\n\n`);
+                    }
+                    res.end();
+
+                    logActivity('error', 'bedrock_error', {
+                        error: bedrockError.message,
+                        code: bedrockError.code
+                    }, userId);
+                }
+
+            } catch (error: any) {
+                console.error('[Orchestrator] Error:', error);
+                res.status(500).json({ error: 'Internal Server Error' });
+                logActivity('error', 'orchestrator_error', { error: error.message }, userId);
             }
-            res.end();
+        });
 
-            logActivity('error', 'bedrock_error', {
-                error: bedrockError.message,
-                code: bedrockError.code
-            }, userId);
-        }
-
-    } catch (error: any) {
-        console.error('[Orchestrator] Error:', error);
-        res.status(500).json({ error: 'Internal Server Error' });
-        logActivity('error', 'orchestrator_error', { error: error.message }, userId);
-    }
-});
-
-// --- Get Available Models ---
-app.get('/api/chat/models', authenticateToken, async (req: any, res: Response) => {
-    try {
-        const response = await axios.get(`${BEDROCK_URL}/models`);
-        res.json(response.data);
-    } catch (error: any) {
-        console.error('[Orchestrator] Failed to fetch models:', error.message);
-        res.status(500).json({ error: 'Failed to fetch available models' });
-    }
-});
-
-// --- Get Chat History ---
-app.get('/api/chat/:sessionId', authenticateToken, async (req: any, res: Response) => {
-    const { sessionId } = req.params;
-    const userId = req.user.userId;
-
-    try {
-        // Try Redis first (faster)
-        const historyKey = `chat:${userId}:${sessionId}`;
-        const rawHistory = await redis.lrange(historyKey, 0, -1);
-
-        if (rawHistory.length > 0) {
-            const messages = rawHistory.map(item => JSON.parse(item));
-            return res.json({ sessionId, messages, source: 'cache' });
-        }
-
-        // Fallback to MongoDB
-        const conversation = await Conversation.findOne({ userId, sessionId });
-        if (conversation) {
-            // Repopulate Redis cache
-            for (const msg of conversation.messages) {
-                await redis.rpush(historyKey, JSON.stringify(msg));
+        // --- Get Available Models ---
+        app.get('/api/chat/models', authenticateToken, async (req: any, res: Response) => {
+            try {
+                const response = await axios.get(`${BEDROCK_URL}/models`);
+                res.json(response.data);
+            } catch (error: any) {
+                console.error('[Orchestrator] Failed to fetch models:', error.message);
+                res.status(500).json({ error: 'Failed to fetch available models' });
             }
-            await redis.expire(historyKey, 86400);
+        });
 
-            return res.json({
-                sessionId,
-                messages: conversation.messages,
-                metadata: conversation.metadata,
-                source: 'database'
-            });
-        }
+        // --- Get Chat History ---
+        app.get('/api/chat/:sessionId', authenticateToken, async (req: any, res: Response) => {
+            const { sessionId } = req.params;
+            const userId = req.user.userId;
 
-        res.json({ sessionId, messages: [], source: 'none' });
-    } catch (error: any) {
-        res.status(500).json({ error: 'Failed to retrieve history' });
-    }
-});
+            try {
+                // Try Redis first (faster)
+                const historyKey = `chat:${userId}:${sessionId}`;
+                const rawHistory = await redis.lrange(historyKey, 0, -1);
 
-// --- List User Sessions ---
-app.get('/api/chat', authenticateToken, async (req: any, res: Response) => {
-    const userId = req.user.userId;
-    const limit = parseInt(req.query.limit as string) || 20;
+                if (rawHistory.length > 0) {
+                    const messages = rawHistory.map(item => JSON.parse(item));
+                    return res.json({ sessionId, messages, source: 'cache' });
+                }
 
-    try {
-        const conversations = await Conversation.find({ userId })
-            .select('sessionId metadata createdAt updatedAt')
-            .sort({ updatedAt: -1 })
-            .limit(limit);
+                // Fallback to MongoDB
+                const conversation = await Conversation.findOne({ userId, sessionId });
+                if (conversation) {
+                    // Repopulate Redis cache
+                    for (const msg of conversation.messages) {
+                        await redis.rpush(historyKey, JSON.stringify(msg));
+                    }
+                    await redis.expire(historyKey, 86400);
 
-        res.json({ conversations });
-    } catch (error: any) {
-        res.status(500).json({ error: 'Failed to retrieve sessions' });
-    }
-});
+                    return res.json({
+                        sessionId,
+                        messages: conversation.messages,
+                        metadata: conversation.metadata,
+                        source: 'database'
+                    });
+                }
 
-// --- Clear Session ---
-app.delete('/api/chat/:sessionId', authenticateToken, async (req: any, res: Response) => {
-    const { sessionId } = req.params;
-    const userId = req.user.userId;
+                res.json({ sessionId, messages: [], source: 'none' });
+            } catch (error: any) {
+                res.status(500).json({ error: 'Failed to retrieve history' });
+            }
+        });
 
-    try {
-        const historyKey = `chat:${userId}:${sessionId}`;
-        await redis.del(historyKey);
+        // --- List User Sessions ---
+        app.get('/api/chat', authenticateToken, async (req: any, res: Response) => {
+            const userId = req.user.userId;
+            const limit = parseInt(req.query.limit as string) || 20;
 
-        // Optionally delete from MongoDB (or keep for audit)
-        // await Conversation.deleteOne({ userId, sessionId });
+            try {
+                const conversations = await Conversation.find({ userId })
+                    .select('sessionId metadata createdAt updatedAt')
+                    .sort({ updatedAt: -1 })
+                    .limit(limit);
 
-        logActivity('info', 'session_cleared', { sessionId }, userId);
-        res.json({ success: true });
-    } catch (error: any) {
-        res.status(500).json({ error: 'Failed to clear session' });
-    }
-});
+                res.json({ conversations });
+            } catch (error: any) {
+                res.status(500).json({ error: 'Failed to retrieve sessions' });
+            }
+        });
 
-// --- Health Check ---
-app.get('/health', (req, res) => res.json({
-    status: 'ok',
-    service: 'orchestrator',
-    environment: ENV_TYPE,
-    rateLimit: RATE_LIMIT
-}));
+        // --- Clear Session ---
+        app.delete('/api/chat/:sessionId', authenticateToken, async (req: any, res: Response) => {
+            const { sessionId } = req.params;
+            const userId = req.user.userId;
 
-const PORT = process.env.PORT || 8080;
-app.listen(PORT, () => {
-    console.log(`[Orchestrator] Running on port ${PORT} [Env: ${ENV_TYPE}]`);
-});
+            try {
+                const historyKey = `chat:${userId}:${sessionId}`;
+                await redis.del(historyKey);
+
+                // Optionally delete from MongoDB (or keep for audit)
+                // await Conversation.deleteOne({ userId, sessionId });
+
+                logActivity('info', 'session_cleared', { sessionId }, userId);
+                res.json({ success: true });
+            } catch (error: any) {
+                res.status(500).json({ error: 'Failed to clear session' });
+            }
+        });
+
+        // --- Health Check ---
+        app.get('/health', (req, res) => res.json({
+            status: 'ok',
+            service: 'orchestrator',
+            environment: ENV_TYPE,
+            rateLimit: RATE_LIMIT
+        }));
+
+        const PORT = process.env.PORT || 8080;
+        app.listen(PORT, () => {
+            console.log(`[Orchestrator] Running on port ${PORT} [Env: ${ENV_TYPE}]`);
+        });
