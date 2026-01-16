@@ -3,9 +3,11 @@
  * Chat View - Final Layout
  * - Sidebar: New Chat + Search, Collapsible (width:0)
  * - Header: Title Left, User Dropdown Right
+ * - Context Bar: Select Knowledge Base
  */
 import { ref, computed, watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import axios from 'axios'
 import { useAuthStore } from '@/stores/auth'
 import { useChatStore } from '@/stores/chat'
 import { useTheme, useLanguage } from '@/composables/useSettings'
@@ -34,6 +36,7 @@ const messagesRef = ref(null)
 const inputRef = ref(null)
 const showSidebar = ref(true)
 const inputMessage = ref('')
+const collections = ref([])
 
 // Environment
 const envName = import.meta.env.VITE_ENV_NAME || 'MFULearnAI'
@@ -46,6 +49,15 @@ const userInitial = computed(() =>
   authStore.displayName?.charAt(0)?.toUpperCase() || 'U'
 )
 const userName = computed(() => authStore.displayName || 'Guest')
+
+const fetchCollections = async () => {
+    try {
+        const res = await axios.get('/api/knowledge/collections')
+        collections.value = res.data.collections
+    } catch (err) {
+        console.error('Failed to load collections', err)
+    }
+}
 
 // Lifecycle
 onMounted(() => {
@@ -63,6 +75,7 @@ onMounted(() => {
   
   chatStore.fetchModels()
   chatStore.loadSessions()
+  fetchCollections()
 })
 
 // Watchers
@@ -126,6 +139,20 @@ const handleCopyMessage = (content) => {
         @toggle-lang="toggleLang"
         @logout="handleLogout"
       />
+
+      <!-- Context Bar -->
+      <div v-if="collections.length > 0" class="px-6 py-2 bg-slate-900 border-b border-slate-700/50 flex items-center gap-3">
+        <span class="text-xs font-medium text-blue-400 uppercase tracking-wider">Active Knowledge:</span>
+        <select 
+            v-model="chatStore.currentCollectionId" 
+            class="bg-slate-800 text-gray-200 text-sm rounded-lg border border-slate-700 px-3 py-1 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+        >
+            <option :value="null">Default Collection (Admin Managed)</option>
+            <option v-for="col in collections" :key="col._id" :value="col._id">
+                {{ col.name }}
+            </option>
+        </select>
+      </div>
       
       <!-- Chat Area -->
       <div class="messages-area" ref="messagesRef">

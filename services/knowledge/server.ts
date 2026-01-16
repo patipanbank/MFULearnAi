@@ -2,252 +2,519 @@ import express, { Request, Response } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import multer from 'multer';
-import { ChromaClient, Collection } from 'chromadb';
+import { ChromaClient } from 'chromadb';
 import axios from 'axios';
 import pdf from 'pdf-parse';
+import mongoose, { Schema, Document } from 'mongoose';
+import jwt from 'jsonwebtoken';
 
 dotenv.config();
 
 const app = express();
-app.use(express.json({ limit: '50mb' }));
-app.use(cors());
-
-// --- Configuration ---
 const PORT = process.env.PORT || 7000;
+const CHROMA_URL = process.env.CHROMA_URL || 'http://chromadb:8000';
+const BEDROCK_URL = process.env.BEDROCK_URL || 'http://bedrock-service:5000/api/bedrock'; // Internal
+const MONGO_URI = process.env.MONGO_URI || 'mongodb://mongo:27017/mfulearnai_knowledge';
 const ENV_TYPE = process.env.ENV_TYPE || 'TEST';
-const CHROMA_URL = process.env.CHROMA_URL || 'http://localhost:8000';
-const BEDROCK_URL = process.env.BEDROCK_URL || 'http://localhost:5000/api/bedrock';
 
-// --- Clients ---
+// Setup
+app.use(cors());
+app.use(express.json());
+
+// Database
+mongoose.connect(MONGO_URI)
+    .then(() => console.log('[Knowledge] Connected to MongoDB'))
+    .catch(err => console.error('[Knowledge] MongoDB error:', err));
+
 const chroma = new ChromaClient({ path: CHROMA_URL });
-const upload = multer({ storage: multer.memoryStorage() });
+const GLOBAL_CHROMA_COLLECTION = "mfulearnai-global-kb";
 
-// --- Types ---
-interface DocumentChunk {
-    id: string;
-    text: string;
-    metadata: any;
+// File Upload
+const storage = multer.memoryStorage();
+const upload = multer({
+    storage,
+    limits: { fileSize: 50 * 1024 * 1024 } // 50MB 
+});
+
+// --- Auth Middleware ---
+// Mock or Extract from Gateway Headers if available. 
+// Ideally, the Gateway validates JWT and passes User Info.
+// For this strict RBAC, we'll try to decode the token passed in Authorization header for now
+// or assume Gateway passes x-user-id, x-role, x-department.
+// Let's implement a robust JWT decoder here assuming Bearer token is passed through.
+
+interface UserContext {
+    userId: string;
+    role: string; // 'admin', 'teacher', 'student'
+    department: string;
 }
 
-// --- Helpers ---
+const extractUser = (req: Request): UserContext | null => {
+    // Try headers from Gateway first (Preferred)
+    const gwId = req.headers['x-user-id'] as string;
+    const gwRole = req.headers['x-role'] as string;
+    const gwDept = req.headers['x-department'] as string;
 
-// 1. Get or create Chroma collection
-async function getCollection(): Promise<Collection> {
-    const collectionName = `knowledge_base_${ENV_TYPE.toLowerCase()}`;
-    return await chroma.getOrCreateCollection({
-        name: collectionName,
-        metadata: { "hnsw:space": "cosine" } // Use cosine similarity
-    });
+    if (gwId) {
+        return { userId: gwId, role: gwRole || 'student', department: gwDept || 'General' };
+    }
+
+    // Fallback: Decode Bearer (If testing directly or Gateway passes through)
+    const authHeader = req.headers.authorization;
+    if (authHeader) {
+        const token = authHeader.split(' ')[1];
+        try {
+            const decoded: any = jwt.decode(token);
+            if (decoded) {
+                return {
+                    userId: decoded.userId || decoded.sub,
+                    role: decoded.role || 'student',
+                    department: decoded.department || 'General'
+                };
+            }
+        } catch (e) { console.warn('Token decode failed'); }
+    }
+    return null;
+};
+
+// --- DATA MODELS ---
+
+// 1. Knowledge (The Content)
+interface IKnowledge extends Document {
+    title: string;
+    description?: string;
+    type: 'public' | 'department' | 'personal';
+    contentSource: string; // Filename for now
+    ownerId: string;
+    department: string;
+    visibility: 'active' | 'archived';
+    createdAt: Date;
 }
 
-// 2. Generate Embedding via Bedrock Gateway
+const KnowledgeSchema = new Schema({
+    title: { type: String, required: true },
+    description: String,
+    type: { type: String, enum: ['public', 'department', 'personal'], required: true },
+    contentSource: String,
+    ownerId: { type: String, required: true },
+    department: { type: String, required: true },
+    visibility: { type: String, default: 'active' }
+}, { timestamps: true });
+
+const Knowledge = mongoose.model<IKnowledge>('Knowledge', KnowledgeSchema);
+
+// 2. Collection (The Grouping)
+interface ICollection extends Document {
+    name: string;
+    description?: string;
+    type: 'default' | 'department' | 'personal';
+    knowledgeIds: string[]; // List of Knowledge IDs
+    ownerId: string;
+    department: string;
+    isDefault?: boolean;
+}
+
+const CollectionSchema = new Schema({
+    name: { type: String, required: true },
+    description: String,
+    type: { type: String, enum: ['default', 'department', 'personal'], required: true },
+    knowledgeIds: [{ type: Schema.Types.ObjectId, ref: 'Knowledge' }],
+    ownerId: { type: String, required: true }, // 'system' for default
+    department: { type: String, required: true },
+    isDefault: { type: Boolean, default: false }
+}, { timestamps: true });
+
+const Collection = mongoose.model<ICollection>('Collection', CollectionSchema);
+
+// --- PERMISSION HELPERS ---
+
+const canCreateKnowledge = (user: UserContext, type: string): boolean => {
+    if (type === 'personal') return true;
+    if (type === 'department' && user.role === 'admin') return true;
+    if (type === 'public' && user.role === 'admin') return true; // Only dept admin can create public? User rule says: "Creatable only by admin of the same department"
+    return false;
+};
+
+const canManageKnowledge = (user: UserContext, kb: IKnowledge): boolean => {
+    if (kb.type === 'personal') return kb.ownerId === user.userId;
+    if (kb.type === 'department') return user.role === 'admin' && user.department === kb.department;
+    if (kb.type === 'public') return user.role === 'admin' && user.department === kb.department; // "Deletable/editable ONLY by admin of the owner department"
+    return false;
+};
+
+const canReadKnowledge = (user: UserContext, kb: IKnowledge): boolean => {
+    if (kb.type === 'public') return true;
+    if (kb.type === 'department') return user.department === kb.department;
+    if (kb.type === 'personal') return kb.ownerId === user.userId;
+    return false;
+};
+
+const canManageCollection = (user: UserContext, col: ICollection): boolean => {
+    if (col.type === 'default') return user.role === 'admin'; // "Only admin of every department can map knowledge into it"
+    if (col.type === 'department') return user.role === 'admin' && user.department === col.department;
+    if (col.type === 'personal') return col.ownerId === user.userId;
+    return false;
+};
+
+// --- CORE LOGIC ---
+
 async function getEmbedding(text: string): Promise<number[]> {
     try {
         const response = await axios.post(`${BEDROCK_URL}/embeddings`, { text });
-        if (response.data && response.data.embedding) {
-            return response.data.embedding;
-        }
-        throw new Error('Invalid response from Bedrock');
-    } catch (error: any) {
-        console.error('[Knowledge] Embedding failed:', error.message);
-        throw error;
+        if (response.data && response.data.embedding) return response.data.embedding;
+        throw new Error('Invalid Bedrock response');
+    } catch (e: any) {
+        console.error('Embedding failed:', e.message);
+        throw e;
     }
 }
 
-// 3. Chunk Text (Simple implementation)
-function chunkText(text: string, chunkSize: number = 1000, overlap: number = 200): string[] {
-    const chunks: string[] = [];
+function chunkText(text: string): string[] {
+    const chunkSize = 1000, overlap = 200;
+    const chunks = [];
     let start = 0;
-
     while (start < text.length) {
         const end = Math.min(start + chunkSize, text.length);
         chunks.push(text.slice(start, end));
         start += (chunkSize - overlap);
     }
-
     return chunks;
 }
 
-// --- Endpoints ---
+// Init Global Chroma Collection
+async function initChroma() {
+    try {
+        await chroma.getOrCreateCollection({ name: GLOBAL_CHROMA_COLLECTION, metadata: { "hnsw:space": "cosine" } });
+        console.log(`[Knowledge] Global Chroma collection initialized: ${GLOBAL_CHROMA_COLLECTION}`);
+    } catch (e) {
+        console.error('Chroma init failed:', e);
+    }
+}
 
-// Health Check
-app.get('/health', (req: Request, res: Response) => {
-    res.json({
-        status: 'ok',
-        service: 'knowledge-service',
-        environment: ENV_TYPE,
-        chroma: CHROMA_URL
-    });
-});
+// Init Default Collection (Mongo)
+async function initDefaultCollection() {
+    try {
+        const existing = await Collection.findOne({ isDefault: true });
+        if (!existing) {
+            await Collection.create({
+                name: 'Default Collection',
+                description: 'General knowledge base available to everyone.',
+                type: 'default',
+                ownerId: 'system',
+                department: 'Global',
+                isDefault: true,
+                knowledgeIds: []
+            });
+            console.log('[Knowledge] Default Collection created.');
+        }
+    } catch (e) { console.error('Default Col init failed:', e); }
+}
 
-// Upload Document (PDF/TXT)
-app.post('/api/knowledge/upload', upload.single('file'), async (req: any, res: Response) => {
-    if (!req.file) {
-        return res.status(400).json({ error: 'No file uploaded' });
+// --- API ENDPOINTS ---
+
+app.get('/health', (req, res) => res.json({ status: 'ok' }));
+
+// 1. CREATE KNOWLEDGE (Upload)
+app.post('/api/knowledge', upload.single('file'), async (req: any, res: Response) => {
+    const user = extractUser(req);
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+
+    if (!req.file) return res.status(400).json({ error: 'No file' });
+    const { type = 'personal' } = req.body; // public, department, personal
+
+    // Permission Check
+    if (!canCreateKnowledge(user, type)) {
+        return res.status(403).json({ error: 'Insufficient permissions to create this type of knowledge' });
     }
 
-    const { mimetype, buffer } = req.file;
-    // Fix for non-standard filename encoding (like Thai)
-    // Multer/Busboy often defaults to latin1, so we convert it back to buffer and then to utf8.
-    const originalname = Buffer.from(req.file.originalname, 'latin1').toString('utf8');
-    const userId = req.body.userId || 'system';
+    const { mimetype, buffer, originalname } = req.file;
+    const cleanName = Buffer.from(originalname, 'latin1').toString('utf8');
 
     try {
-        console.log(`[Knowledge] Processing file: ${originalname} (${mimetype})`);
-
-        // 1. Extract Text
+        // Extract
         let text = '';
-        if (mimetype === 'application/pdf') {
-            const data = await pdf(buffer);
-            text = data.text;
-        } else if (mimetype === 'text/plain') {
-            text = buffer.toString('utf-8');
-        } else {
-            return res.status(400).json({ error: 'Unsupported file type. Use PDF or TXT.' });
-        }
+        if (mimetype === 'application/pdf') text = (await pdf(buffer)).text;
+        else if (mimetype === 'text/plain') text = buffer.toString('utf-8');
+        else return res.status(400).json({ error: 'Unsupported file' });
 
-        // Clean text
         text = text.replace(/\s+/g, ' ').trim();
+        if (!text) return res.status(400).json({ error: 'Empty text' });
 
-        if (text.length === 0) {
-            return res.status(400).json({ error: 'Extracted text is empty' });
-        }
+        // Save Metadata
+        const kb = new Knowledge({
+            title: cleanName,
+            type,
+            contentSource: cleanName,
+            ownerId: user.userId,
+            department: user.department
+        });
+        await kb.save();
 
-        // 2. Chunking
+        // Process Vectors
         const chunks = chunkText(text);
-        console.log(`[Knowledge] Created ${chunks.length} chunks`);
-
-        // 3. Generate Embeddings & Prepare for Chroma
-        const ids: string[] = [];
-        const embeddings: number[][] = [];
-        const metadatas: any[] = [];
-        const documents: string[] = [];
+        const ids = [], embeddings = [], metadatas = [], documents = [];
 
         for (let i = 0; i < chunks.length; i++) {
             const chunk = chunks[i];
-            const embedding = await getEmbedding(chunk);
-
-            ids.push(`${originalname}-${i}`);
-            embeddings.push(embedding);
+            const vec = await getEmbedding(chunk);
+            ids.push(`${kb._id}-${i}`);
+            embeddings.push(vec);
             documents.push(chunk);
             metadatas.push({
-                source: originalname,
-                chunkIndex: i,
-                uploadedBy: userId,
-                timestamp: Date.now()
+                knowledgeId: kb._id.toString(),
+                source: cleanName,
+                chunkIndex: i
             });
         }
 
-        // 4. Store in Chroma
-        const collection = await getCollection();
-        await collection.add({
-            ids,
-            embeddings,
-            metadatas,
-            documents
-        });
+        const col = await chroma.getCollection({ name: GLOBAL_CHROMA_COLLECTION });
+        await col.add({ ids, embeddings, metadatas, documents });
 
-        console.log(`[Knowledge] Successfully indexed ${chunks.length} chunks for ${originalname}`);
+        res.json({ success: true, knowledge: kb });
 
-        res.json({
-            success: true,
-            message: `Processed ${originalname}`,
-            chunks: chunks.length
-        });
-
-    } catch (error: any) {
-        console.error('[Knowledge] Upload error:', error);
-        res.status(500).json({ error: error.message || 'Failed to process document' });
+    } catch (e: any) {
+        console.error('Upload error:', e);
+        res.status(500).json({ error: e.message });
     }
 });
 
-// Search API (to be used by Orchestrator)
-app.post('/api/knowledge/search', async (req: Request, res: Response) => {
-    const { query, limit = 3 } = req.body;
+// 2. CREATE COLLECTION
+app.post('/api/knowledge/collections', async (req: Request, res: Response) => {
+    const user = extractUser(req);
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
 
-    if (!query) {
-        return res.status(400).json({ error: 'Query is required' });
-    }
+    const { name, description, type } = req.body;
+    // type: department, personal (default is system only usually, but maybe admin can create another default-like?)
+    // Let's restrict: Admin -> Dept/Default. User -> Personal.
+
+    // Validate creation permission logic
+    // User requested: "Department Collection: Creatable only by admin of that department"
+    // "Personal Collection: Creatable only by owner"
+
+    let allowed = false;
+    if (type === 'personal') allowed = true;
+    else if (type === 'department' && user.role === 'admin') allowed = true;
+
+    if (!allowed) return res.status(403).json({ error: 'Not allowed to create this collection type' });
 
     try {
-        // 1. Embed query
-        const queryEmbedding = await getEmbedding(query);
+        const newCol = await Collection.create({
+            name,
+            description,
+            type,
+            ownerId: user.userId,
+            department: user.department,
+            knowledgeIds: []
+        });
+        res.json({ success: true, collection: newCol });
+    } catch (e: any) {
+        res.status(500).json({ error: e.message });
+    }
+});
 
-        // 2. Search Chroma
-        const collection = await getCollection();
-        const results = await collection.query({
-            queryEmbeddings: [queryEmbedding],
-            nResults: limit
+// 3. MAP KNOWLEDGE TO COLLECTION
+app.post('/api/knowledge/collections/:id/map', async (req: Request, res: Response) => {
+    const user = extractUser(req);
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+
+    const { id } = req.params;
+    const { knowledgeId, action } = req.body; // action: 'add' | 'remove'
+
+    try {
+        const col = await Collection.findById(id);
+        const kb = await Knowledge.findById(knowledgeId);
+
+        if (!col || !kb) return res.status(404).json({ error: 'Not found' });
+
+        // Check if user manages the COLLECTION
+        if (!canManageCollection(user, col)) {
+            return res.status(403).json({ error: 'Cannot modify this collection' });
+        }
+
+        // Validate Visibility Rule:
+        // "Admin can manage any knowledge inside THEIR department collection"
+        // "Default Collection: Only admin of every department can map knowledge into it"
+        // Implicitly, you must be able to READ the knowledge to map it?
+        // Or strictly: You own the knowledge?
+        // User said: "Admin of other departments CANNOT delete or edit [Public Knowledge]"
+        // But "Everyone can reference this knowledge in collections"
+
+        // So checking if user can READ the knowledge is a good baseline for mapping.
+        if (!canReadKnowledge(user, kb)) {
+            return res.status(403).json({ error: 'Cannot access this knowledge to map it' });
+        }
+
+        if (action === 'add') {
+            // Avoid duplicates
+            if (!col.knowledgeIds.includes(kb._id as any)) {
+                col.knowledgeIds.push(kb._id as any);
+            }
+        } else if (action === 'remove') {
+            col.knowledgeIds = col.knowledgeIds.filter(k => k.toString() !== knowledgeId);
+        }
+
+        await col.save();
+        res.json({ success: true, collection: col });
+
+    } catch (e: any) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// 4. LIST COLLECTIONS (For User)
+app.get('/api/knowledge/collections', async (req: Request, res: Response) => {
+    const user = extractUser(req);
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+
+    try {
+        // Return:
+        // 1. Default Collection (Always)
+        // 2. My Department Collection
+        // 3. My Personal Collections
+        // 4. (Optional) Public Collections? User didn't specify Public Collections, only Public Knowledge.
+
+        const query = {
+            $or: [
+                { type: 'default' },
+                { type: 'department', department: user.department },
+                { type: 'personal', ownerId: user.userId }
+            ]
+        };
+
+        const collections = await Collection.find(query).sort({ type: 1, createdAt: -1 });
+        res.json({ collections });
+    } catch (e: any) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// 5. GET COLLECTION DETAILS (List Knowledge inside)
+app.get('/api/knowledge/collections/:id', async (req: Request, res: Response) => {
+    const user = extractUser(req);
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+
+    try {
+        const col = await Collection.findById(req.params.id).populate('knowledgeIds');
+        if (!col) return res.status(404).json({ error: 'Not found' });
+
+        // Access Check
+        // Dept Col: Visible only to same dept
+        // Personal Col: Visible only to owner
+        // Default: Visible to everyone
+        let canView = false;
+        if (col.type === 'default') canView = true;
+        else if (col.type === 'department' && col.department === user.department) canView = true;
+        else if (col.type === 'personal' && col.ownerId === user.userId) canView = true;
+
+        if (!canView) return res.status(403).json({ error: 'Access denied' });
+
+        res.json({ collection: col });
+    } catch (e: any) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// 6. SEARCH (RAG)
+app.post('/api/knowledge/search', async (req: Request, res: Response) => {
+    const { query, collectionId, limit = 3 } = req.body;
+
+    // We don't necessarily have user context here if called from Orchestrator backend-to-backend without passing headers
+    // BUT the Orchestrator should ideally pass the user context headers.
+    // For now, let's assume if collectionId is provided, we check logic.
+    // However, Orchestrator might call this. 
+    // If collectionId is missing -> SEARCH DEFAULT.
+
+    try {
+        let targetKnowledgeIds: string[] = [];
+
+        if (collectionId) {
+            const col = await Collection.findById(collectionId);
+            if (col && col.knowledgeIds.length > 0) {
+                targetKnowledgeIds = col.knowledgeIds.map(id => id.toString());
+            }
+        } else {
+            // Fallback to Default
+            const def = await Collection.findOne({ isDefault: true });
+            if (def && def.knowledgeIds.length > 0) {
+                targetKnowledgeIds = def.knowledgeIds.map(id => id.toString());
+            }
+        }
+
+        if (targetKnowledgeIds.length === 0) {
+            return res.json({ results: [] });
+        }
+
+        // Chroma Query
+        const embedding = await getEmbedding(query);
+        const col = await chroma.getCollection({ name: GLOBAL_CHROMA_COLLECTION });
+
+        // Filter by logical OR of knowledgeIds. 
+        // Chroma $in syntax: { knowledgeId: { $in: [id1, id2] } }
+        const results = await col.query({
+            queryEmbeddings: [embedding],
+            nResults: limit,
+            where: { knowledgeId: { "$in": targetKnowledgeIds } }
         });
 
-        // Format results
-        const documents = results.documents[0];
-        const metadatas = results.metadatas[0];
-        const distances = results.distances ? results.distances[0] : [];
-
-        const hits = documents.map((doc, i) => ({
+        // Format
+        const hits = results.documents[0].map((doc, i) => ({
             content: doc,
-            metadata: metadatas[i],
-            score: distances[i] // Distance (lower is better for cosine usually, depends on implementation)
+            metadata: results.metadatas[0][i],
+            score: results.distances?.[0][i]
         }));
 
         res.json({ results: hits });
 
-    } catch (error: any) {
-        console.error('[Knowledge] Search error:', error);
+    } catch (e: any) {
+        console.error('Search error:', e);
         res.status(500).json({ error: 'Search failed' });
     }
 });
 
-// List Documents API
-app.get('/api/knowledge/documents', async (req: Request, res: Response) => {
+// 7. LIST KNOWLEDGE (Inventory for mapping)
+app.get('/api/knowledge', async (req: Request, res: Response) => {
+    const user = extractUser(req);
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+
+    const { type } = req.query;
+
     try {
-        const collection = await getCollection();
-        // Chroma doesn't support "distinct" directly easily without fetching metadata.
-        // We'll fetch all metadata (limit 1000 for now) and aggregate.
-        // In a real prod app, you'd store file metadata in Mongo/Postgres.
-        const result = await collection.get({
-            limit: 1000,
-            include: ["metadatas"] as any
-        });
+        const filter: any = {};
+        if (type === 'public') filter.type = 'public';
+        else if (type === 'department') {
+            filter.type = 'department';
+            filter.department = user.department;
+        } else if (type === 'personal') {
+            filter.type = 'personal';
+            filter.ownerId = user.userId;
+        } else {
+            // Return all visible?
+            // Or handle specific lists for UI tabs?
+            // Let's support complex OR if no type specified
+            filter.$or = [
+                { type: 'public' },
+                { type: 'department', department: user.department },
+                { type: 'personal', ownerId: user.userId }
+            ];
+        }
 
-        const files = new Map();
-
-        result.metadatas.forEach((meta: any) => {
-            if (meta && meta.source) {
-                if (!files.has(meta.source)) {
-                    files.set(meta.source, {
-                        name: meta.source,
-                        uploadedBy: meta.uploadedBy,
-                        timestamp: meta.timestamp,
-                        chunks: 1
-                    });
-                } else {
-                    const file = files.get(meta.source);
-                    file.chunks++;
-                }
-            }
-        });
-
-        res.json({ documents: Array.from(files.values()) });
-
-    } catch (error: any) {
-        console.error('[Knowledge] List error:', error);
-        res.status(500).json({ error: 'Failed to list documents' });
+        const items = await Knowledge.find(filter).sort({ createdAt: -1 });
+        res.json({ knowledge: items });
+    } catch (e: any) {
+        res.status(500).json({ error: e.message });
     }
 });
 
-// Reset Collection (Dev helper)
-app.delete('/api/knowledge/reset', async (req: Request, res: Response) => {
-    try {
-        const collectionName = `knowledge_base_${ENV_TYPE.toLowerCase()}`;
-        await chroma.deleteCollection({ name: collectionName });
-        res.json({ success: true, message: 'Collection deleted' });
-    } catch (error: any) {
-        res.status(500).json({ error: error.message });
+// Start
+app.listen(PORT, async () => {
+    console.log(`[Knowledge Service] Port ${PORT} [Env: ${ENV_TYPE}]`);
+    if (mongoose.connection.readyState === 1) {
+        await initChroma();
+        await initDefaultCollection();
+    } else {
+        mongoose.connection.once('connected', async () => {
+            await initChroma();
+            await initDefaultCollection();
+        });
     }
-});
-
-app.listen(PORT, () => {
-    console.log(`[Knowledge Service] Running on port ${PORT} [Env: ${ENV_TYPE}]`);
 });

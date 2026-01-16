@@ -31,6 +31,12 @@ const router = createRouter({
             meta: { requiresAuth: true }
         },
         {
+            path: '/knowledge/:id',
+            name: 'KnowledgeCollection',
+            component: () => import('../views/KnowledgeCollection.vue'),
+            meta: { requiresAuth: true }
+        },
+        {
             path: '/:pathMatch(.*)*',
             redirect: '/login'
         }

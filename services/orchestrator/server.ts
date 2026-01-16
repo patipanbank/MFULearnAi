@@ -124,9 +124,21 @@ const rateLimiter = (req: any, res: Response, next: NextFunction) => {
 };
 
 // --- RAG Helper ---
-async function searchKnowledgeBase(query: string): Promise<string> {
+// --- RAG Helper ---
+async function searchKnowledgeBase(query: string, userContext: any, collectionId?: string): Promise<string> {
+    // If collectionId provided, passed it.
     try {
-        const response = await axios.post(`${KNOWLEDGE_URL}/search`, { query, limit: 3 });
+        const payload: any = { query, limit: 3 };
+        if (collectionId) payload.collectionId = collectionId;
+
+        // Pass User Context Headers so Knowledge Service can enforce visibility
+        const headers = {
+            'x-user-id': userContext.userId,
+            'x-role': userContext.role,
+            'x-department': userContext.department || 'General'
+        };
+
+        const response = await axios.post(`${KNOWLEDGE_URL}/search`, payload, { headers });
         if (response.data && response.data.results) {
             return response.data.results
                 .map((hit: any) => `[Source: ${hit.metadata.source}]\n${hit.content}`)
@@ -140,7 +152,7 @@ async function searchKnowledgeBase(query: string): Promise<string> {
 
 // --- Chat Endpoint ---
 app.post('/api/chat', authenticateToken, rateLimiter, async (req: any, res: Response) => {
-    const { message, sessionId, modelId, context } = req.body;
+    const { message, sessionId, modelId, context, collectionId } = req.body;
     const userId = req.user.userId;
 
     if (!message) {
@@ -153,7 +165,8 @@ app.post('/api/chat', authenticateToken, rateLimiter, async (req: any, res: Resp
         logActivity('info', 'chat_request_received', {
             sessionId: actualSessionId,
             messageLength: message.length,
-            modelId
+            modelId,
+            collectionId
         }, userId);
 
         // 1. Get conversation history from Redis
@@ -164,7 +177,13 @@ app.post('/api/chat', authenticateToken, rateLimiter, async (req: any, res: Resp
             .filter(msg => (msg.content && msg.content.trim().length > 0) || (msg.images && msg.images.length > 0));
 
         // 2. RAG: Retrieve Context from Knowledge Base
-        const ragContext = await searchKnowledgeBase(message);
+        // Need to pass user info for permission checks
+        const userContext = {
+            userId: req.user.userId,
+            role: req.user.role,
+            department: req.user.department
+        };
+        const ragContext = await searchKnowledgeBase(message, userContext, collectionId);
 
         let ragSystemPrompt = '';
         if (ragContext) {

@@ -6,6 +6,7 @@ export const useChatStore = defineStore('chat', () => {
     const messages = ref([])
     const sessions = ref([])
     const currentSessionId = ref(null)
+    const currentCollectionId = ref(null)
     const isLoading = ref(false)
     const isStreaming = ref(false)
     const availableModels = ref([])
@@ -103,7 +104,8 @@ export const useChatStore = defineStore('chat', () => {
                 body: JSON.stringify({
                     message: content,
                     sessionId: currentSessionId.value,
-                    modelId: selectedModel
+                    modelId: selectedModel,
+                    collectionId: currentCollectionId.value
                 })
             })
 
@@ -179,6 +181,7 @@ export const useChatStore = defineStore('chat', () => {
         sessions,
         availableModels,
         currentSessionId,
+        currentCollectionId,
         currentSession,
         isLoading,
         isStreaming,
