@@ -40,7 +40,7 @@ function createApp(): Express {
   connectDB();
 
   // CORS configuration
-  const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',') || ['https://mfulearnai.ac.th', 'http://mfulearnai.ac.th'];
+  const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',') || ['https://mfulearnai.ac.th', 'http://mfulearnai.ac.th', 'https://mfulearnai.mfu.ac.th', 'http://mfulearnai.mfu.ac.th'];
   console.log('Allowed origins:', allowedOrigins);
 
   app.use(cors({

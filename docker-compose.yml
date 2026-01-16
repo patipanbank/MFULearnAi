@@ -67,6 +67,10 @@ services:
     image: nginx:alpine
     ports:
       - 80:80
+      - 443:443
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf
+      - ./nginx/certs:/etc/nginx/certs
     depends_on:
       - frontend
     networks:
@@ -88,7 +92,7 @@ services:
     networks:
       - mfulearnai
     healthcheck:
-      test: ["CMD-SHELL", "python3 -c \"import socket; s = socket.socket(socket.AF_INET, socket.SOCK_STREAM); s.connect(('127.0.0.1', 8000)); s.close()\" || exit 1"]
+      test: [ "CMD-SHELL", "python3 -c \"import socket; s = socket.socket(socket.AF_INET, socket.SOCK_STREAM); s.connect(('127.0.0.1', 8000)); s.close()\" || exit 1" ]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -98,6 +102,7 @@ services:
 volumes:
   data:
   chroma:
+
 
 networks:
   mfulearnai:
