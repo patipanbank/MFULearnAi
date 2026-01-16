@@ -1,11 +1,9 @@
 <script setup>
 /**
- * Chat View - Customized Design
- * - Pure dark mode with light mode toggle
- * - Canvas-style AI responses, bubble-style user messages
- * - Enhanced sidebar with proper alignment
- * - Thai/English language toggle
- * - File upload support
+ * Chat View - Fixed Layout Issues
+ * - Sidebar properly collapses (width: 0)
+ * - Logout moved to header settings dropdown
+ * - Settings button with theme/lang toggles
  */
 import { ref, computed, watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
@@ -51,17 +49,14 @@ const userInitial = computed(() =>
 
 // Lifecycle
 onMounted(() => {
-  // Initialize settings
   initTheme()
   initLang()
   
-  // Auth check
   if (!authStore.isAuthenticated) {
     router.push('/login')
     return
   }
   
-  // Initialize session
   if (!chatStore.currentSessionId) {
     chatStore.newSession()
   }
@@ -96,7 +91,6 @@ const handleLogout = () => {
 
 const handleFileUpload = (files) => {
   console.log('Files to upload:', files)
-  // TODO: Implement file upload to backend
 }
 
 const handleCopyMessage = (content) => {
@@ -106,7 +100,7 @@ const handleCopyMessage = (content) => {
 
 <template>
   <div class="chat-layout">
-    <!-- Sidebar -->
+    <!-- Sidebar (properly collapses) -->
     <ChatSidebar
       v-model="showSidebar"
       :sessions="chatStore.sessions"
@@ -115,23 +109,24 @@ const handleCopyMessage = (content) => {
       :t="t"
       @new-chat="handleNewChat"
       @select-session="handleSelectSession"
-      @logout="handleLogout"
-      @toggle-theme="toggleTheme"
-      @toggle-lang="toggleLang"
     />
     
     <!-- Main Area -->
     <main class="chat-main">
-      <!-- Header -->
+      <!-- Header with Settings & Logout -->
       <ChatHeader
         :env-name="envName"
+        :is-dark="isDark"
+        :lang="lang"
         :t="t"
         @toggle-sidebar="showSidebar = !showSidebar"
+        @toggle-theme="toggleTheme"
+        @toggle-lang="toggleLang"
+        @logout="handleLogout"
       />
       
       <!-- Messages -->
       <div class="messages-area" ref="messagesRef">
-        <!-- Welcome -->
         <ChatWelcome
           v-if="chatStore.messages.length === 0"
           :user-name="authStore.user?.firstName"
@@ -139,7 +134,6 @@ const handleCopyMessage = (content) => {
           :t="t"
         />
         
-        <!-- Messages List -->
         <div v-else class="messages-list">
           <TransitionGroup name="fade-slide">
             <ChatMessage
@@ -152,7 +146,6 @@ const handleCopyMessage = (content) => {
             />
           </TransitionGroup>
           
-          <!-- Typing -->
           <ChatTypingIndicator v-if="chatStore.isStreaming" :t="t" />
         </div>
       </div>
@@ -176,6 +169,7 @@ const handleCopyMessage = (content) => {
   display: flex;
   height: 100vh;
   background: var(--color-bg-primary);
+  overflow: hidden;
 }
 
 .chat-main {
@@ -214,7 +208,6 @@ const handleCopyMessage = (content) => {
   }
 }
 
-/* Responsive */
 @media (max-width: 768px) {
   .messages-list {
     padding: 16px;

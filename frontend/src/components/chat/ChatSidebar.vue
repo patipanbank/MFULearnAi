@@ -10,7 +10,7 @@ const props = defineProps({
   t: { type: Function, required: true }
 })
 
-const emit = defineEmits(['update:modelValue', 'new-chat', 'select-session', 'logout', 'toggle-theme', 'toggle-lang'])
+const emit = defineEmits(['update:modelValue', 'new-chat', 'select-session'])
 
 const authStore = useAuthStore()
 
@@ -22,25 +22,25 @@ const isExpanded = computed({
 
 <template>
   <aside class="sidebar" :class="{ collapsed: !isExpanded }">
-    <div class="sidebar-content">
-      <!-- Header -->
+    <div class="sidebar-content" v-show="isExpanded">
+      <!-- Header with Logo -->
       <header class="sidebar-header">
         <div class="logo">
           <span class="logo-icon">🤖</span>
-          <span v-if="isExpanded" class="logo-text">{{ envName }}</span>
+          <span class="logo-text">{{ envName }}</span>
         </div>
       </header>
       
-      <!-- New Chat -->
-      <button class="btn-new-chat" @click="emit('new-chat')" v-if="isExpanded">
+      <!-- New Chat Button -->
+      <button class="btn-new-chat" @click="emit('new-chat')">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M12 5v14M5 12h14"/>
         </svg>
         <span>{{ t('newChat') }}</span>
       </button>
       
-      <!-- Sessions -->
-      <nav class="sessions" v-if="isExpanded">
+      <!-- Sessions List -->
+      <nav class="sessions">
         <div class="sessions-label">{{ t('recentChats') }}</div>
         
         <div 
@@ -61,22 +61,8 @@ const isExpanded = computed({
         </div>
       </nav>
       
-      <!-- Footer -->
-      <footer class="sidebar-footer" v-if="isExpanded">
-        <!-- Settings Row -->
-        <div class="settings-row">
-          <button class="btn-setting" @click="emit('toggle-theme')" :title="t('settings')">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="12" cy="12" r="5"/>
-              <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
-            </svg>
-          </button>
-          <button class="btn-setting" @click="emit('toggle-lang')">
-            <span class="lang-badge">TH/EN</span>
-          </button>
-        </div>
-        
-        <!-- User -->
+      <!-- User Info (bottom) - minimal, no logout here -->
+      <footer class="sidebar-footer">
         <div class="user-card">
           <div class="user-avatar">
             {{ authStore.displayName?.charAt(0)?.toUpperCase() || 'U' }}
@@ -85,13 +71,6 @@ const isExpanded = computed({
             <span class="user-name">{{ authStore.displayName }}</span>
             <span class="user-role">{{ authStore.user?.department || authStore.user?.role }}</span>
           </div>
-          <button class="btn-logout" @click="emit('logout')" :title="t('logout')">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
-              <polyline points="16 17 21 12 16 7"/>
-              <line x1="21" y1="12" x2="9" y2="12"/>
-            </svg>
-          </button>
         </div>
       </footer>
     </div>
@@ -104,15 +83,13 @@ const isExpanded = computed({
   height: 100vh;
   background: var(--color-bg-secondary);
   border-right: 1px solid var(--color-border);
-  display: flex;
-  flex-direction: column;
-  transition: width 0.2s ease;
   flex-shrink: 0;
+  transition: width 0.25s ease;
+  overflow: hidden;
 }
 
 .sidebar.collapsed {
   width: 0;
-  overflow: hidden;
   border-right: none;
 }
 
@@ -227,37 +204,6 @@ const isExpanded = computed({
   border-top: 1px solid var(--color-border);
 }
 
-.settings-row {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 12px;
-}
-
-.btn-setting {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 8px;
-  background: var(--color-bg-tertiary);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  color: var(--color-text-secondary);
-  cursor: pointer;
-  transition: all 0.15s;
-}
-
-.btn-setting:hover {
-  background: var(--color-bg-hover);
-  color: var(--color-text-primary);
-}
-
-.lang-badge {
-  font-size: 11px;
-  font-weight: 600;
-}
-
-/* User Card */
 .user-card {
   display: flex;
   align-items: center;
@@ -300,19 +246,5 @@ const isExpanded = computed({
   display: block;
   font-size: 11px;
   color: var(--color-text-muted);
-}
-
-.btn-logout {
-  padding: 6px;
-  background: transparent;
-  border: none;
-  color: var(--color-text-muted);
-  cursor: pointer;
-  border-radius: var(--radius-sm);
-  transition: color 0.15s;
-}
-
-.btn-logout:hover {
-  color: var(--color-error);
 }
 </style>
