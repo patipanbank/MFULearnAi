@@ -1,0 +1,12 @@
+@import "tailwindcss";
+
+/* Custom globals if needed */
+@theme {
+  --font-sans: 'Inter', system-ui, sans-serif;
+  --color-primary: #3b82f6; /* Example primary color */
+}
+
+body {
+  background-color: var(--color-gray-50);
+  color: var(--color-gray-900);
+}
