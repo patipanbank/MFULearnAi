@@ -1,19 +1,13 @@
-export type UserRole = 'student' | 'staff' | 'admin' | 'superadmin';
-
 export interface User {
   userId?: string;
   nameID: string;
-  username: string; // derived from User.Username or email
+  username: string; // derived from User.Userrname or email
   email: string;
   firstName?: string;
   lastName?: string;
   department?: string;
-  role: UserRole;
-  permissions: string[];
+  role: 'student' | 'staff' | 'admin' | 'superadmin';
   groups: string[];
-  isActive: boolean;
-  lastLogin?: Date;
-  loginCount: number;
 }
 
 export interface ChatMessage {
