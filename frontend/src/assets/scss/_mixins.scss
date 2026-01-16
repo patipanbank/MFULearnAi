@@ -1,0 +1,9 @@
+// src/assets/scss/_mixins.scss
+@use 'sass:list';
+
+// Override mixin ที่ใช้ math.div กับ non-number
+@mixin custom-select-background($icon, $custom-select-bg, $position, $size) {
+  background: $custom-select-background,
+  escape-svg($icon) $custom-select-bg no-repeat
+  list.slash($position, $size);
+}

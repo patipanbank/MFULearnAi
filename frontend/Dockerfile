@@ -1,32 +1,25 @@
-# Build stage
-FROM node:20-alpine as build
+FROM node:20-alpine AS build-stage
 
-# Set working directory
-WORKDIR /app/frontend
+# ติดตั้ง python3, make, g++, git
+RUN apk add --no-cache python3 make g++ git
 
-# Copy package files
+WORKDIR /app
+
 COPY package*.json ./
 
-# Install dependencies
-RUN npm install
+# ติดตั้ง dependencies พร้อมแก้ peer dependency conflicts
+RUN npm install --legacy-peer-deps
 
-# Copy source code
 COPY . .
 
-# Build the application
+# สร้าง production build
 RUN npm run build
 
-# Production stage
-FROM nginx:alpine
+# ใช้ Nginx serve static files
+FROM nginx:alpine AS production-stage
 
-# Copy the Nginx configuration file
+COPY --from=build-stage /app/dist /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
-# Copy the build output from build stage
-COPY --from=build /app/frontend/dist /usr/share/nginx/html
-
-# Expose port 80
 EXPOSE 80
-
-# Start Nginx
 CMD ["nginx", "-g", "daemon off;"]
