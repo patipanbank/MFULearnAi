@@ -1,8 +1,8 @@
 <script setup>
 /**
- * Chat View - Redesigned Layout
- * - Sidebar contains: New Chat, Sessions, Settings (theme/lang), User + Logout
- * - Header: Menu toggle + centered Logo + Title
+ * Chat View - Final Customization
+ * - Sidebar: New Chat, Sessions, Settings Button (pops up menu)
+ * - Header: Displays User Name
  */
 import { ref, computed, watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
@@ -35,7 +35,7 @@ const inputRef = ref(null)
 const showSidebar = ref(true)
 const inputMessage = ref('')
 
-// Environment
+// Environment (used for Welcome screen only now)
 const envName = import.meta.env.VITE_ENV_NAME || 'MFULearnAI'
 
 // Composables
@@ -45,6 +45,8 @@ const { scrollToBottom } = useScrollToBottom(messagesRef)
 const userInitial = computed(() => 
   authStore.displayName?.charAt(0)?.toUpperCase() || 'U'
 )
+
+const headerTitle = computed(() => authStore.displayName || 'Guest User')
 
 // Lifecycle
 onMounted(() => {
@@ -99,7 +101,7 @@ const handleCopyMessage = (content) => {
 
 <template>
   <div class="chat-layout">
-    <!-- Sidebar with Settings -->
+    <!-- Sidebar with Settings Button -->
     <ChatSidebar
       v-model="showSidebar"
       :sessions="chatStore.sessions"
@@ -116,9 +118,9 @@ const handleCopyMessage = (content) => {
     
     <!-- Main Area -->
     <main class="chat-main">
-      <!-- Header with Title -->
+      <!-- Header with User Name -->
       <ChatHeader
-        :env-name="envName"
+        :title="headerTitle"
         @toggle-sidebar="showSidebar = !showSidebar"
       />
       
@@ -175,6 +177,7 @@ const handleCopyMessage = (content) => {
   flex-direction: column;
   min-width: 0;
   background: var(--color-bg-primary);
+  position: relative;
 }
 
 .messages-area {
@@ -189,7 +192,6 @@ const handleCopyMessage = (content) => {
   padding: 24px;
 }
 
-/* Transitions */
 .fade-slide-enter-active {
   animation: fadeSlide 0.3s ease-out;
 }
