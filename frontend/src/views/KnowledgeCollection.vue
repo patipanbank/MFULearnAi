@@ -1,32 +1,21 @@
 <script setup>
-import { ref, onMounted, computed, watch } from 'vue';
-import { useRouter, useRoute } from 'vue-router';
+import { ref, onMounted, computed } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import axios from 'axios';
+import { 
+    ArrowLeftIcon, 
+    DocumentTextIcon, 
+    TrashIcon, 
+    PlusIcon, 
+    LinkIcon 
+} from '@heroicons/vue/24/outline';
 import { useAuthStore } from '@/stores/auth';
-import { useChatStore } from '@/stores/chat';
-import { useTheme, useLanguage } from '@/composables/useSettings';
-import { ChatSidebar, ChatHeader } from '@/components/chat';
 
-const router = useRouter();
 const route = useRoute();
+const router = useRouter();
 const authStore = useAuthStore();
-const chatStore = useChatStore();
-const { isDark, toggle: toggleTheme, init: initTheme } = useTheme();
-const { lang, toggle: toggleLang, t, init: initLang } = useLanguage();
 
-const collectionId = route.params.id;
 const collection = ref(null);
-const documents = ref([]);
-const isDragging = ref(false);
-const uploading = ref(false);
-const fileInput = ref(null);
-const showSidebar = ref(true);
-
-const userInitial = computed(() => authStore.displayName?.charAt(0)?.toUpperCase() || 'U');
-const userName = computed(() => authStore.displayName || 'Guest');
-const envName = import.meta.env.VITE_ENV_NAME || 'MFULearnAI';
-
-const fetchCollectionDetails = async () => {
 const availableKnowledge = ref([]); // For mapping modal
 const showMapModal = ref(false);
 const isLoading = ref(true);
@@ -41,6 +30,7 @@ const canManage = computed(() => {
 
 const unmappedKnowledge = computed(() => {
     if (!collection.value) return [];
+    // knowledgeIds is an array of objects populated by backend
     const mappedIds = collection.value.knowledgeIds.map(k => k._id);
     return availableKnowledge.value.filter(k => !mappedIds.includes(k._id));
 });
@@ -105,104 +95,123 @@ onMounted(() => {
 </script>
 
 <template>
-    <main class="chat-main bg-slate-900 text-gray-100">
-      <ChatHeader
-        :env-name="envName"
-        :user-name="userName"
-        :user-initial="userInitial"
-        :is-dark="isDark"
-        :lang="lang"
-        :t="t"
-        :show-toggle="true"
-        @toggle-sidebar="showSidebar = !showSidebar"
-        @toggle-theme="toggleTheme"
-        @toggle-lang="toggleLang"
-        @logout="handleLogout"
-      />
+    <div class="p-6 max-w-5xl mx-auto text-gray-100">
+        <button @click="router.push('/knowledge')" class="flex items-center gap-2 text-gray-400 hover:text-white mb-6 transition-colors">
+            <ArrowLeftIcon class="w-4 h-4" /> Back to Library
+        </button>
 
-      <div class="content-scroll-area p-6 md:p-10">
-        <div class="max-w-5xl mx-auto">
-            
-          <!-- Back & Header -->
-          <div class="mb-8">
-            <button @click="$router.push('/knowledge')" class="text-blue-400 hover:text-blue-300 text-sm mb-4 flex items-center gap-1">
-              ← Back to Library
-            </button>
-            <div class="flex items-center gap-4">
-                <div class="w-12 h-12 rounded-lg bg-gradient-to-br from-purple-500 to-blue-600 flex items-center justify-center text-white font-bold text-xl shadow-lg">
-                    {{ collection?.name?.charAt(0) || 'C' }}
-                </div>
-                <div>
-                    <h1 class="text-2xl font-bold text-white">{{ collection?.name || 'Loading...' }}</h1>
-                    <p class="text-gray-400 text-sm">{{ collection?.description || 'Manage documents in this collection.' }}</p>
-                </div>
-            </div>
-          </div>
-
-          <!-- Upload & List Grid -->
-          <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            
-            <!-- Upload Column -->
-            <div class="lg:col-span-1">
-              <div 
-                class="bg-slate-800/50 border border-slate-700 rounded-2xl p-6 text-center transition-all duration-300 relative overflow-hidden group"
-                :class="{ 'border-blue-500 ring-2 ring-blue-500/20 bg-slate-800': isDragging, 'hover:border-blue-400/50': !isDragging }"
-                @dragover.prevent="isDragging = true"
-                @dragleave.prevent="isDragging = false"
-                @drop.prevent="handleDrop"
-              >
-                <input type="file" ref="fileInput" @change="handleFileSelect" class="hidden" accept=".pdf,.txt" />
-                
-                <div v-if="uploading" class="py-12">
-                   <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-500 mx-auto mb-4"></div>
-                   <p class="text-blue-400 font-medium">Embedding...</p>
-                </div>
-
-                <div v-else class="py-8">
-                  <div class="w-14 h-14 bg-blue-500/10 rounded-xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
-                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-blue-400"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                  </div>
-                  <h3 class="font-semibold text-white mb-2">Add Document</h3>
-                  <p class="text-xs text-gray-400 mb-6">PDF or TXT</p>
-                  <button @click="$refs.fileInput.click()" class="w-full py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-sm font-medium transition shadow-lg shadow-blue-900/20">Select File</button>
-                </div>
-              </div>
-            </div>
-
-            <!-- List Column -->
-            <div class="lg:col-span-2">
-              <div class="bg-slate-800/20 border border-slate-700/50 rounded-2xl overflow-hidden min-h-[400px] flex flex-col">
-                <div class="p-4 border-b border-gray-700/50 bg-slate-800/40">
-                  <h3 class="font-semibold text-gray-200">Documents ({{ documents.length }})</h3>
-                </div>
-                
-                <div v-if="documents.length === 0" class="flex-1 flex flex-col items-center justify-center text-gray-500 p-10">
-                  <p>No documents yet.</p>
-                </div>
-
-                <div v-else class="p-4 space-y-3 max-h-[600px] overflow-y-auto custom-scrollbar">
-                  <div v-for="doc in documents" :key="doc.name" class="bg-slate-800 border border-slate-700 p-3 rounded-xl flex items-center justify-between hover:bg-slate-700/50 transition">
-                    <div class="flex items-center gap-3 min-w-0">
-                      <div class="w-10 h-10 rounded-lg bg-slate-700 flex items-center justify-center text-gray-300 text-xs font-bold">{{ getExt(doc.name) }}</div>
-                      <div class="min-w-0">
-                        <h4 class="font-medium text-gray-200 truncate" :title="doc.name">{{ doc.name }}</h4>
-                        <div class="text-xs text-gray-500">{{ doc.chunks }} chunks • {{ new Date(doc.timestamp).toLocaleDateString() }}</div>
-                      </div>
+        <div v-if="isLoading" class="text-center py-12 text-gray-500">Loading...</div>
+        
+        <div v-else-if="collection">
+            <!-- Header -->
+            <div class="bg-slate-800 border border-slate-700/50 rounded-2xl p-8 mb-8 relative overflow-hidden">
+                <div class="relative z-10">
+                    <div class="flex items-center gap-3 mb-2">
+                         <h1 class="text-3xl font-bold text-white">{{ collection.name }}</h1>
+                         <span class="px-2 py-1 rounded text-xs font-mono uppercase" 
+                            :class="{
+                                'bg-purple-900/50 text-purple-400': collection.type === 'personal',
+                                'bg-orange-900/50 text-orange-400': collection.type === 'department',
+                                'bg-green-900/50 text-green-400': collection.type === 'default'
+                            }">
+                            {{ collection.type }}
+                         </span>
                     </div>
-                  </div>
+                    <p class="text-gray-400 text-lg max-w-2xl">{{ collection.description }}</p>
+                    
+                    <div class="mt-6 flex items-center gap-4 text-sm text-gray-500">
+                        <span>Managed by: {{ collection.ownerId === 'system' ? 'System Admin' : 'Owner' }}</span>
+                        <span>Created: {{ new Date(collection.createdAt).toLocaleDateString() }}</span>
+                    </div>
                 </div>
-              </div>
+                
+                <!-- Background decoration -->
+                <div class="absolute top-0 right-0 p-8 opacity-10">
+                    <svg class="w-64 h-64 text-blue-500" fill="currentColor" viewBox="0 0 24 24"><path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-1 9H9V9h10v2zm-4 4H9v-2h6v2zm4-8H9V5h10v2z"/></svg>
+                </div>
             </div>
 
-          </div>
-        </div>
-      </div>
-    </main>
-  </div>
-</template>
+            <!-- Knowledge List -->
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-xl font-bold flex items-center gap-2">
+                    <LinkIcon class="w-5 h-5 text-blue-400" />
+                    Mapped Knowledge
+                    <span class="bg-slate-800 px-2 py-0.5 rounded-full text-xs text-gray-400">{{ collection.knowledgeIds.length }}</span>
+                </h2>
+                <button 
+                    v-if="canManage"
+                    @click="showMapModal = true; fetchAvailableKnowledge()"
+                    class="flex items-center gap-2 bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                >
+                    <PlusIcon class="w-5 h-5" />
+                    Add Knowledge
+                </button>
+            </div>
 
-<style scoped>
-.chat-layout { display: flex; height: 100vh; background: var(--color-bg-primary); overflow: hidden; }
-.chat-main { flex: 1; display: flex; flex-direction: column; min-width: 0; position: relative; }
-.content-scroll-area { flex: 1; overflow-y: auto; scroll-behavior: smooth; }
-</style>
+            <div class="space-y-3">
+                <div v-for="item in collection.knowledgeIds" :key="item._id" class="bg-slate-800 border border-slate-700 rounded-lg p-4 flex items-center justify-between group hover:border-blue-500/30 transition-all">
+                    <div class="flex items-center gap-4">
+                        <div class="p-2 bg-slate-700 rounded text-blue-400">
+                            <DocumentTextIcon class="w-6 h-6" />
+                        </div>
+                        <div>
+                            <h4 class="font-medium text-gray-200">{{ item.title }}</h4>
+                            <div class="flex items-center gap-3 text-xs text-gray-400 mt-0.5">
+                                <span class="uppercase tracking-wider text-[10px] bg-slate-700 px-1 rounded">{{ item.type }}</span>
+                                <span>Dept: {{ item.department }}</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <button 
+                        v-if="canManage"
+                        @click="unmapKnowledge(item._id)"
+                        class="p-2 text-gray-500 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                        title="Remove from collection"
+                    >
+                        <TrashIcon class="w-5 h-5" />
+                    </button>
+                </div>
+                
+                <div v-if="collection.knowledgeIds.length === 0" class="text-center py-12 border-2 border-dashed border-slate-700/50 rounded-xl bg-slate-800/20">
+                    <p class="text-gray-400">No knowledge mapped to this collection yet.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Map Knowledge Modal -->
+        <div v-if="showMapModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+            <div class="bg-slate-900 border border-slate-700 rounded-xl w-full max-w-2xl p-6 shadow-2xl flex flex-col max-h-[80vh]">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-xl font-bold text-white">Add Knowledge to Collection</h2>
+                    <button @click="showMapModal = false" class="text-gray-400 hover:text-white">✕</button>
+                </div>
+                
+                <div class="flex-1 overflow-y-auto min-h-0 space-y-2 pr-2">
+                    <div 
+                        v-for="kb in unmappedKnowledge" 
+                        :key="kb._id"
+                        @click="mapKnowledge(kb._id)"
+                        class="p-3 rounded-lg border border-slate-700 bg-slate-800/50 hover:bg-slate-800 hover:border-blue-500 cursor-pointer transition-all flex justify-between items-center"
+                    >
+                        <div class="flex items-center gap-3">
+                            <DocumentTextIcon class="w-5 h-5 text-gray-400" />
+                            <div>
+                                <h4 class="text-sm font-medium text-gray-200">{{ kb.title }}</h4>
+                                <span class="text-xs text-gray-500">{{ kb.type }} • {{ kb.department }}</span>
+                            </div>
+                        </div>
+                        <PlusIcon class="w-5 h-5 text-blue-400" />
+                    </div>
+                    <div v-if="unmappedKnowledge.length === 0" class="text-center py-8 text-gray-500">
+                        No available knowledge found to add. <br>Create more in the Library.
+                    </div>
+                </div>
+                
+                <div class="mt-6 pt-4 border-t border-slate-800 flex justify-end">
+                    <button @click="showMapModal = false" class="px-4 py-2 text-gray-400 hover:text-white">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</template>

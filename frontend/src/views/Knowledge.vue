@@ -16,7 +16,7 @@ const { lang, toggle: toggleLang, t, init: initLang } = useLanguage();
 const collections = ref([]);
 const showSidebar = ref(true);
 const showCreateModal = ref(false);
-const newCollection = ref({ name: '', description: '' });
+
 const newCollection = ref({ name: '', description: '', type: 'personal' }); // Modified
 const creating = ref(false);
 
