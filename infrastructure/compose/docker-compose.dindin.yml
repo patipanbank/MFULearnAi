@@ -11,6 +11,7 @@ services:
     depends_on:
       - auth-service
       - orchestrator-service
+      - frontend-service
 
   auth-service:
     build:
@@ -62,6 +63,14 @@ services:
     environment:
       - PORT=6000
       - MONGO_URI=mongodb://mongo:27017/dindin-logs
+    restart: always
+    depends_on:
+      - mongo
+
+  frontend-service:
+    build:
+      context: ../../
+      dockerfile: frontend/Dockerfile
     restart: always
 
   redis:
