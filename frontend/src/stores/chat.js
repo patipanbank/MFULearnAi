@@ -8,10 +8,31 @@ export const useChatStore = defineStore('chat', () => {
     const currentSessionId = ref(null)
     const isLoading = ref(false)
     const isStreaming = ref(false)
+    const availableModels = ref([])
 
     const currentSession = computed(() =>
         sessions.value.find(s => s.sessionId === currentSessionId.value)
     )
+
+    // Load available models
+    async function fetchModels() {
+        try {
+            const token = localStorage.getItem('auth_token')
+            if (!token) return
+
+            const response = await fetch('/api/chat/models', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            })
+            if (response.ok) {
+                const data = await response.json()
+                if (data.models && Array.isArray(data.models)) {
+                    availableModels.value = data.models
+                }
+            }
+        } catch (error) {
+            console.error('Failed to fetch models:', error)
+        }
+    }
 
     // Create new session
     function newSession() {
@@ -45,8 +66,12 @@ export const useChatStore = defineStore('chat', () => {
     }
 
     // Send message with streaming
-    async function sendMessage(content, modelId = 'anthropic.claude-3-5-sonnet-20240620-v1:0') {
+    async function sendMessage(content, modelId = null) {
         if (!content.trim() || isStreaming.value) return
+
+        // Use passed modelId, or first available, or fallback
+        const selectedModel = modelId ||
+            (availableModels.value.length > 0 ? availableModels.value[0] : 'anthropic.claude-3-5-sonnet-20240620-v1:0')
 
         // Add user message
         messages.value.push({
@@ -67,7 +92,7 @@ export const useChatStore = defineStore('chat', () => {
 
         try {
             const token = localStorage.getItem('auth_token')
-            console.log('[ChatStore] Sending request to /api/chat...')
+            console.log(`[ChatStore] Sending request to /api/chat with model: ${selectedModel}...`)
 
             const response = await fetch('/api/chat', {
                 method: 'POST',
@@ -78,7 +103,7 @@ export const useChatStore = defineStore('chat', () => {
                 body: JSON.stringify({
                     message: content,
                     sessionId: currentSessionId.value,
-                    modelId
+                    modelId: selectedModel
                 })
             })
 
@@ -95,7 +120,7 @@ export const useChatStore = defineStore('chat', () => {
                 if (done) break
 
                 const chunk = decoder.decode(value, { stream: true })
-                // console.log('[ChatStore] Received chunk:', chunk) 
+                // console.log('[ChatStore] Received chunk:', chunk)
 
                 const lines = chunk.split('\n')
                 for (const line of lines) {
@@ -146,9 +171,13 @@ export const useChatStore = defineStore('chat', () => {
         }
     }
 
+    // Initialize models when the store is created
+    fetchModels()
+
     return {
         messages,
         sessions,
+        availableModels,
         currentSessionId,
         currentSession,
         isLoading,
@@ -156,6 +185,7 @@ export const useChatStore = defineStore('chat', () => {
         newSession,
         loadSession,
         loadSessions,
+        fetchModels,
         sendMessage,
         clearSession
     }

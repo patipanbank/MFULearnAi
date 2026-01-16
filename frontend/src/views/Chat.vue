@@ -61,6 +61,7 @@ onMounted(() => {
     chatStore.newSession()
   }
   
+  chatStore.fetchModels()
   chatStore.loadSessions()
 })
 

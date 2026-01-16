@@ -294,6 +294,17 @@ app.post('/api/chat', authenticateToken, rateLimiter, async (req: any, res: Resp
     }
 });
 
+// --- Get Available Models ---
+app.get('/api/chat/models', authenticateToken, async (req: any, res: Response) => {
+    try {
+        const response = await axios.get(`${BEDROCK_URL}/models`);
+        res.json(response.data);
+    } catch (error: any) {
+        console.error('[Orchestrator] Failed to fetch models:', error.message);
+        res.status(500).json({ error: 'Failed to fetch available models' });
+    }
+});
+
 // --- Get Chat History ---
 app.get('/api/chat/:sessionId', authenticateToken, async (req: any, res: Response) => {
     const { sessionId } = req.params;
