@@ -1,6 +1,4 @@
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
-
 const isMobile = ref(false)
 const isHovering = ref(false)
 
