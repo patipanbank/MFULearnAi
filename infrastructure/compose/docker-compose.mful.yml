@@ -103,6 +103,23 @@ services:
       - mfulearnai-network
     restart: unless-stopped
 
+  knowledge-service:
+    build:
+      context: ../../
+      dockerfile: services/knowledge/Dockerfile
+    container_name: mfulearnai-knowledge
+    environment:
+      - PORT=7000
+      - ENV_TYPE=TEST
+      - CHROMA_URL=http://chroma:8000
+      - BEDROCK_URL=http://bedrock-service:5000/api/bedrock
+    depends_on:
+      - chroma
+      - bedrock-service
+    networks:
+      - mfulearnai-network
+    restart: unless-stopped
+
   frontend-service:
     build:
       context: ../../frontend
@@ -111,6 +128,17 @@ services:
     environment:
       - VITE_API_URL=/api
       - VITE_ENV=test
+    networks:
+      - mfulearnai-network
+    restart: unless-stopped
+
+  chroma:
+    image: chromadb/chroma:latest
+    container_name: mfulearnai-chroma
+    ports:
+      - "8001:8000"
+    volumes:
+      - mfulearnai-chroma-data:/chroma/chroma
     networks:
       - mfulearnai-network
     restart: unless-stopped
@@ -143,6 +171,7 @@ services:
 volumes:
   mfulearnai-redis-data:
   mfulearnai-mongo-data:
+  mfulearnai-chroma-data:
 
 networks:
   mfulearnai-network:
