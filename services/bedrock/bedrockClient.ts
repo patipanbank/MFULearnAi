@@ -174,10 +174,16 @@ export class BedrockService {
         const validatedModel = this.validateModel(modelId);
 
         // Convert messages to Claude format
+        // Convert messages to Claude format
         const formattedMessages = messages
             .filter(msg => msg.role !== 'system')
             .map(msg => {
-                const content: any[] = [{ type: 'text', text: msg.content }];
+                const content: any[] = [];
+
+                // Only add text block if there is actual text
+                if (msg.content && msg.content.trim()) {
+                    content.push({ type: 'text', text: msg.content });
+                }
 
                 if (msg.images) {
                     msg.images.forEach(img => {
@@ -192,11 +198,15 @@ export class BedrockService {
                     });
                 }
 
+                // If message became empty (was only whitespace text), skip it
+                if (content.length === 0) return null;
+
                 return {
                     role: msg.role === 'user' ? 'user' : 'assistant',
                     content
                 };
-            });
+            })
+            .filter(msg => msg !== null); // Remove nulls from map
 
         // Extract system message
         const systemMessage = messages.find(msg => msg.role === 'system');

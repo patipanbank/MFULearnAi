@@ -144,7 +144,9 @@ app.post('/api/chat', authenticateToken, rateLimiter, async (req: any, res: Resp
         // 1. Get conversation history from Redis (fast cache)
         const historyKey = `chat:${userId}:${actualSessionId}`;
         const rawHistory = await redis.lrange(historyKey, 0, -1);
-        const history: ChatMessage[] = rawHistory.map(item => JSON.parse(item));
+        const history: ChatMessage[] = rawHistory
+            .map(item => JSON.parse(item))
+            .filter(msg => (msg.content && msg.content.trim().length > 0) || (msg.images && msg.images.length > 0)); // Filter blank messages but keep images
 
         // 2. Prepare messages with system prompt
         const systemPrompt = getSystemPrompt(ENV_TYPE);
