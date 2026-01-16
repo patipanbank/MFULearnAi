@@ -86,7 +86,10 @@ app.post('/api/knowledge/upload', upload.single('file'), async (req: any, res: R
         return res.status(400).json({ error: 'No file uploaded' });
     }
 
-    const { originalname, mimetype, buffer } = req.file;
+    const { mimetype, buffer } = req.file;
+    // Fix for non-standard filename encoding (like Thai)
+    // Multer/Busboy often defaults to latin1, so we convert it back to buffer and then to utf8.
+    const originalname = Buffer.from(req.file.originalname, 'latin1').toString('utf8');
     const userId = req.body.userId || 'system';
 
     try {

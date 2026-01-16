@@ -143,79 +143,130 @@ onMounted(() => {
       />
 
       <!-- Knowledge Content -->
-      <div class="content-scroll-area p-8">
-        <div class="max-w-4xl mx-auto">
+      <div class="content-scroll-area p-6 md:p-10">
+        <div class="max-w-5xl mx-auto">
             
-          <div class="mb-8">
-            <h1 class="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-500">
-              Knowledge Base
-            </h1>
-            <p class="text-gray-400 mt-2">Upload and manage documents for AI context.</p>
-          </div>
-
-          <!-- Upload Section -->
-          <div 
-            class="upload-zone mb-8 border-2 border-dashed border-gray-700/50 rounded-xl p-10 text-center transition-all duration-300"
-            :class="{ 'border-blue-500 bg-slate-800/50': isDragging, 'hover:border-gray-500': !isDragging }"
-            @dragover.prevent="isDragging = true"
-            @dragleave.prevent="isDragging = false"
-            @drop.prevent="handleDrop"
-          >
-            <input type="file" ref="fileInput" @change="handleFileSelect" class="hidden" accept=".pdf,.txt" />
-            
-            <div v-if="uploading" class="flex flex-col items-center">
-              <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-500 mb-4"></div>
-              <p class="text-blue-400">Processing document... (Embedding)</p>
+          <!-- Header Section -->
+          <div class="mb-10 flex justify-between items-end border-b border-gray-800 pb-6">
+            <div>
+              <h1 class="text-3xl font-bold text-white mb-2">Knowledge Base</h1>
+              <p class="text-gray-400">Manage your AI's context documents. Upload PDFs or text files to enhance responses.</p>
             </div>
-            
-            <div v-else>
-              <div class="bg-gray-800 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl">
-                📄
-              </div>
-              <h3 class="text-xl font-medium mb-2 text-gray-200">Drag & Drop your files here</h3>
-              <p class="text-gray-400 mb-6">Supports PDF and TXT</p>
-              <button 
-                @click="$refs.fileInput.click()" 
-                class="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 rounded-lg font-medium transition shadow-lg shadow-blue-900/20 text-white"
-              >
-                Browse Files
-              </button>
+            <div class="text-right hidden sm:block">
+              <div class="text-2xl font-bold text-blue-400">{{ documents.length }}</div>
+              <div class="text-sm text-gray-500 uppercase tracking-wider">Documents</div>
             </div>
           </div>
 
-          <!-- Documents List -->
-          <div class="documents-list">
-            <h2 class="text-xl font-semibold mb-4 text-gray-200">Indexed Documents</h2>
+          <!-- Main Grid -->
+          <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
             
-            <div v-if="documents.length === 0" class="text-center py-12 text-gray-500 bg-slate-800/30 rounded-xl border border-dashed border-slate-700/50">
-              No documents found. Upload one to get started.
-            </div>
-
-            <div class="grid gap-4">
+            <!-- Left Column: Upload -->
+            <div class="lg:col-span-1">
               <div 
-                v-for="doc in documents" 
-                :key="doc.name"
-                class="bg-slate-800/40 border border-slate-700/50 p-4 rounded-xl flex items-center justify-between hover:bg-slate-800/60 transition group"
+                class="upload-card bg-slate-800/50 border border-slate-700 rounded-2xl p-6 text-center transition-all duration-300 relative overflow-hidden group"
+                :class="{ 'border-blue-500 ring-2 ring-blue-500/20 bg-slate-800': isDragging, 'hover:border-blue-400/50': !isDragging }"
+                @dragover.prevent="isDragging = true"
+                @dragleave.prevent="isDragging = false"
+                @drop.prevent="handleDrop"
               >
-                <div class="flex items-center gap-4">
-                  <div class="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center text-blue-400 font-bold text-sm">
-                    {{ getExt(doc.name) }}
+                <input type="file" ref="fileInput" @change="handleFileSelect" class="hidden" accept=".pdf,.txt" />
+                
+                <div v-if="uploading" class="py-12">
+                   <div class="relative w-16 h-16 mx-auto mb-4">
+                      <div class="absolute inset-0 border-4 border-blue-500/30 rounded-full"></div>
+                      <div class="absolute inset-0 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                   </div>
+                   <p class="text-blue-400 font-medium">Embedding Document...</p>
+                   <p class="text-xs text-gray-500 mt-2">This may take a moment</p>
+                </div>
+
+                <div v-else class="py-8">
+                  <div class="w-16 h-16 bg-blue-500/10 rounded-2xl flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform duration-300">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" class="text-blue-400">
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                      <polyline points="17 8 12 3 7 8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                      <line x1="12" y1="3" x2="12" y2="15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
                   </div>
-                  <div>
-                    <h4 class="font-medium text-gray-200 group-hover:text-blue-400 transition-colors">{{ doc.name }}</h4>
-                    <p class="text-xs text-gray-500">
-                      {{ doc.chunks }} chunks • {{ new Date(doc.timestamp).toLocaleDateString() }}
-                    </p>
-                  </div>
+                  
+                  <h3 class="text-lg font-semibold text-white mb-2">Upload New File</h3>
+                  <p class="text-sm text-gray-400 mb-6 px-4">Drag & drop PDF or TXT files here, or click to browse.</p>
+                  
+                  <button 
+                    @click="$refs.fileInput.click()" 
+                    class="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-medium transition shadow-lg shadow-blue-900/20 active:scale-95"
+                  >
+                    Select File
+                  </button>
+                </div>
+              </div>
+
+               <!-- Tips Card -->
+              <div class="mt-6 bg-slate-800/30 border border-slate-700/50 rounded-xl p-5">
+                <h4 class="font-medium text-gray-300 mb-3 flex items-center gap-2">
+                  <span class="text-blue-400">💡</span> Tips
+                </h4>
+                <ul class="text-sm text-gray-400 space-y-2 list-disc list-inside">
+                  <li>Use clear, readable PDFs.</li>
+                  <li>Max file size: 50MB.</li>
+                  <li>Text-based PDFs work best.</li>
+                  <li>Thai language is supported.</li>
+                </ul>
+              </div>
+            </div>
+
+            <!-- Right Column: List -->
+            <div class="lg:col-span-2">
+              <div class="bg-slate-800/20 border border-slate-700/50 rounded-2xl overflow-hidden min-h-[500px] flex flex-col">
+                <div class="p-4 border-b border-gray-700/50 bg-slate-800/40 flex justify-between items-center">
+                  <h3 class="font-semibold text-gray-200 pl-2">Indexed Documents</h3>
+                  <!-- Future: Search Input could go here -->
                 </div>
                 
-                <div class="flex items-center gap-2">
-                   <span class="text-xs px-2.5 py-1 bg-green-500/10 text-green-400 rounded-full border border-green-500/20">Indexed</span>
+                <div v-if="documents.length === 0" class="flex-1 flex flex-col items-center justify-center text-gray-500 p-10">
+                  <div class="w-20 h-20 bg-slate-800 rounded-full flex items-center justify-center mb-4 text-3xl opacity-50">📂</div>
+                  <p>No documents found.</p>
+                  <p class="text-sm mt-1">Upload a document to start building your knowledge base.</p>
+                </div>
+
+                <div v-else class="p-4 space-y-3 max-h-[600px] overflow-y-auto custom-scrollbar">
+                  <div 
+                    v-for="doc in documents" 
+                    :key="doc.name"
+                    class="bg-slate-800 border border-slate-700 p-4 rounded-xl flex items-center justify-between hover:border-blue-500/30 hover:bg-slate-700/50 transition group"
+                  >
+                    <div class="flex items-center gap-4 min-w-0">
+                      <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-slate-700 to-slate-800 flex items-center justify-center text-gray-300 font-bold text-xs shadow-inner flex-shrink-0">
+                        {{ getExt(doc.name) }}
+                      </div>
+                      <div class="min-w-0">
+                        <h4 class="font-medium text-gray-200 group-hover:text-blue-400 transition-colors truncate pr-4" :title="doc.name">
+                          {{ doc.name }}
+                        </h4>
+                        <div class="flex items-center gap-3 text-xs text-gray-500 mt-1">
+                          <span class="flex items-center gap-1">
+                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
+                             {{ doc.chunks }} chunks
+                          </span>
+                          <span class="w-1 h-1 bg-gray-600 rounded-full"></span>
+                          <span>{{ new Date(doc.timestamp).toLocaleDateString() }}</span>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div class="flex items-center gap-3 pl-4">
+                       <span class="text-xs font-medium px-2.5 py-1 bg-emerald-500/10 text-emerald-400 rounded-full border border-emerald-500/20 whitespace-nowrap">
+                         Active
+                       </span>
+                       <!-- Future: Delete button -->
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
 
+          </div>
         </div>
       </div>
     </main>
