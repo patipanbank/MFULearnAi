@@ -75,10 +75,22 @@ onMounted(() => {
   justify-content: center;
   background: transparent;
   border: 1px solid var(--color-border);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   color: var(--color-text-secondary);
   cursor: pointer;
   transition: all 0.15s;
+  flex-shrink: 0;
+}
+
+@media (max-width: 640px) {
+    .btn-menu {
+        width: 100%;
+        height: 100%;
+        aspect-ratio: 1; /* Keep it square-ish if possible, or just fit */
+        border: none;
+        padding: 0;
+    }
 }
 
 .btn-menu:hover {
@@ -138,10 +150,52 @@ onMounted(() => {
   padding-right: 4px;
 }
 
+  padding-right: 4px;
+}
+
 @media (max-width: 640px) {
   .user-name { display: none; }
+  
   .chat-header {
-      padding: 0 16px; /* Reduce padding */
+      padding: 0 8px; /* Reduced outer padding */
+      gap: 4px; /* Small gap to separate sections */
+  }
+
+  .header-left {
+      flex: 1; /* Grows to take up 90% space alongside header-right */
+      width: 90%; /* Logic: 10% hamburger + 80% selector */
+      gap: 8px;
+  }
+  
+  .header-right {
+      flex: 0 0 10%; /* Fixed 10% width */
+      display: flex;
+      justify-content: center;
+  }
+
+  /* Hamburger Container */
+  .header-left > .btn-menu {
+      flex: 0 0 10%; /* 10% of the left container? No, 10% of total screen roughly */
+      width: 40px; /* Fallback */
+      min-width: 32px;
+  }
+
+  /* Knowledge Selector Container */
+  .header-left > .ml-6 {
+      margin-left: 0 !important;
+      flex: 1; /* Take remaining space (80%) */
+      width: 100%;
+      min-width: 0;
+  }
+  
+  .user-display {
+      padding: 0;
+      border: none;
+      background: transparent;
+  }
+  .user-avatar {
+      width: 32px;
+      height: 32px;
   }
 }
 </style>

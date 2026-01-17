@@ -249,16 +249,18 @@ onUnmounted(() => {
     border-radius: 9999px;
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     cursor: pointer;
-    min-width: 180px;
-    max-width: 240px; /* Cap width */
+    cursor: pointer;
+    min-width: 0; /* Allow shrinking */
+    max-width: 240px;
     color: var(--color-text-primary);
 }
 
 @media (max-width: 640px) {
     .selector-trigger {
-        min-width: auto; /* Allow shrinking */
-        max-width: 160px; /* Constrain on mobile */
-        padding-right: 12px;
+        width: 100%; /* Fill the parent container (which is ~80% of screen) */
+        max-width: none; /* Remove caps */
+        padding-right: 8px;
+        min-width: 0;
     }
 }
 
@@ -296,19 +298,23 @@ onUnmounted(() => {
     text-overflow: ellipsis;
     overflow: hidden;
     text-overflow: ellipsis;
-    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    width: 100%; /* Fill flex parent */
+    max-width: 100%; /* DO NOT hardcode pixels on desktop if flex is sufficient, but keeping for safety in other contexts */
 }
 
 @media (max-width: 640px) {
     .label-main {
-        max-width: 100px; /* Truncate aggressively on mobile */
         font-size: 13px;
+        /* Width is handled by flex parent constraints */
     }
 }
 
 .chevron {
     color: var(--color-text-secondary);
     transition: transform 0.2s ease;
+    flex-shrink: 0; /* Never shrink the arrow */
 }
 
 .selector-trigger:hover .chevron {
