@@ -93,30 +93,30 @@ const isActive = (href) => route.path.startsWith(href)
     </button>
 
     <!-- Navigation -->
-    <nav class="flex-1 overflow-y-auto px-3 space-y-2 py-4">
+    <nav class="flex-1 overflow-y-auto px-3 space-y-1 py-4">
         <template v-for="item in navigation" :key="item.name">
             <router-link 
                 v-if="!item.auth || authStore.user?.role === item.auth"
                 :to="item.href"
                 @click="closeMobileMenu"
-                class="flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-200 group relative"
+                class="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group relative"
                 :class="[
                     isActive(item.href)
-                        ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/30 ring-1 ring-white/10' 
+                        ? 'bg-blue-600 text-white shadow-md shadow-blue-900/20' 
                         : 'text-slate-400 hover:bg-slate-800/50 hover:text-slate-200'
                 ]"
             >
-                <component :is="item.icon" class="w-6 h-6 shrink-0 transition-transform duration-300" :class="isActive(item.href) ? 'scale-110' : ''" />
+                <component :is="item.icon" class="w-5 h-5 shrink-0 transition-transform duration-300" :class="isActive(item.href) ? 'scale-110' : ''" />
                 
                 <span 
-                    class="font-medium whitespace-nowrap overflow-hidden transition-all duration-300"
+                    class="text-sm font-medium whitespace-nowrap overflow-hidden transition-all duration-300"
                     :class="[ isCollapsed && !isMobileOpen ? 'lg:w-0 lg:opacity-0' : 'w-auto opacity-100' ]"
                 >
                     {{ item.name }}
                 </span>
 
                 <!-- Tooltip (Collapsed) -->
-                <div v-if="isCollapsed && !isMobileOpen" class="absolute left-full ml-4 px-3 py-1.5 bg-slate-800 text-white text-xs font-medium rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-200 shadow-xl border border-slate-700 whitespace-nowrap z-50 translate-x-[-10px] group-hover:translate-x-0">
+                <div v-if="isCollapsed && !isMobileOpen" class="absolute left-full ml-4 px-2.5 py-1.5 bg-slate-900 text-slate-200 text-xs font-medium rounded-md opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-200 shadow-xl border border-slate-700/50 whitespace-nowrap z-50 translate-x-[-8px] group-hover:translate-x-0">
                     {{ item.name }}
                 </div>
             </router-link>
@@ -128,20 +128,20 @@ const isActive = (href) => route.path.startsWith(href)
         <!-- Theme Toggle -->
         <button 
             @click="toggleTheme" 
-            class="w-full flex items-center gap-3 px-3 py-3 rounded-xl text-slate-400 hover:bg-slate-800/50 hover:text-white transition-all group relative"
+            class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-400 hover:bg-slate-800/50 hover:text-white transition-all group relative"
         >
-            <svg v-if="isDark" class="w-6 h-6 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
-            <svg v-else class="w-6 h-6 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path></svg>
+            <svg v-if="isDark" class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
+            <svg v-else class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path></svg>
             
             <span 
-                 class="font-medium whitespace-nowrap overflow-hidden transition-all duration-300"
+                 class="text-sm font-medium whitespace-nowrap overflow-hidden transition-all duration-300"
                  :class="[ isCollapsed && !isMobileOpen ? 'lg:w-0 lg:opacity-0' : 'w-auto opacity-100' ]"
             >
                 {{ isDark ? 'Light Mode' : 'Dark Mode' }}
             </span>
 
              <!-- Tooltip (Collapsed) -->
-             <div v-if="isCollapsed && !isMobileOpen" class="absolute left-full ml-4 px-3 py-1.5 bg-slate-800 text-white text-xs font-medium rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-200 shadow-xl border border-slate-700 whitespace-nowrap z-50">
+             <div v-if="isCollapsed && !isMobileOpen" class="absolute left-full ml-4 px-2.5 py-1.5 bg-slate-900 text-slate-200 text-xs font-medium rounded-md opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-200 shadow-xl border border-slate-700/50 whitespace-nowrap z-50">
                 Theme
             </div>
         </button>
@@ -149,18 +149,18 @@ const isActive = (href) => route.path.startsWith(href)
         <!-- Logout -->
         <button 
             @click="handleLogout" 
-            class="w-full flex items-center gap-3 px-3 py-3 rounded-xl text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-all group relative"
+            class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-all group relative"
         >
-            <ArrowLeftOnRectangleIcon class="w-6 h-6 shrink-0" />
+            <ArrowLeftOnRectangleIcon class="w-5 h-5 shrink-0" />
              <span 
-                 class="font-medium whitespace-nowrap overflow-hidden transition-all duration-300"
+                 class="text-sm font-medium whitespace-nowrap overflow-hidden transition-all duration-300"
                  :class="[ isCollapsed && !isMobileOpen ? 'lg:w-0 lg:opacity-0' : 'w-auto opacity-100' ]"
             >
                 Sign Out
             </span>
 
             <!-- Tooltip (Collapsed) -->
-             <div v-if="isCollapsed && !isMobileOpen" class="absolute left-full ml-4 px-3 py-1.5 bg-slate-800 text-white text-xs font-medium rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-200 shadow-xl border border-slate-700 whitespace-nowrap z-50">
+             <div v-if="isCollapsed && !isMobileOpen" class="absolute left-full ml-4 px-2.5 py-1.5 bg-slate-900 text-slate-200 text-xs font-medium rounded-md opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-200 shadow-xl border border-slate-700/50 whitespace-nowrap z-50">
                 Sign Out
             </div>
         </button>
