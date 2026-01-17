@@ -31,17 +31,12 @@ const router = createRouter({
                 {
                     path: 'knowledge',
                     name: 'Knowledge',
-                    component: () => import('../views/Knowledge.vue')
-                },
-                {
-                    path: 'knowledge/:id',
-                    name: 'KnowledgeCollection',
-                    component: () => import('../views/KnowledgeCollection.vue')
+                    component: () => import('../views/knowledge/KnowledgeDashboard.vue')
                 },
                 {
                     path: 'admin',
                     name: 'Admin',
-                    component: () => import('../views/Admin.vue')
+                    component: () => import('../views/admin/AdminDashboard.vue')
                 }
             ]
         },
