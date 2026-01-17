@@ -111,17 +111,8 @@ const handleDeleteSession = async (sessionId) => {
     </div>
 
     <!-- 3. Navigation Links -->
-    <div class="sidebar-nav">
-        <router-link to="/chat" class="nav-item" active-class="active">
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
-            <span v-if="!isEffectiveCollapsed">Chat</span>
-        </router-link>
-        <router-link to="/knowledge" class="nav-item" active-class="active">
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg>
-            <span v-if="!isEffectiveCollapsed">Knowledge</span>
-        </router-link>
-        <!-- Admin Links moved to Settings Menu as per request -->
-    </div>
+    <!-- 3. Navigation Links (Moved to Settings) -->
+    <!-- <div class="sidebar-nav"></div> -->
 
     <!-- 4. Contextual Content (Scrollable) -->
     <div class="sidebar-content">
