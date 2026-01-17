@@ -2,9 +2,11 @@
 import { onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
+import { useLanguage } from '@/composables/useSettings'
 
 const router = useRouter()
 const authStore = useAuthStore()
+const { t } = useLanguage()
 
 onMounted(() => {
   const urlParams = new URLSearchParams(window.location.search)
@@ -43,8 +45,8 @@ onMounted(() => {
   <div class="callback-container">
     <div class="loader-card fade-in">
       <div class="spinner"></div>
-      <p class="loader-text">Authenticating...</p>
-      <p class="loader-subtext">Please wait while we verify your credentials</p>
+      <p class="loader-text">{{ t('authenticating') }}</p>
+      <p class="loader-subtext">{{ t('verifyCreds') }}</p>
     </div>
   </div>
 </template>

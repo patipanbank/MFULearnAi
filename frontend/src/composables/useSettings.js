@@ -76,7 +76,19 @@ export function useLanguage() {
             // Admin Dashboard
             adminTitle: 'แดชบอร์ดผู้ดูแลระบบ',
             adminSubtitle: 'ตั้งค่าระบบและจัดการผู้ใช้',
-            adminPlaceholder: 'กำหนดค่าระบบและจัดการการเข้าถึง'
+            adminPlaceholder: 'กำหนดค่าระบบและจัดการการเข้าถึง',
+
+            // Login & Auth
+            appSubtitle: 'ผู้ช่วย AI ขับเคลื่อนโดย MFU',
+            stagingEnv: 'สภาพแวดล้อมทดสอบ',
+            loginMFU: 'เข้าสู่ระบบด้วยบัญชี MFU',
+            loginGoogle: 'เข้าสู่ระบบด้วย Google',
+            agreeTo: 'เมื่อเข้าสู่ระบบ คุณยอมรับ',
+            terms: 'ข้อกำหนดการใช้งาน',
+            and: 'และ',
+            pdpa: 'นโยบาย PDPA',
+            authenticating: 'กำลังยืนยันตัวตน...',
+            verifyCreds: 'กรุณารอซักครู่ ระบบกำลังตรวจสอบข้อมูลของคุณ'
         },
         en: {
             // Chat
@@ -117,7 +129,19 @@ export function useLanguage() {
             // Admin Dashboard
             adminTitle: 'Admin Dashboard',
             adminSubtitle: 'System settings and user management',
-            adminPlaceholder: 'Configure system preferences and manage access'
+            adminPlaceholder: 'Configure system preferences and manage access',
+
+            // Login & Auth
+            appSubtitle: 'AI Assistant powered by MFU',
+            stagingEnv: 'Staging Environment',
+            loginMFU: 'Login with MFU Account',
+            loginGoogle: 'Login with Google',
+            agreeTo: 'By logging in, you agree to our',
+            terms: 'Terms of Service',
+            and: 'and',
+            pdpa: 'PDPA Policy',
+            authenticating: 'Authenticating...',
+            verifyCreds: 'Please wait while we verify your credentials'
         }
     }
 
