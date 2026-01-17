@@ -105,11 +105,11 @@ const handleSelectSession = (sessionId) => {
   flex-direction: column;
   width: 260px;
   height: 100%;
-  background-color: #0f172a; /* Slate 900 */
-  border-right: 1px solid #1e293b; /* Slate 800 */
+  background-color: var(--color-bg-primary); 
+  border-right: 1px solid var(--color-border); 
   transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   overflow: hidden;
-  color: #94a3b8; /* Slate 400 */
+  color: var(--color-text-muted); 
   z-index: 50;
   position: relative;
 }
@@ -153,13 +153,13 @@ const handleSelectSession = (sessionId) => {
 .logo-text {
   font-size: 18px;
   font-weight: 600;
-  color: #f1f5f9;
+  color: var(--color-text-primary);
 }
 
 .toggle-btn {
   background: none;
   border: none;
-  color: #64748b;
+  color: var(--color-text-muted);
   cursor: pointer;
   padding: 4px;
   border-radius: 4px;
@@ -167,8 +167,8 @@ const handleSelectSession = (sessionId) => {
 }
 
 .toggle-btn:hover {
-  color: #f1f5f9;
-  background-color: rgba(255,255,255,0.05);
+  color: var(--color-text-primary);
+  background-color: var(--color-bg-hover);
 }
 
 .collapsed .logo-text, 
@@ -192,7 +192,7 @@ const handleSelectSession = (sessionId) => {
   align-items: center;
   justify-content: center;
   gap: 10px;
-  background: linear-gradient(to right, #2563eb, #3b82f6);
+  background: var(--color-accent);
   color: white;
   border: none;
   padding: 10px;
@@ -222,21 +222,21 @@ const handleSelectSession = (sessionId) => {
   padding: 0 12px;
   /* Scrollbar Styling */
   scrollbar-width: thin;
-  scrollbar-color: #334155 transparent;
+  scrollbar-color: var(--color-border) transparent;
 }
 
 .sidebar-content::-webkit-scrollbar {
   width: 4px;
 }
 .sidebar-content::-webkit-scrollbar-thumb {
-  background-color: #334155;
+  background-color: var(--color-border);
   border-radius: 4px;
 }
 
 .section-label {
   font-size: 11px;
   font-weight: 700;
-  color: #475569;
+  color: var(--color-text-secondary);
   padding: 8px 12px 4px;
   text-transform: uppercase;
 }
@@ -256,7 +256,7 @@ const handleSelectSession = (sessionId) => {
   background: none;
   border: none;
   text-align: left;
-  color: #94a3b8;
+  color: var(--color-text-muted);
   border-radius: 6px;
   cursor: pointer;
   font-size: 13px;
@@ -264,13 +264,13 @@ const handleSelectSession = (sessionId) => {
 }
 
 .session-item:hover {
-  background-color: rgba(30, 41, 59, 0.5);
-  color: #f1f5f9;
+  background-color: var(--color-bg-hover);
+  color: var(--color-text-primary);
 }
 
 .session-item.active {
-  color: #60a5fa;
-  background-color: rgba(59, 130, 246, 0.05);
+  color: var(--color-accent);
+  background-color: var(--color-accent-light);
 }
 
 .session-text {
@@ -281,9 +281,9 @@ const handleSelectSession = (sessionId) => {
 
 /* 4. Footer */
 .sidebar-footer {
-  border-top: 1px solid #1e293b;
+  border-top: 1px solid var(--color-border);
   padding: 16px;
-  background-color: #0b1121;
+  background-color: var(--color-bg-primary); /* Or darker if needed, but primary is safe */
   flex-shrink: 0;
 }
 
@@ -292,18 +292,18 @@ const handleSelectSession = (sessionId) => {
   display: flex;
   align-items: center;
   gap: 12px;
-  background: #1e293b;
-  border: 1px solid #334155;
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
   padding: 8px;
   border-radius: 8px;
-  color: #e2e8f0;
+  color: var(--color-text-primary);
   cursor: pointer;
   transition: all 0.2s;
 }
 
 .settings-trigger-btn:hover {
-  background: #334155;
-  border-color: #475569;
+  background: var(--color-bg-hover);
+  border-color: var(--color-text-muted);
 }
 
 .settings-trigger-btn.collapsed {
@@ -314,7 +314,7 @@ const handleSelectSession = (sessionId) => {
 .user-avatar-small {
   width: 28px;
   height: 28px;
-  background: #475569;
+  background: var(--color-text-secondary);
   border-radius: 50%;
   display: flex;
   align-items: center;

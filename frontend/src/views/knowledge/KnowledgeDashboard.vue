@@ -37,18 +37,18 @@
 h1 {
   font-size: 28px;
   font-weight: 700;
-  color: #f1f5f9;
+  color: var(--color-text-primary);
   margin: 0 0 8px 0;
 }
 
 .subtitle {
-  color: #94a3b8;
+  color: var(--color-text-muted);
   font-size: 16px;
 }
 
 .placeholder-content {
-  background: rgba(30, 41, 59, 0.4);
-  border: 1px solid #334155;
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
   border-radius: 12px;
   height: 400px;
   display: flex;
@@ -66,12 +66,12 @@ h1 {
 }
 
 h3 {
-  color: #e2e8f0;
+  color: var(--color-text-primary);
   font-size: 20px;
   margin-bottom: 8px;
 }
 
 p {
-  color: #64748b;
+  color: var(--color-text-secondary);
 }
 </style>

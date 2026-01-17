@@ -126,9 +126,9 @@ const navigateTo = (path) => {
 
 .settings-menu-content {
   width: 300px;
-  background: #1e293b;
-  border-right: 1px solid #334155;
-  border-top: 1px solid #334155;
+  background: var(--color-bg-secondary);
+  border-right: 1px solid var(--color-border);
+  border-top: 1px solid var(--color-border);
   height: 100vh;
   display: flex;
   flex-direction: column;
@@ -152,21 +152,21 @@ const navigateTo = (path) => {
 .menu-title {
   font-size: 18px;
   font-weight: 600;
-  color: white;
+  color: var(--color-text-primary);
   margin: 0;
 }
 
 .close-btn {
   background: none;
   border: none;
-  color: #94a3b8;
+  color: var(--color-text-muted);
   cursor: pointer;
   padding: 4px;
   transition: color 0.2s;
 }
 
 .close-btn:hover {
-  color: white;
+  color: var(--color-text-primary);
 }
 
 /* User Section */
@@ -184,7 +184,7 @@ const navigateTo = (path) => {
   height: 64px;
   background: linear-gradient(135deg, #3b82f6, #6366f1);
   border-radius: 50%;
-  border: 3px solid #1e293b;
+  border: 3px solid var(--color-bg-secondary);
   box-shadow: 0 0 0 2px #3b82f6;
   display: flex;
   align-items: center;
@@ -195,20 +195,20 @@ const navigateTo = (path) => {
 }
 
 .user-name {
-  color: white;
+  color: var(--color-text-primary);
   font-weight: 600;
   font-size: 16px;
 }
 
 .user-role {
-  color: #94a3b8;
+  color: var(--color-text-muted);
   font-size: 13px;
 }
 
 /* Divider */
 .divider {
   height: 1px;
-  background: #334155;
+  background: var(--color-border);
   margin: 16px 0;
 }
 
@@ -216,7 +216,7 @@ const navigateTo = (path) => {
 .section-label {
   font-size: 12px;
   font-weight: 700;
-  color: #64748b;
+  color: var(--color-text-secondary);
   text-transform: uppercase;
   margin-bottom: 12px;
   letter-spacing: 0.05em;
@@ -237,19 +237,19 @@ const navigateTo = (path) => {
   background: transparent;
   border: none;
   border-radius: 8px;
-  color: #cbd5e1;
+  color: var(--color-text-secondary);
   cursor: pointer;
   transition: all 0.2s;
   text-align: left;
 }
 
 .nav-btn:hover {
-  background: #334155;
-  color: white;
+  background: var(--color-bg-hover);
+  color: var(--color-text-primary);
 }
 
 .nav-btn.active {
-  background: #3b82f6;
+  background: var(--color-accent);
   color: white;
 }
 
@@ -286,14 +286,14 @@ const navigateTo = (path) => {
   background: transparent;
   border: none;
   border-radius: 8px;
-  color: #cbd5e1;
+  color: var(--color-text-secondary);
   cursor: pointer;
   transition: all 0.2s;
 }
 
 .setting-item:hover {
-  background: #334155;
-  color: white;
+  background: var(--color-bg-hover);
+  color: var(--color-text-primary);
 }
 
 .setting-left {
@@ -306,7 +306,7 @@ const navigateTo = (path) => {
 
 .setting-value {
   font-size: 13px;
-  color: #94a3b8;
+  color: var(--color-text-muted);
 }
 
 /* Logout */
@@ -321,7 +321,7 @@ const navigateTo = (path) => {
   background: rgba(239, 68, 68, 0.1);
   border: 1px solid rgba(239, 68, 68, 0.2);
   border-radius: 8px;
-  color: #ef4444;
+  color: var(--color-error);
   cursor: pointer;
   font-weight: 600;
   transition: all 0.2s;

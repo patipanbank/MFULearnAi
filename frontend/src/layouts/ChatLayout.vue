@@ -35,7 +35,7 @@ const userInitial = computed(() => authStore.displayName?.charAt(0)?.toUpperCase
   height: 100vh;
   width: 100vw;
   overflow: hidden;
-  background-color: #0f172a;
+  background-color: var(--color-bg-primary);
 }
 
 .chat-main-content {
