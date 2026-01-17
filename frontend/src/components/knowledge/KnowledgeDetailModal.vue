@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useKnowledgeStore } from '@/stores/knowledge'
 
@@ -33,6 +33,9 @@ const formatDate = (dateString) => {
     if (!dateString) return '-'
     return new Date(dateString).toLocaleDateString() + ' ' + new Date(dateString).toLocaleTimeString()
 }
+
+const showReadMode = ref(false)
+const toggleReadMode = () => showReadMode.value = !showReadMode.value
 </script>
 
 <template>
@@ -79,10 +82,32 @@ const formatDate = (dateString) => {
         </div>
 
         <div class="detail-group">
-            <label>Content Preview</label>
+            <div class="content-header">
+                <label>Content Preview</label>
+                <button v-if="item.content" class="btn-icon" @click="toggleReadMode" title="Read Full Content">
+                    ⤢ Expand
+                </button>
+            </div>
+            
             <div class="content-box">
                 <pre v-if="item.content">{{ item.content }}</pre>
-                <div v-else class="no-content">No content available for preview.</div>
+                <div v-else class="no-content">
+                    <p>No content available.</p>
+                    <small>Files uploaded before the latest update do not have readable content stored.</small>
+                </div>
+            </div>
+        </div>
+
+        <!-- Full Screen Read Modal -->
+        <div v-if="showReadMode && item.content" class="read-mode-overlay" @click="toggleReadMode">
+            <div class="read-mode-content" @click.stop>
+                <div class="read-header">
+                    <h3>{{ item.title }}</h3>
+                    <button class="close-btn" @click="toggleReadMode">×</button>
+                </div>
+                <div class="read-body">
+                    <pre>{{ item.content }}</pre>
+                </div>
             </div>
         </div>
 
@@ -306,5 +331,75 @@ h4 {
     font-size: 13px;
     text-align: center;
     padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.content-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 4px;
+}
+
+.btn-icon {
+    background: none;
+    border: none;
+    color: var(--color-accent);
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 600;
+}
+.btn-icon:hover { text-decoration: underline; }
+
+/* Read Mode Overlay */
+.read-mode-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.8);
+    z-index: 2000;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    backdrop-filter: blur(4px);
+}
+
+.read-mode-content {
+    background: var(--color-bg-card);
+    width: 800px;
+    max-width: 95%;
+    height: 90vh;
+    border-radius: 12px;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+}
+
+.read-header {
+    padding: 16px 24px;
+    border-bottom: 1px solid var(--color-border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.read-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 24px;
+    background: var(--color-bg-tertiary);
+}
+
+.read-body pre {
+    white-space: pre-wrap;
+    font-family: 'Inter', sans-serif; /* More readable than mono */
+    font-size: 16px;
+    line-height: 1.6;
+    color: var(--color-text-primary);
+    max-width: 100%;
 }
 </style>
