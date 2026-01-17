@@ -4,25 +4,24 @@ const THEME_KEY = 'mful_theme'
 const LANG_KEY = 'mful_lang'
 
 // Global State (Singleton)
-const isDark = ref(true)
+const savedTheme = localStorage.getItem(THEME_KEY)
+const systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches
+const initialDark = savedTheme ? savedTheme === 'dark' : systemDark
+
+const isDark = ref(initialDark)
 const lang = ref('th')
 
 export function useTheme() {
-    // Initialize from localStorage or system preference
-    const init = () => {
-        const saved = localStorage.getItem(THEME_KEY)
-        if (saved) {
-            isDark.value = saved === 'dark'
-        } else {
-            // Check system preference
-            isDark.value = window.matchMedia('(prefers-color-scheme: dark)').matches
-        }
-        applyTheme()
-    }
-
     const applyTheme = () => {
         document.documentElement.setAttribute('data-theme', isDark.value ? 'dark' : 'light')
         localStorage.setItem(THEME_KEY, isDark.value ? 'dark' : 'light')
+    }
+
+    // Initialize from localStorage or system preference
+    const init = () => {
+        // Re-apply in case DOM wasn't ready during initial load, 
+        // or if we want to ensure sync.
+        applyTheme()
     }
 
     const toggle = () => {
