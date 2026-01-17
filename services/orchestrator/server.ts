@@ -404,7 +404,13 @@ app.delete('/api/chat/:sessionId', authenticateToken, async (req: any, res: Resp
 
     try {
         const historyKey = `chat:${userId}:${sessionId}`;
+
+        // 1. Clear from Redis
         await redis.del(historyKey);
+
+        // 2. Clear from MongoDB
+        await Conversation.findOneAndDelete({ userId, sessionId });
+
         logActivity('info', 'session_cleared', { sessionId }, userId);
         res.json({ success: true });
     } catch (error: any) {
