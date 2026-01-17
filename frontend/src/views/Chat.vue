@@ -117,12 +117,12 @@ const handleCopyMessage = (content) => {
       
       <!-- Context Bar -->
       <div v-if="collections.length > 0" class="px-6 py-2 bg-slate-900 border-b border-slate-700/50 flex items-center gap-3">
-        <span class="text-xs font-medium text-blue-400 uppercase tracking-wider">Active Knowledge:</span>
+        <span class="text-xs font-medium text-blue-400 uppercase tracking-wider">{{ t('activeKnowledge') }}</span>
         <select 
             v-model="chatStore.currentCollectionId" 
             class="bg-slate-800 text-gray-200 text-sm rounded-lg border border-slate-700 px-3 py-1 focus:ring-2 focus:ring-blue-500 focus:outline-none"
         >
-            <option :value="null">Default Collection (Admin Managed)</option>
+            <option :value="null">{{ t('defaultCollection') }}</option>
             <option v-for="col in collections" :key="col._id" :value="col._id">
                 {{ col.name }}
             </option>

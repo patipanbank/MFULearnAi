@@ -50,6 +50,9 @@ export function useLanguage() {
             uploadFile: 'อัพโหลดไฟล์',
             copy: 'คัดลอก',
             copied: 'คัดลอกแล้ว',
+            activeKnowledge: 'แหล่งความรู้ที่ใช้งาน:',
+            defaultCollection: 'คอลเลกชันมาตรฐาน (จัดการโดยแอดมิน)',
+            newConversation: 'บทสนทนาใหม่',
 
             // Navigation & Menu
             menu: 'เมนู',
@@ -88,6 +91,9 @@ export function useLanguage() {
             uploadFile: 'Upload File',
             copy: 'Copy',
             copied: 'Copied',
+            activeKnowledge: 'Active Knowledge:',
+            defaultCollection: 'Default Collection (Admin Managed)',
+            newConversation: 'New Conversation',
 
             // Navigation & Menu
             menu: 'Menu',
