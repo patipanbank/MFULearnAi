@@ -50,6 +50,7 @@ export function useLanguage() {
             copy: 'คัดลอก',
             copied: 'คัดลอกแล้ว',
             activeKnowledge: 'แหล่งความรู้ที่ใช้งาน:',
+            selectContext: 'เลือกบริบท',
             defaultCollection: 'คอลเลกชันมาตรฐาน (จัดการโดยแอดมิน)',
             newConversation: 'บทสนทนาใหม่',
 
@@ -110,6 +111,7 @@ export function useLanguage() {
             copy: 'Copy',
             copied: 'Copied',
             activeKnowledge: 'Active Knowledge:',
+            selectContext: 'Select Context',
             defaultCollection: 'Default Collection (Admin Managed)',
             newConversation: 'New Conversation',
 
