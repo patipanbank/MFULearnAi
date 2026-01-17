@@ -33,6 +33,15 @@ const handleSelectSession = (sessionId) => {
         router.push('/chat')
     }
 }
+
+const handleDeleteSession = async (sessionId) => {
+    if (!confirm(t('confirmDeleteChat') || 'Delete this chat?')) return
+    await chatStore.deleteSession(sessionId) // Need to ensure store has this
+    if (chatStore.currentSessionId === sessionId) {
+        chatStore.resetSession()
+    }
+    await chatStore.loadSessions()
+}
 </script>
 
 <template>
@@ -77,6 +86,14 @@ const handleSelectSession = (sessionId) => {
           >
             <svg class="session-icon" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
             <span class="session-text" v-if="!isCollapsed">{{ session.metadata?.title || t('newConversation') }}</span>
+            <button 
+                class="delete-btn"
+                @click.stop="handleDeleteSession(session.sessionId)"
+                :title="t('deleteChat')"
+                v-if="!isCollapsed"
+            >
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+            </button>
           </button>
         </div>
       </div>
@@ -265,6 +282,29 @@ const handleSelectSession = (sessionId) => {
 .session-item:hover {
   background-color: var(--color-bg-hover);
   color: var(--color-text-primary);
+}
+
+.session-item:hover .delete-btn {
+    opacity: 1;
+}
+
+.delete-btn {
+    opacity: 0;
+    margin-left: auto;
+    background: none;
+    border: none;
+    color: var(--color-text-muted);
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 4px;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+}
+
+.delete-btn:hover {
+    color: #ef4444;
+    background: rgba(239, 68, 68, 0.1);
 }
 
 .session-item.active {

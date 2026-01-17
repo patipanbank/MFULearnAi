@@ -173,15 +173,27 @@ export const useChatStore = defineStore('chat', () => {
         currentCollectionId.value = null
     }
 
-    // Clear current session (delete from backend)
+    // Clear current session (delete using current ID)
     async function clearSession() {
         if (!currentSessionId.value) return
+        await deleteSession(currentSessionId.value)
+    }
 
+    // Delete a specific session
+    async function deleteSession(sessionId) {
         try {
-            await api.delete(`/chat/${currentSessionId.value}`)
-            messages.value = []
+            await api.delete(`/chat/${sessionId}`)
+            // Remove from local list
+            sessions.value = sessions.value.filter(s => s.sessionId !== sessionId)
+
+            // If deleting current session, clear messages
+            if (currentSessionId.value === sessionId) {
+                messages.value = []
+                currentSessionId.value = null
+            }
         } catch (error) {
-            console.error('Failed to clear session:', error)
+            console.error('Failed to delete session:', error)
+            throw error
         }
     }
 
@@ -203,6 +215,7 @@ export const useChatStore = defineStore('chat', () => {
         loadSessions,
         fetchModels,
         sendMessage,
-        clearSession
+        clearSession,
+        deleteSession
     }
 })
