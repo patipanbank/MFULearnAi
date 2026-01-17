@@ -114,7 +114,7 @@ const handleCopyMessage = (content) => {
 
 <template>
   <div class="chat-layout">
-    <!-- Sidebar -->
+    <!-- Sidebar (Session List) -->
     <ChatSidebar
       v-model="showSidebar"
       :sessions="chatStore.sessions"
@@ -134,6 +134,7 @@ const handleCopyMessage = (content) => {
         :is-dark="isDark"
         :lang="lang"
         :t="t"
+        :show-sidebar-toggle="true"
         @toggle-sidebar="showSidebar = !showSidebar"
         @toggle-theme="toggleTheme"
         @toggle-lang="toggleLang"

@@ -4,20 +4,10 @@ const router = createRouter({
     history: createWebHistory(import.meta.env.BASE_URL),
     routes: [
         {
-            path: '/',
-            redirect: '/login'
-        },
-        {
             path: '/login',
             name: 'Login',
             component: () => import('../views/Login.vue'),
             meta: { requiresGuest: true }
-        },
-        {
-            path: '/chat',
-            name: 'Chat',
-            component: () => import('../views/Chat.vue'),
-            meta: { requiresAuth: true }
         },
         {
             path: '/auth-callback',
@@ -25,16 +15,30 @@ const router = createRouter({
             component: () => import('../views/AuthCallback.vue')
         },
         {
-            path: '/knowledge',
-            name: 'Knowledge',
-            component: () => import('../views/Knowledge.vue'),
-            meta: { requiresAuth: true }
-        },
-        {
-            path: '/knowledge/:id',
-            name: 'KnowledgeCollection',
-            component: () => import('../views/KnowledgeCollection.vue'),
-            meta: { requiresAuth: true }
+            path: '/',
+            component: () => import('../layouts/AppLayout.vue'),
+            meta: { requiresAuth: true },
+            children: [
+                {
+                    path: '',
+                    redirect: '/chat'
+                },
+                {
+                    path: 'chat',
+                    name: 'Chat',
+                    component: () => import('../views/Chat.vue')
+                },
+                {
+                    path: 'knowledge',
+                    name: 'Knowledge',
+                    component: () => import('../views/Knowledge.vue')
+                },
+                {
+                    path: 'knowledge/:id',
+                    name: 'KnowledgeCollection',
+                    component: () => import('../views/KnowledgeCollection.vue')
+                }
+            ]
         },
         {
             path: '/:pathMatch(.*)*',

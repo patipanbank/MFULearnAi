@@ -4,7 +4,8 @@ import { ref } from 'vue'
 const props = defineProps({
   envName: { type: String, default: 'MFULearnAI' },
   userName: { type: String, default: 'User' },
-  userInitial: { type: String, default: 'U' }
+  userInitial: { type: String, default: 'U' },
+  showSidebarToggle: { type: Boolean, default: true }
 })
 
 const emit = defineEmits(['toggle-sidebar'])
@@ -13,7 +14,7 @@ const emit = defineEmits(['toggle-sidebar'])
 <template>
   <header class="chat-header">
     <div class="header-left">
-      <button class="btn-menu" @click="emit('toggle-sidebar')">
+      <button v-if="showSidebarToggle" class="btn-menu" @click="emit('toggle-sidebar')">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <line x1="3" y1="12" x2="21" y2="12"/>
           <line x1="3" y1="6" x2="21" y2="6"/>

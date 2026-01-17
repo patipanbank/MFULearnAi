@@ -5,7 +5,7 @@ import axios from 'axios';
 import { useAuthStore } from '@/stores/auth';
 import { useChatStore } from '@/stores/chat';
 import { useTheme, useLanguage } from '@/composables/useSettings';
-import { ChatSidebar, ChatHeader } from '@/components/chat';
+import { ChatHeader } from '@/components/chat';
 import { 
     FolderIcon, 
     DocumentTextIcon, 
@@ -29,7 +29,6 @@ const collections = ref([]);
 const knowledgeAssets = ref([]);
 const isLoading = ref(false);
 const activeTab = ref('collections');
-const showSidebar = ref(true);
 const searchQuery = ref('');
 const filterType = ref('all');
 
@@ -127,8 +126,6 @@ const uploadKnowledge = async () => {
 };
 
 // Navigation
-const handleNewChat = () => { chatStore.newSession(); router.push('/chat'); };
-const handleSelectSession = (id) => { chatStore.loadSession(id); router.push('/chat'); };
 const handleLogout = () => { authStore.logout(); router.push('/login'); };
 
 onMounted(() => {
@@ -141,19 +138,8 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="flex h-screen bg-[#0f172a] text-slate-100 font-sans overflow-hidden">
-    <ChatSidebar
-      v-model="showSidebar"
-      :sessions="chatStore.sessions"
-      :current-session-id="chatStore.currentSessionId"
-      :t="t"
-      @new-chat="handleNewChat"
-      @select-session="handleSelectSession"
-      @toggle-theme="toggleTheme"
-      @toggle-lang="toggleLang"
-      @logout="handleLogout"
-    />
-
+  <div class="flex h-full bg-[#0f172a] text-slate-100 font-sans overflow-hidden">
+    <!-- Main Content -->
     <main class="flex-1 flex flex-col min-w-0 relative">
       <ChatHeader
         :env-name="envName"
@@ -162,9 +148,8 @@ onMounted(() => {
         :is-dark="isDark"
         :lang="lang"
         :t="t"
-        :show-toggle="true"
+        :show-sidebar-toggle="false"
         class="border-b border-slate-700/50 bg-slate-900/80 backdrop-blur-md sticky top-0 z-30"
-        @toggle-sidebar="showSidebar = !showSidebar"
         @toggle-theme="toggleTheme"
         @toggle-lang="toggleLang"
         @logout="handleLogout"
