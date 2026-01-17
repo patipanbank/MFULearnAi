@@ -74,6 +74,22 @@ export const useAuthStore = defineStore('auth', () => {
         }
     }
 
+    // Admin Login
+    async function loginAdmin(username, password) {
+        isLoading.value = true
+        try {
+            const response = await api.post('/auth/admin/login', { username, password })
+            const { token, user } = response.data
+            setAuth(token, user)
+            return true
+        } catch (error) {
+            console.error('Login failed:', error)
+            throw error
+        } finally {
+            isLoading.value = false
+        }
+    }
+
     return {
         user,
         token,
@@ -87,6 +103,7 @@ export const useAuthStore = defineStore('auth', () => {
         init,
         setAuth,
         logout,
-        refreshUser
+        refreshUser,
+        loginAdmin
     }
 })
