@@ -21,7 +21,7 @@ const showSettings = ref(false)
 
 // Methods
 const handleNewChat = () => {
-    chatStore.newSession()
+    chatStore.resetSession()
     if (route.path !== '/chat') {
         router.push('/chat')
     }

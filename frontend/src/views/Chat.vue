@@ -67,9 +67,9 @@ onMounted(() => {
     return
   }
   
-  if (!chatStore.currentSessionId) {
-    chatStore.newSession()
-  }
+  // if (!chatStore.currentSessionId) {
+  //   chatStore.newSession()
+  // }
   
   chatStore.fetchModels()
   chatStore.loadSessions()

@@ -70,6 +70,11 @@ export const useChatStore = defineStore('chat', () => {
     async function sendMessage(content, modelId = null) {
         if (!content.trim() || isStreaming.value) return
 
+        // Lazy session creation: if no session, create one now
+        if (!currentSessionId.value) {
+            newSession()
+        }
+
         // Use passed modelId, or first available, or fallback
         const selectedModel = modelId ||
             (availableModels.value.length > 0 ? availableModels.value[0] : 'anthropic.claude-3-5-sonnet-20240620-v1:0')
@@ -161,7 +166,14 @@ export const useChatStore = defineStore('chat', () => {
         }
     }
 
-    // Clear current session
+    // Reset session state (visual only, no ID created yet)
+    function resetSession() {
+        currentSessionId.value = null
+        messages.value = []
+        currentCollectionId.value = null
+    }
+
+    // Clear current session (delete from backend)
     async function clearSession() {
         if (!currentSessionId.value) return
 
@@ -186,6 +198,7 @@ export const useChatStore = defineStore('chat', () => {
         isLoading,
         isStreaming,
         newSession,
+        resetSession,
         loadSession,
         loadSessions,
         fetchModels,
