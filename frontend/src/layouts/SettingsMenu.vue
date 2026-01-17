@@ -34,22 +34,11 @@ const navigateTo = (path) => {
   <div class="settings-menu-overlay" @click.self="emit('close')">
     <div class="settings-menu-content">
       <div class="menu-header">
-        <h3 class="menu-title">Settings & Navigation</h3>
+        <h3 class="menu-title">Menu</h3>
         <button class="close-btn" @click="emit('close')">
           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
         </button>
       </div>
-
-      <!-- User Profile Section -->
-      <div class="user-section">
-        <div class="avatar-large">{{ userInitials }}</div>
-        <div class="user-details">
-          <div class="user-name">{{ authStore.displayName }}</div>
-          <div class="user-role">User</div>
-        </div>
-      </div>
-
-      <div class="divider"></div>
 
       <!-- Navigation Links -->
       <nav class="nav-links">

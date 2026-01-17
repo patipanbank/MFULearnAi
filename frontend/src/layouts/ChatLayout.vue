@@ -1,8 +1,8 @@
 <script setup>
 import { computed } from 'vue'
 import { useAuthStore } from '@/stores/auth'
-import AppSidebar from '@/components/layout/AppSidebar.vue'
-import AppHeader from '@/components/layout/AppHeader.vue'
+import AppSidebar from './AppSidebar.vue'
+import AppHeader from './AppHeader.vue'
 
 const authStore = useAuthStore()
 
