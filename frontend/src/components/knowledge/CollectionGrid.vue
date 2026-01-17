@@ -35,7 +35,7 @@ const getTypeLabel = (type) => {
        </div>
        <div class="card-footer">
            <button class="btn-outline">Open</button>
-           <button class="btn-icon" @click.stop>⚙️</button>
+            <button class="btn-icon" @click.stop="$emit('edit', col)">⚙️</button>
        </div>
     </div>
     

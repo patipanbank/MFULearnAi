@@ -155,6 +155,34 @@ export const useKnowledgeStore = defineStore('knowledge', () => {
         }
     }
 
+    async function updateCollection(id, payload) {
+        loading.value = true
+        try {
+            await axios.put(`${API_URL}/knowledge/collections/${id}`, payload, getHeaders())
+            await fetchCollections()
+            return true
+        } catch (e) {
+            error.value = e.response?.data?.error || e.message
+            throw e
+        } finally {
+            loading.value = false
+        }
+    }
+
+    async function deleteCollection(id) {
+        loading.value = true
+        try {
+            await axios.delete(`${API_URL}/knowledge/collections/${id}`, getHeaders())
+            await fetchCollections()
+            return true
+        } catch (e) {
+            error.value = e.response?.data?.error || e.message
+            throw e
+        } finally {
+            loading.value = false
+        }
+    }
+
     async function fetchCollectionDetails(id) {
         loading.value = true
         currentCollection.value = null
@@ -199,6 +227,8 @@ export const useKnowledgeStore = defineStore('knowledge', () => {
         approvePublish,
         fetchCollections,
         createCollection,
+        updateCollection,
+        deleteCollection,
         fetchCollectionDetails,
         fetchCollectionDetails,
         mapKnowledge,

@@ -1,7 +1,11 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useKnowledgeStore } from '@/stores/knowledge'
 import { useAuthStore } from '@/stores/auth'
+
+const props = defineProps({
+    collection: { type: Object, default: null }
+})
 
 const emit = defineEmits(['close', 'success'])
 const knowledgeStore = useKnowledgeStore()
@@ -14,23 +18,55 @@ const loading = ref(false)
 const error = ref(null)
 
 const isAdmin = authStore.role === 'admin'
+const isEditMode = !!props.collection
 
-const handleCreate = async () => {
+onMounted(() => {
+    if (props.collection) {
+        name.value = props.collection.name
+        description.value = props.collection.description
+        type.value = props.collection.type
+    }
+})
+
+const handleSubmit = async () => {
     if (!name.value) return
     
     loading.value = true
     error.value = null
     
     try {
-        await knowledgeStore.createCollection({
-            name: name.value,
-            description: description.value,
-            type: type.value
-        })
+        if (isEditMode) {
+            await knowledgeStore.updateCollection(props.collection._id, {
+                name: name.value,
+                description: description.value,
+                type: type.value
+            })
+        } else {
+            await knowledgeStore.createCollection({
+                name: name.value,
+                description: description.value,
+                type: type.value
+            })
+        }
         emit('success')
     } catch (e) {
         error.value = e.message
     } finally {
+        loading.value = false
+    }
+}
+
+const handleDelete = async () => {
+    if (!confirm('Are you sure you want to delete this collection? This cannot be undone.')) return
+    
+    loading.value = true
+    error.value = null
+    
+    try {
+        await knowledgeStore.deleteCollection(props.collection._id)
+        emit('success')
+    } catch (e) {
+        error.value = e.message
         loading.value = false
     }
 }
@@ -39,7 +75,7 @@ const handleCreate = async () => {
 <template>
   <div class="modal-overlay" @click.self="emit('close')">
     <div class="knowledge-modal">
-       <h2>New Collection</h2>
+       <h2>{{ isEditMode ? 'Edit Collection' : 'New Collection' }}</h2>
        
        <div class="form-group">
           <label>Name</label>
@@ -56,16 +92,17 @@ const handleCreate = async () => {
           <select v-model="type">
               <option value="personal">Personal</option>
               <option v-if="isAdmin" value="department">Department</option>
-              <!-- Admins cannot create 'default' via UI easily without strict intent, leaving strictly department for now -->
           </select>
        </div>
 
        <div v-if="error" class="error">{{ error }}</div>
 
        <div class="actions">
+           <button v-if="isEditMode" class="btn-delete" @click="handleDelete" :disabled="loading">Delete</button>
+           <div class="spacer"></div>
            <button class="btn-cancel" @click="emit('close')">Cancel</button>
-           <button class="btn-primary" @click="handleCreate" :disabled="!name || loading">
-               {{ loading ? 'Creating...' : 'Create' }}
+           <button class="btn-primary" @click="handleSubmit" :disabled="!name || loading">
+               {{ loading ? 'Saving...' : (isEditMode ? 'Update' : 'Create') }}
            </button>
        </div>
     </div>
@@ -117,10 +154,12 @@ select, input {
 
 .actions {
     display: flex;
-    justify-content: flex-end;
     gap: 8px;
     margin-top: 24px;
+    align-items: center;
 }
+
+.spacer { flex: 1; }
 
 button {
     padding: 8px 16px;
@@ -133,6 +172,16 @@ button {
 .btn-cancel { background: transparent; color: var(--color-text-secondary); }
 .btn-primary { background: var(--color-accent); color: white; }
 .btn-primary:disabled { opacity: 0.5; }
+
+.btn-delete { 
+    background: transparent; 
+    color: #ef4444; 
+    border: 1px solid rgba(239, 68, 68, 0.2);
+    padding: 8px 12px;
+}
+.btn-delete:hover {
+    background: rgba(239, 68, 68, 0.1);
+}
 
 .error { color: #ef4444; font-size: 13px; margin-bottom: 12px; }
 </style>

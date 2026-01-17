@@ -50,6 +50,18 @@ const handleCollectionItemOpen = (item) => {
     showKnowledgeDetail.value = true
 }
 
+const editingCollection = ref(null)
+
+const openEditCollection = (col) => {
+    editingCollection.value = col
+    showCollectionModal.value = true
+}
+
+const closeCollectionModal = () => {
+    showCollectionModal.value = false
+    editingCollection.value = null
+}
+
 </script>
 
 <template>
@@ -117,12 +129,11 @@ const handleCollectionItemOpen = (item) => {
 
       <!-- Collections Tab -->
       <div v-if="activeTab === 'collections'" class="tab-pane fade-in">
-        <CollectionGrid @open="openCollection" />
+        <CollectionGrid @open="openCollection" @edit="openEditCollection" />
       </div>
     </div>
 
-    <!-- Modals -->
-    <Teleport to="body">
+      <Teleport to="body">
       <UploadModal 
         v-if="showUploadModal" 
         @close="showUploadModal = false"
@@ -131,8 +142,9 @@ const handleCollectionItemOpen = (item) => {
       
       <CreateCollectionModal 
         v-if="showCollectionModal"
-        @close="showCollectionModal = false"
-        @success="showCollectionModal = false; knowledgeStore.fetchCollections()"
+        :collection="editingCollection"
+        @close="closeCollectionModal"
+        @success="closeCollectionModal; knowledgeStore.fetchCollections()"
       />
 
       <KnowledgeDetailModal
