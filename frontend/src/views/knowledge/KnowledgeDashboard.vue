@@ -86,17 +86,19 @@ const isAdmin = authStore.role === 'admin'
     </div>
 
     <!-- Modals -->
-    <UploadModal 
-      v-if="showUploadModal" 
-      @close="showUploadModal = false"
-      @success="showUploadModal = false; knowledgeStore.fetchKnowledge()"
-    />
-    
-    <CreateCollectionModal 
-      v-if="showCollectionModal"
-      @close="showCollectionModal = false"
-      @success="showCollectionModal = false; knowledgeStore.fetchCollections()"
-    />
+    <Teleport to="body">
+      <UploadModal 
+        v-if="showUploadModal" 
+        @close="showUploadModal = false"
+        @success="showUploadModal = false; knowledgeStore.fetchKnowledge()"
+      />
+      
+      <CreateCollectionModal 
+        v-if="showCollectionModal"
+        @close="showCollectionModal = false"
+        @success="showCollectionModal = false; knowledgeStore.fetchCollections()"
+      />
+    </Teleport>
 
   </div>
 </template>
