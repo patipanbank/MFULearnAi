@@ -260,6 +260,7 @@ app.post('/api/auth/saml/callback',
     (req: any, res) => {
         const { token, user } = req.user;
         const userData = Buffer.from(JSON.stringify({
+            _id: user._id,
             username: user.username,
             email: user.email,
             firstName: user.firstName,
@@ -281,6 +282,7 @@ if (process.env.GOOGLE_CLIENT_ID) {
         (req: any, res) => {
             const { token, user } = req.user;
             const userData = Buffer.from(JSON.stringify({
+                _id: user._id,
                 username: user.username,
                 email: user.email,
                 firstName: user.firstName,
@@ -333,6 +335,7 @@ app.post('/api/auth/admin/login', async (req: Request, res: Response) => {
         res.json({
             token,
             user: {
+                _id: user._id,
                 username: user.username,
                 email: user.email,
                 firstName: user.firstName,
