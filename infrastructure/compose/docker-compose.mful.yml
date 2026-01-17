@@ -50,10 +50,10 @@ services:
       - API_GATEWAY_URL=${API_GATEWAY_URL:-https://mfulearnai.mfu.ac.th}
       - INTERNAL_API_KEY=${INTERNAL_API_KEY:-internal-secret-key}
       # SAML Config
-      - SAML_SP_ENTITY_ID=mfu-learn-ai-test
+      - SAML_SP_ENTITY_ID=https://mfulearnai.mfu.ac.th
       - SAML_SP_ACS_URL=https://mfulearnai.mfu.ac.th/api/auth/saml/callback
-      - SAML_IDP_SSO_URL=${SAML_IDP_SSO_URL}
-      - SAML_IDP_SLO_URL=${SAML_IDP_SLO_URL}
+      - SAML_IDP_SSO_URL=${SAML_IDP_SSO_URL:-https://authsso.mfu.ac.th/adfs/ls/}
+      - SAML_IDP_SLO_URL=${SAML_IDP_SLO_URL:-https://authsso.mfu.ac.th/adfs/ls/?wa=wsignout1.0}
       - SAML_CERTIFICATE=${SAML_CERTIFICATE}
     depends_on:
       - identity-service
