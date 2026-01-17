@@ -103,6 +103,16 @@ app.post('/api/auth/saml/callback',
     }
 );
 
+// Logout (SLO)
+app.get('/api/auth/logout', (req, res) => {
+    const logoutUrl = process.env.SAML_IDP_SLO_URL;
+    if (logoutUrl) {
+        res.redirect(logoutUrl);
+    } else {
+        res.status(200).json({ message: 'Logged out (Local only, no SLO URL configured)' });
+    }
+});
+
 app.listen(PORT, () => {
     console.log(`[SSO Service] Running on ${PORT}`);
 });

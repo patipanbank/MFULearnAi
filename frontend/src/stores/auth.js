@@ -53,6 +53,10 @@ export const useAuthStore = defineStore('auth', () => {
         user.value = null
         localStorage.removeItem('auth_token')
         localStorage.removeItem('user_info')
+
+        // Redirect to SSO Logout if applicable (SLO)
+        // We use window.location.href to force a full browser redirect
+        window.location.href = `${api.defaults.baseURL}/auth/logout`
     }
 
     // Refresh user info from API
