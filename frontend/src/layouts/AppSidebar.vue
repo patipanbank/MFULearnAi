@@ -1,10 +1,17 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useChatStore } from '@/stores/chat'
 import { useLanguage } from '@/composables/useSettings'
 import SettingsMenu from './SettingsMenu.vue'
+
+const props = defineProps({
+    isMobile: { type: Boolean, default: false },
+    mobileOpen: { type: Boolean, default: false }
+})
+
+const emit = defineEmits(['close-mobile'])
 
 // Core
 const router = useRouter()
@@ -16,8 +23,14 @@ const chatStore = useChatStore()
 const { t } = useLanguage()
 
 // State
-const isCollapsed = ref(false)
+const isCollapsedInternal = ref(false)
 const showSettings = ref(false)
+
+// Computed to handle collapse state logic
+const isCollapsed = computed(() => {
+    if (props.isMobile) return false // Never collapse in mobile view (it's either open or closed)
+    return isCollapsedInternal.value
+})
 
 // Methods
 const handleNewChat = () => {
@@ -25,6 +38,7 @@ const handleNewChat = () => {
     if (route.path !== '/chat') {
         router.push('/chat')
     }
+    if (props.isMobile) emit('close-mobile')
 }
 
 const handleSelectSession = (sessionId) => {
@@ -32,11 +46,12 @@ const handleSelectSession = (sessionId) => {
     if (route.path !== '/chat') {
         router.push('/chat')
     }
+    if (props.isMobile) emit('close-mobile')
 }
 
 const handleDeleteSession = async (sessionId) => {
     if (!confirm(t('confirmDeleteChat') || 'Delete this chat?')) return
-    await chatStore.deleteSession(sessionId) // Need to ensure store has this
+    await chatStore.deleteSession(sessionId) 
     if (chatStore.currentSessionId === sessionId) {
         chatStore.resetSession()
     }
@@ -45,18 +60,30 @@ const handleDeleteSession = async (sessionId) => {
 </script>
 
 <template>
-  <aside class="app-sidebar" :class="{ 'collapsed': isCollapsed }">
+  <aside 
+    class="app-sidebar" 
+    :class="{ 
+        'collapsed': isCollapsed,
+        'mobile': isMobile,
+        'mobile-open': mobileOpen
+    }"
+  >
     <!-- 1. Header & Logo -->
     <div class="sidebar-header">
       <div class="logo-area">
         <div class="logo-icon">M</div>
         <span class="logo-text">{{ t('appName') }}</span>
       </div>
-      <button class="toggle-btn" @click="isCollapsed = !isCollapsed">
+      <!-- Hide collapse toggle on mobile -->
+      <button v-if="!isMobile" class="toggle-btn" @click="isCollapsedInternal = !isCollapsedInternal">
         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <polyline points="15 18 9 12 15 6" v-if="!isCollapsed"></polyline>
           <polyline points="9 18 15 12 9 6" v-else></polyline>
         </svg>
+      </button>
+      <!-- Mobile Close Button -->
+      <button v-else class="toggle-btn" @click="emit('close-mobile')">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
       </button>
     </div>
 
@@ -132,6 +159,23 @@ const handleDeleteSession = async (sessionId) => {
 
 .app-sidebar.collapsed {
   width: 72px;
+}
+
+/* Mobile Styles */
+.app-sidebar.mobile {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 100vh;
+  width: 280px; /* Full width sidebar on mobile */
+  transform: translateX(-100%);
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: none;
+}
+
+.app-sidebar.mobile.mobile-open {
+  transform: translateX(0);
+  box-shadow: var(--shadow-xl);
 }
 
 /* 1. Header */

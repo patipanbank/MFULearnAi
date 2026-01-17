@@ -79,8 +79,8 @@ const handleDelete = async (id) => {
       </button>
     </div>
 
-    <!-- Table -->
-    <div class="table-container">
+    <!-- Table (Desktop) -->
+    <div class="table-container desktop-only">
       <table class="data-table">
         <thead>
           <tr>
@@ -177,6 +177,58 @@ const handleDelete = async (id) => {
 
 .table-container {
   overflow-x: auto;
+}
+
+.mobile-only { display: none; }
+
+@media (max-width: 768px) {
+    .desktop-only { display: none; }
+    .mobile-only { display: flex; flex-direction: column; gap: 12px; }
+}
+
+/* Card Styles */
+.knowledge-card {
+    background: var(--color-bg-tertiary);
+    border: 1px solid var(--color-border);
+    border-radius: 12px;
+    padding: 16px;
+    position: relative;
+    cursor: pointer;
+}
+
+.card-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+}
+
+.card-title {
+    font-weight: 600;
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.card-details {
+    font-size: 13px;
+    color: var(--color-text-secondary);
+    margin-bottom: 4px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.detail-label {
+    font-weight: 500;
+    color: var(--color-text-muted);
+}
+
+.card-actions {
+    position: absolute;
+    top: 16px;
+    right: 16px;
 }
 
 .data-table {

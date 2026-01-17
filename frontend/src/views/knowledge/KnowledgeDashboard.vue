@@ -174,6 +174,14 @@ const handleCollectionItemOpen = (item) => {
   margin-bottom: 24px;
 }
 
+@media (max-width: 640px) {
+  .dashboard-header {
+    flex-direction: column;
+    gap: 16px;
+    align-items: stretch;
+  }
+}
+
 .header-left h1 {
   font-size: 24px;
   font-weight: 700;
@@ -265,6 +273,15 @@ const handleCollectionItemOpen = (item) => {
   border-radius: 0 0 12px 12px;
   padding: 24px;
   overflow-y: auto;
+}
+
+@media (max-width: 640px) {
+  .knowledge-dashboard {
+      padding: 16px;
+  }
+  .dashboard-content {
+      padding: 16px;
+  }
 }
 
 .fade-in {

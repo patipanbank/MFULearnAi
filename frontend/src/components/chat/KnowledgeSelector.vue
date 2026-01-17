@@ -464,4 +464,13 @@ onUnmounted(() => {
 .custom-scrollbar::-webkit-scrollbar { width: 4px; }
 .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
 .custom-scrollbar::-webkit-scrollbar-thumb { background: var(--color-border); border-radius: 4px; }
+
+@media (max-width: 768px) {
+    .dropdown-menu {
+        width: 90%;
+        max-width: 320px;
+        left: 50% !important;
+        transform: translateX(-50%) !important;
+    }
+}
 </style>

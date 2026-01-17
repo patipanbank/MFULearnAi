@@ -140,5 +140,8 @@ onMounted(() => {
 
 @media (max-width: 640px) {
   .user-name { display: none; }
+  .chat-header {
+      padding: 0 16px; /* Reduce padding */
+  }
 }
 </style>

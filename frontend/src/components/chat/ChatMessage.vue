@@ -144,11 +144,34 @@ const formatTime = (timestamp) => {
   font-weight: 500;
 }
 
+@media (max-width: 768px) {
+    .user-bubble-container {
+        padding-left: 10%; /* More details on mobile */
+    }
+    
+    .bubble.user {
+        padding: 10px 14px;
+        font-size: 14px; /* Slightly smaller text */
+    }
+}
+
 /* === ASSISTANT STYLES === */
 .assistant-canvas {
   display: flex;
   gap: 16px;
   padding-right: 5%;
+}
+
+@media (max-width: 768px) {
+    .assistant-canvas {
+        gap: 12px;
+        padding-right: 2%;
+    }
+    .avatar-circle {
+        width: 32px;
+        height: 32px;
+        font-size: 16px;
+    }
 }
 
 .content-col {

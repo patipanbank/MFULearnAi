@@ -226,5 +226,14 @@ defineExpose({
   .input-area {
     padding: 12px 16px 20px;
   }
+  
+  .input-row {
+    padding: 6px;
+  }
+  
+  .btn-attach, .btn-send {
+    width: 36px; /* Larger touch target relative to visual size is better, but visual size 36px fits better */
+    height: 36px;
+  }
 }
 </style>
