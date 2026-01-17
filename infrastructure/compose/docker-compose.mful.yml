@@ -12,7 +12,9 @@ services:
     volumes:
       - ../gateway/nginx-mfulearnai.conf:/etc/nginx/nginx.conf:ro
     depends_on:
-      - auth-service
+      - identity-service
+      - sso-service
+      - oauth-service
       - orchestrator-service
       - frontend-service
     networks:
