@@ -6,6 +6,7 @@
   --color-bg-secondary: #f8fafc;
   --color-bg-tertiary: #f1f5f9;
   --color-bg-input: #ffffff;
+  --color-bg-card: #ffffff;
   --color-bg-hover: #f1f5f9;
 
   --color-text-primary: #0f172a;
@@ -41,6 +42,7 @@
   --color-bg-secondary: #171717;
   --color-bg-tertiary: #1f1f1f;
   --color-bg-input: #262626;
+  --color-bg-card: #1e1e1e;
   --color-bg-hover: #262626;
 
   --color-text-primary: #fafafa;
