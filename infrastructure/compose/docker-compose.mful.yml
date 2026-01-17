@@ -23,8 +23,8 @@ services:
 
   identity-service:
     build:
-      context: ../../
-      dockerfile: services/identity/Dockerfile
+      context: ../../services/identity
+      dockerfile: Dockerfile
     container_name: mfulearnai-identity
     environment:
       - PORT=4001
@@ -40,8 +40,8 @@ services:
 
   sso-service:
     build:
-      context: ../../
-      dockerfile: services/sso/Dockerfile
+      context: ../../services/sso
+      dockerfile: Dockerfile
     container_name: mfulearnai-sso
     environment:
       - PORT=4002
@@ -62,8 +62,8 @@ services:
 
   oauth-service:
     build:
-      context: ../../
-      dockerfile: services/oauth/Dockerfile
+      context: ../../services/oauth
+      dockerfile: Dockerfile
     container_name: mfulearnai-oauth
     environment:
       - PORT=4003
