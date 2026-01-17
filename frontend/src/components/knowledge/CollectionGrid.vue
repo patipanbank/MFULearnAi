@@ -24,7 +24,8 @@ const getTypeLabel = (type) => {
 }
 
 const canManage = (col) => {
-    if (col.type === 'personal') return col.ownerId === auth.user?.id
+    // console.log('Checking permission:', col.name, col.ownerId, auth.userId)
+    if (col.type === 'personal') return col.ownerId === auth.userId
     if (col.type === 'department') return auth.role === 'admin' && auth.user?.department === col.department
     if (col.type === 'default') return auth.role === 'admin' // Only admins map to global
     return false
