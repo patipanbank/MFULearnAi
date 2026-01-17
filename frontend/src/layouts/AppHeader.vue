@@ -55,7 +55,7 @@ onMounted(() => {
   justify-content: space-between;
   padding: 0 24px;
   background: var(--color-bg-primary);
-  border-bottom: 1px solid var(--color-border);
+  /* border-bottom: 1px solid var(--color-border); */
   flex-shrink: 0;
   z-index: 40;
   position: relative;
