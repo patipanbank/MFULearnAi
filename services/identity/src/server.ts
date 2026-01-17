@@ -5,6 +5,7 @@ import bcrypt from 'bcrypt';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import User, { UserDocument, UserRole } from './models/User';
+import Department from './models/Department';
 
 dotenv.config();
 
@@ -96,6 +97,17 @@ app.post('/internal/login', authenticateInternal, async (req: Request, res: Resp
         // For now, let's respect the passed role
         updateData.role = finalRole;
 
+        // Auto-Create Department if provided
+        if (department) {
+            // Simple logic: Use department name as code if not provided, or consistent slug
+            // For now, assuming department name IS the unique identifier we want to track
+            await Department.findOneAndUpdate(
+                { code: department },
+                { name: department },
+                { upsert: true, setDefaultsOnInsert: true }
+            );
+        }
+
         const user = await User.findOneAndUpdate(
             query,
             updateData,
@@ -173,6 +185,77 @@ app.post('/api/auth/refresh', authenticateUser, async (req: any, res: Response) 
         res.json({ token });
     } catch (e) {
         res.status(500).json({ error: 'Server Error' });
+    }
+});
+
+// 5. Create Admin (Superadmin Only)
+app.post('/api/users/create-admin', authenticateUser, async (req: any, res: Response) => {
+    // Check if requester is Superadmin
+    if (req.user.role !== 'superadmin') {
+        return res.status(403).json({ error: 'Authorized for Superadmin only' });
+    }
+
+    const { username, password, department, firstName, lastName } = req.body;
+
+    if (!username || !password || !department) {
+        return res.status(400).json({ error: 'Username, Password, and Department are required' });
+    }
+
+    try {
+        const existingUser = await User.findOne({ username });
+        if (existingUser) {
+            return res.status(400).json({ error: 'Username already exists' });
+        }
+
+        const hashedPassword = await bcrypt.hash(password, 10);
+
+        const newUser = await User.create({
+            username,
+            password: hashedPassword,
+            role: 'admin',
+            department,
+            firstName: firstName || 'Admin',
+            lastName: lastName || department,
+            isActive: true,
+            email: `${username}@local.admin` // Dummy email for local admins
+        });
+
+        // Ensure department exists
+        await Department.findOneAndUpdate(
+            { code: department },
+            { name: department },
+            { upsert: true, setDefaultsOnInsert: true }
+        );
+
+        res.json({ success: true, user: { id: newUser._id, username: newUser.username } });
+
+    } catch (e: any) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// 6. List Departments
+app.get('/api/departments', authenticateUser, async (req: any, res: Response) => {
+    try {
+        const departments = await Department.find().sort({ name: 1 });
+        res.json({ departments });
+    } catch (e: any) {
+        res.status(500).json({ error: 'Failed to fetch departments' });
+    }
+});
+
+// 7. List Admin Users (Superadmin Only)
+app.get('/api/users/admins', authenticateUser, async (req: any, res: Response) => {
+    if (req.user.role !== 'superadmin') {
+        return res.status(403).json({ error: 'Authorized for Superadmin only' });
+    }
+    try {
+        const admins = await User.find({ role: { $in: ['admin', 'superadmin'] } })
+            .select('-password')
+            .sort({ role: -1, username: 1 });
+        res.json({ admins });
+    } catch (e: any) {
+        res.status(500).json({ error: 'Failed to fetch admins' });
     }
 });
 

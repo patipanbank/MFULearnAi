@@ -266,6 +266,87 @@ app.get('/api/logs/stats', async (req: Request, res: Response) => {
     }
 });
 
+// --- Usage Dashboard Stats (Tokens, Users) ---
+app.get('/api/logs/usage', async (req: Request, res: Response) => {
+    try {
+        const now = new Date();
+        const startOfDay = new Date(now);
+        startOfDay.setHours(0, 0, 0, 0);
+
+        const sevenDaysAgo = new Date(now);
+        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+        sevenDaysAgo.setHours(0, 0, 0, 0);
+
+        // 1. Total & Today
+        const [totalStats, todayStats] = await Promise.all([
+            LogEntry.aggregate([
+                { $match: { action: 'chat_completion', environment: ENV_TYPE } },
+                { $group: { _id: null, totalTokens: { $sum: "$details.tokens.total" }, totalRequests: { $sum: 1 } } }
+            ]),
+            LogEntry.aggregate([
+                { $match: { action: 'chat_completion', environment: ENV_TYPE, timestamp: { $gte: startOfDay } } },
+                {
+                    $group: {
+                        _id: null,
+                        totalTokens: { $sum: "$details.tokens.total" },
+                        totalRequests: { $sum: 1 },
+                        users: { $addToSet: "$userId" }
+                    }
+                }
+            ])
+        ]);
+
+        // 2. Daily Trend (Last 7 Days)
+        const dailyStats = await LogEntry.aggregate([
+            { $match: { action: 'chat_completion', environment: ENV_TYPE, timestamp: { $gte: sevenDaysAgo } } },
+            {
+                $group: {
+                    _id: { $dateToString: { format: "%Y-%m-%d", date: "$timestamp" } },
+                    tokens: { $sum: "$details.tokens.total" },
+                    requests: { $sum: 1 },
+                    users: { $addToSet: "$userId" }
+                }
+            },
+            { $sort: { _id: 1 } }
+        ]);
+
+        // 3. Model Distribution
+        const modelStats = await LogEntry.aggregate([
+            { $match: { action: 'chat_completion', environment: ENV_TYPE } },
+            {
+                $group: {
+                    _id: "$details.model",
+                    count: { $sum: 1 },
+                    tokens: { $sum: "$details.tokens.total" }
+                }
+            }
+        ]);
+
+        res.json({
+            totals: {
+                tokens: totalStats[0]?.totalTokens || 0,
+                requests: totalStats[0]?.totalRequests || 0
+            },
+            today: {
+                tokens: todayStats[0]?.totalTokens || 0,
+                requests: todayStats[0]?.totalRequests || 0,
+                uniqueUsers: todayStats[0]?.users?.length || 0
+            },
+            daily: dailyStats.map(d => ({
+                date: d._id,
+                tokens: d.tokens,
+                requests: d.requests,
+                uniqueUsers: d.users.length
+            })),
+            models: modelStats
+        });
+
+    } catch (error: any) {
+        console.error('Usage stats error:', error);
+        res.status(500).json({ error: 'Failed to fetch usage stats' });
+    }
+});
+
 // --- Health Check ---
 app.get('/health', (req: Request, res: Response) => res.json({
     status: 'ok',

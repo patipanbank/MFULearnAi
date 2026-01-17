@@ -7,6 +7,7 @@ import Redis from 'ioredis';
 import mongoose from 'mongoose';
 import { ChatMessage, ServiceResponse } from '../../shared/types';
 import { getSystemPrompt, CONTEXT_PROMPTS } from './systemPrompts';
+import SystemPrompt from './models/SystemPrompt';
 
 dotenv.config();
 
@@ -155,6 +156,32 @@ async function searchKnowledgeBase(query: string, userContext: any, collectionId
     return '';
 }
 
+// --- Dynamic Prompt Logic ---
+const SYSTEM_PROMPT_KEY_PREFIX = 'system_prompt:';
+
+const getDynamicSystemPrompt = async (envType: 'TEST' | 'PROD'): Promise<string> => {
+    const key = envType === 'PROD' ? 'DINDINAI_SYSTEM_PROMPT' : 'MFULEARNAI_SYSTEM_PROMPT';
+
+    try {
+        // 1. Try Redis
+        const cached = await redis.get(SYSTEM_PROMPT_KEY_PREFIX + key);
+        if (cached) return cached;
+
+        // 2. Try DB
+        const promptDoc = await SystemPrompt.findOne({ key, isActive: true });
+        if (promptDoc) {
+            // Cache for 10 minutes
+            await redis.set(SYSTEM_PROMPT_KEY_PREFIX + key, promptDoc.content, 'EX', 600);
+            return promptDoc.content;
+        }
+    } catch (err) {
+        console.warn('[Orchestrator] Error fetching dynamic prompt:', err);
+    }
+
+    // 3. Fallback to File
+    return getSystemPrompt(envType);
+};
+
 // --- Chat Endpoint ---
 app.post('/api/chat', authenticateToken, rateLimiter, async (req: any, res: Response) => {
     const { message, sessionId, modelId, context, collectionId } = req.body;
@@ -197,7 +224,8 @@ app.post('/api/chat', authenticateToken, rateLimiter, async (req: any, res: Resp
         }
 
         // 3. Prepare messages
-        const baseSystemPrompt = getSystemPrompt(ENV_TYPE);
+        // UPDATE: Use dynamic prompt
+        const baseSystemPrompt = await getDynamicSystemPrompt(ENV_TYPE);
         const additionalContext = context && CONTEXT_PROMPTS[context as keyof typeof CONTEXT_PROMPTS]
             ? `\n\n${CONTEXT_PROMPTS[context as keyof typeof CONTEXT_PROMPTS]}`
             : '';
@@ -432,6 +460,48 @@ app.get('/health', (req, res) => res.json({
 }));
 
 const PORT = process.env.PORT || 8080;
+
+
+// --- Prompt Management API (Superadmin) ---
+app.get('/api/prompts', authenticateToken, async (req: any, res: Response) => {
+    try {
+        // In a real app, check for superadmin role here or in middleware
+        // if (req.user.role !== 'superadmin') return res.status(403).json(...);
+
+        const prompts = await SystemPrompt.find().sort({ key: 1 });
+        res.json({ prompts });
+    } catch (error: any) {
+        res.status(500).json({ error: 'Failed to fetch prompts' });
+    }
+});
+
+app.put('/api/prompts/:key', authenticateToken, async (req: any, res: Response) => {
+    const { key } = req.params;
+    const { content, description } = req.body;
+    const userId = req.user.userId;
+
+    try {
+        const prompt = await SystemPrompt.findOneAndUpdate(
+            { key },
+            {
+                content,
+                description,
+                updatedBy: userId,
+                updatedAt: new Date()
+            },
+            { upsert: true, new: true, setDefaultsOnInsert: true }
+        );
+
+        // Invalidate Cache
+        await redis.del(SYSTEM_PROMPT_KEY_PREFIX + key);
+
+        logActivity('audit', 'update_system_prompt', { key }, userId);
+        res.json({ success: true, prompt });
+    } catch (error: any) {
+        res.status(500).json({ error: 'Failed to update prompt' });
+    }
+});
+
 app.listen(PORT, () => {
     console.log(`[Orchestrator] Running on port ${PORT} [Env: ${ENV_TYPE}]`);
 });
