@@ -116,7 +116,7 @@ defineExpose({
   align-items: flex-end;
   gap: 8px;
   background: var(--color-bg-secondary);
-  border: 1px solid var(--color-border);
+  border: 1px solid transparent; /* Hidden border */
   border-radius: var(--radius-lg);
   padding: 8px;
 }

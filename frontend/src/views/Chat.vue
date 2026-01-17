@@ -108,6 +108,12 @@ const handleFileUpload = (files) => {
 const handleCopyMessage = (content) => {
   console.log('Copied message')
 }
+
+const handleDeleteChat = async () => {
+    if (!confirm(t('confirmDeleteChat') || 'Delete this chat?')) return
+    await chatStore.clearSession()
+    chatStore.resetSession()
+}
 </script>
 
 <template>
@@ -116,17 +122,33 @@ const handleCopyMessage = (content) => {
     <main class="chat-main">
       
       <!-- Context Bar -->
-      <div v-if="collections.length > 0" class="px-6 py-2 bg-slate-900 border-b border-slate-700/50 flex items-center gap-3">
-        <span class="text-xs font-medium text-blue-400 uppercase tracking-wider">{{ t('activeKnowledge') }}</span>
-        <select 
-            v-model="chatStore.currentCollectionId" 
-            class="bg-slate-800 text-gray-200 text-sm rounded-lg border border-slate-700 px-3 py-1 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+      <!-- Context Bar -->
+      <div v-if="collections.length > 0" class="px-6 py-3 bg-slate-900 flex items-center justify-between gap-3 shadow-sm">
+        <div class="flex items-center gap-3">
+            <span class="text-xs font-medium text-blue-400 uppercase tracking-wider">{{ t('activeKnowledge') }}</span>
+            <select 
+                v-model="chatStore.currentCollectionId" 
+                class="bg-slate-800 text-gray-200 text-sm rounded-lg border-none px-3 py-1.5 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+            >
+                <option :value="null">{{ t('defaultCollection') }}</option>
+                <option v-for="col in collections" :key="col._id" :value="col._id">
+                    {{ col.name }}
+                </option>
+            </select>
+        </div>
+
+        <!-- Delete Chat Button -->
+        <button 
+            v-if="chatStore.currentSessionId" 
+            @click="handleDeleteChat" 
+            class="text-gray-400 hover:text-red-400 transition-colors p-1.5 rounded-md hover:bg-slate-800"
+            :title="t('deleteChat')"
         >
-            <option :value="null">{{ t('defaultCollection') }}</option>
-            <option v-for="col in collections" :key="col._id" :value="col._id">
-                {{ col.name }}
-            </option>
-        </select>
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="3 6 5 6 21 6"></polyline>
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+            </svg>
+        </button>
       </div>
       
       <!-- Chat Area -->
