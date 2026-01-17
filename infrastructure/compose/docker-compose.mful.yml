@@ -89,7 +89,7 @@ services:
     environment:
       - PORT=8080
       - ENV_TYPE=TEST
-      - BEDROCK_URL=http://bedrock-service:5000/api/bedrock
+      - BEDROCK_URL=http://bedrock-text:5001/api/bedrock
       - LOGGER_URL=http://logger-service:6000/api/logs
       - MONGO_URI=mongodb://mongo:27017/mfulearnai-chat
       - REDIS_URL=redis://redis:6379
@@ -99,30 +99,62 @@ services:
     depends_on:
       - redis
       - mongo
-      - bedrock-service
+      - bedrock-text
       - logger-service
+
     networks:
       - mfulearnai-network
     restart: unless-stopped
 
-  bedrock-service:
+  # --- Bedrock Microservices ---
+  bedrock-text:
     build:
-      context: ../../
-      dockerfile: services/bedrock/Dockerfile
-    container_name: mfulearnai-bedrock
+      context: ../../services/bedrock-text
+      dockerfile: Dockerfile
+    container_name: bedrock-text
     environment:
-      - PORT=5000
+      - PORT=5001
       - ENV_TYPE=TEST
       - AWS_REGION=${AWS_REGION:-ap-southeast-1}
       - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
       - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+    ports:
+      - "5001:5001"
     networks:
       - mfulearnai-network
     restart: unless-stopped
-    deploy:
-      resources:
-        limits:
-          memory: 2G
+
+  bedrock-image:
+    build:
+      context: ../../services/bedrock-image
+      dockerfile: Dockerfile
+    container_name: bedrock-image
+    environment:
+      - PORT=5002
+      - AWS_REGION=${AWS_REGION:-ap-southeast-1}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+    ports:
+      - "5002:5002"
+    networks:
+      - mfulearnai-network
+    restart: unless-stopped
+
+  bedrock-embedding:
+    build:
+      context: ../../services/bedrock-embedding
+      dockerfile: Dockerfile
+    container_name: bedrock-embedding
+    environment:
+      - PORT=5003
+      - AWS_REGION=${AWS_REGION:-ap-southeast-1}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+    ports:
+      - "5003:5003"
+    networks:
+      - mfulearnai-network
+    restart: unless-stopped
 
   logger-service:
     build:
@@ -148,10 +180,10 @@ services:
       - PORT=7000
       - ENV_TYPE=TEST
       - CHROMA_URL=http://chroma:8000
-      - BEDROCK_URL=http://bedrock-service:5000/api/bedrock
+      - BEDROCK_URL=http://bedrock-embedding:5003/api/bedrock
     depends_on:
       - chroma
-      - bedrock-service
+      - bedrock-embedding
     networks:
       - mfulearnai-network
     restart: unless-stopped
