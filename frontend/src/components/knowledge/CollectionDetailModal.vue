@@ -60,8 +60,8 @@ const toggleMapping = async () => {
         // We need a way to fetch 'all' or 'candidates'. 
         // For now, fetch all user has access to.
         await knowledgeStore.fetchKnowledge()
-        // Filter out already mapped ones
-        const currentIds = items.value.map(k => k._id)
+        // Filter out already mapped ones (safeguard against nulls)
+        const currentIds = items.value.filter(k => k).map(k => k._id)
         availableKnowledge.value = knowledgeStore.knowledge.filter(k => !currentIds.includes(k._id))
     }
     isMapping.value = !isMapping.value
@@ -114,7 +114,7 @@ const handleRemove = async (knowledgeId) => {
 
           <!-- List Content -->
           <div class="content-list" v-if="!isMapping">
-              <div v-for="item in items" :key="item._id" class="content-item" @click="$emit('open-item', item)">
+              <div v-for="item in items.filter(i => i)" :key="item._id" class="content-item" @click="$emit('open-item', item)">
                   <div class="item-icon">📄</div>
                   <div class="item-info">
                       <div class="item-title">{{ item.title }}</div>
