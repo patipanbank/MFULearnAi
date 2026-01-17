@@ -10,7 +10,7 @@ const { t } = useLanguage()
 
 const isOpen = ref(false)
 const dropdownRef = ref(null)
-const dropdownPosition = reactive({ top: 0, left: 0, width: 320 })
+const dropdownPosition = reactive({ top: 0, left: 0, maxHeight: 400 })
 
 // Computed for current selection display
 const currentCollectionName = computed(() => {
@@ -28,24 +28,22 @@ const currentIcon = computed(() => {
     return 'book'
 })
 
-// Formatting helper
-const getIconForType = (type) => {
-    switch(type) {
-        case 'personal': return 'user'
-        case 'department': return 'building'
-        default: return 'book'
-    }
-}
-
 const updatePosition = () => {
     if (dropdownRef.value) {
         const rect = dropdownRef.value.getBoundingClientRect()
+        // Calculate available space below
+        const spaceBelow = window.innerHeight - rect.bottom
+        
         dropdownPosition.top = rect.bottom + 8
         dropdownPosition.left = rect.left
-        // Ensure it doesn't go off screen right
+        
+        // Ensure it doesn't go off screen width
         if (dropdownPosition.left + 320 > window.innerWidth) {
             dropdownPosition.left = window.innerWidth - 330
         }
+        
+        // Max height logic to prevent going off screen bottom
+        dropdownPosition.maxHeight = Math.min(spaceBelow - 20, 400)
     }
 }
 
@@ -64,38 +62,28 @@ const selectCollection = (id) => {
     isOpen.value = false
 }
 
-// Close on click outside
-const closeOnClickOutside = (e) => {
-    // Check if click is on the trigger button (dropdownRef contains it)
-    if (dropdownRef.value && dropdownRef.value.contains(e.target)) {
-        return
-    }
-    // Note: click inside the teleported dropdown is handled by checking e.target closest
-    if (e.target.closest('.dropdown-menu')) {
-        return
-    }
+const closeDropdown = () => {
     isOpen.value = false
 }
 
-const handleResize = () => {
-    if (isOpen.value) isOpen.value = false
+// Handle resize and scroll to keep position or close
+const handleScrollResize = () => {
+    if (isOpen.value) updatePosition()
 }
 
 onMounted(() => {
-    document.addEventListener('click', closeOnClickOutside)
-    window.addEventListener('resize', handleResize)
-    window.addEventListener('scroll', handleResize, true) // Close on scroll to avoid floating issues
+    window.addEventListener('resize', handleScrollResize)
+    window.addEventListener('scroll', handleScrollResize, true)
 })
 
 onUnmounted(() => {
-    document.removeEventListener('click', closeOnClickOutside)
-    window.removeEventListener('resize', handleResize)
-    window.removeEventListener('scroll', handleResize, true)
+    window.removeEventListener('resize', handleScrollResize)
+    window.removeEventListener('scroll', handleScrollResize, true)
 })
 </script>
 
 <template>
-    <div class="knowledge-selector relative" ref="dropdownRef">
+    <div class="knowledge-selector" ref="dropdownRef">
         <!-- Trigger Button -->
         <button 
             @click.stop="toggleDropdown"
@@ -128,15 +116,20 @@ onUnmounted(() => {
                 <polyline points="6 9 12 15 18 9"></polyline>
             </svg>
         </button>
-        <!-- Dropdown Menu (Teleported to Body) -->
+
+        <!-- Overlay Pane (Teleported) -->
         <Teleport to="body">
+            <!-- Backdrop (Invisible but blocking) -->
+            <div v-if="isOpen" class="fixed inset-0 z-[9998]" @click="closeDropdown"></div>
+
             <transition name="dropdown">
                 <div 
                     v-if="isOpen" 
                     class="dropdown-menu"
                     :style="{
                         top: `${dropdownPosition.top}px`,
-                        left: `${dropdownPosition.left}px`
+                        left: `${dropdownPosition.left}px`,
+                        maxHeight: `${dropdownPosition.maxHeight}px`
                     }"
                 >
                     <div class="menu-header">
@@ -203,7 +196,7 @@ onUnmounted(() => {
 <style scoped>
 .knowledge-selector {
     position: relative;
-    z-index: 50;
+    /* Removed z-index from here as Teleport handles it */
 }
 
 .selector-trigger {
@@ -273,7 +266,7 @@ onUnmounted(() => {
     border-radius: 16px;
     box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.5); /* Boost shadow for floating feel */
     overflow: hidden;
-    transform-origin: top left; /* Changed from top right since we align left */
+    transform-origin: top left;
     z-index: 9999; /* Max z-index */
 }
 
@@ -289,7 +282,7 @@ onUnmounted(() => {
 }
 
 .menu-list {
-    max-height: 300px;
+    /* Max height is now dynamic via inline style */
     overflow-y: auto;
     padding: 6px;
 }
