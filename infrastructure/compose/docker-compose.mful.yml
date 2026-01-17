@@ -60,6 +60,8 @@ services:
       - MONGO_URI=mongodb://mongo:27017/mfulearnai-chat
       - REDIS_URL=redis://redis:6379
       - JWT_SECRET=${JWT_SECRET:-test-jwt-secret-change-me}
+      - KNOWLEDGE_URL=http://knowledge-service:7000/api/knowledge
+
     depends_on:
       - redis
       - mongo
