@@ -21,6 +21,7 @@ onMounted(() => {
       
       // Store in Pinia and localStorage
       authStore.setAuth(token, userData)
+      localStorage.setItem('auth_provider', 'sso')
       
       console.log('Auth successful:', userData)
       router.push('/chat')

@@ -25,6 +25,7 @@ const handleAdminLogin = async () => {
   
   try {
     await authStore.loginAdmin(username.value, password.value)
+    localStorage.setItem('auth_provider', 'local')
     router.push('/chat')
   } catch (e) {
     error.value = e.response?.data?.error || 'Login failed'
