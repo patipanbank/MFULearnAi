@@ -7,7 +7,10 @@ import {
     DocumentTextIcon, 
     TrashIcon, 
     PlusIcon, 
-    LinkIcon 
+    LinkIcon,
+    CalendarIcon,
+    UserIcon,
+    BuildingOfficeIcon
 } from '@heroicons/vue/24/outline';
 import { useAuthStore } from '@/stores/auth';
 
@@ -20,6 +23,7 @@ const availableKnowledge = ref([]); // For mapping modal
 const showMapModal = ref(false);
 const isLoading = ref(true);
 const isMapping = ref(false);
+const searchQuery = ref('');
 
 // Computed
 const canManage = computed(() => {
@@ -32,7 +36,14 @@ const unmappedKnowledge = computed(() => {
     if (!collection.value) return [];
     // knowledgeIds is an array of objects populated by backend
     const mappedIds = collection.value.knowledgeIds.map(k => k._id);
-    return availableKnowledge.value.filter(k => !mappedIds.includes(k._id));
+    const available = availableKnowledge.value.filter(k => !mappedIds.includes(k._id));
+    
+    if (!searchQuery.value) return available;
+    
+    return available.filter(k => 
+        k.title.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
+        k.department?.toLowerCase().includes(searchQuery.value.toLowerCase())
+    );
 });
 
 // Fetch Data
@@ -95,123 +106,194 @@ onMounted(() => {
 </script>
 
 <template>
-    <div class="p-6 max-w-5xl mx-auto text-gray-100">
-        <button @click="router.push('/knowledge')" class="flex items-center gap-2 text-gray-400 hover:text-white mb-6 transition-colors">
-            <ArrowLeftIcon class="w-4 h-4" /> Back to Library
-        </button>
-
-        <div v-if="isLoading" class="text-center py-12 text-gray-500">Loading...</div>
+    <div class="h-screen bg-[#0f172a] text-slate-100 flex flex-col font-sans overflow-hidden">
         
-        <div v-else-if="collection">
-            <!-- Header -->
-            <div class="bg-slate-800 border border-slate-700/50 rounded-2xl p-8 mb-8 relative overflow-hidden">
-                <div class="relative z-10">
-                    <div class="flex items-center gap-3 mb-2">
-                         <h1 class="text-3xl font-bold text-white">{{ collection.name }}</h1>
-                         <span class="px-2 py-1 rounded text-xs font-mono uppercase" 
-                            :class="{
-                                'bg-purple-900/50 text-purple-400': collection.type === 'personal',
-                                'bg-orange-900/50 text-orange-400': collection.type === 'department',
-                                'bg-green-900/50 text-green-400': collection.type === 'default'
-                            }">
-                            {{ collection.type }}
-                         </span>
-                    </div>
-                    <p class="text-gray-400 text-lg max-w-2xl">{{ collection.description }}</p>
-                    
-                    <div class="mt-6 flex items-center gap-4 text-sm text-gray-500">
-                        <span>Managed by: {{ collection.ownerId === 'system' ? 'System Admin' : 'Owner' }}</span>
-                        <span>Created: {{ new Date(collection.createdAt).toLocaleDateString() }}</span>
-                    </div>
+        <!-- Header / Nav -->
+        <div class="p-6 md:px-12 pt-8 flex-none z-10">
+            <button @click="router.push('/knowledge')" class="group flex items-center gap-2 text-slate-400 hover:text-white mb-6 transition-colors font-medium">
+                <div class="p-1.5 rounded-full bg-slate-800 group-hover:bg-blue-600 group-hover:text-white transition-all">
+                    <ArrowLeftIcon class="w-4 h-4" /> 
                 </div>
+                <span>Back to Library</span>
+            </button>
+        </div>
+
+        <div v-if="isLoading" class="flex-1 flex justify-center items-center">
+            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+        </div>
+        
+        <div v-else-if="collection" class="flex-1 overflow-y-auto scroll-smooth px-6 md:px-12 pb-12">
+            <div class="max-w-6xl mx-auto">
                 
-                <!-- Background decoration -->
-                <div class="absolute top-0 right-0 p-8 opacity-10">
-                    <svg class="w-64 h-64 text-blue-500" fill="currentColor" viewBox="0 0 24 24"><path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-1 9H9V9h10v2zm-4 4H9v-2h6v2zm4-8H9V5h10v2z"/></svg>
-                </div>
-            </div>
+                <!-- Hero Section -->
+                <div class="relative bg-gradient-to-br from-slate-800 to-slate-900 border border-slate-700/50 rounded-3xl p-8 md:p-10 mb-10 overflow-hidden shadow-2xl">
+                    <!-- Decorate Background -->
+                    <div class="absolute top-0 right-0 p-12 opacity-5 pointer-events-none transform translate-x-12 -translate-y-12">
+                        <svg class="w-96 h-96 text-blue-400" fill="currentColor" viewBox="0 0 24 24"><path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-1 9H9V9h10v2zm-4 4H9v-2h6v2zm4-8H9V5h10v2z"/></svg>
+                    </div>
 
-            <!-- Knowledge List -->
-            <div class="flex justify-between items-center mb-6">
-                <h2 class="text-xl font-bold flex items-center gap-2">
-                    <LinkIcon class="w-5 h-5 text-blue-400" />
-                    Mapped Knowledge
-                    <span class="bg-slate-800 px-2 py-0.5 rounded-full text-xs text-gray-400">{{ collection.knowledgeIds.length }}</span>
-                </h2>
-                <button 
-                    v-if="canManage"
-                    @click="showMapModal = true; fetchAvailableKnowledge()"
-                    class="flex items-center gap-2 bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-                >
-                    <PlusIcon class="w-5 h-5" />
-                    Add Knowledge
-                </button>
-            </div>
+                    <div class="relative z-10">
+                        <div class="flex flex-col md:flex-row md:items-start justify-between gap-6">
+                            <div class="flex-1">
+                                <div class="flex items-center gap-3 mb-4">
+                                    <span class="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider border" 
+                                        :class="{
+                                            'text-purple-400 border-purple-500/30 bg-purple-500/10': collection.type === 'personal',
+                                            'text-orange-400 border-orange-500/30 bg-orange-500/10': collection.type === 'department',
+                                            'text-emerald-400 border-emerald-500/30 bg-emerald-500/10': collection.type === 'default'
+                                        }">
+                                        {{ collection.type }} Collection
+                                    </span>
+                                </div>
+                                
+                                <h1 class="text-4xl md:text-5xl font-extrabold text-white mb-4 tracking-tight leading-tight">{{ collection.name }}</h1>
+                                <p class="text-slate-300 text-lg max-w-2xl leading-relaxed">{{ collection.description }}</p>
+                                
+                                <div class="mt-8 flex flex-wrap items-center gap-6 text-sm text-slate-400">
+                                    <div class="flex items-center gap-2 bg-slate-800/50 px-3 py-1.5 rounded-lg border border-slate-700/50">
+                                        <UserIcon class="w-4 h-4 text-blue-400" />
+                                        <span>Owner: <span class="text-slate-200 font-medium">{{ collection.ownerId === 'system' ? 'System' : 'You' }}</span></span>
+                                    </div>
+                                    <div class="flex items-center gap-2 bg-slate-800/50 px-3 py-1.5 rounded-lg border border-slate-700/50">
+                                        <CalendarIcon class="w-4 h-4 text-emerald-400" />
+                                        <span>Created: <span class="text-slate-200 font-medium">{{ new Date(collection.createdAt).toLocaleDateString() }}</span></span>
+                                    </div>
+                                </div>
+                            </div>
 
-            <div class="space-y-3">
-                <div v-for="item in collection.knowledgeIds" :key="item._id" class="bg-slate-800 border border-slate-700 rounded-lg p-4 flex items-center justify-between group hover:border-blue-500/30 transition-all">
-                    <div class="flex items-center gap-4">
-                        <div class="p-2 bg-slate-700 rounded text-blue-400">
-                            <DocumentTextIcon class="w-6 h-6" />
+                            <button 
+                                v-if="canManage"
+                                @click="showMapModal = true; fetchAvailableKnowledge()"
+                                class="flex-none flex items-center gap-2 bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white px-6 py-3 rounded-xl text-sm font-semibold shadow-lg shadow-blue-500/20 transition-all transform hover:-translate-y-0.5"
+                            >
+                                <PlusIcon class="w-5 h-5" />
+                                Add Knowledge
+                            </button>
                         </div>
-                        <div>
-                            <h4 class="font-medium text-gray-200">{{ item.title }}</h4>
-                            <div class="flex items-center gap-3 text-xs text-gray-400 mt-0.5">
-                                <span class="uppercase tracking-wider text-[10px] bg-slate-700 px-1 rounded">{{ item.type }}</span>
-                                <span>Dept: {{ item.department }}</span>
+                    </div>
+                </div>
+
+                <!-- Knowledge List Section -->
+                <div class="mb-6 flex items-end justify-between">
+                    <h2 class="text-2xl font-bold flex items-center gap-3 text-white">
+                        <LinkIcon class="w-6 h-6 text-blue-400" />
+                        Mapped Content
+                        <span class="bg-blue-500/10 text-blue-400 px-2.5 py-0.5 rounded-full text-sm font-semibold border border-blue-500/20">{{ collection.knowledgeIds.length }}</span>
+                    </h2>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <transition-group 
+                        enter-active-class="transition duration-300 ease-out"
+                        enter-from-class="transform translate-y-4 opacity-0"
+                        enter-to-class="transform translate-y-0 opacity-100"
+                    >
+                        <div v-for="item in collection.knowledgeIds" :key="item._id" class="group bg-slate-800/40 border border-slate-700/50 rounded-2xl p-5 hover:bg-slate-800 hover:border-blue-500/30 transition-all duration-200">
+                            <div class="flex items-start gap-4">
+                                <div class="p-3 bg-slate-700/50 rounded-xl text-blue-400 group-hover:text-blue-300 group-hover:bg-blue-600/20 transition-colors">
+                                    <DocumentTextIcon class="w-6 h-6" />
+                                </div>
+                                <div class="flex-1 min-w-0">
+                                    <h4 class="font-semibold text-slate-100 text-lg mb-1 truncate">{{ item.title }}</h4>
+                                    
+                                    <div class="flex flex-wrap items-center gap-3 text-xs text-slate-400 mt-2">
+                                        <span class="px-2 py-0.5 rounded-md bg-slate-700/50 text-slate-300 uppercase font-bold tracking-wider text-[10px]">{{ item.type }}</span>
+                                        <span class="flex items-center gap-1" v-if="item.department">
+                                            <BuildingOfficeIcon class="w-3 h-3" />
+                                            {{ item.department }}
+                                        </span>
+                                    </div>
+                                </div>
+                                
+                                <button 
+                                    v-if="canManage"
+                                    @click="unmapKnowledge(item._id)"
+                                    class="p-2 text-slate-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all opacity-0 group-hover:opacity-100"
+                                    title="Remove from collection"
+                                >
+                                    <TrashIcon class="w-5 h-5" />
+                                </button>
                             </div>
                         </div>
-                    </div>
+                    </transition-group>
                     
-                    <button 
-                        v-if="canManage"
-                        @click="unmapKnowledge(item._id)"
-                        class="p-2 text-gray-500 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
-                        title="Remove from collection"
-                    >
-                        <TrashIcon class="w-5 h-5" />
-                    </button>
-                </div>
-                
-                <div v-if="collection.knowledgeIds.length === 0" class="text-center py-12 border-2 border-dashed border-slate-700/50 rounded-xl bg-slate-800/20">
-                    <p class="text-gray-400">No knowledge mapped to this collection yet.</p>
+                    <div v-if="collection.knowledgeIds.length === 0" class="col-span-full py-16 text-center border-2 border-dashed border-slate-700/50 rounded-3xl bg-slate-800/20">
+                        <div class="p-4 bg-slate-800/50 rounded-full inline-block mb-3">
+                            <LinkIcon class="w-8 h-8 text-slate-600" />
+                        </div>
+                        <p class="text-slate-400 font-medium">No knowledge mapped to this collection yet.</p>
+                        <p class="text-sm text-slate-600 mt-1">Add existing items to get started.</p>
+                    </div>
                 </div>
             </div>
         </div>
 
         <!-- Map Knowledge Modal -->
-        <div v-if="showMapModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-            <div class="bg-slate-900 border border-slate-700 rounded-xl w-full max-w-2xl p-6 shadow-2xl flex flex-col max-h-[80vh]">
-                <div class="flex justify-between items-center mb-6">
-                    <h2 class="text-xl font-bold text-white">Add Knowledge to Collection</h2>
-                    <button @click="showMapModal = false" class="text-gray-400 hover:text-white">✕</button>
-                </div>
-                
-                <div class="flex-1 overflow-y-auto min-h-0 space-y-2 pr-2">
-                    <div 
-                        v-for="kb in unmappedKnowledge" 
-                        :key="kb._id"
-                        @click="mapKnowledge(kb._id)"
-                        class="p-3 rounded-lg border border-slate-700 bg-slate-800/50 hover:bg-slate-800 hover:border-blue-500 cursor-pointer transition-all flex justify-between items-center"
-                    >
-                        <div class="flex items-center gap-3">
-                            <DocumentTextIcon class="w-5 h-5 text-gray-400" />
-                            <div>
-                                <h4 class="text-sm font-medium text-gray-200">{{ kb.title }}</h4>
-                                <span class="text-xs text-gray-500">{{ kb.type }} • {{ kb.department }}</span>
-                            </div>
+        <transition enter-active-class="transition duration-200 ease-out" enter-from-class="opacity-0 scale-95" enter-to-class="opacity-100 scale-100" leave-active-class="transition duration-150 ease-in" leave-from-class="opacity-100 scale-100" leave-to-class="opacity-0 scale-95">
+            <div v-if="showMapModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+                <div class="bg-slate-900 border border-slate-700/50 rounded-2xl w-full max-w-2xl p-6 shadow-2xl flex flex-col max-h-[85vh]">
+                    <div class="flex justify-between items-center mb-6">
+                        <div>
+                            <h2 class="text-2xl font-bold text-white">Add Knowledge</h2>
+                            <p class="text-slate-400 text-sm">Select items to add to this collection.</p>
                         </div>
-                        <PlusIcon class="w-5 h-5 text-blue-400" />
+                        <button @click="showMapModal = false" class="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors">✕</button>
                     </div>
-                    <div v-if="unmappedKnowledge.length === 0" class="text-center py-8 text-gray-500">
-                        No available knowledge found to add. <br>Create more in the Library.
+                    
+                    <!-- Search inside modal -->
+                    <div class="mb-4">
+                        <input 
+                            v-model="searchQuery" 
+                            type="text" 
+                            placeholder="Search available knowledge..." 
+                            class="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-slate-200 focus:outline-none focus:border-blue-500 transition-colors"
+                        >
                     </div>
-                </div>
-                
-                <div class="mt-6 pt-4 border-t border-slate-800 flex justify-end">
-                    <button @click="showMapModal = false" class="px-4 py-2 text-gray-400 hover:text-white">Close</button>
+
+                    <div class="flex-1 overflow-y-auto min-h-0 space-y-2 pr-2 custom-scrollbar">
+                        <div 
+                            v-for="kb in unmappedKnowledge" 
+                            :key="kb._id"
+                            @click="mapKnowledge(kb._id)"
+                            class="group p-4 rounded-xl border border-slate-700/50 bg-slate-800/30 hover:bg-slate-800 hover:border-blue-500/50 cursor-pointer transition-all flex justify-between items-center"
+                        >
+                            <div class="flex items-center gap-4">
+                                <div class="p-2 bg-slate-900 rounded-lg text-slate-400 group-hover:text-blue-400 transition-colors">
+                                    <DocumentTextIcon class="w-5 h-5" />
+                                </div>
+                                <div>
+                                    <h4 class="text-sm font-semibold text-slate-200 group-hover:text-white transition-colors">{{ kb.title }}</h4>
+                                    <div class="flex items-center gap-2 text-xs text-slate-500 mt-0.5">
+                                        <span class="capitalize">{{ kb.type }}</span>
+                                        <span>•</span>
+                                        <span>{{ kb.department || 'General' }}</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <button class="p-2 rounded-lg bg-blue-600/10 text-blue-500 opacity-0 group-hover:opacity-100 transition-all hover:bg-blue-600 hover:text-white">
+                                <PlusIcon class="w-5 h-5" />
+                            </button>
+                        </div>
+                        
+                        <div v-if="unmappedKnowledge.length === 0" class="text-center py-10 text-slate-500">
+                            <p v-if="searchQuery">No matches found for "{{ searchQuery }}".</p>
+                            <p v-else>No other available knowledge found to add.<br>Create more in the Library.</p>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-6 pt-4 border-t border-slate-800 flex justify-end">
+                        <button @click="showMapModal = false" class="px-5 py-2.5 text-slate-400 hover:text-white font-medium transition-colors">Close</button>
+                    </div>
                 </div>
             </div>
-        </div>
+        </transition>
     </div>
 </template>
+
+<style scoped>
+.custom-scrollbar::-webkit-scrollbar { width: 6px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+.custom-scrollbar::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+.custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #475569; }
+</style>
+
