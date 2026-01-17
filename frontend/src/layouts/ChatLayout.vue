@@ -44,7 +44,7 @@ const userInitial = computed(() => authStore.displayName?.charAt(0)?.toUpperCase
   flex: 1;
   min-width: 0;
   height: 100%;
-  overflow: hidden;
+  overflow: visible;
   position: relative;
   display: flex;
   flex-direction: column;

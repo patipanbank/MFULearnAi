@@ -63,7 +63,7 @@ onUnmounted(() => {
     <div class="knowledge-selector relative" ref="dropdownRef">
         <!-- Trigger Button -->
         <button 
-            @click="toggleDropdown"
+            @click.stop="toggleDropdown"
             class="selector-trigger group"
             :class="{ 'active': isOpen }"
         >
@@ -233,6 +233,7 @@ onUnmounted(() => {
     box-shadow: var(--shadow-lg);
     overflow: hidden;
     transform-origin: top left;
+    z-index: 1000;
 }
 
 .menu-header {

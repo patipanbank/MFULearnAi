@@ -32,11 +32,6 @@ onMounted(() => {
         </svg>
       </button>
       
-      <div class="app-brand">
-        <span class="logo-emoji">🤖</span>
-        <h1>{{ envName }}</h1>
-      </div>
-      
         <!-- Premium Knowledge Selector -->
         <div v-if="route.path.includes('/chat') && knowledgeStore.collections.length > 0" class="ml-6 hidden md:block">
             <KnowledgeSelector />
