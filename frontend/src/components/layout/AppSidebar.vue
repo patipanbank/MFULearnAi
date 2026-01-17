@@ -1,213 +1,276 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
-import { useTheme } from '@/composables/useSettings'
+import { useChatStore } from '@/stores/chat'
+import { useTheme, useLanguage } from '@/composables/useSettings'
 
+// Core
 const router = useRouter()
 const route = useRoute()
 const authStore = useAuthStore()
-const { isDark, toggle: toggleTheme } = useTheme()
-const { t } = useLanguage()
-
-import { useChatStore } from '@/stores/chat'
-import ChatSidebar from '@/components/chat/ChatSidebar.vue'
-import { useLanguage } from '@/composables/useSettings'
-
 const chatStore = useChatStore()
 
+// Settings
+const { isDark, toggle: toggleTheme } = useTheme()
+const { lang, toggle: toggleLang, t } = useLanguage()
+
+// State
+const isCollapsed = ref(false)
+
+// Navigation Configuration
+const mainNav = [
+  { id: 'chat', label: 'AI Chat', path: '/chat', icon: 'message-square' },
+  { id: 'knowledge', label: 'Knowledge', path: '/knowledge', icon: 'book' },
+  { id: 'admin', label: 'Admin', path: '/admin', icon: 'settings' }
+]
+
+// Computed
+const currentRouteName = computed(() => route.name)
+const userInitials = computed(() => authStore.displayName?.charAt(0)?.toUpperCase() || 'U')
+
+// Methods
 const handleNewChat = () => {
-  chatStore.newSession()
+    chatStore.newSession()
+    if (route.path !== '/chat') {
+        router.push('/chat')
+    }
 }
 
 const handleSelectSession = (sessionId) => {
     chatStore.loadSession(sessionId)
+    if (route.path !== '/chat') {
+        router.push('/chat')
+    }
 }
 
-const isCollapsed = ref(false)
-
-const navigation = [
-  { name: 'AI Chat', href: '/chat', icon: 'chat' },
-  { name: 'Knowledge', href: '/knowledge', icon: 'book' },
-  { name: 'Admin', href: '/admin', icon: 'settings' },
-]
-
-const isActive = (href) => route.path.startsWith(href)
-
 const handleLogout = () => {
-  authStore.logout()
-  router.push('/login')
+    authStore.logout()
+    router.push('/login')
 }
 </script>
 
 <template>
-  <aside class="sidebar" :class="{ collapsed: isCollapsed }">
-    <!-- Header -->
+  <aside class="app-sidebar" :class="{ 'collapsed': isCollapsed }">
+    <!-- 1. Header & Logo -->
     <div class="sidebar-header">
-      <div class="logo">
+      <div class="logo-area">
         <div class="logo-icon">M</div>
-        <span v-if="!isCollapsed" class="logo-text">MFULearn AI</span>
+        <span class="logo-text">MFU Learn</span>
       </div>
       <button class="toggle-btn" @click="isCollapsed = !isCollapsed">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path v-if="isCollapsed" d="M9 18l6-6-6-6"/>
-          <path v-else d="M15 18l-6-6 6-6"/>
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="15 18 9 12 15 6" v-if="!isCollapsed"></polyline>
+          <polyline points="9 18 15 12 9 6" v-else></polyline>
         </svg>
       </button>
     </div>
 
-    <!-- Navigation -->
-    <nav class="sidebar-nav">
+    <!-- 2. Primary Action (New Chat) -->
+    <div class="sidebar-action">
+      <button class="new-chat-btn" @click="handleNewChat" :title="t('newChat')">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="12" y1="5" x2="12" y2="19"></line>
+          <line x1="5" y1="12" x2="19" y2="12"></line>
+        </svg>
+        <span class="btn-text">{{ t('newChat') }}</span>
+      </button>
+    </div>
+
+    <!-- 3. Main Navigation -->
+    <nav class="main-nav">
+      <div class="nav-label" v-if="!isCollapsed">MENU</div>
       <router-link 
-        v-for="item in navigation" 
-        :key="item.name"
-        :to="item.href"
+        v-for="item in mainNav" 
+        :key="item.id"
+        :to="item.path"
         class="nav-item"
-        :class="{ active: isActive(item.href) }"
+        :class="{ 'active': route.path.startsWith(item.path) }"
       >
-        <!-- Chat Icon -->
-        <svg v-if="item.icon === 'chat'" class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-        </svg>
-        <!-- Book Icon -->
-        <svg v-if="item.icon === 'book'" class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
-          <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
-        </svg>
-        <!-- Settings Icon -->
-        <svg v-if="item.icon === 'settings'" class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.38a2 2 0 0 0-.73-2.73l-.15-.1a2 2 0 0 1-1-1.72v-.51a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/>
-          <circle cx="12" cy="12" r="3"/>
-        </svg>
-        <span v-if="!isCollapsed" class="nav-text">{{ item.name }}</span>
+        <div class="nav-icon-wrapper">
+          <!-- Chat Icon -->
+          <svg v-if="item.icon === 'message-square'" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+          <!-- Book Icon -->
+          <svg v-if="item.icon === 'book'" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
+          <!-- Settings Icon -->
+          <svg v-if="item.icon === 'settings'" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+        </div>
+        <span class="nav-text">{{ item.label }}</span>
       </router-link>
     </nav>
 
-    <!-- Chat History (Only visible on Chat route) -->
-    <div v-if="route.path.startsWith('/chat') && !isCollapsed" class="sidebar-chat-history">
-      <ChatSidebar 
-        :sessions="chatStore.sessions"
-        :current-session-id="chatStore.currentSessionId"
-        :t="t"
-        @new-chat="handleNewChat"
-        @select-session="handleSelectSession"
-      />
+    <!-- 4. Contextual Content (Scrollable) -->
+    <div class="sidebar-content">
+      <!-- Chat History -->
+      <div v-if="route.path.startsWith('/chat') && !isCollapsed" class="context-section">
+        <div class="section-label">{{ t('recentChats') }}</div>
+        <div class="session-list">
+          <button 
+            v-for="session in chatStore.sessions" 
+            :key="session.sessionId"
+            class="session-item"
+            :class="{ 'active': session.sessionId === chatStore.currentSessionId }"
+            @click="handleSelectSession(session.sessionId)"
+          >
+            <svg class="session-icon" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+            <span class="session-text">{{ session.metadata?.title || 'New Conversation' }}</span>
+          </button>
+        </div>
+      </div>
     </div>
 
-    <!-- Footer -->
+    <!-- 5. Footer (User & System) -->
     <div class="sidebar-footer">
-      <button class="footer-btn" @click="toggleTheme">
-        <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <circle v-if="isDark" cx="12" cy="12" r="5"/>
-          <line v-if="isDark" x1="12" y1="1" x2="12" y2="3"/>
-          <line v-if="isDark" x1="12" y1="21" x2="12" y2="23"/>
-          <line v-if="isDark" x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
-          <line v-if="isDark" x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
-          <line v-if="isDark" x1="1" y1="12" x2="3" y2="12"/>
-          <line v-if="isDark" x1="21" y1="12" x2="23" y2="12"/>
-          <line v-if="isDark" x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
-          <line v-if="isDark" x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
-          <path v-else d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
-        </svg>
-        <span v-if="!isCollapsed">{{ isDark ? 'Light' : 'Dark' }}</span>
-      </button>
-      <button class="footer-btn logout" @click="handleLogout">
-        <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
-          <polyline points="16 17 21 12 16 7"/>
-          <line x1="21" y1="12" x2="9" y2="12"/>
-        </svg>
-        <span v-if="!isCollapsed">Sign Out</span>
-      </button>
+      <div class="user-profile" v-if="!isCollapsed">
+        <div class="avatar">{{ userInitials }}</div>
+        <div class="user-info">
+          <div class="user-name">{{ authStore.displayName }}</div>
+          <div class="user-role">User</div>
+        </div>
+      </div>
+      
+      <div class="footer-actions">
+        <button class="footer-btn" @click="toggleTheme" :title="isDark ? 'Light Mode' : 'Dark Mode'">
+           <svg v-if="isDark" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+           <svg v-else xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+        </button>
+        <button class="footer-btn" @click="toggleLang" :title="lang">
+            <span class="lang-text">{{ lang === 'th' ? 'EN' : 'TH' }}</span>
+        </button>
+        <button class="footer-btn logout" @click="handleLogout" title="Sign Out">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+        </button>
+      </div>
     </div>
   </aside>
 </template>
 
 <style scoped>
-.sidebar {
-  width: 240px;
-  height: 100%;
-  background: #0b1121;
-  border-right: 1px solid #1e293b;
+/* Base Layout */
+.app-sidebar {
   display: flex;
   flex-direction: column;
-  transition: width 0.2s ease;
-  flex-shrink: 0;
+  width: 260px;
+  height: 100%;
+  background-color: #0f172a; /* Slate 900 */
+  border-right: 1px solid #1e293b; /* Slate 800 */
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: hidden;
+  color: #94a3b8; /* Slate 400 */
+  z-index: 50;
 }
 
-.sidebar.collapsed {
-  width: 64px;
+.app-sidebar.collapsed {
+  width: 72px;
 }
 
+/* 1. Header */
 .sidebar-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px;
-  border-bottom: 1px solid #1e293b;
+  padding: 16px 20px;
+  height: 64px;
 }
 
-.logo {
+.logo-area {
   display: flex;
   align-items: center;
   gap: 12px;
   overflow: hidden;
+  white-space: nowrap;
 }
 
 .logo-icon {
-  width: 36px;
-  height: 36px;
+  width: 32px;
+  height: 32px;
   background: linear-gradient(135deg, #3b82f6, #6366f1);
-  border-radius: 10px;
+  border-radius: 8px;
+  color: white;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: white;
   font-weight: 700;
   font-size: 18px;
   flex-shrink: 0;
 }
 
 .logo-text {
+  font-size: 18px;
   font-weight: 600;
   color: #f1f5f9;
-  white-space: nowrap;
 }
 
 .toggle-btn {
-  width: 28px;
-  height: 28px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: transparent;
-  border: 1px solid #334155;
-  border-radius: 6px;
-  color: #94a3b8;
+  background: none;
+  border: none;
+  color: #64748b;
   cursor: pointer;
-  transition: all 0.15s;
-  flex-shrink: 0;
+  padding: 4px;
+  border-radius: 4px;
+  transition: all 0.2s;
 }
 
 .toggle-btn:hover {
-  background: #1e293b;
   color: #f1f5f9;
+  background-color: rgba(255,255,255,0.05);
 }
 
-.sidebar-nav {
-  flex: 1;
-  padding: 12px 8px;
-  overflow-y: auto;
-  flex-shrink: 0;
-  max-height: 40%;
+.collapsed .logo-text, 
+.collapsed .toggle-btn {
+  display: none;
+}
+.collapsed .sidebar-header {
+  justify-content: center;
+  padding: 16px 0;
 }
 
-.sidebar-chat-history {
-  flex: 1;
-  overflow-y: auto;
-  border-top: 1px solid #1e293b;
+/* 2. Action Button */
+.sidebar-action {
+  padding: 0 16px 16px;
+}
+
+.new-chat-btn {
+  width: 100%;
   display: flex;
-  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: linear-gradient(to right, #2563eb, #3b82f6);
+  color: white;
+  border: none;
+  padding: 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.2s;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+.new-chat-btn:hover {
+  filter: brightness(110%);
+  transform: translateY(-1px);
+}
+
+.collapsed .btn-text {
+  display: none;
+}
+.collapsed .new-chat-btn {
+  padding: 10px 0;
+}
+
+/* 3. Main Navigation */
+.main-nav {
+  padding: 0 12px;
+}
+
+.nav-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: #475569;
+  padding: 0 12px;
+  margin-bottom: 8px;
+  letter-spacing: 0.05em;
 }
 
 .nav-item {
@@ -219,70 +282,180 @@ const handleLogout = () => {
   color: #94a3b8;
   text-decoration: none;
   transition: all 0.15s;
-  margin-bottom: 4px;
+  margin-bottom: 2px;
 }
 
 .nav-item:hover {
-  background: #1e293b;
+  background-color: rgba(30, 41, 59, 0.5); /* Slate 800/50 */
   color: #f1f5f9;
 }
 
 .nav-item.active {
-  background: #3b82f6;
-  color: white;
+  background-color: rgba(59, 130, 246, 0.1); /* Blue 500/10 */
+  color: #60a5fa; /* Blue 400 */
 }
 
-.nav-icon {
-  width: 20px;
-  height: 20px;
-  flex-shrink: 0;
-}
-
-.nav-text {
-  font-size: 14px;
-  font-weight: 500;
-  white-space: nowrap;
-}
-
-.sidebar-footer {
-  padding: 12px 8px;
-  border-top: 1px solid #1e293b;
-}
-
-.footer-btn {
+.nav-icon-wrapper {
   display: flex;
   align-items: center;
-  gap: 12px;
-  width: 100%;
-  padding: 10px 12px;
-  border-radius: 8px;
-  background: transparent;
-  border: none;
-  color: #94a3b8;
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.15s;
-  margin-bottom: 4px;
+  justify-content: center;
+  width: 24px; 
 }
 
-.footer-btn:hover {
-  background: #1e293b;
+.collapsed .nav-text {
+  display: none;
+}
+.collapsed .nav-item {
+  justify-content: center;
+  padding: 10px 0;
+}
+
+/* 4. Content Area (Scrollable) */
+.sidebar-content {
+  flex: 1;
+  overflow-y: auto;
+  margin-top: 16px;
+  padding: 0 12px;
+  /* Scrollbar Styling */
+  scrollbar-width: thin;
+  scrollbar-color: #334155 transparent;
+}
+
+.sidebar-content::-webkit-scrollbar {
+  width: 4px;
+}
+.sidebar-content::-webkit-scrollbar-thumb {
+  background-color: #334155;
+  border-radius: 4px;
+}
+
+.section-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: #475569;
+  padding: 8px 12px 4px;
+  text-transform: uppercase;
+}
+
+.session-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.session-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 12px;
+  background: none;
+  border: none;
+  text-align: left;
+  color: #94a3b8;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  transition: all 0.15s;
+}
+
+.session-item:hover {
+  background-color: rgba(30, 41, 59, 0.5);
   color: #f1f5f9;
 }
 
+.session-item.active {
+  color: #60a5fa;
+  background-color: rgba(59, 130, 246, 0.05);
+}
+
+.session-text {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 5. Footer */
+.sidebar-footer {
+  border-top: 1px solid #1e293b;
+  padding: 16px;
+  background-color: #0b1121;
+}
+
+.user-profile {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.avatar {
+  width: 36px;
+  height: 36px;
+  background-color: #475569;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.user-info {
+  overflow: hidden;
+}
+
+.user-name {
+  color: #f1f5f9;
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.user-role {
+  color: #64748b;
+  font-size: 12px;
+}
+
+.footer-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.footer-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 36px;
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 6px;
+  color: #94a3b8;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.footer-btn:hover {
+  background: #334155;
+  color: white;
+}
+
 .footer-btn.logout:hover {
-  background: rgba(239, 68, 68, 0.1);
-  color: #f87171;
+  background: #ef4444;
+  border-color: #ef4444;
+  color: white;
 }
 
-.collapsed .logo-text,
-.collapsed .nav-text,
-.collapsed .footer-btn span {
-  display: none;
+.lang-text {
+  font-size: 12px;
+  font-weight: 700;
 }
 
-.collapsed .toggle-btn {
-  display: none;
+.collapsed .footer-actions {
+  flex-direction: column;
 }
 </style>
