@@ -7,14 +7,25 @@ import KnowledgeList from '../../components/knowledge/KnowledgeList.vue'
 import CollectionGrid from '../../components/knowledge/CollectionGrid.vue'
 import UploadModal from '../../components/knowledge/UploadModal.vue'
 import CreateCollectionModal from '../../components/knowledge/CreateCollectionModal.vue'
+import KnowledgeDetailModal from '../../components/knowledge/KnowledgeDetailModal.vue'
+import CollectionDetailModal from '../../components/knowledge/CollectionDetailModal.vue'
+import AdminRequests from '../../components/knowledge/AdminRequests.vue'
 
 const { t } = useLanguage()
 const knowledgeStore = useKnowledgeStore()
 const authStore = useAuthStore()
 
-const activeTab = ref('knowledge') // 'knowledge' or 'collections'
+const activeTab = ref('knowledge') // 'knowledge', 'collections', 'requests'
 const showUploadModal = ref(false)
 const showCollectionModal = ref(false)
+
+const showKnowledgeDetail = ref(false)
+const selectedKnowledge = ref(null)
+
+const showCollectionDetail = ref(false)
+const selectedCollection = ref(null)
+
+const isAdmin = authStore.role === 'admin'
 
 onMounted(() => {
     // Initial fetch
@@ -22,7 +33,22 @@ onMounted(() => {
     knowledgeStore.fetchCollections()
 })
 
-const isAdmin = authStore.role === 'admin'
+const openKnowledge = (item) => {
+    selectedKnowledge.value = item
+    showKnowledgeDetail.value = true
+}
+
+const openCollection = (col) => {
+    selectedCollection.value = col
+    showCollectionDetail.value = true
+}
+
+const handleCollectionItemOpen = (item) => {
+    // Open knowledge detail FROM collection detail
+    selectedKnowledge.value = item
+    showKnowledgeDetail.value = true
+}
+
 </script>
 
 <template>
@@ -71,17 +97,30 @@ const isAdmin = authStore.role === 'admin'
       >
         {{ t('collections') }}
       </button>
+      <button 
+        v-if="isAdmin"
+        class="tab-btn" 
+        :class="{ active: activeTab === 'requests' }"
+        @click="activeTab = 'requests'"
+      >
+        Requests <span class="badge-dot" v-if="false"></span>
+      </button>
     </div>
     
     <div class="dashboard-content">
       <!-- Knowledge Tab -->
       <div v-if="activeTab === 'knowledge'" class="tab-pane fade-in">
-        <KnowledgeList />
+        <KnowledgeList @open="openKnowledge" />
       </div>
 
       <!-- Collections Tab -->
       <div v-if="activeTab === 'collections'" class="tab-pane fade-in">
-        <CollectionGrid />
+        <CollectionGrid @open="openCollection" />
+      </div>
+
+      <!-- Admin Requests Tab -->
+      <div v-if="activeTab === 'requests'" class="tab-pane fade-in">
+        <AdminRequests />
       </div>
     </div>
 
@@ -97,6 +136,20 @@ const isAdmin = authStore.role === 'admin'
         v-if="showCollectionModal"
         @close="showCollectionModal = false"
         @success="showCollectionModal = false; knowledgeStore.fetchCollections()"
+      />
+
+      <KnowledgeDetailModal
+        v-if="showKnowledgeDetail && selectedKnowledge"
+        :item="selectedKnowledge"
+        @close="showKnowledgeDetail = false"
+        @success="knowledgeStore.fetchKnowledge()"
+      />
+
+      <CollectionDetailModal
+        v-if="showCollectionDetail && selectedCollection"
+        :collection="selectedCollection"
+        @close="showCollectionDetail = false"
+        @open-item="handleCollectionItemOpen"
       />
     </Teleport>
 

@@ -4,9 +4,10 @@ import { useKnowledgeStore } from '@/stores/knowledge'
 import { useAuthStore } from '@/stores/auth'
 import { useLanguage } from '@/composables/useSettings'
 
-const knowledgeStore = useKnowledgeStore()
 const authStore = useAuthStore()
 const { t } = useLanguage()
+
+const emit = defineEmits(['open'])
 
 const filterType = ref('all') // 'all', 'personal', 'department', 'public'
 
@@ -90,7 +91,7 @@ const handleDelete = async (id) => {
           </tr>
         </thead>
         <tbody>
-          <tr v-for="item in filteredKnowledge" :key="item._id">
+          <tr v-for="item in filteredKnowledge" :key="item._id" @click="$emit('open', item)" class="clickable-row">
             <td class="col-name">
               <div class="file-icon">📄</div>
               <span>{{ item.title }}</span>
@@ -292,5 +293,13 @@ const handleDelete = async (id) => {
     text-align: center;
     color: var(--color-text-muted);
     padding: 32px;
+}
+
+.clickable-row {
+    cursor: pointer;
+    transition: background 0.1s;
+}
+.clickable-row:hover {
+    background: var(--color-bg-tertiary);
 }
 </style>

@@ -7,6 +7,7 @@ const knowledgeStore = useKnowledgeStore()
 const { t } = useLanguage()
 
 const collections = computed(() => knowledgeStore.collections)
+const emit = defineEmits(['open'])
 
 const getTypeLabel = (type) => {
     switch (type) {
@@ -20,7 +21,7 @@ const getTypeLabel = (type) => {
 
 <template>
   <div class="collection-grid">
-    <div v-for="col in collections" :key="col._id" class="collection-card">
+    <div v-for="col in collections" :key="col._id" class="collection-card" @click="$emit('open', col)">
        <div class="card-header">
            <div class="folder-icon">📁</div>
            <div class="card-type">{{ getTypeLabel(col.type) }}</div>
@@ -34,7 +35,7 @@ const getTypeLabel = (type) => {
        </div>
        <div class="card-footer">
            <button class="btn-outline">Open</button>
-           <button class="btn-icon">⚙️</button>
+           <button class="btn-icon" @click.stop>⚙️</button>
        </div>
     </div>
     

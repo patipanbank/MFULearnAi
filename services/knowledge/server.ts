@@ -282,6 +282,40 @@ app.post('/api/knowledge', upload.single('file'), async (req: any, res: Response
     }
 });
 
+// 1.05 DELETE KNOWLEDGE
+app.delete('/api/knowledge/:id', async (req: Request, res: Response) => {
+    const user = extractUser(req);
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+
+    try {
+        const kb = await Knowledge.findById(req.params.id);
+        if (!kb) return res.status(404).json({ error: 'Not found' });
+
+        // Permission Check
+        if (!canManageKnowledge(user, kb)) {
+            return res.status(403).json({ error: 'Not allowed to delete this knowledge' });
+        }
+
+        // 1. Delete from Chroma
+        const col = await chroma.getCollection({ name: GLOBAL_CHROMA_COLLECTION } as any);
+        await col.delete({ where: { knowledgeId: kb._id.toString() } });
+
+        // 2. Delete from Mongo
+        await Knowledge.findByIdAndDelete(kb._id);
+
+        // 3. Remove from any collections (Cleanup)
+        await Collection.updateMany(
+            { knowledgeIds: kb._id },
+            { $pull: { knowledgeIds: kb._id } }
+        );
+
+        res.json({ success: true, id: kb._id });
+    } catch (e: any) {
+        console.error('Delete error:', e);
+        res.status(500).json({ error: e.message });
+    }
+});
+
 // 1.1 REQUEST PUBLISH
 app.post('/api/knowledge/:id/request-publish', async (req: Request, res: Response) => {
     const user = extractUser(req);
@@ -564,6 +598,26 @@ app.get('/api/knowledge', async (req: Request, res: Response) => {
                 { type: 'department', department: user.department },
                 { type: 'personal', ownerId: user.userId }
             ];
+        }
+
+        // Add Request Status Filter (for Admin)
+        if (req.query.requestStatus) {
+            filter.requestStatus = req.query.requestStatus;
+            // Admin can see requests from their dept
+            if (user.role === 'admin') {
+                filter.department = user.department;
+                // If type was restricted in previous logic, make sure we don't accidentally strict it too much
+                // But usually Admin Request view is specific. 
+                // Let's ensure if requestStatus is pending, we allow seeing items even if they are 'personal' (but they are personally owned by others?)
+                // Wait, personal items are owned by students. Admin needs to see them to approve.
+                // My previous $or logic restricts to "ownerId: user.userId" for personal.
+                // So an Admin CANNOT see student's personal items by default.
+
+                // FIX: If fetching pending requests, override the visibility logic for Admin
+                delete filter.$or; // Remove the standard visibility restriction
+                filter.requestStatus = req.query.requestStatus;
+                filter.department = user.department; // Admin only manages their dept
+            }
         }
 
         const items = await Knowledge.find(filter).sort({ createdAt: -1 });

@@ -24,22 +24,37 @@ export const useKnowledgeStore = defineStore('knowledge', () => {
 
     // --- Knowledge Actions ---
 
-    async function fetchKnowledge(type = null) {
+    async function fetchKnowledge(params = {}) {
         loading.value = true
         error.value = null
         try {
-            const params = type ? { type } : {}
+            // Backward compatibility for string argument
+            const queryParams = typeof params === 'string' ? { type: params } : { ...params }
+
+            // Clean up 'all' type
+            if (queryParams.type === 'all') delete queryParams.type
+
             const res = await axios.get(`${API_URL}/knowledge`, {
-                params,
+                params: queryParams,
                 ...getHeaders()
             })
+
+            // If fetching specific requests (like pending), we might return them or update main list
+            // For now, update main list as Admin UI will likely use a separate store call or just filter this list.
             knowledge.value = res.data.knowledge
+
+            return res.data.knowledge
         } catch (e) {
             error.value = e.response?.data?.error || e.message
             console.error('Fetch knowledge failed:', e)
+            throw e
         } finally {
             loading.value = false
         }
+    }
+
+    async function fetchPendingRequests() {
+        return await fetchKnowledge({ requestStatus: 'pending' })
     }
 
     async function uploadKnowledge(file, type) {
@@ -185,6 +200,8 @@ export const useKnowledgeStore = defineStore('knowledge', () => {
         fetchCollections,
         createCollection,
         fetchCollectionDetails,
-        mapKnowledge
+        fetchCollectionDetails,
+        mapKnowledge,
+        fetchPendingRequests
     }
 })
