@@ -14,7 +14,6 @@ import { useTheme, useLanguage } from '@/composables/useSettings'
 import { useScrollToBottom } from '@/composables/useUtils'
 
 import {
-  ChatHeader,
   ChatMessage,
   ChatInput,
   ChatWelcome,
