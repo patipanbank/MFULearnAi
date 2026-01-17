@@ -33,14 +33,21 @@ passport.use(new SamlStrategy(
         issuer: process.env.SAML_SP_ENTITY_ID || 'mfu-learn-ai',
         callbackUrl: process.env.SAML_SP_ACS_URL || `${process.env.API_GATEWAY_URL || 'http://localhost:6000'}/api/auth/saml/callback`,
         entryPoint: process.env.SAML_IDP_SSO_URL || 'https://idp.mfu.ac.th/sso', // Mock/Real URL
+        logoutUrl: process.env.SAML_IDP_SLO_URL,
         cert: process.env.SAML_CERTIFICATE || '',
-        disableRequestedAuthnContext: true
+        disableRequestedAuthnContext: true,
+        forceAuthn: false,
+        identifierFormat: null,
+        wantAssertionsSigned: true,
+        acceptedClockSkewMs: -1,
+        validateInResponseTo: false,
+        passReqToCallback: true
     },
-    async (profile: any, done: any) => {
+    async (req: any, profile: any, done: any) => {
         try {
             // Transform SAML Profile to Standard User Object
             const nameID = profile.nameID;
-            const username = profile['User.Username'] || profile['User.Userrname'] || nameID;
+            const username = profile['User.Userrname'] || profile['User.Username'] || nameID;
             const email = profile['User.Email'] || profile.email;
             const firstName = profile['first_name'] || profile.givenName;
             const lastName = profile['last_name'] || profile.sn;
