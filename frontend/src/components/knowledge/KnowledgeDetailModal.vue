@@ -78,6 +78,14 @@ const formatDate = (dateString) => {
             </div>
         </div>
 
+        <div class="detail-group">
+            <label>Content Preview</label>
+            <div class="content-box">
+                <pre v-if="item.content">{{ item.content }}</pre>
+                <div v-else class="no-content">No content available for preview.</div>
+            </div>
+        </div>
+
         <!-- Publish Status Section -->
         <div class="status-section" v-if="item.requestStatus !== 'none'">
             <h4>Publish Status</h4>
@@ -273,5 +281,30 @@ h4 {
     font-size: 13px;
     margin-top: 8px;
     text-align: center;
+}
+
+.content-box {
+    background: var(--color-bg-tertiary);
+    border-radius: 8px;
+    padding: 12px;
+    max-height: 200px;
+    overflow-y: auto;
+    border: 1px solid var(--color-border);
+}
+
+.content-box pre {
+    white-space: pre-wrap;
+    font-family: inherit;
+    font-size: 13px;
+    color: var(--color-text-secondary);
+    margin: 0;
+}
+
+.no-content {
+    color: var(--color-text-muted);
+    font-style: italic;
+    font-size: 13px;
+    text-align: center;
+    padding: 20px;
 }
 </style>

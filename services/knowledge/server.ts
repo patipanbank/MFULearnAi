@@ -90,6 +90,7 @@ interface IKnowledge extends Document {
     visibility: 'active' | 'archived';
     requestStatus: 'none' | 'pending' | 'approved' | 'rejected';
     requestedType?: 'public' | 'department';
+    content?: string; // Store full text content
     createdAt: Date;
 }
 
@@ -98,6 +99,7 @@ const KnowledgeSchema = new Schema({
     description: String,
     type: { type: String, enum: ['public', 'department', 'personal'], required: true },
     contentSource: String,
+    content: String, // New field
     ownerId: { type: String, required: true },
     department: { type: String, required: true },
     visibility: { type: String, default: 'active' },
@@ -249,6 +251,7 @@ app.post('/api/knowledge', upload.single('file'), async (req: any, res: Response
             title: cleanName,
             type,
             contentSource: cleanName,
+            content: text, // Save the extracted text
             ownerId: user.userId,
             department: user.department
         });

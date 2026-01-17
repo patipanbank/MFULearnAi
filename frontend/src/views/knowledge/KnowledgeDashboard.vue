@@ -6,18 +6,17 @@ import { useAuthStore } from '@/stores/auth'
 import KnowledgeList from '../../components/knowledge/KnowledgeList.vue'
 import CollectionGrid from '../../components/knowledge/CollectionGrid.vue'
 import UploadModal from '../../components/knowledge/UploadModal.vue'
-import CreateCollectionModal from '../../components/knowledge/CreateCollectionModal.vue'
-import KnowledgeDetailModal from '../../components/knowledge/KnowledgeDetailModal.vue'
 import CollectionDetailModal from '../../components/knowledge/CollectionDetailModal.vue'
-import AdminRequests from '../../components/knowledge/AdminRequests.vue'
+import AdminRequestsModal from '../../components/knowledge/AdminRequestsModal.vue'
 
 const { t } = useLanguage()
 const knowledgeStore = useKnowledgeStore()
 const authStore = useAuthStore()
 
-const activeTab = ref('knowledge') // 'knowledge', 'collections', 'requests'
+const activeTab = ref('knowledge') // 'knowledge', 'collections'
 const showUploadModal = ref(false)
 const showCollectionModal = ref(false)
+const showAdminModal = ref(false)
 
 const showKnowledgeDetail = ref(false)
 const selectedKnowledge = ref(null)
@@ -60,6 +59,15 @@ const handleCollectionItemOpen = (item) => {
       </div>
       
       <div class="header-actions">
+        <!-- Admin Button -->
+        <button 
+          v-if="isAdmin"
+          class="btn-secondary"
+          @click="showAdminModal = true"
+        >
+           <span class="icon">⚡</span> Manage Requests
+        </button>
+
         <!-- Add Button depending on Tab -->
         <button 
           v-if="activeTab === 'knowledge'"
@@ -97,14 +105,6 @@ const handleCollectionItemOpen = (item) => {
       >
         {{ t('collections') }}
       </button>
-      <button 
-        v-if="isAdmin"
-        class="tab-btn" 
-        :class="{ active: activeTab === 'requests' }"
-        @click="activeTab = 'requests'"
-      >
-        Requests <span class="badge-dot" v-if="false"></span>
-      </button>
     </div>
     
     <div class="dashboard-content">
@@ -116,11 +116,6 @@ const handleCollectionItemOpen = (item) => {
       <!-- Collections Tab -->
       <div v-if="activeTab === 'collections'" class="tab-pane fade-in">
         <CollectionGrid @open="openCollection" />
-      </div>
-
-      <!-- Admin Requests Tab -->
-      <div v-if="activeTab === 'requests'" class="tab-pane fade-in">
-        <AdminRequests />
       </div>
     </div>
 
@@ -150,6 +145,11 @@ const handleCollectionItemOpen = (item) => {
         :collection="selectedCollection"
         @close="showCollectionDetail = false"
         @open-item="handleCollectionItemOpen"
+      />
+      
+      <AdminRequestsModal 
+        v-if="showAdminModal"
+        @close="showAdminModal = false"
       />
     </Teleport>
 
@@ -200,6 +200,23 @@ const handleCollectionItemOpen = (item) => {
 
 .btn-primary:hover {
   opacity: 0.9;
+}
+
+.btn-secondary {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    background: transparent;
+    color: var(--color-text-primary);
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    font-weight: 500;
+    cursor: pointer;
+    margin-right: 8px;
+}
+.btn-secondary:hover {
+    background: var(--color-bg-hover);
 }
 
 /* Tabs */
