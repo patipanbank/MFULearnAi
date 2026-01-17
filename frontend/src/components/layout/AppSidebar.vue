@@ -178,15 +178,8 @@ const isActive = (href) => route.path.startsWith(href)
 </template>
 
 <style scoped>
-/* Force SVG icons to respect their defined dimensions */
-nav :deep(svg),
-.p-3 :deep(svg) {
-  width: 1.25rem !important;  /* 20px = w-5 */
-  height: 1.25rem !important; /* 20px = h-5 */
-  min-width: 1.25rem;
-  min-height: 1.25rem;
-  max-width: 1.25rem;
-  max-height: 1.25rem;
-  flex-shrink: 0;
-}
+/* Sidebar specific icon constraints - applied directly to icon components */
+.w-5 { width: 1.25rem; height: 1.25rem; }
+.w-6 { width: 1.5rem; height: 1.5rem; }
+.w-3 { width: 0.75rem; height: 0.75rem; }
 </style>

@@ -29,9 +29,22 @@ body {
 }
 
 #app {
+  display: flex;
   width: 100%;
   height: 100%;
   margin: 0;
   padding: 0;
   overflow: hidden;
+}
+
+/* Global SVG fix - prevent heroicons from expanding */
+svg {
+  flex-shrink: 0;
+}
+
+/* Heroicons Vue typically renders with these classes */
+[class*="w-"]>svg,
+[class*="h-"]>svg {
+  width: 100%;
+  height: 100%;
 }
