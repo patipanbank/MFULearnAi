@@ -6,6 +6,8 @@ import { useAuthStore } from '@/stores/auth'
 import KnowledgeList from '../../components/knowledge/KnowledgeList.vue'
 import CollectionGrid from '../../components/knowledge/CollectionGrid.vue'
 import UploadModal from '../../components/knowledge/UploadModal.vue'
+import CreateCollectionModal from '../../components/knowledge/CreateCollectionModal.vue'
+import KnowledgeDetailModal from '../../components/knowledge/KnowledgeDetailModal.vue'
 import CollectionDetailModal from '../../components/knowledge/CollectionDetailModal.vue'
 import AdminRequestsModal from '../../components/knowledge/AdminRequestsModal.vue'
 
