@@ -151,8 +151,9 @@ onUnmounted(() => {
 
                         <!-- Render dynamic options manually to avoid v-for issues in debug -->
                         <template v-if="knowledgeStore.collections && knowledgeStore.collections.length > 0">
+                             <!-- Filter out the 'Default Collection' if it exists in the list to avoid duplication -->
                              <button 
-                                v-for="col in knowledgeStore.collections" 
+                                v-for="col in knowledgeStore.collections.filter(c => c.name !== 'Default Collection')" 
                                 :key="col._id"
                                 @click="selectCollection(col._id)"
                                 class="menu-item"
