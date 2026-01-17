@@ -1,37 +1,60 @@
-<script setup>
-import { BookOpenIcon, BeakerIcon } from '@heroicons/vue/24/outline'
-</script>
-
 <template>
-  <div class="h-full w-full flex flex-col items-center justify-center bg-slate-900/50 text-slate-300 p-8 text-center">
-    
-    <div class="max-w-md w-full bg-slate-800/40 backdrop-blur-xl border border-slate-700/50 rounded-2xl p-8 shadow-2xl">
-        <div class="mx-auto w-16 h-16 rounded-2xl bg-gradient-to-tr from-blue-500/20 to-indigo-500/20 flex items-center justify-center mb-6 ring-1 ring-white/5">
-            <BookOpenIcon class="w-8 h-8 text-blue-400" />
-        </div>
-        
-        <h2 class="text-xl font-semibold text-white mb-2">Knowledge Base</h2>
-        <p class="text-sm text-slate-400 leading-relaxed mb-6">
-            We're building a new way to manage your AI's intelligence. 
-            Check back soon for document uploads and collection management.
-        </p>
-        
-        <div class="flex items-center justify-center gap-2 py-2 px-3 bg-blue-500/10 rounded-lg border border-blue-500/20">
-            <BeakerIcon class="w-4 h-4 text-blue-400" />
-            <span class="text-xs font-medium text-blue-300">Work in Progress</span>
-        </div>
+  <div class="knowledge-placeholder">
+    <div class="card">
+      <div class="icon">📚</div>
+      <h2>Knowledge Base</h2>
+      <p>Coming soon. We're building a new way to manage your AI's intelligence.</p>
+      <span class="badge">Work in Progress</span>
     </div>
-
   </div>
 </template>
 
 <style scoped>
-/* Force Heroicons SVG to respect dimensions */
-:deep(svg) {
-  width: inherit;
-  height: inherit;
-  max-width: 100%;
-  max-height: 100%;
-  flex-shrink: 0;
+.knowledge-placeholder {
+  height: 100%;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #0f172a;
+  padding: 24px;
+}
+
+.card {
+  max-width: 400px;
+  padding: 48px;
+  background: rgba(30, 41, 59, 0.5);
+  border: 1px solid #334155;
+  border-radius: 16px;
+  text-align: center;
+}
+
+.icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+}
+
+h2 {
+  color: #f1f5f9;
+  margin-bottom: 12px;
+  font-size: 24px;
+}
+
+p {
+  color: #94a3b8;
+  font-size: 14px;
+  line-height: 1.6;
+  margin-bottom: 24px;
+}
+
+.badge {
+  display: inline-block;
+  padding: 6px 12px;
+  background: rgba(59, 130, 246, 0.1);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  border-radius: 6px;
+  color: #60a5fa;
+  font-size: 12px;
+  font-weight: 500;
 }
 </style>

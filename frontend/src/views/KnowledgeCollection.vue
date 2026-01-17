@@ -1,25 +1,39 @@
-<script setup>
-import { ArrowLeftIcon } from '@heroicons/vue/24/outline'
-</script>
-
 <template>
-  <div class="h-full flex flex-col items-center justify-center bg-slate-900 text-slate-300 p-8">
-    <router-link to="/knowledge" class="flex items-center gap-2 text-slate-400 hover:text-white mb-8 transition-colors">
-      <ArrowLeftIcon class="w-5 h-5" />
-      <span>Back to Knowledge</span>
+  <div class="collection-placeholder">
+    <router-link to="/knowledge" class="back-link">
+      ← Back to Knowledge
     </router-link>
-    <h1 class="text-2xl font-bold text-white">Collection View</h1>
-    <p class="mt-2 text-slate-500">This view is being updated.</p>
+    <h1>Collection View</h1>
+    <p>This view is being updated.</p>
   </div>
 </template>
 
 <style scoped>
-/* Force Heroicons SVG to respect dimensions */
-:deep(svg) {
-  width: inherit;
-  height: inherit;
-  max-width: 100%;
-  max-height: 100%;
-  flex-shrink: 0;
+.collection-placeholder {
+  height: 100%;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: #0f172a;
+  color: #94a3b8;
+  padding: 24px;
+}
+
+.back-link {
+  color: #60a5fa;
+  text-decoration: none;
+  margin-bottom: 24px;
+  font-size: 14px;
+}
+
+.back-link:hover {
+  text-decoration: underline;
+}
+
+h1 {
+  color: #f1f5f9;
+  margin-bottom: 8px;
 }
 </style>

@@ -3,30 +3,28 @@ import AppSidebar from '@/components/layout/AppSidebar.vue'
 </script>
 
 <template>
-  <div class="flex h-screen w-screen bg-slate-950 overflow-hidden">
-    <!-- Persistent Sidebar -->
+  <div class="app-layout">
     <AppSidebar />
-    
-    <!-- Main Content Area -->
-    <main class="flex-1 min-w-0 relative h-full overflow-hidden">
-      <!-- The nested router view will render here (Chat, Knowledge, etc.) -->
-      <router-view v-slot="{ Component }">
-        <transition name="fade" mode="out-in">
-          <component :is="Component" />
-        </transition>
-      </router-view>
+    <main class="app-main">
+      <router-view />
     </main>
   </div>
 </template>
 
 <style scoped>
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.2s ease;
+.app-layout {
+  display: flex;
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+  background-color: #0f172a;
 }
 
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
+.app-main {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  overflow: hidden;
+  position: relative;
 }
 </style>
