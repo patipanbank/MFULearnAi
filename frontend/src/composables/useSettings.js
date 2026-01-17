@@ -3,9 +3,11 @@ import { ref, watch } from 'vue'
 const THEME_KEY = 'mful_theme'
 const LANG_KEY = 'mful_lang'
 
-export function useTheme() {
-    const isDark = ref(true)
+// Global State (Singleton)
+const isDark = ref(true)
+const lang = ref('th')
 
+export function useTheme() {
     // Initialize from localStorage or system preference
     const init = () => {
         const saved = localStorage.getItem(THEME_KEY)
@@ -34,8 +36,6 @@ export function useTheme() {
 }
 
 export function useLanguage() {
-    const lang = ref('th') // 'th' or 'en'
-
     const translations = {
         th: {
             // Chat
