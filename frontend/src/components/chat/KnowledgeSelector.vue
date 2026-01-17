@@ -107,8 +107,8 @@ onUnmounted(() => {
             </svg>
         </button>
 
-        <!-- Use #app to ensure theme context (if applicable) and fallback to fixed positioning -->
-        <Teleport to="#app">
+        <!-- Use body for max reliability against container styles -->
+        <Teleport to="body">
             <div v-if="isOpen" class="overlay-container">
                 <!-- Backdrop -->
                 <div class="backdrop" @click="closeDropdown"></div>
@@ -116,10 +116,12 @@ onUnmounted(() => {
                 <!-- Dropdown -->
                 <div 
                     class="dropdown-menu"
+                    id="knowledge-dropdown-menu"
                     :style="{
                         top: `${dropdownPosition.top}px`,
                         left: `${dropdownPosition.left}px`,
-                        maxHeight: `${dropdownPosition.maxHeight}px`
+                        maxHeight: `${dropdownPosition.maxHeight}px`,
+                        display: 'block' 
                     }"
                 >
                     <div class="menu-header">
@@ -147,31 +149,37 @@ onUnmounted(() => {
 
                         <div class="divider"></div>
 
-                        <button 
-                            v-for="col in knowledgeStore.collections" 
-                            :key="col._id"
-                            @click="selectCollection(col._id)"
-                            class="menu-item"
-                            :class="{ 'selected': chatStore.currentCollectionId === col._id }"
-                        >
-                            <div class="item-icon" 
-                                 :class="{
-                                     'personal-icon': col.type === 'personal',
-                                     'dept-icon': col.type === 'department',
-                                     'public-icon': col.type === 'public'
-                                 }">
-                                <svg v-if="col.type === 'personal'" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
-                                <svg v-else-if="col.type === 'department'" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect><line x1="9" y1="22" x2="9" y2="22.01"></line><line x1="15" y1="22" x2="15" y2="22.01"></line><line x1="12" y1="18" x2="12" y2="18.01"></line><line x1="12" y1="14" x2="12" y2="14.01"></line></svg>
-                                <svg v-else width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
-                            </div>
-                            <div class="item-content">
-                                <span class="item-title">{{ col.name }}</span>
-                                <span class="item-desc capitalize">{{ col.type }} Collection</span>
-                            </div>
-                            <div v-if="chatStore.currentCollectionId === col._id" class="check-icon">
-                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                            </div>
-                        </button>
+                        <!-- Render dynamic options manually to avoid v-for issues in debug -->
+                        <template v-if="knowledgeStore.collections && knowledgeStore.collections.length > 0">
+                             <button 
+                                v-for="col in knowledgeStore.collections" 
+                                :key="col._id"
+                                @click="selectCollection(col._id)"
+                                class="menu-item"
+                                :class="{ 'selected': chatStore.currentCollectionId === col._id }"
+                            >
+                                <div class="item-icon" 
+                                     :class="{
+                                         'personal-icon': col.type === 'personal',
+                                         'dept-icon': col.type === 'department',
+                                         'public-icon': col.type === 'public'
+                                     }">
+                                    <svg v-if="col.type === 'personal'" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                                    <svg v-else-if="col.type === 'department'" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect><line x1="9" y1="22" x2="9" y2="22.01"></line><line x1="15" y1="22" x2="15" y2="22.01"></line><line x1="12" y1="18" x2="12" y2="18.01"></line><line x1="12" y1="14" x2="12" y2="14.01"></line></svg>
+                                    <svg v-else width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
+                                </div>
+                                <div class="item-content">
+                                    <span class="item-title">{{ col.name }}</span>
+                                    <span class="item-desc capitalize">{{ col.type }} Collection</span>
+                                </div>
+                                <div v-if="chatStore.currentCollectionId === col._id" class="check-icon">
+                                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                                </div>
+                            </button>
+                        </template>
+                        <div v-else class="p-2 text-xs text-center text-gray-500">
+                             No collections loaded
+                        </div>
                     </div>
                 </div>
             </div>
