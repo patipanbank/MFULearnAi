@@ -24,3 +24,14 @@ import { BookOpenIcon, BeakerIcon } from '@heroicons/vue/24/outline'
 
   </div>
 </template>
+
+<style scoped>
+/* Force Heroicons SVG to respect dimensions */
+:deep(svg) {
+  width: inherit;
+  height: inherit;
+  max-width: 100%;
+  max-height: 100%;
+  flex-shrink: 0;
+}
+</style>

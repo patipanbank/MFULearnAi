@@ -12,3 +12,14 @@ import { ArrowLeftIcon } from '@heroicons/vue/24/outline'
     <p class="mt-2 text-slate-500">This view is being updated.</p>
   </div>
 </template>
+
+<style scoped>
+/* Force Heroicons SVG to respect dimensions */
+:deep(svg) {
+  width: inherit;
+  height: inherit;
+  max-width: 100%;
+  max-height: 100%;
+  flex-shrink: 0;
+}
+</style>

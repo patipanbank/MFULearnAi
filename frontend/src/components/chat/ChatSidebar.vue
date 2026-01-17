@@ -66,4 +66,13 @@ const toggleSidebar = () => {
   transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   flex-shrink: 0;
 }
+
+/* Force inline SVGs to respect their class dimensions */
+svg {
+  width: 1rem;   /* 16px = w-4 */
+  height: 1rem;
+  max-width: 1rem;
+  max-height: 1rem;
+  flex-shrink: 0;
+}
 </style>

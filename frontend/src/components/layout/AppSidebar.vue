@@ -176,3 +176,17 @@ const isActive = (href) => route.path.startsWith(href)
     <Bars3Icon class="w-6 h-6" />
   </button>
 </template>
+
+<style scoped>
+/* Force SVG icons to respect their defined dimensions */
+nav :deep(svg),
+.p-3 :deep(svg) {
+  width: 1.25rem !important;  /* 20px = w-5 */
+  height: 1.25rem !important; /* 20px = h-5 */
+  min-width: 1.25rem;
+  min-height: 1.25rem;
+  max-width: 1.25rem;
+  max-height: 1.25rem;
+  flex-shrink: 0;
+}
+</style>
