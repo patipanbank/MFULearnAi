@@ -31,18 +31,16 @@ const currentIcon = computed(() => {
 const updatePosition = () => {
     if (dropdownRef.value) {
         const rect = dropdownRef.value.getBoundingClientRect()
-        // Calculate available space below
         const spaceBelow = window.innerHeight - rect.bottom
         
         dropdownPosition.top = rect.bottom + 8
         dropdownPosition.left = rect.left
         
-        // Ensure it doesn't go off screen width
+        // Ensure it doesn't go off screen
         if (dropdownPosition.left + 320 > window.innerWidth) {
             dropdownPosition.left = window.innerWidth - 330
         }
         
-        // Max height logic to prevent going off screen bottom
         dropdownPosition.maxHeight = Math.min(spaceBelow - 20, 400)
     }
 }
@@ -66,7 +64,6 @@ const closeDropdown = () => {
     isOpen.value = false
 }
 
-// Handle resize and scroll to keep position or close
 const handleScrollResize = () => {
     if (isOpen.value) updatePosition()
 }
@@ -91,16 +88,9 @@ onUnmounted(() => {
             :class="{ 'active': isOpen }"
         >
             <div class="icon-wrapper">
-                <!-- Globe Icon (Default) -->
                 <svg v-if="currentIcon === 'globe'" width="16" height="16" viewBox="0 0 24 24" fill="none" class="w-4 h-4 text-[var(--color-success)]" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
-                
-                <!-- User Icon (Personal) -->
                 <svg v-else-if="currentIcon === 'user'" width="16" height="16" viewBox="0 0 24 24" fill="none" class="w-4 h-4 text-[var(--color-accent)]" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
-                
-                <!-- Building Icon (Department) -->
                 <svg v-else-if="currentIcon === 'building'" width="16" height="16" viewBox="0 0 24 24" fill="none" class="w-4 h-4 text-[var(--color-warning)]" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect><line x1="9" y1="22" x2="9" y2="22.01"></line><line x1="15" y1="22" x2="15" y2="22.01"></line><line x1="12" y1="18" x2="12" y2="18.01"></line><line x1="12" y1="14" x2="12" y2="14.01"></line><line x1="12" y1="10" x2="12" y2="10.01"></line><line x1="12" y1="6" x2="12" y2="6.01"></line><line x1="8" y1="18" x2="8" y2="18.01"></line><line x1="8" y1="14" x2="8" y2="14.01"></line><line x1="8" y1="10" x2="8" y2="10.01"></line><line x1="8" y1="6" x2="8" y2="6.01"></line><line x1="16" y1="18" x2="16" y2="18.01"></line><line x1="16" y1="14" x2="16" y2="14.01"></line><line x1="16" y1="10" x2="16" y2="10.01"></line><line x1="16" y1="6" x2="16" y2="6.01"></line></svg>
-            
-                <!-- Book Icon (Fallback) -->
                 <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="none" class="w-4 h-4 text-[var(--color-text-secondary)]" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
             </div>
 
@@ -117,14 +107,14 @@ onUnmounted(() => {
             </svg>
         </button>
 
-        <!-- Overlay Pane (Teleported) -->
-        <Teleport to="body">
-            <!-- Backdrop (Invisible but blocking) -->
-            <div v-if="isOpen" class="fixed inset-0 z-[9998]" @click="closeDropdown"></div>
-
-            <transition name="dropdown">
+        <!-- Use #app to ensure theme context (if applicable) and fallback to fixed positioning -->
+        <Teleport to="#app">
+            <div v-if="isOpen" class="overlay-container">
+                <!-- Backdrop -->
+                <div class="backdrop" @click="closeDropdown"></div>
+                
+                <!-- Dropdown -->
                 <div 
-                    v-if="isOpen" 
                     class="dropdown-menu"
                     :style="{
                         top: `${dropdownPosition.top}px`,
@@ -157,7 +147,6 @@ onUnmounted(() => {
 
                         <div class="divider"></div>
 
-                        <!-- Dynamic Options -->
                         <button 
                             v-for="col in knowledgeStore.collections" 
                             :key="col._id"
@@ -165,7 +154,6 @@ onUnmounted(() => {
                             class="menu-item"
                             :class="{ 'selected': chatStore.currentCollectionId === col._id }"
                         >
-                            <!-- Icon Logic -->
                             <div class="item-icon" 
                                  :class="{
                                      'personal-icon': col.type === 'personal',
@@ -176,19 +164,17 @@ onUnmounted(() => {
                                 <svg v-else-if="col.type === 'department'" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect><line x1="9" y1="22" x2="9" y2="22.01"></line><line x1="15" y1="22" x2="15" y2="22.01"></line><line x1="12" y1="18" x2="12" y2="18.01"></line><line x1="12" y1="14" x2="12" y2="14.01"></line></svg>
                                 <svg v-else width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
                             </div>
-
                             <div class="item-content">
                                 <span class="item-title">{{ col.name }}</span>
                                 <span class="item-desc capitalize">{{ col.type }} Collection</span>
                             </div>
-                            
                             <div v-if="chatStore.currentCollectionId === col._id" class="check-icon">
                                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
                             </div>
                         </button>
                     </div>
                 </div>
-            </transition>
+            </div>
         </Teleport>
     </div>
 </template>
@@ -196,20 +182,19 @@ onUnmounted(() => {
 <style scoped>
 .knowledge-selector {
     position: relative;
-    /* Removed z-index from here as Teleport handles it */
 }
 
 .selector-trigger {
     display: flex;
     align-items: center;
     gap: 12px;
-    padding: 6px 16px 6px 6px; /* Adjusted padding */
+    padding: 6px 16px 6px 6px;
     background: var(--color-bg-tertiary);
     border: 1px solid var(--color-border);
-    border-radius: 9999px; /* Pill shape */
+    border-radius: 9999px;
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     cursor: pointer;
-    min-width: 180px; /* Reduced min-width */
+    min-width: 180px;
     color: var(--color-text-primary);
 }
 
@@ -239,7 +224,7 @@ onUnmounted(() => {
 }
 
 .label-main {
-    font-size: 14px; /* Increased font size */
+    font-size: 14px;
     font-weight: 500;
     color: var(--color-text-primary);
     white-space: nowrap;
@@ -257,17 +242,40 @@ onUnmounted(() => {
     color: var(--color-text-primary);
 }
 
+/* Overlay Container */
+.overlay-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 2147483647; /* Max z-index */
+    pointer-events: none; /* Let clicks pass through empty areas but not backdrop */
+}
+
+.backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.05); /* Slight dim to prove visibility */
+    pointer-events: auto;
+}
+
 /* Dropdown Menu */
 .dropdown-menu {
-    position: fixed; /* Teleport uses fixed */
+    position: fixed;
     width: 320px;
-    background: var(--color-bg-primary); 
+    background: var(--color-bg-primary);
     border: 1px solid var(--color-border);
     border-radius: 16px;
-    box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.5); /* Boost shadow for floating feel */
+    box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.5);
     overflow: hidden;
     transform-origin: top left;
-    z-index: 9999; /* Max z-index */
+    pointer-events: auto;
+    /* Ensure content is visible against any background */
+    background-color: var(--color-bg-primary, #ffffff); 
 }
 
 .menu-header {
@@ -282,7 +290,6 @@ onUnmounted(() => {
 }
 
 .menu-list {
-    /* Max height is now dynamic via inline style */
     overflow-y: auto;
     padding: 6px;
 }
@@ -322,49 +329,17 @@ onUnmounted(() => {
     color: var(--color-text-secondary);
 }
 
-/* Icon Colors using variables where possible or specific style adjustments */
-.default-icon {
-    background: rgba(34, 197, 94, 0.1);
-    color: var(--color-success);
-}
+.default-icon { background: rgba(34, 197, 94, 0.1); color: var(--color-success); }
+.personal-icon { background: rgba(59, 130, 246, 0.1); color: var(--color-accent); }
+.dept-icon { background: rgba(245, 158, 11, 0.1); color: var(--color-warning); }
+.public-icon { background: rgba(100, 116, 139, 0.1); color: var(--color-text-secondary); }
 
-.personal-icon {
-    background: rgba(59, 130, 246, 0.1);
-    color: var(--color-accent);
-}
-
-.dept-icon {
-    background: rgba(245, 158, 11, 0.1);
-    color: var(--color-warning);
-}
-
-.public-icon {
-    background: rgba(100, 116, 139, 0.1);
-    color: var(--color-text-secondary);
-}
-
-.item-content {
-    flex: 1;
-    min-width: 0;
-}
-
-.item-title {
-    display: block;
-    font-size: 14px;
-    font-weight: 500;
-    color: var(--color-text-primary);
-}
-
-.item-desc {
-    display: block;
-    font-size: 12px;
-    color: var(--color-text-secondary);
-    margin-top: 1px;
-}
+.item-content { flex: 1; min-width: 0; }
+.item-title { display: block; font-size: 14px; font-weight: 500; color: var(--color-text-primary); }
+.item-desc { display: block; font-size: 12px; color: var(--color-text-secondary); margin-top: 1px; }
 
 .check-icon {
     color: var(--color-accent);
-    animation: scaleIn 0.2s ease;
 }
 
 .divider {
@@ -373,32 +348,8 @@ onUnmounted(() => {
     margin: 4px 10px;
 }
 
-@keyframes scaleIn {
-    from { transform: scale(0); }
-    to { transform: scale(1); }
-}
-
-/* Transitions */
-.dropdown-enter-active,
-.dropdown-leave-active {
-    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.dropdown-enter-from,
-.dropdown-leave-to {
-    opacity: 0;
-    transform: translateY(-8px) scale(0.96);
-}
-
 /* Scrollbar */
-.custom-scrollbar::-webkit-scrollbar {
-    width: 4px;
-}
-.custom-scrollbar::-webkit-scrollbar-track {
-    background: transparent;
-}
-.custom-scrollbar::-webkit-scrollbar-thumb {
-    background: var(--color-border);
-    border-radius: 4px;
-}
+.custom-scrollbar::-webkit-scrollbar { width: 4px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+.custom-scrollbar::-webkit-scrollbar-thumb { background: var(--color-border); border-radius: 4px; }
 </style>
