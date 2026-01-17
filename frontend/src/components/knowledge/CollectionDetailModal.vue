@@ -154,7 +154,7 @@ const handleRemove = async (knowledgeId) => {
         Collection Owner: {{ fullCollection?.ownerId }} <br>
         My ID: {{ authStore.userId }} <br>
         Type: {{ fullCollection?.type }} <br>
-        Me: {{ authStore.user?.username }} ({{ authStore.role }})
+        User Object: {{ JSON.stringify(authStore.user) }}
       </div>
     </div>
   </div>
