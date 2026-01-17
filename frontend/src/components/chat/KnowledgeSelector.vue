@@ -250,7 +250,16 @@ onUnmounted(() => {
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     cursor: pointer;
     min-width: 180px;
+    max-width: 240px; /* Cap width */
     color: var(--color-text-primary);
+}
+
+@media (max-width: 640px) {
+    .selector-trigger {
+        min-width: auto; /* Allow shrinking */
+        max-width: 160px; /* Constrain on mobile */
+        padding-right: 12px;
+    }
 }
 
 .selector-trigger:hover, .selector-trigger.active {
@@ -285,7 +294,16 @@ onUnmounted(() => {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    overflow: hidden;
+    text-overflow: ellipsis;
     max-width: 200px;
+}
+
+@media (max-width: 640px) {
+    .label-main {
+        max-width: 100px; /* Truncate aggressively on mobile */
+        font-size: 13px;
+    }
 }
 
 .chevron {

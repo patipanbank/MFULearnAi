@@ -24,12 +24,20 @@ const { t } = useLanguage()
 
 // State
 const isCollapsedInternal = ref(false)
+const isHovered = ref(false)
 const showSettings = ref(false)
 
 // Computed to handle collapse state logic
 const isCollapsed = computed(() => {
-    if (props.isMobile) return false // Never collapse in mobile view (it's either open or closed)
+    if (props.isMobile) return false // Never collapse in mobile view
     return isCollapsedInternal.value
+})
+
+// Determines if the sidebar should visually appear collapsed
+// It is collapsed if the user collapsed it AND isn't hovering over it
+const isEffectiveCollapsed = computed(() => {
+    if (props.isMobile) return false
+    return isCollapsed.value && !isHovered.value
 })
 
 // Methods
@@ -63,28 +71,32 @@ const handleDeleteSession = async (sessionId) => {
   <aside 
     class="app-sidebar" 
     :class="{ 
-        'collapsed': isCollapsed,
+        'collapsed': isEffectiveCollapsed,
         'mobile': isMobile,
         'mobile-open': mobileOpen
     }"
+    @mouseenter="isHovered = true"
+    @mouseleave="isHovered = false"
   >
     <!-- 1. Header & Logo -->
     <div class="sidebar-header">
+      <!-- Toggle / Logo Area -->
       <div class="logo-area">
-        <div class="logo-icon">M</div>
-        <span class="logo-text">{{ t('appName') }}</span>
+        <!-- Hamburger Button (Only on desktop) -->
+        <button v-if="!isMobile" class="hamburger-btn" @click="isCollapsedInternal = !isCollapsedInternal">
+           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+        </button>
+        
+        <!-- Mobile Close Button -->
+        <button v-else class="hamburger-btn close-mobile" @click="emit('close-mobile')">
+             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button>
+
+        <!-- App Name (Hidden when effectively collapsed) -->
+        <transition name="fade">
+            <span v-if="!isEffectiveCollapsed" class="logo-text">{{ t('appName') }}</span>
+        </transition>
       </div>
-      <!-- Hide collapse toggle on mobile -->
-      <button v-if="!isMobile" class="toggle-btn" @click="isCollapsedInternal = !isCollapsedInternal">
-        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <polyline points="15 18 9 12 15 6" v-if="!isCollapsed"></polyline>
-          <polyline points="9 18 15 12 9 6" v-else></polyline>
-        </svg>
-      </button>
-      <!-- Mobile Close Button -->
-      <button v-else class="toggle-btn" @click="emit('close-mobile')">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-      </button>
     </div>
 
     <!-- 2. Primary Action (New Chat) -->
@@ -94,7 +106,7 @@ const handleDeleteSession = async (sessionId) => {
           <line x1="12" y1="5" x2="12" y2="19"></line>
           <line x1="5" y1="12" x2="19" y2="12"></line>
         </svg>
-        <span class="btn-text">{{ t('newChat') }}</span>
+        <span class="btn-text" v-if="!isEffectiveCollapsed">{{ t('newChat') }}</span>
       </button>
     </div>
 
@@ -102,7 +114,7 @@ const handleDeleteSession = async (sessionId) => {
     <div class="sidebar-content">
       <!-- Chat History -->
       <div class="context-section">
-        <div class="section-label" v-if="!isCollapsed">{{ t('recentChats') }}</div>
+        <div class="section-label" v-if="!isEffectiveCollapsed">{{ t('recentChats') }}</div>
         <div class="session-list">
           <button 
             v-for="session in chatStore.sessions" 
@@ -112,12 +124,12 @@ const handleDeleteSession = async (sessionId) => {
             @click="handleSelectSession(session.sessionId)"
           >
             <svg class="session-icon" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
-            <span class="session-text" v-if="!isCollapsed">{{ session.metadata?.title || t('newConversation') }}</span>
+            <span class="session-text" v-if="!isEffectiveCollapsed">{{ session.metadata?.title || t('newConversation') }}</span>
             <button 
                 class="delete-btn"
                 @click.stop="handleDeleteSession(session.sessionId)"
                 :title="t('deleteChat')"
-                v-if="!isCollapsed"
+                v-if="!isEffectiveCollapsed"
             >
                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
             </button>
@@ -128,9 +140,9 @@ const handleDeleteSession = async (sessionId) => {
 
     <!-- 4. Footer (Settings Trigger) -->
     <div class="sidebar-footer">
-      <button class="settings-trigger-btn" @click="showSettings = true" :class="{ 'collapsed': isCollapsed }">
+      <button class="settings-trigger-btn" @click="showSettings = true" :class="{ 'collapsed': isEffectiveCollapsed }">
         <svg class="settings-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
-        <span class="settings-text" v-if="!isCollapsed">{{ t('settings') }}</span>
+        <span class="settings-text" v-if="!isEffectiveCollapsed">{{ t('settings') }}</span>
       </button>
     </div>
 
@@ -182,10 +194,16 @@ const handleDeleteSession = async (sessionId) => {
 .sidebar-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  /* Centering for collapsed state happens naturally if only one item exists and we use center alignment */
+  justify-content: flex-start; 
   padding: 16px 20px;
   height: 64px;
   flex-shrink: 0;
+}
+
+.collapsed .sidebar-header {
+    justify-content: center;
+    padding: 16px 0;
 }
 
 .logo-area {
@@ -196,48 +214,27 @@ const handleDeleteSession = async (sessionId) => {
   white-space: nowrap;
 }
 
-.logo-icon {
-  width: 32px;
-  height: 32px;
-  background: linear-gradient(135deg, #3b82f6, #6366f1);
-  border-radius: 8px;
-  color: white;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 700;
-  font-size: 18px;
-  flex-shrink: 0;
-}
-
 .logo-text {
   font-size: 18px;
   font-weight: 600;
   color: var(--color-text-primary);
 }
 
-.toggle-btn {
+.hamburger-btn {
   background: none;
   border: none;
-  color: var(--color-text-muted);
+  color: var(--color-text-primary); /* Changed to primary to act as main icon */
   cursor: pointer;
-  padding: 4px;
+  padding: 4px; /* Reduced padding to match previous icon size area */
   border-radius: 4px;
   transition: all 0.2s;
-}
-
-.toggle-btn:hover {
-  color: var(--color-text-primary);
-  background-color: var(--color-bg-hover);
-}
-
-.collapsed .logo-text, 
-.collapsed .toggle-btn {
-  display: none;
-}
-.collapsed .sidebar-header {
+  display: flex;
+  align-items: center;
   justify-content: center;
-  padding: 16px 0;
+}
+
+.hamburger-btn:hover {
+  background-color: var(--color-bg-hover);
 }
 
 /* 2. Action Button */
@@ -268,9 +265,6 @@ const handleDeleteSession = async (sessionId) => {
   transform: translateY(-1px);
 }
 
-.collapsed .btn-text {
-  display: none;
-}
 .collapsed .new-chat-btn {
   padding: 10px 0;
 }
@@ -366,7 +360,7 @@ const handleDeleteSession = async (sessionId) => {
 .sidebar-footer {
   border-top: 1px solid var(--color-border);
   padding: 16px;
-  background-color: var(--color-bg-primary); /* Or darker if needed, but primary is safe */
+  background-color: var(--color-bg-primary); 
   flex-shrink: 0;
 }
 
@@ -394,30 +388,12 @@ const handleDeleteSession = async (sessionId) => {
   padding: 8px 0;
 }
 
-.user-avatar-small {
-  width: 28px;
-  height: 28px;
-  background: var(--color-text-secondary);
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 12px;
-  font-weight: 600;
-  color: white;
-}
-
 .settings-text {
   font-size: 14px;
   font-weight: 500;
 }
 
-.chevron-icon {
-  margin-left: auto;
-  opacity: 0.5;
-}
-
-/* Transition */
+/* Transitions */
 .fade-enter-active,
 .fade-leave-active {
   transition: opacity 0.2s ease;
@@ -425,6 +401,7 @@ const handleDeleteSession = async (sessionId) => {
 
 .fade-enter-from,
 .fade-leave-to {
+  position: absolute; /* Prevent jumping during leave */
   opacity: 0;
 }
 </style>

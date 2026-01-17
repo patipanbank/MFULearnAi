@@ -33,7 +33,7 @@ onMounted(() => {
       </button>
       
         <!-- Premium Knowledge Selector -->
-        <div v-if="route.path.includes('/chat') && knowledgeStore.collections.length > 0" class="ml-6 hidden md:block">
+        <div v-if="route.path.includes('/chat') && knowledgeStore.collections.length > 0" class="ml-6">
             <KnowledgeSelector />
         </div>
     </div>
