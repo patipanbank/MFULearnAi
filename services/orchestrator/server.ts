@@ -139,13 +139,18 @@ async function searchKnowledgeBase(query: string, userContext: any, collectionId
         };
 
         const response = await axios.post(`${KNOWLEDGE_URL}/search`, payload, { headers });
+        console.log(`[Orchestrator] RAG Search for collection ${collectionId || 'default'}: Found ${response.data?.results?.length || 0} hits`);
+
         if (response.data && response.data.results) {
-            return response.data.results
+            const context = response.data.results
                 .map((hit: any) => `[Source: ${hit.metadata.source}]\n${hit.content}`)
                 .join('\n\n');
+            console.log('[Orchestrator] RAG Context Length:', context.length);
+            return context;
         }
     } catch (error: any) {
         console.warn('[Orchestrator] Knowledge search failed:', error.message);
+        console.warn('[Orchestrator] Payload was:', { query, collectionId });
     }
     return '';
 }
