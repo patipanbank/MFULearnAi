@@ -41,7 +41,7 @@ const handleSelectSession = (sessionId) => {
     <div class="sidebar-header">
       <div class="logo-area">
         <div class="logo-icon">M</div>
-        <span class="logo-text">MFU Learn</span>
+        <span class="logo-text">{{ t('appName') }}</span>
       </div>
       <button class="toggle-btn" @click="isCollapsed = !isCollapsed">
         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">

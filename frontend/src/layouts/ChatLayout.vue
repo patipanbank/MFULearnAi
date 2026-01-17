@@ -1,14 +1,16 @@
 <script setup>
 import { computed } from 'vue'
 import { useAuthStore } from '@/stores/auth'
+import { useLanguage } from '@/composables/useSettings'
 import AppSidebar from './AppSidebar.vue'
 import AppHeader from './AppHeader.vue'
 
 const authStore = useAuthStore()
+const { t } = useLanguage()
 
 // Props for Header
-const envName = import.meta.env.VITE_ENV_NAME || 'MFU Learn'
-const userName = computed(() => authStore.displayName || 'Guest')
+const envName = import.meta.env.VITE_ENV_NAME || t('appName')
+const userName = computed(() => authStore.displayName || t('guest'))
 const userInitial = computed(() => authStore.displayName?.charAt(0)?.toUpperCase() || 'U')
 </script>
 

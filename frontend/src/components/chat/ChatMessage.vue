@@ -48,7 +48,7 @@ const formatTime = (timestamp) => {
         
         <div class="content-col">
           <div class="assistant-header">
-            <span class="name">AI Assistant</span>
+            <span class="name">{{ t('aiAssistant') }}</span>
             <span class="time">{{ formatTime(message.timestamp) }}</span>
           </div>
           

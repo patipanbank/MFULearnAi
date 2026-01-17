@@ -88,7 +88,10 @@ export function useLanguage() {
             and: 'และ',
             pdpa: 'นโยบาย PDPA',
             authenticating: 'กำลังยืนยันตัวตน...',
-            verifyCreds: 'กรุณารอซักครู่ ระบบกำลังตรวจสอบข้อมูลของคุณ'
+            verifyCreds: 'กรุณารอซักครู่ ระบบกำลังตรวจสอบข้อมูลของคุณ',
+            aiAssistant: 'ผู้ช่วย AI',
+            guest: 'ผู้เยี่ยมชม',
+            appName: 'MFU Learn'
         },
         en: {
             // Chat
@@ -141,7 +144,10 @@ export function useLanguage() {
             and: 'and',
             pdpa: 'PDPA Policy',
             authenticating: 'Authenticating...',
-            verifyCreds: 'Please wait while we verify your credentials'
+            verifyCreds: 'Please wait while we verify your credentials',
+            aiAssistant: 'AI Assistant',
+            guest: 'Guest',
+            appName: 'MFU Learn'
         }
     }
 
