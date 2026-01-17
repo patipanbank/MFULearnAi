@@ -14,7 +14,6 @@ import { useTheme, useLanguage } from '@/composables/useSettings'
 import { useScrollToBottom } from '@/composables/useUtils'
 
 import {
-  ChatSidebar,
   ChatHeader,
   ChatMessage,
   ChatInput,
@@ -114,16 +113,6 @@ const handleCopyMessage = (content) => {
 
 <template>
   <div class="chat-layout">
-    <!-- Sidebar (Session List) -->
-    <ChatSidebar
-      v-model="showSidebar"
-      :sessions="chatStore.sessions"
-      :current-session-id="chatStore.currentSessionId"
-      :t="t"
-      @new-chat="handleNewChat"
-      @select-session="handleSelectSession"
-    />
-    
     <!-- Main Content -->
     <main class="chat-main">
       <!-- Header -->

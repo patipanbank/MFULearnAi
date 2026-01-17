@@ -8,6 +8,21 @@ const router = useRouter()
 const route = useRoute()
 const authStore = useAuthStore()
 const { isDark, toggle: toggleTheme } = useTheme()
+const { t } = useLanguage()
+
+import { useChatStore } from '@/stores/chat'
+import ChatSidebar from '@/components/chat/ChatSidebar.vue'
+import { useLanguage } from '@/composables/useSettings'
+
+const chatStore = useChatStore()
+
+const handleNewChat = () => {
+  chatStore.newSession()
+}
+
+const handleSelectSession = (sessionId) => {
+    chatStore.loadSession(sessionId)
+}
 
 const isCollapsed = ref(false)
 
@@ -67,6 +82,17 @@ const handleLogout = () => {
         <span v-if="!isCollapsed" class="nav-text">{{ item.name }}</span>
       </router-link>
     </nav>
+
+    <!-- Chat History (Only visible on Chat route) -->
+    <div v-if="route.path.startsWith('/chat') && !isCollapsed" class="sidebar-chat-history">
+      <ChatSidebar 
+        :sessions="chatStore.sessions"
+        :current-session-id="chatStore.currentSessionId"
+        :t="t"
+        @new-chat="handleNewChat"
+        @select-session="handleSelectSession"
+      />
+    </div>
 
     <!-- Footer -->
     <div class="sidebar-footer">
@@ -172,6 +198,16 @@ const handleLogout = () => {
   flex: 1;
   padding: 12px 8px;
   overflow-y: auto;
+  flex-shrink: 0;
+  max-height: 40%;
+}
+
+.sidebar-chat-history {
+  flex: 1;
+  overflow-y: auto;
+  border-top: 1px solid #1e293b;
+  display: flex;
+  flex-direction: column;
 }
 
 .nav-item {

@@ -1,78 +1,128 @@
 <script setup>
-import { computed, ref } from 'vue'
+import { computed } from 'vue'
 
 const props = defineProps({
-  modelValue: { type: Boolean, required: true },
   sessions: { type: Array, default: () => [] },
   currentSessionId: { type: String, default: null },
   t: { type: Function, required: true }
 })
 
-const emit = defineEmits([
-  'update:modelValue',
-  'new-chat',
-  'select-session'
-])
-
-const toggleSidebar = () => {
-  emit('update:modelValue', !props.modelValue)
-}
+const emit = defineEmits(['new-chat', 'select-session'])
 </script>
 
 <template>
-  <aside 
-    class="session-sidebar"
-    :class="[modelValue ? 'w-64' : 'w-0 overflow-hidden']"
-  >
-    <div class="flex flex-col h-full bg-slate-900/50 border-r border-slate-700/50 backdrop-blur-sm transition-all duration-300">
-      
-      <!-- New Chat Button -->
-      <div class="p-3 border-b border-slate-700/50">
-        <button 
-          class="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg shadow-lg shadow-blue-900/20 transition-all transform hover:-translate-y-0.5 font-medium text-sm"
-          @click="emit('new-chat')"
-        >
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
-          <span>{{ t('newChat') }}</span>
-        </button>
-      </div>
+  <div class="session-list">
+    <!-- New Chat Button -->
+    <button 
+      class="new-chat-btn"
+      @click="emit('new-chat')"
+    >
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+      <span>{{ t('newChat') }}</span>
+    </button>
 
-      <!-- Session List -->
-      <div class="flex-1 overflow-y-auto p-2 space-y-0.5">
-        <h3 class="px-3 py-2 text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">{{ t('recentChats') }}</h3>
-        
-        <button 
-          v-for="session in sessions" 
-          :key="session.sessionId"
-          class="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all text-left group border border-transparent"
-          :class="[
-            session.sessionId === currentSessionId 
-              ? 'bg-blue-900/20 text-blue-400 border-blue-500/20' 
-              : 'text-slate-400 hover:bg-slate-800/50 hover:text-slate-200'
-          ]"
-          @click="emit('select-session', session.sessionId)"
-        >
-          <svg class="w-4 h-4 shrink-0 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"></path></svg>
-          <span class="truncate text-xs font-medium">{{ session.metadata?.title || 'New Conversation' }}</span>
-        </button>
-      </div>
-      
+    <!-- Recent Chats Header -->
+    <h3 class="section-title">{{ t('recentChats') }}</h3>
+    
+    <!-- Session List -->
+    <div class="sessions">
+      <button 
+        v-for="session in sessions" 
+        :key="session.sessionId"
+        class="session-item"
+        :class="{ active: session.sessionId === currentSessionId }"
+        @click="emit('select-session', session.sessionId)"
+      >
+        <svg class="session-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+        <span class="session-title">{{ session.metadata?.title || 'New Conversation' }}</span>
+      </button>
     </div>
-  </aside>
+  </div>
 </template>
 
 <style scoped>
-.session-sidebar {
-  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  flex-shrink: 0;
+.session-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 0 8px;
 }
 
-/* Force inline SVGs to respect their class dimensions */
-svg {
-  width: 1rem;   /* 16px = w-4 */
-  height: 1rem;
-  max-width: 1rem;
-  max-height: 1rem;
+.new-chat-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px;
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.new-chat-btn:hover {
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  transform: translateY(-1px);
+}
+
+.section-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: 4px 4px 0;
+}
+
+.sessions {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.session-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 10px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  color: #94a3b8;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.15s;
+}
+
+.session-item:hover {
+  background: rgba(30, 41, 59, 0.5);
+  color: #f1f5f9;
+}
+
+.session-item.active {
+  background: rgba(59, 130, 246, 0.1);
+  border-color: rgba(59, 130, 246, 0.2);
+  color: #60a5fa;
+}
+
+.session-icon {
+  width: 16px;
+  height: 16px;
   flex-shrink: 0;
+  opacity: 0.7;
+}
+
+.session-title {
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 </style>
