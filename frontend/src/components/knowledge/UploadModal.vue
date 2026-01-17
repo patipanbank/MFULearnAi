@@ -1,0 +1,140 @@
+<script setup>
+import { ref } from 'vue'
+import { useKnowledgeStore } from '@/stores/knowledge'
+import { useAuthStore } from '@/stores/auth'
+
+const emit = defineEmits(['close', 'success'])
+const knowledgeStore = useKnowledgeStore()
+const authStore = useAuthStore()
+
+const file = ref(null)
+const type = ref('personal')
+const loading = ref(false)
+const error = ref(null)
+
+const isAdmin = authStore.role === 'admin'
+
+const handleFileChange = (e) => {
+    file.value = e.target.files[0]
+}
+
+const handleUpload = async () => {
+    if (!file.value) return
+    
+    loading.value = true
+    error.value = null
+    
+    try {
+        await knowledgeStore.uploadKnowledge(file.value, type.value)
+        emit('success')
+    } catch (e) {
+        error.value = e.message
+    } finally {
+        loading.value = false
+    }
+}
+</script>
+
+<template>
+  <div class="modal-overlay" @click.self="emit('close')">
+    <div class="modal">
+       <h2>Upload Knowledge</h2>
+       
+       <div class="form-group">
+          <label>Select File (PDF, TXT)</label>
+          <input type="file" @change="handleFileChange" accept=".pdf,.txt">
+       </div>
+       
+       <div class="form-group">
+          <label>Visibility</label>
+          <select v-model="type">
+              <option value="personal">Personal (Private)</option>
+              <option v-if="isAdmin" value="department">Department</option>
+              <option v-if="isAdmin" value="public">Public (All)</option>
+          </select>
+          <p class="hint" v-if="type === 'personal'">Only you can see this.</p>
+          <p class="hint" v-if="type === 'department'">Visible to everyone in {{ authStore.department }}</p>
+          <p class="hint" v-if="type === 'public'">Visible to everyone in the university.</p>
+       </div>
+
+       <div v-if="error" class="error">{{ error }}</div>
+
+       <div class="actions">
+           <button class="btn-cancel" @click="emit('close')">Cancel</button>
+           <button class="btn-primary" @click="handleUpload" :disabled="!file || loading">
+               {{ loading ? 'Uploading...' : 'Upload' }}
+           </button>
+       </div>
+    </div>
+  </div>
+</template>
+
+<style scoped>
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.modal {
+    background: var(--color-bg-card);
+    padding: 24px;
+    border-radius: 12px;
+    width: 400px;
+    border: 1px solid var(--color-border);
+    color: var(--color-text-primary);
+}
+
+h2 { margin-top: 0; font-size: 18px; }
+
+.form-group {
+    margin-bottom: 16px;
+}
+
+label {
+    display: block;
+    margin-bottom: 8px;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+select, input {
+    width: 100%;
+    padding: 8px;
+    border-radius: 6px;
+    border: 1px solid var(--color-border);
+    background: var(--color-bg-secondary);
+    color: var(--color-text-primary);
+}
+
+.hint {
+    font-size: 12px;
+    color: var(--color-text-muted);
+    margin-top: 4px;
+}
+
+.actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 24px;
+}
+
+button {
+    padding: 8px 16px;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+    font-weight: 500;
+}
+
+.btn-cancel { background: transparent; color: var(--color-text-secondary); }
+.btn-primary { background: var(--color-accent); color: white; }
+.btn-primary:disabled { opacity: 0.5; }
+
+.error { color: #ef4444; font-size: 13px; margin-bottom: 12px; }
+</style>

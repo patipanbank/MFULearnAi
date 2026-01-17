@@ -91,7 +91,11 @@ export function useLanguage() {
             verifyCreds: 'กรุณารอซักครู่ ระบบกำลังตรวจสอบข้อมูลของคุณ',
             aiAssistant: 'ผู้ช่วย AI',
             guest: 'ผู้เยี่ยมชม',
-            appName: 'MFU Learn'
+            appName: 'MFU Learn',
+            knowledgeBase: 'ฐานความรู้',
+            collections: 'คอลเลกชัน',
+            newCollection: 'สร้างคอลเลกชัน',
+            uploadFile: 'อัพโหลดไฟล์'
         },
         en: {
             // Chat
@@ -147,7 +151,11 @@ export function useLanguage() {
             verifyCreds: 'Please wait while we verify your credentials',
             aiAssistant: 'AI Assistant',
             guest: 'Guest',
-            appName: 'MFU Learn'
+            appName: 'MFU Learn',
+            knowledgeBase: 'Knowledge Base',
+            collections: 'Collections',
+            newCollection: 'New Collection',
+            uploadFile: 'Upload File'
         }
     }
 
