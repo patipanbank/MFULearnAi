@@ -33,7 +33,7 @@ passport.use(new SamlStrategy(
         issuer: process.env.SAML_SP_ENTITY_ID || 'mfu-learn-ai',
         callbackUrl: process.env.SAML_SP_ACS_URL || `${process.env.API_GATEWAY_URL || 'http://localhost:6000'}/api/auth/saml/callback`,
         entryPoint: process.env.SAML_IDP_SSO_URL || 'https://idp.mfu.ac.th/sso', // Mock/Real URL
-        logoutUrl: process.env.SAML_IDP_SLO_URL,
+        logoutUrl: process.env.SAML_IDP_SLO_URL || '',
         cert: process.env.SAML_CERTIFICATE || '',
         disableRequestedAuthnContext: true,
         forceAuthn: false,
