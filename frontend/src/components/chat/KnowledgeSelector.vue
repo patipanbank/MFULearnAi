@@ -9,6 +9,7 @@ const knowledgeStore = useKnowledgeStore()
 const { t } = useLanguage()
 
 const isOpen = ref(false)
+const searchQuery = ref('')
 const dropdownRef = ref(null)
 const dropdownPosition = reactive({ top: 0, left: 0, maxHeight: 400 })
 
@@ -26,6 +27,25 @@ const currentIcon = computed(() => {
     if (col.type === 'personal') return 'user'
     if (col.type === 'department') return 'building'
     return 'book'
+})
+
+// Filter collections based on search query
+const filteredCollections = computed(() => {
+    if (!knowledgeStore.collections) return []
+    
+    // First filter out duplicate 'Default Collection'
+    let result = knowledgeStore.collections.filter(c => c.name !== 'Default Collection')
+    
+    // Then filter by search query if it exists
+    if (searchQuery.value.trim()) {
+        const query = searchQuery.value.toLowerCase()
+        result = result.filter(c => 
+            c.name.toLowerCase().includes(query) || 
+            (c.type && c.type.toLowerCase().includes(query))
+        )
+    }
+    
+    return result
 })
 
 const updatePosition = () => {
@@ -48,8 +68,13 @@ const updatePosition = () => {
 const toggleDropdown = async () => {
     if (!isOpen.value) {
         isOpen.value = true
+        searchQuery.value = '' // Reset search on open
         await nextTick()
         updatePosition()
+        
+        // Focus search input
+        const input = document.getElementById('knowledge-search-input')
+        if (input) input.focus()
     } else {
         isOpen.value = false
     }
@@ -127,10 +152,29 @@ onUnmounted(() => {
                     <div class="menu-header">
                         <span>{{ t('selectContext') }}</span>
                     </div>
+
+                    <!-- Search Input -->
+                    <div class="search-container">
+                        <div class="search-input-wrapper">
+                            <svg class="search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                            <input 
+                                id="knowledge-search-input"
+                                type="text" 
+                                v-model="searchQuery" 
+                                placeholder="Filter collections..." 
+                                class="search-input"
+                                @click.stop
+                            />
+                            <button v-if="searchQuery" @click.stop="searchQuery = ''" class="clear-search">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                            </button>
+                        </div>
+                    </div>
                     
                     <div class="menu-list custom-scrollbar">
-                        <!-- Default Option -->
+                        <!-- Default Option (Only show if no search or matches 'default') -->
                         <button 
+                            v-if="!searchQuery || 'default'.includes(searchQuery.toLowerCase())"
                             @click="selectCollection(null)"
                             class="menu-item"
                             :class="{ 'selected': !chatStore.currentCollectionId }"
@@ -147,13 +191,12 @@ onUnmounted(() => {
                             </div>
                         </button>
 
-                        <div class="divider"></div>
+                        <div v-if="!searchQuery" class="divider"></div>
 
                         <!-- Render dynamic options manually to avoid v-for issues in debug -->
-                        <template v-if="knowledgeStore.collections && knowledgeStore.collections.length > 0">
-                             <!-- Filter out the 'Default Collection' if it exists in the list to avoid duplication -->
+                        <template v-if="filteredCollections.length > 0">
                              <button 
-                                v-for="col in knowledgeStore.collections.filter(c => c.name !== 'Default Collection')" 
+                                v-for="col in filteredCollections" 
                                 :key="col._id"
                                 @click="selectCollection(col._id)"
                                 class="menu-item"
@@ -178,7 +221,10 @@ onUnmounted(() => {
                                 </div>
                             </button>
                         </template>
-                        <div v-else class="p-2 text-xs text-center text-gray-500">
+                        <div v-else-if="searchQuery" class="p-4 text-xs text-center text-gray-500">
+                             No collections match "{{ searchQuery }}"
+                        </div>
+                        <div v-else-if="!knowledgeStore.collections || knowledgeStore.collections.length === 0" class="p-2 text-xs text-center text-gray-500">
                              No collections loaded
                         </div>
                     </div>
@@ -296,6 +342,63 @@ onUnmounted(() => {
     color: var(--color-text-secondary);
     letter-spacing: 0.05em;
     background: var(--color-bg-secondary);
+}
+
+/* Search Styles */
+.search-container {
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--color-border);
+    background: var(--color-bg-secondary);
+}
+
+.search-input-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.search-icon {
+    position: absolute;
+    left: 10px;
+    color: var(--color-text-muted);
+    pointer-events: none;
+}
+
+.search-input {
+    width: 100%;
+    padding: 8px 32px 8px 32px;
+    background: var(--color-bg-input);
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    font-size: 13px;
+    color: var(--color-text-primary);
+    outline: none;
+    transition: all 0.2s;
+}
+
+.search-input:focus {
+    border-color: var(--color-accent);
+    box-shadow: 0 0 0 2px var(--color-accent-light);
+}
+
+.clear-search {
+    position: absolute;
+    right: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    border: none;
+    background: transparent;
+    color: var(--color-text-muted);
+    cursor: pointer;
+    border-radius: 50%;
+}
+
+.clear-search:hover {
+    background: var(--color-bg-active);
+    color: var(--color-text-primary);
 }
 
 .menu-list {
