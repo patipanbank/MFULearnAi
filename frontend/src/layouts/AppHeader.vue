@@ -150,8 +150,7 @@ onMounted(() => {
   padding-right: 4px;
 }
 
-  padding-right: 4px;
-}
+
 
 @media (max-width: 640px) {
   .user-name { display: none; }
