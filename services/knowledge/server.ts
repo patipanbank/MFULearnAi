@@ -450,12 +450,13 @@ app.post('/api/knowledge/collections/:id/map', async (req: Request, res: Respons
         }
 
         if (action === 'add') {
-            // Avoid duplicates
-            if (!col.knowledgeIds.includes(kb._id as any)) {
+            // Avoid duplicates using string comparison
+            const exists = col.knowledgeIds.some((existingId: any) => existingId.toString() === kb._id.toString());
+            if (!exists) {
                 col.knowledgeIds.push(kb._id as any);
             }
         } else if (action === 'remove') {
-            col.knowledgeIds = col.knowledgeIds.filter(k => k.toString() !== knowledgeId);
+            col.knowledgeIds = col.knowledgeIds.filter((k: any) => k.toString() !== knowledgeId);
         }
 
         await col.save();
