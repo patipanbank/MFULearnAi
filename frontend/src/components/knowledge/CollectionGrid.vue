@@ -5,9 +5,14 @@ import { useLanguage } from '@/composables/useSettings'
 
 const knowledgeStore = useKnowledgeStore()
 const { t } = useLanguage()
+const authStore = useKnowledgeStore().$state.authStore || useAuthStore() // Ensure we get auth info. Actually easier to import useAuthStore directly as we did in other files.
+
+// Just standard import
+import { useAuthStore } from '@/stores/auth'
+const auth = useAuthStore()
 
 const collections = computed(() => knowledgeStore.collections)
-const emit = defineEmits(['open'])
+const emit = defineEmits(['open', 'edit'])
 
 const getTypeLabel = (type) => {
     switch (type) {
@@ -16,6 +21,13 @@ const getTypeLabel = (type) => {
         case 'personal': return 'Private'
         default: return type
     }
+}
+
+const canManage = (col) => {
+    if (col.type === 'personal') return col.ownerId === auth.user?.id
+    if (col.type === 'department') return auth.role === 'admin' && auth.user?.department === col.department
+    if (col.type === 'default') return auth.role === 'admin' // Only admins map to global
+    return false
 }
 </script>
 
@@ -35,7 +47,13 @@ const getTypeLabel = (type) => {
        </div>
        <div class="card-footer">
            <button class="btn-outline">Open</button>
-            <button class="btn-icon" @click.stop="$emit('edit', col)">⚙️</button>
+            <button 
+                v-if="canManage(col)"
+                class="btn-icon" 
+                @click.stop="$emit('edit', col)"
+            >
+                ⚙️
+            </button>
        </div>
     </div>
     
