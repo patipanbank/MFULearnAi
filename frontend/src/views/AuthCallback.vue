@@ -18,10 +18,11 @@ onMounted(() => {
       // Decode base64 user data
       const userDataStr = atob(userDataB64)
       const userData = JSON.parse(userDataStr)
+      const provider = urlParams.get('provider') || 'sso' // Default to sso if missing
       
       // Store in Pinia and localStorage
       authStore.setAuth(token, userData)
-      localStorage.setItem('auth_provider', 'sso')
+      localStorage.setItem('auth_provider', provider)
       
       console.log('Auth successful:', userData)
       router.push('/chat')

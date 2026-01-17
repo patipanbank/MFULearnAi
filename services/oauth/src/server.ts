@@ -81,7 +81,7 @@ app.get('/api/auth/google/callback',
         const userDataStr = Buffer.from(JSON.stringify(user)).toString('base64');
 
         // Redirect to Frontend
-        res.redirect(`${FRONTEND_URL}/auth-callback?token=${token}&user_data=${userDataStr}`);
+        res.redirect(`${FRONTEND_URL}/auth-callback?token=${token}&user_data=${userDataStr}&provider=google`);
     }
 );
 
