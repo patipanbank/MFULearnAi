@@ -34,8 +34,6 @@ const messagesRef = ref(null)
 const inputRef = ref(null)
 const showSidebar = ref(true)
 const inputMessage = ref('')
-const collections = ref([])
-
 // Environment
 const envName = import.meta.env.VITE_ENV_NAME || 'MFULearnAI'
 
@@ -47,15 +45,6 @@ const userInitial = computed(() =>
   authStore.displayName?.charAt(0)?.toUpperCase() || 'U'
 )
 const userName = computed(() => authStore.displayName || 'Guest')
-
-const fetchCollections = async () => {
-    try {
-        const res = await axios.get('/api/knowledge/collections')
-        collections.value = res.data.collections
-    } catch (err) {
-        console.error('Failed to load collections', err)
-    }
-}
 
 // Lifecycle
 onMounted(() => {
@@ -73,7 +62,8 @@ onMounted(() => {
   
   chatStore.fetchModels()
   chatStore.loadSessions()
-  fetchCollections()
+  chatStore.fetchModels()
+  chatStore.loadSessions()
 })
 
 // Watchers
@@ -115,23 +105,7 @@ const handleCopyMessage = (content) => {
     <!-- Main Content -->
     <main class="chat-main">
       
-      <!-- Context Bar -->
-      <!-- Context Bar -->
-      <div v-if="collections.length > 0" class="px-6 py-3 bg-slate-900 flex items-center justify-between gap-3 shadow-sm">
-        <div class="flex items-center gap-3">
-            <span class="text-xs font-medium text-blue-400 uppercase tracking-wider">{{ t('activeKnowledge') }}</span>
-            <select 
-                v-model="chatStore.currentCollectionId" 
-                class="bg-slate-800 text-gray-200 text-sm rounded-lg border-none px-3 py-1.5 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-            >
-                <option :value="null">{{ t('defaultCollection') }}</option>
-                <option v-for="col in collections" :key="col._id" :value="col._id">
-                    {{ col.name }}
-                </option>
-            </select>
-        </div>
-
-      </div>
+      <!-- Context Bar Removed (Moved to Header) -->
       
       <!-- Chat Area -->
       <div class="messages-area" ref="messagesRef">

@@ -1,5 +1,9 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
+import { useChatStore } from '@/stores/chat'
+import { useKnowledgeStore } from '@/stores/knowledge'
+import { useLanguage } from '@/composables/useSettings'
 
 const props = defineProps({
   envName: { type: String, default: 'MFULearnAI' },
@@ -9,6 +13,15 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['toggle-sidebar'])
+
+const route = useRoute()
+const chatStore = useChatStore()
+const knowledgeStore = useKnowledgeStore()
+const { t } = useLanguage()
+
+onMounted(() => {
+    knowledgeStore.fetchCollections()
+})
 </script>
 
 <template>
@@ -26,6 +39,20 @@ const emit = defineEmits(['toggle-sidebar'])
         <span class="logo-emoji">🤖</span>
         <h1>{{ envName }}</h1>
       </div>
+      
+        <!-- Knowledge Selector (Visible in Chat) -->
+        <div v-if="route.path.includes('/chat') && knowledgeStore.collections.length > 0" class="knowledge-selector ml-4 hidden md:flex items-center gap-2">
+            <span class="text-xs font-medium text-gray-400 uppercase tracking-wider">{{ t('activeKnowledge') }}</span>
+            <select 
+                v-model="chatStore.currentCollectionId" 
+                class="bg-slate-800 text-gray-200 text-sm rounded-lg border border-slate-700 px-2 py-1 focus:ring-1 focus:ring-blue-500 focus:outline-none max-w-[150px]"
+            >
+                <option :value="null">{{ t('defaultCollection') }}</option>
+                <option v-for="col in knowledgeStore.collections" :key="col._id" :value="col._id">
+                    {{ col.name }}
+                </option>
+            </select>
+        </div>
     </div>
     
     <div class="header-right">
@@ -91,6 +118,11 @@ const emit = defineEmits(['toggle-sidebar'])
   margin: 0;
 }
 
+.knowledge-selector {
+    padding-left: 16px;
+    border-left: 1px solid var(--color-border);
+}
+
 .header-right {
   display: flex;
   align-items: center;
@@ -128,5 +160,6 @@ const emit = defineEmits(['toggle-sidebar'])
 
 @media (max-width: 640px) {
   .user-name { display: none; }
+  .knowledge-selector { display: none; } /* Hide on mobile for now or find better spot */
 }
 </style>
