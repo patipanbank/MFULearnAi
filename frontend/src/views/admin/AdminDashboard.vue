@@ -1,17 +1,20 @@
+<script setup>
+import { useLanguage } from '@/composables/useSettings'
+
+const { t } = useLanguage()
+</script>
+
 <template>
-  <div class="page-container">
-    <div class="content-wrapper">
-      <div class="header">
-        <h1>Admin Dashboard</h1>
-        <p class="subtitle">System settings and user management</p>
-      </div>
-      
-      <div class="placeholder-content">
-        <div class="empty-state">
-          <div class="icon">⚙️</div>
-          <h3>System Administration</h3>
-          <p>Configure system preferences and manage access.</p>
-        </div>
+  <div class="admin-dashboard">
+    <div class="dashboard-header">
+      <h1>{{ t('adminTitle') }}</h1>
+      <p class="subtitle">{{ t('adminSubtitle') }}</p>
+    </div>
+    
+    <div class="placeholder-content">
+      <div class="empty-state">
+        <div class="icon">🛡️</div>
+        <h3>{{ t('adminPlaceholder') }}</h3>
       </div>
     </div>
   </div>

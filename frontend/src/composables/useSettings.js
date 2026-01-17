@@ -38,11 +38,10 @@ export function useLanguage() {
 
     const translations = {
         th: {
+            // Chat
             newChat: 'แชทใหม่',
             recentChats: 'แชทล่าสุด',
             noChats: 'ยังไม่มีแชท',
-            logout: 'ออกจากระบบ',
-            settings: 'ตั้งค่า',
             typeMessage: 'พิมพ์ข้อความ...',
             disclaimer: 'AI อาจให้ข้อมูลที่ไม่ถูกต้อง กรุณาตรวจสอบข้อมูลสำคัญ',
             welcome: 'สวัสดี',
@@ -50,22 +49,69 @@ export function useLanguage() {
             thinking: 'กำลังคิด...',
             uploadFile: 'อัพโหลดไฟล์',
             copy: 'คัดลอก',
-            copied: 'คัดลอกแล้ว'
+            copied: 'คัดลอกแล้ว',
+
+            // Navigation & Menu
+            menu: 'เมนู',
+            settings: 'ตั้งค่า',
+            logout: 'ออกจากระบบ',
+            chat: 'AI แชท',
+            knowledge: 'คลังความรู้',
+            admin: 'ผู้ดูแลระบบ',
+            apps: 'แอปพลิเคชัน',
+            preferences: 'การตั้งค่า',
+            theme: 'ธีม',
+            language: 'ภาษา',
+            light: 'สว่าง',
+            dark: 'มืด',
+
+            // Knowledge Dashboard
+            knowledgeTitle: 'คลังความรู้',
+            knowledgeSubtitle: 'จัดการแหล่งข้อมูลและคอลเลกชัน',
+            knowledgePlaceholder: 'เลือกคอลเลกชันหรือเอกสารเพื่อดูรายละเอียด',
+
+            // Admin Dashboard
+            adminTitle: 'แดชบอร์ดผู้ดูแลระบบ',
+            adminSubtitle: 'ตั้งค่าระบบและจัดการผู้ใช้',
+            adminPlaceholder: 'กำหนดค่าระบบและจัดการการเข้าถึง'
         },
         en: {
+            // Chat
             newChat: 'New Chat',
             recentChats: 'Recent Chats',
             noChats: 'No chats yet',
-            logout: 'Logout',
-            settings: 'Settings',
-            typeMessage: 'Type a message...',
+            typeMessage: 'Ask anything...',
             disclaimer: 'AI may produce inaccurate information. Please verify important details.',
             welcome: 'Hello',
             welcomeSub: "I'm here to help you",
             thinking: 'Thinking...',
             uploadFile: 'Upload File',
             copy: 'Copy',
-            copied: 'Copied'
+            copied: 'Copied',
+
+            // Navigation & Menu
+            menu: 'Menu',
+            settings: 'Settings',
+            logout: 'Logout',
+            chat: 'AI Chat',
+            knowledge: 'Knowledge Base',
+            admin: 'Admin Console',
+            apps: 'Applications',
+            preferences: 'Preferences',
+            theme: 'Theme',
+            language: 'Language',
+            light: 'Light',
+            dark: 'Dark',
+
+            // Knowledge Dashboard
+            knowledgeTitle: 'Knowledge Base',
+            knowledgeSubtitle: 'Manage your AI sources and collections',
+            knowledgePlaceholder: 'Select a collection or document to view details',
+
+            // Admin Dashboard
+            adminTitle: 'Admin Dashboard',
+            adminSubtitle: 'System settings and user management',
+            adminPlaceholder: 'Configure system preferences and manage access'
         }
     }
 

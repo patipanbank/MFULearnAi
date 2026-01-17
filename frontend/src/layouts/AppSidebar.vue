@@ -65,7 +65,7 @@ const handleSelectSession = (sessionId) => {
     <!-- 3. Contextual Content (Scrollable) -->
     <div class="sidebar-content">
       <!-- Chat History -->
-      <div v-if="route.path.startsWith('/chat')" class="context-section">
+      <div class="context-section">
         <div class="section-label" v-if="!isCollapsed">{{ t('recentChats') }}</div>
         <div class="session-list">
           <button 

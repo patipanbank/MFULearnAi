@@ -1,17 +1,20 @@
+<script setup>
+import { useLanguage } from '@/composables/useSettings'
+
+const { t } = useLanguage()
+</script>
+
 <template>
-  <div class="page-container">
-    <div class="content-wrapper">
-      <div class="header">
-        <h1>Knowledge Base</h1>
-        <p class="subtitle">Manage your AI's knowledge sources and collections</p>
-      </div>
-      
-      <div class="placeholder-content">
-        <div class="empty-state">
-          <div class="icon">📚</div>
-          <h3>Knowledge Dashboard</h3>
-          <p>Select a collection or document to view details.</p>
-        </div>
+  <div class="knowledge-dashboard">
+    <div class="dashboard-header">
+      <h1>{{ t('knowledgeTitle') }}</h1>
+      <p class="subtitle">{{ t('knowledgeSubtitle') }}</p>
+    </div>
+    
+    <div class="placeholder-content">
+      <div class="empty-state">
+        <div class="icon">📚</div>
+        <h3>{{ t('knowledgePlaceholder') }}</h3>
       </div>
     </div>
   </div>
