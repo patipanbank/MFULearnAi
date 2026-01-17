@@ -115,21 +115,7 @@ const handleCopyMessage = (content) => {
   <div class="chat-layout">
     <!-- Main Content -->
     <main class="chat-main">
-      <!-- Header -->
-      <ChatHeader
-        :env-name="envName"
-        :user-name="userName"
-        :user-initial="userInitial"
-        :is-dark="isDark"
-        :lang="lang"
-        :t="t"
-        :show-sidebar-toggle="true"
-        @toggle-sidebar="showSidebar = !showSidebar"
-        @toggle-theme="toggleTheme"
-        @toggle-lang="toggleLang"
-        @logout="handleLogout"
-      />
-
+      
       <!-- Context Bar -->
       <div v-if="collections.length > 0" class="px-6 py-2 bg-slate-900 border-b border-slate-700/50 flex items-center gap-3">
         <span class="text-xs font-medium text-blue-400 uppercase tracking-wider">Active Knowledge:</span>

@@ -1,12 +1,30 @@
 <script setup>
+import { computed } from 'vue'
+import { useAuthStore } from '@/stores/auth'
 import AppSidebar from '@/components/layout/AppSidebar.vue'
+import AppHeader from '@/components/layout/AppHeader.vue'
+
+const authStore = useAuthStore()
+
+// Props for Header
+const envName = import.meta.env.VITE_ENV_NAME || 'MFU Learn'
+const userName = computed(() => authStore.displayName || 'Guest')
+const userInitial = computed(() => authStore.displayName?.charAt(0)?.toUpperCase() || 'U')
 </script>
 
 <template>
   <div class="chat-layout-container">
     <AppSidebar />
     <main class="chat-main-content">
-      <router-view />
+      <AppHeader 
+        :env-name="envName"
+        :user-name="userName"
+        :user-initial="userInitial"
+        :show-sidebar-toggle="false"
+      />
+      <div class="content-view">
+        <router-view />
+      </div>
     </main>
   </div>
 </template>
@@ -24,6 +42,14 @@ import AppSidebar from '@/components/layout/AppSidebar.vue'
   flex: 1;
   min-width: 0;
   height: 100%;
+  overflow: hidden;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+.content-view {
+  flex: 1;
   overflow: hidden;
   position: relative;
 }
