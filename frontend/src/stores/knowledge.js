@@ -3,7 +3,7 @@ import { ref } from 'vue'
 import axios from 'axios'
 import { useAuthStore } from './auth'
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:7000/api'
+const API_URL = import.meta.env.VITE_API_URL || '/api'
 
 export const useKnowledgeStore = defineStore('knowledge', () => {
     const knowledge = ref([])
