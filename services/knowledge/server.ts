@@ -417,6 +417,51 @@ app.post('/api/knowledge/collections', async (req: Request, res: Response) => {
     }
 });
 
+// 2.1 UPDATE COLLECTION
+app.put('/api/knowledge/collections/:id', async (req: Request, res: Response) => {
+    const user = extractUser(req);
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+
+    const { name, description } = req.body;
+
+    try {
+        const col = await Collection.findById(req.params.id);
+        if (!col) return res.status(404).json({ error: 'Not found' });
+
+        if (!canManageCollection(user, col)) {
+            return res.status(403).json({ error: 'Not allowed to update this collection' });
+        }
+
+        col.name = name || col.name;
+        col.description = description !== undefined ? description : col.description;
+        await col.save();
+
+        res.json({ success: true, collection: col });
+    } catch (e: any) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// 2.2 DELETE COLLECTION
+app.delete('/api/knowledge/collections/:id', async (req: Request, res: Response) => {
+    const user = extractUser(req);
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+
+    try {
+        const col = await Collection.findById(req.params.id);
+        if (!col) return res.status(404).json({ error: 'Not found' });
+
+        if (!canManageCollection(user, col)) {
+            return res.status(403).json({ error: 'Not allowed to delete this collection' });
+        }
+
+        await Collection.findByIdAndDelete(req.params.id);
+        res.json({ success: true, id: req.params.id });
+    } catch (e: any) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
 // 3. MAP KNOWLEDGE TO COLLECTION
 app.post('/api/knowledge/collections/:id/map', async (req: Request, res: Response) => {
     const user = extractUser(req);
