@@ -15,7 +15,7 @@ app.use(express.json({ limit: '50mb' }));
 app.use(cors());
 
 // Environment Configuration
-const BEDROCK_URL = process.env.BEDROCK_URL || 'http://localhost:5000/api/bedrock';
+const BEDROCK_TEXT_URL = process.env.BEDROCK_TEXT_URL || 'http://localhost:5001/api/bedrock';
 const LOGGER_URL = process.env.LOGGER_URL || 'http://localhost:6000/api/logs';
 const KNOWLEDGE_URL = process.env.KNOWLEDGE_URL || 'http://localhost:7000/api/knowledge';
 const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/mful-chat';
@@ -228,7 +228,7 @@ app.post('/api/chat', authenticateToken, rateLimiter, async (req: any, res: Resp
         try {
             const response = await axios({
                 method: 'post',
-                url: `${BEDROCK_URL}/chat`,
+                url: `${BEDROCK_TEXT_URL}/chat`,
                 data: { messages: messagesToSend, modelId },
                 responseType: 'stream',
                 timeout: 120000 // 2 minute timeout
@@ -342,7 +342,7 @@ app.post('/api/chat', authenticateToken, rateLimiter, async (req: any, res: Resp
 // --- Get Available Models ---
 app.get('/api/chat/models', authenticateToken, async (req: any, res: Response) => {
     try {
-        const response = await axios.get(`${BEDROCK_URL}/models`);
+        const response = await axios.get(`${BEDROCK_TEXT_URL}/models`);
         res.json(response.data);
     } catch (error: any) {
         console.error('[Orchestrator] Failed to fetch models:', error.message);

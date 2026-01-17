@@ -89,7 +89,7 @@ services:
     environment:
       - PORT=8080
       - ENV_TYPE=TEST
-      - BEDROCK_URL=http://bedrock-text:5001/api/bedrock
+      - BEDROCK_TEXT_URL=http://bedrock-text:5001/api/bedrock
       - LOGGER_URL=http://logger-service:6000/api/logs
       - MONGO_URI=mongodb://mongo:27017/mfulearnai-chat
       - REDIS_URL=redis://redis:6379
@@ -180,7 +180,7 @@ services:
       - PORT=7000
       - ENV_TYPE=TEST
       - CHROMA_URL=http://chroma:8000
-      - BEDROCK_URL=http://bedrock-embedding:5003/api/bedrock
+      - BEDROCK_EMBEDDING_URL=http://bedrock-embedding:5003/api/bedrock
     depends_on:
       - chroma
       - bedrock-embedding

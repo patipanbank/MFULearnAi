@@ -13,7 +13,7 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 7000;
 const CHROMA_URL = process.env.CHROMA_URL || 'http://chromadb:8000';
-const BEDROCK_URL = process.env.BEDROCK_URL || 'http://bedrock-service:5000/api/bedrock'; // Internal
+const BEDROCK_EMBEDDING_URL = process.env.BEDROCK_EMBEDDING_URL || 'http://localhost:5003/api/bedrock';
 const MONGO_URI = process.env.MONGO_URI || 'mongodb://mongo:27017/mfulearnai_knowledge';
 const ENV_TYPE = process.env.ENV_TYPE || 'TEST';
 
@@ -166,7 +166,7 @@ const canManageCollection = (user: UserContext, col: ICollection): boolean => {
 
 async function getEmbedding(text: string): Promise<number[]> {
     try {
-        const response = await axios.post(`${BEDROCK_URL}/embeddings`, { text });
+        const response = await axios.post(`${BEDROCK_EMBEDDING_URL}/embeddings`, { text });
         if (response.data && response.data.embedding) return response.data.embedding;
         throw new Error('Invalid Bedrock response');
     } catch (e: any) {
