@@ -104,6 +104,14 @@ async function run() {
         console.log(`Department: ${result.department}`);
         console.log('-----------------------------------');
 
+        // SELF-VERIFICATION
+        console.log('Performing immediate self-verification...');
+        const isMatch = await bcrypt.compare(password, result.password);
+        console.log(`Self-verification result: ${isMatch ? 'PASS' : 'FAIL'}`);
+        if (!isMatch) {
+            console.error('CRITICAL ERROR: Generated hash does not match input password!');
+        }
+
     } catch (err) {
         console.error('Error creating SuperAdmin:', err);
     } finally {
