@@ -89,6 +89,8 @@ onUnmounted(() => {
                     </span>
                 </div>
                 <svg 
+                    width="16" 
+                    height="16"
                     class="w-4 h-4 text-slate-400 group-hover:text-slate-300 transition-transform duration-200"
                     :class="{ 'rotate-180': isDropdownOpen }"
                     viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
