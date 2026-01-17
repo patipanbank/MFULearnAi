@@ -38,7 +38,7 @@ const handleCreate = async () => {
 
 <template>
   <div class="modal-overlay" @click.self="emit('close')">
-    <div class="modal">
+    <div class="knowledge-modal">
        <h2>New Collection</h2>
        
        <div class="form-group">
@@ -83,13 +83,14 @@ const handleCreate = async () => {
     z-index: 9999;
 }
 
-.modal {
-    background: var(--color-bg-card);
+.knowledge-modal {
+    background-color: var(--color-bg-card, #202020);
     padding: 24px;
     border-radius: 12px;
     width: 400px;
     border: 1px solid var(--color-border);
     color: var(--color-text-primary);
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
 }
 
 h2 { margin-top: 0; font-size: 18px; }
