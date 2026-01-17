@@ -5,6 +5,7 @@ import { useAuthStore } from '@/stores/auth'
 import { useLanguage } from '@/composables/useSettings'
 
 const authStore = useAuthStore()
+const knowledgeStore = useKnowledgeStore()
 const { t } = useLanguage()
 
 const emit = defineEmits(['open'])
