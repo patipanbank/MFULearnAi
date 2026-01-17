@@ -149,13 +149,6 @@ const handleRemove = async (knowledgeId) => {
           Loading details...
       </div>
       
-      <div style="font-size: 10px; color: red; padding: 10px; background: #eee; border-radius: 4px; margin: 10px;">
-        DEBUG: IsOwner? {{ isOwner }} <br>
-        Collection Owner: {{ fullCollection?.ownerId }} <br>
-        My ID: {{ authStore.userId }} <br>
-        Type: {{ fullCollection?.type }} <br>
-        User Object: {{ JSON.stringify(authStore.user) }}
-      </div>
     </div>
   </div>
 </template>

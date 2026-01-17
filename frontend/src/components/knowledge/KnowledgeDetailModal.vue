@@ -155,7 +155,7 @@ const toggleReadMode = () => showReadMode.value = !showReadMode.value
   display: flex;
   justify-content: center;
   align-items: center;
-  z-index: 1000;
+  z-index: 1100;
   backdrop-filter: blur(4px);
 }
 
