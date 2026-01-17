@@ -9,6 +9,12 @@ export const useAuthStore = defineStore('auth', () => {
 
     const isAuthenticated = computed(() => !!token.value)
     const userRole = computed(() => user.value?.role || 'guest')
+    // Alias for components expecting 'role'
+    const role = computed(() => user.value?.role || 'guest')
+
+    const userId = computed(() => user.value?._id || user.value?.userId)
+    const department = computed(() => user.value?.department)
+
     const displayName = computed(() => {
         if (!user.value) return 'Guest'
         return user.value.firstName
@@ -73,7 +79,10 @@ export const useAuthStore = defineStore('auth', () => {
         token,
         isLoading,
         isAuthenticated,
-        userRole,
+        userRole, // Deprecated, use role
+        role,
+        userId,
+        department,
         displayName,
         init,
         setAuth,
