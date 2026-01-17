@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick, reactive } from 'vue'
 import { useChatStore } from '@/stores/chat'
 import { useKnowledgeStore } from '@/stores/knowledge'
 import { useLanguage } from '@/composables/useSettings'
@@ -10,6 +10,7 @@ const { t } = useLanguage()
 
 const isOpen = ref(false)
 const dropdownRef = ref(null)
+const dropdownPosition = reactive({ top: 0, left: 0, width: 320 })
 
 // Computed for current selection display
 const currentCollectionName = computed(() => {
@@ -36,7 +37,27 @@ const getIconForType = (type) => {
     }
 }
 
-const toggleDropdown = () => isOpen.value = !isOpen.value
+const updatePosition = () => {
+    if (dropdownRef.value) {
+        const rect = dropdownRef.value.getBoundingClientRect()
+        dropdownPosition.top = rect.bottom + 8
+        dropdownPosition.left = rect.left
+        // Ensure it doesn't go off screen right
+        if (dropdownPosition.left + 320 > window.innerWidth) {
+            dropdownPosition.left = window.innerWidth - 330
+        }
+    }
+}
+
+const toggleDropdown = async () => {
+    if (!isOpen.value) {
+        isOpen.value = true
+        await nextTick()
+        updatePosition()
+    } else {
+        isOpen.value = false
+    }
+}
 
 const selectCollection = (id) => {
     chatStore.currentCollectionId = id
@@ -45,17 +66,31 @@ const selectCollection = (id) => {
 
 // Close on click outside
 const closeOnClickOutside = (e) => {
-    if (dropdownRef.value && !dropdownRef.value.contains(e.target)) {
-        isOpen.value = false
+    // Check if click is on the trigger button (dropdownRef contains it)
+    if (dropdownRef.value && dropdownRef.value.contains(e.target)) {
+        return
     }
+    // Note: click inside the teleported dropdown is handled by checking e.target closest
+    if (e.target.closest('.dropdown-menu')) {
+        return
+    }
+    isOpen.value = false
+}
+
+const handleResize = () => {
+    if (isOpen.value) isOpen.value = false
 }
 
 onMounted(() => {
     document.addEventListener('click', closeOnClickOutside)
+    window.addEventListener('resize', handleResize)
+    window.addEventListener('scroll', handleResize, true) // Close on scroll to avoid floating issues
 })
 
 onUnmounted(() => {
     document.removeEventListener('click', closeOnClickOutside)
+    window.removeEventListener('resize', handleResize)
+    window.removeEventListener('scroll', handleResize, true)
 })
 </script>
 
@@ -94,66 +129,77 @@ onUnmounted(() => {
             </svg>
         </button>
 
-        <!-- Dropdown Menu -->
-        <transition name="dropdown">
-            <div v-if="isOpen" class="dropdown-menu">
-                <div class="menu-header">
-                    <span>{{ t('selectContext') }}</span>
+        </button>
+
+        <!-- Dropdown Menu (Teleported to Body) -->
+        <Teleport to="body">
+            <transition name="dropdown">
+                <div 
+                    v-if="isOpen" 
+                    class="dropdown-menu"
+                    :style="{
+                        top: `${dropdownPosition.top}px`,
+                        left: `${dropdownPosition.left}px`
+                    }"
+                >
+                    <div class="menu-header">
+                        <span>{{ t('selectContext') }}</span>
+                    </div>
+                    
+                    <div class="menu-list custom-scrollbar">
+                        <!-- Default Option -->
+                        <button 
+                            @click="selectCollection(null)"
+                            class="menu-item"
+                            :class="{ 'selected': !chatStore.currentCollectionId }"
+                        >
+                            <div class="item-icon default-icon">
+                                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
+                            </div>
+                            <div class="item-content">
+                                <span class="item-title">{{ t('defaultCollection') }}</span>
+                                <span class="item-desc">General knowledge base</span>
+                            </div>
+                            <div v-if="!chatStore.currentCollectionId" class="check-icon">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                            </div>
+                        </button>
+
+                        <div class="divider"></div>
+
+                        <!-- Dynamic Options -->
+                        <button 
+                            v-for="col in knowledgeStore.collections" 
+                            :key="col._id"
+                            @click="selectCollection(col._id)"
+                            class="menu-item"
+                            :class="{ 'selected': chatStore.currentCollectionId === col._id }"
+                        >
+                            <!-- Icon Logic -->
+                            <div class="item-icon" 
+                                 :class="{
+                                     'personal-icon': col.type === 'personal',
+                                     'dept-icon': col.type === 'department',
+                                     'public-icon': col.type === 'public'
+                                 }">
+                                <svg v-if="col.type === 'personal'" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                                <svg v-else-if="col.type === 'department'" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect><line x1="9" y1="22" x2="9" y2="22.01"></line><line x1="15" y1="22" x2="15" y2="22.01"></line><line x1="12" y1="18" x2="12" y2="18.01"></line><line x1="12" y1="14" x2="12" y2="14.01"></line></svg>
+                                <svg v-else width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
+                            </div>
+
+                            <div class="item-content">
+                                <span class="item-title">{{ col.name }}</span>
+                                <span class="item-desc capitalize">{{ col.type }} Collection</span>
+                            </div>
+                            
+                            <div v-if="chatStore.currentCollectionId === col._id" class="check-icon">
+                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                            </div>
+                        </button>
+                    </div>
                 </div>
-                
-                <div class="menu-list custom-scrollbar">
-                    <!-- Default Option -->
-                    <button 
-                        @click="selectCollection(null)"
-                        class="menu-item"
-                        :class="{ 'selected': !chatStore.currentCollectionId }"
-                    >
-                        <div class="item-icon default-icon">
-                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
-                        </div>
-                        <div class="item-content">
-                            <span class="item-title">{{ t('defaultCollection') }}</span>
-                            <span class="item-desc">General knowledge base</span>
-                        </div>
-                        <div v-if="!chatStore.currentCollectionId" class="check-icon">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                        </div>
-                    </button>
-
-                    <div class="divider"></div>
-
-                    <!-- Dynamic Options -->
-                    <button 
-                        v-for="col in knowledgeStore.collections" 
-                        :key="col._id"
-                        @click="selectCollection(col._id)"
-                        class="menu-item"
-                        :class="{ 'selected': chatStore.currentCollectionId === col._id }"
-                    >
-                        <!-- Icon Logic -->
-                        <div class="item-icon" 
-                             :class="{
-                                 'personal-icon': col.type === 'personal',
-                                 'dept-icon': col.type === 'department',
-                                 'public-icon': col.type === 'public'
-                             }">
-                            <svg v-if="col.type === 'personal'" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
-                            <svg v-else-if="col.type === 'department'" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect><line x1="9" y1="22" x2="9" y2="22.01"></line><line x1="15" y1="22" x2="15" y2="22.01"></line><line x1="12" y1="18" x2="12" y2="18.01"></line><line x1="12" y1="14" x2="12" y2="14.01"></line></svg>
-                            <svg v-else width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
-                        </div>
-
-                        <div class="item-content">
-                            <span class="item-title">{{ col.name }}</span>
-                            <span class="item-desc capitalize">{{ col.type }} Collection</span>
-                        </div>
-                        
-                        <div v-if="chatStore.currentCollectionId === col._id" class="check-icon">
-                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                        </div>
-                    </button>
-                </div>
-            </div>
-        </transition>
+            </transition>
+        </Teleport>
     </div>
 </template>
 
@@ -223,17 +269,15 @@ onUnmounted(() => {
 
 /* Dropdown Menu */
 .dropdown-menu {
-    position: absolute;
-    top: calc(100% + 8px);
-    left: 0;
+    position: fixed; /* Teleport uses fixed */
     width: 320px;
-    background: var(--color-bg-primary); /* Use solid color to prevent transparency issues in light mode */
+    background: var(--color-bg-primary); 
     border: 1px solid var(--color-border);
     border-radius: 16px;
-    box-shadow: var(--shadow-lg);
+    box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.5); /* Boost shadow for floating feel */
     overflow: hidden;
-    transform-origin: top left;
-    z-index: 1000;
+    transform-origin: top left; /* Changed from top right since we align left */
+    z-index: 9999; /* Max z-index */
 }
 
 .menu-header {
