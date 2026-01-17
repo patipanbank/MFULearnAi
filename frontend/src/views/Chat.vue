@@ -196,7 +196,7 @@ const handleCopyMessage = (content) => {
 <style scoped>
 .chat-layout {
   display: flex;
-  height: 100vh;
+  height: 100%;
   background: var(--color-bg-primary);
   overflow: hidden;
 }

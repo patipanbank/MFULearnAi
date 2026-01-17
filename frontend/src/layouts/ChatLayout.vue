@@ -3,16 +3,16 @@ import AppSidebar from '@/components/layout/AppSidebar.vue'
 </script>
 
 <template>
-  <div class="app-layout">
+  <div class="chat-layout-container">
     <AppSidebar />
-    <main class="app-main">
+    <main class="chat-main-content">
       <router-view />
     </main>
   </div>
 </template>
 
 <style scoped>
-.app-layout {
+.chat-layout-container {
   display: flex;
   height: 100vh;
   width: 100vw;
@@ -20,7 +20,7 @@ import AppSidebar from '@/components/layout/AppSidebar.vue'
   background-color: #0f172a;
 }
 
-.app-main {
+.chat-main-content {
   flex: 1;
   min-width: 0;
   height: 100%;

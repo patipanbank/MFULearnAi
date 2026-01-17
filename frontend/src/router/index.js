@@ -16,7 +16,7 @@ const router = createRouter({
         },
         {
             path: '/',
-            component: () => import('../layouts/AppLayout.vue'),
+            component: () => import('../layouts/ChatLayout.vue'),
             meta: { requiresAuth: true },
             children: [
                 {
@@ -37,6 +37,11 @@ const router = createRouter({
                     path: 'knowledge/:id',
                     name: 'KnowledgeCollection',
                     component: () => import('../views/KnowledgeCollection.vue')
+                },
+                {
+                    path: 'admin',
+                    name: 'Admin',
+                    component: () => import('../views/Admin.vue')
                 }
             ]
         },
