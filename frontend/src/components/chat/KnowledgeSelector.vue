@@ -128,6 +128,12 @@ onUnmounted(() => {
                 <polyline points="6 9 12 15 18 9"></polyline>
             </svg>
         </button>
+        <!-- Dropdown Menu (Teleported to Body) -->
+        <Teleport to="body">
+            <transition name="dropdown">
+                <div 
+                    v-if="isOpen" 
+                    class="dropdown-menu"
                     :style="{
                         top: `${dropdownPosition.top}px`,
                         left: `${dropdownPosition.left}px`
