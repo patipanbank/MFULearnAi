@@ -1,10 +1,20 @@
 import mongoose, { Schema, Document } from 'mongoose';
 import bcrypt from 'bcrypt';
-import { User as IUser, UserRole } from '../../../shared/types';
 
-export interface UserDocument extends Document, Omit<IUser, 'userId'> {
-    password?: string;
+// Embedded types because we are in a microservice (shared types might not be accessible during build if not careful, duplicating for safety/autonomy)
+export type UserRole = 'student' | 'staff' | 'admin' | 'superadmin';
+
+export interface UserDocument extends Document {
+    nameID: string;
+    username: string;
+    email: string;
+    firstName?: string;
+    lastName?: string;
+    department?: string;
+    role: UserRole;
+    groups: string[];
     googleId?: string;
+    password?: string;
     lastLogin?: Date;
     loginCount?: number;
     isActive?: boolean;

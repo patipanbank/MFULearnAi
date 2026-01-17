@@ -19,30 +19,62 @@ services:
       - mfulearnai-network
     restart: unless-stopped
 
-  auth-service:
+  identity-service:
     build:
       context: ../../
-      dockerfile: services/auth/Dockerfile
-    container_name: mfulearnai-auth
+      dockerfile: services/identity/Dockerfile
+    container_name: mfulearnai-identity
     environment:
-      - PORT=4000
+      - PORT=4001
       - ENV_TYPE=TEST
       - MONGO_URI=mongodb://mongo:27017/mfulearnai-auth
       - JWT_SECRET=${JWT_SECRET:-test-jwt-secret-change-me}
-      - LOGGER_URL=http://logger-service:6000/api/logs
+      - INTERNAL_API_KEY=${INTERNAL_API_KEY:-internal-secret-key}
+    depends_on:
+      - mongo
+    networks:
+      - mfulearnai-network
+    restart: unless-stopped
+
+  sso-service:
+    build:
+      context: ../../
+      dockerfile: services/sso/Dockerfile
+    container_name: mfulearnai-sso
+    environment:
+      - PORT=4002
+      - IDENTITY_SERVICE_URL=http://identity-service:4001
       - FRONTEND_URL=https://mfulearnai.mfu.ac.th
-      # SAML Config (MFU SSO)
+      - API_GATEWAY_URL=${API_GATEWAY_URL:-https://mfulearnai.mfu.ac.th}
+      - INTERNAL_API_KEY=${INTERNAL_API_KEY:-internal-secret-key}
+      # SAML Config
       - SAML_SP_ENTITY_ID=mfu-learn-ai-test
       - SAML_SP_ACS_URL=https://mfulearnai.mfu.ac.th/api/auth/saml/callback
       - SAML_IDP_SSO_URL=${SAML_IDP_SSO_URL}
-      - SAML_IDP_SLO_URL=${SAML_IDP_SLO_URL}
       - SAML_CERTIFICATE=${SAML_CERTIFICATE}
-      # Google OAuth (Optional fallback)
+    depends_on:
+      - identity-service
+    networks:
+      - mfulearnai-network
+    restart: unless-stopped
+
+  oauth-service:
+    build:
+      context: ../../
+      dockerfile: services/oauth/Dockerfile
+    container_name: mfulearnai-oauth
+    environment:
+      - PORT=4003
+      - IDENTITY_SERVICE_URL=http://identity-service:4001
+      - FRONTEND_URL=https://mfulearnai.mfu.ac.th
+      - API_GATEWAY_URL=${API_GATEWAY_URL:-https://mfulearnai.mfu.ac.th}
+      - INTERNAL_API_KEY=${INTERNAL_API_KEY:-internal-secret-key}
+      # Google Config
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
       - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
       - GOOGLE_CALLBACK_URL=https://mfulearnai.mfu.ac.th/api/auth/google/callback
     depends_on:
-      - mongo
+      - identity-service
     networks:
       - mfulearnai-network
     restart: unless-stopped
