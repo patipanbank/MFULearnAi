@@ -294,6 +294,9 @@ const navigateTo = (path) => {
   flex: 1;
   font-size: 14px;
   font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* Settings Group */
@@ -333,6 +336,10 @@ const navigateTo = (path) => {
 .setting-value {
   font-size: 13px;
   color: var(--color-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 80px; /* Limit width */
 }
 
 /* Logout */
