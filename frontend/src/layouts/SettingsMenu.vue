@@ -172,8 +172,9 @@ const navigateTo = (path) => {
 
 @media (max-width: 480px) {
   .settings-menu-content {
-    width: 85vw; /* Wider on mobile */
+    width: 100vw; /* Full screen on mobile */
     max-width: none;
+    border-radius: 0;
   }
 }
 
@@ -354,6 +355,14 @@ const navigateTo = (path) => {
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: 80px; /* Limit width */
+}
+
+.check-icon {
+  width: 16px;
+  height: 16px;
+  color: var(--color-accent);
+  margin-left: auto; /* Push to right */
+  flex-shrink: 0; /* Don't shrink */
 }
 
 /* Logout */
