@@ -145,16 +145,29 @@ const navigateTo = (path) => {
 
 .settings-menu-content {
   width: 300px;
-  max-width: 85vw; /* Responsive constraint */
+  max-width: 85vw;
   background: var(--color-bg-secondary);
   border-right: 1px solid var(--color-border);
   border-top: 1px solid var(--color-border);
   height: 100vh;
   display: flex;
   flex-direction: column;
-  padding: 20px;
+  padding: 20px 16px; /* Reduced side padding slightly to give items more width */
   box-shadow: 4px 0 24px rgba(0, 0, 0, 0.3);
   animation: slideIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  overflow-y: auto; /* Allow scrolling */
+}
+
+/* ... existing media query ... */
+
+.nav-btn {
+  /* ... */
+  padding: 12px 16px; /* Increased internal padding */
+}
+
+.setting-item {
+  /* ... */
+  padding: 12px 16px; /* Increased internal padding */
 }
 
 @media (max-width: 480px) {
@@ -260,7 +273,7 @@ const navigateTo = (path) => {
   align-items: center;
   gap: 12px;
   width: 100%;
-  padding: 10px 12px;
+  padding: 12px 16px; /* Increased padding */
   background: transparent;
   border: none;
   border-radius: 8px;
@@ -312,7 +325,7 @@ const navigateTo = (path) => {
   justify-content: space-between;
   align-items: center;
   width: 100%;
-  padding: 10px 12px;
+  padding: 12px 16px; /* Increased visual breathing room */
   background: transparent;
   border: none;
   border-radius: 8px;
