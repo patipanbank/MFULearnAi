@@ -143,8 +143,8 @@ const navigateTo = (path) => {
   justify-content: flex-start;
 }
 
-.settings-menu-content {
   width: 300px;
+  max-width: 85vw; /* Responsive constraint */
   background: var(--color-bg-secondary);
   border-right: 1px solid var(--color-border);
   border-top: 1px solid var(--color-border);
@@ -154,6 +154,13 @@ const navigateTo = (path) => {
   padding: 20px;
   box-shadow: 4px 0 24px rgba(0, 0, 0, 0.3);
   animation: slideIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@media (max-width: 480px) {
+  .settings-menu-content {
+    width: 85vw; /* Wider on mobile */
+    max-width: none;
+  }
 }
 
 @keyframes slideIn {
