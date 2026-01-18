@@ -139,6 +139,39 @@ const handleDelete = async (id) => {
         </tbody>
       </table>
     </div>
+
+    <!-- Mobile Cards -->
+    <div class="mobile-only">
+        <div 
+            v-for="item in filteredKnowledge" 
+            :key="item._id" 
+            class="knowledge-card"
+            @click="$emit('open', item)"
+        >
+            <div class="card-header">
+                <div class="file-icon">📄</div>
+                <div class="card-title">{{ item.title }}</div>
+                <button class="btn-icon delete" @click.stop="handleDelete(item._id)">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+               </button>
+            </div>
+            
+            <div class="card-details">
+                <span class="badge" :class="getBadgeClass(item.type)">{{ item.type }}</span>
+                <span class="detail-label">{{ item.department }}</span>
+            </div>
+
+            <div class="card-details" v-if="item.requestStatus !== 'none'">
+                 <span class="status-badge" :class="getStatusBadge(item.requestStatus)">
+                     {{ item.requestStatus }}
+                 </span>
+            </div>
+        </div>
+        
+        <div v-if="filteredKnowledge.length === 0" class="empty-row">
+             No knowledge found.
+        </div>
+    </div>
   </div>
 </template>
 
