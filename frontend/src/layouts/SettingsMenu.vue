@@ -143,6 +143,7 @@ const navigateTo = (path) => {
   justify-content: flex-start;
 }
 
+.settings-menu-content {
   width: 300px;
   max-width: 85vw; /* Responsive constraint */
   background: var(--color-bg-secondary);
