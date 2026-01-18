@@ -1,12 +1,22 @@
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import api from '../utils/api'
 
 export const useChatStore = defineStore('chat', () => {
     const messages = ref([])
     const sessions = ref([])
     const currentSessionId = ref(null)
-    const currentCollectionId = ref(null)
+    // Initialize from localStorage if available
+    const currentCollectionId = ref(localStorage.getItem('active_collection_id') || null)
+
+    // Persist collection selection
+    watch(currentCollectionId, (newVal) => {
+        if (newVal) {
+            localStorage.setItem('active_collection_id', newVal)
+        } else {
+            localStorage.removeItem('active_collection_id')
+        }
+    })
     const isLoading = ref(false)
     const isStreaming = ref(false)
     const availableModels = ref([])
