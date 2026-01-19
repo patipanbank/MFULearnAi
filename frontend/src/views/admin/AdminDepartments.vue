@@ -5,7 +5,7 @@
         <h1>Departments</h1>
         <p class="subtitle">Manage university departments. Auto-created from SSO logins.</p>
       </div>
-      <button class="btn-primary" @click="openCreateModal">
+      <button v-if="isSuperAdmin" class="btn-primary" @click="openCreateModal">
         <span class="icon">+</span> Create Department
       </button>
     </div>
@@ -17,18 +17,24 @@
           <tr>
             <th>Name</th>
             <th>Created At</th>
+            <th v-if="isSuperAdmin">Actions</th>
           </tr>
         </thead>
         <tbody>
            <tr v-if="loading && departments.length === 0">
-               <td colspan="2" class="empty-row">Loading...</td>
+               <td :colspan="isSuperAdmin ? 3 : 2" class="empty-row">Loading...</td>
            </tr>
            <tr v-else-if="departments.length === 0">
-               <td colspan="2" class="empty-row">No departments found.</td>
+               <td :colspan="isSuperAdmin ? 3 : 2" class="empty-row">No departments found.</td>
            </tr>
            <tr v-for="dept in departments" :key="dept._id" class="clickable-row" @click="openEditModal(dept)">
              <td class="font-medium">{{ dept.name }}</td>
              <td class="text-date">{{ formatDate(dept.createdAt) }}</td>
+             <td v-if="isSuperAdmin" class="actions-cell" @click.stop>
+               <button class="btn-icon delete" @click="handleDelete(dept._id)" title="Delete">
+                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+               </button>
+             </td>
            </tr>
         </tbody>
       </table>
@@ -42,7 +48,7 @@
              
              <div class="form-group">
                  <label>Department Name</label>
-                 <input v-model="form.name" type="text" placeholder="e.g. School of IT" ref="nameInput">
+                 <input v-model="form.name" type="text" placeholder="e.g. School of IT" ref="nameInput" :disabled="!isSuperAdmin">
              </div>
 
              <!-- Code field hidden as per request, handled automatically -->
@@ -50,10 +56,10 @@
              <div v-if="error" class="error">{{ error }}</div>
 
              <div class="actions">
-                 <button v-if="isEditing" class="btn-delete" @click="handleDelete(form._id)">Delete</button>
+                 <button v-if="isEditing && isSuperAdmin" class="btn-delete" @click="handleDelete(form._id)">Delete</button>
                  <div class="spacer"></div>
-                 <button class="btn-cancel" @click="closeModal">Cancel</button>
-                 <button class="btn-primary" @click="handleSubmit" :disabled="submitting || !form.name">
+                 <button class="btn-cancel" @click="closeModal">{{ isSuperAdmin ? 'Cancel' : 'Close' }}</button>
+                 <button v-if="isSuperAdmin" class="btn-primary" @click="handleSubmit" :disabled="submitting || !form.name">
                      {{ submitting ? 'Saving...' : 'Save' }}
                  </button>
              </div>
@@ -65,8 +71,12 @@
 </template>
 
 <script setup>
-import { ref, onMounted, nextTick } from 'vue';
+import { ref, onMounted, nextTick, computed } from 'vue';
 import api from '../../utils/api';
+import { useAuthStore } from '../../stores/auth';
+
+const authStore = useAuthStore();
+const isSuperAdmin = computed(() => authStore.role === 'superadmin');
 
 const departments = ref([]);
 const loading = ref(false);
