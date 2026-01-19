@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useTheme, useLanguage } from '@/composables/useSettings'
@@ -18,9 +18,16 @@ const mainNav = [
   { id: 'knowledge', label: 'Knowledge Base', path: '/knowledge', icon: 'book' }
 ]
 
+const showLogoutConfirm = ref(false)
+
 const handleLogout = () => {
+    showLogoutConfirm.value = true
+}
+
+const confirmLogout = () => {
     authStore.logout()
     router.push('/login')
+    showLogoutConfirm.value = false
 }
 
 const navigateTo = (path) => {
@@ -126,6 +133,22 @@ const navigateTo = (path) => {
           <span>{{ t('logout') }}</span>
         </button>
 
+      </div>
+    </div>
+
+    <!-- Logout Confirmation Modal -->
+    <div v-if="showLogoutConfirm" class="confirmation-overlay">
+      <div class="confirmation-modal">
+        <h3 class="confirmation-title">{{ t('confirmLogoutTitle') }}</h3>
+        <p class="confirmation-message">{{ t('confirmLogoutMessage') }}</p>
+        <div class="confirmation-actions">
+          <button class="action-btn cancel" @click="showLogoutConfirm = false">
+            {{ t('cancel') }}
+          </button>
+          <button class="action-btn confirm" @click="confirmLogout">
+            {{ t('confirm') }}
+          </button>
+        </div>
       </div>
     </div>
   </Teleport>
@@ -388,5 +411,93 @@ const navigateTo = (path) => {
 
 .logout-btn:hover {
   background: rgba(239, 68, 68, 0.2);
+}
+
+/* Confirmation Modal */
+.confirmation-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.confirmation-modal {
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  padding: 24px;
+  width: 90%;
+  max-width: 320px;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  animation: scaleIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.confirmation-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin: 0 0 8px 0;
+}
+
+.confirmation-message {
+  font-size: 14px;
+  color: var(--color-text-secondary);
+  margin: 0 0 24px 0;
+  line-height: 1.5;
+}
+
+.confirmation-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.action-btn {
+  flex: 1;
+  padding: 10px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: none;
+}
+
+.action-btn.cancel {
+  background: var(--color-bg-secondary);
+  color: var(--color-text-primary);
+  border: 1px solid var(--color-border);
+}
+
+.action-btn.cancel:hover {
+  background: var(--color-bg-hover);
+}
+
+.action-btn.confirm {
+  background: var(--color-error);
+  color: white;
+  box-shadow: 0 4px 6px -1px rgba(239, 68, 68, 0.2);
+}
+
+.action-btn.confirm:hover {
+  background: #dc2626;
+  transform: translateY(-1px);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes scaleIn {
+  from { transform: scale(0.95); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
 }
 </style>
