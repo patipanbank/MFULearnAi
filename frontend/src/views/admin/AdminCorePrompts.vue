@@ -3,7 +3,7 @@
     <div class="page-header">
       <div class="header-content w-full">
         <div class="flex justify-between items-start mb-2">
-            <div class="hidden md:block">
+            <div class="hidden lg:block">
                 <h1>{{ t('coreSystemPrompts') }}</h1>
                 <p class="subtitle">{{ t('corePromptWarning') }}</p>
             </div>
@@ -14,8 +14,8 @@
             </div>
         </div>
 
-        <!-- Mobile Selector -->
-        <div class="md:hidden mt-4">
+        <!-- Mobile/Tablet Selector -->
+        <div class="lg:hidden mt-4">
             <select :value="selectedPrompt?._id" @change="e => selectPromptById(e.target.value)" class="form-select w-full">
                 <option :value="undefined" disabled>{{ t('selectPrompt') || 'Select Prompt' }}</option>
                 <option v-for="p in prompts" :key="p._id" :value="p._id">
@@ -28,7 +28,7 @@
 
     <div class="content-wrapper">
       <!-- Sidebar List -->
-      <div class="sidebar hidden-mobile">
+      <div class="sidebar">
         <div class="sidebar-header">
            <div class="flex justify-between items-center">
                 <h2>{{ t('coreSystemPrompts') }}</h2>
@@ -180,8 +180,8 @@ const authStore = useAuthStore();
 const { t } = useLanguage();
 const isSuperAdmin = computed(() => authStore.role === 'superadmin');
 
-const isMobile = ref(window.innerWidth < 768);
-window.addEventListener('resize', () => { isMobile.value = window.innerWidth < 768; });
+const isMobile = ref(window.innerWidth < 1024);
+window.addEventListener('resize', () => { isMobile.value = window.innerWidth < 1024; });
 
 const prompts = ref([]);
 const loading = ref(false);
@@ -724,8 +724,8 @@ onMounted(() => fetchPrompts());
 }
 .form-select:focus { border-color: var(--color-accent); }
 
-/* Mobile Responsiveness */
-@media (max-width: 768px) {
+/* Mobile/Tablet Responsiveness */
+@media (max-width: 1024px) {
     .page-container {
         padding: 16px;
     }
@@ -737,8 +737,8 @@ onMounted(() => fetchPrompts());
     }
 
     /* Hide Sidebar completely on mobile, replaced by dropdown */
-    .sidebar.hidden-mobile {
-        display: none;
+    .sidebar {
+        display: none !important;
     }
 
     .editor-container {
