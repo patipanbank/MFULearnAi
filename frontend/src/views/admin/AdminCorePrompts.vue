@@ -3,7 +3,7 @@
     <div class="page-header">
       <div class="header-content w-full">
         <div class="flex justify-between items-start mb-2">
-            <div>
+            <div class="hidden md:block">
                 <h1>{{ t('coreSystemPrompts') }}</h1>
                 <p class="subtitle">{{ t('corePromptWarning') }}</p>
             </div>
