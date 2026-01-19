@@ -22,7 +22,17 @@ const INTERNAL_API_KEY = process.env.INTERNAL_API_KEY || 'internal-secret-key'; 
 
 // DB Connection
 mongoose.connect(MONGO_URI)
-    .then(() => console.log('[Identity] Connected to MongoDB'))
+    .then(async () => {
+        console.log('[Identity] Connected to MongoDB');
+        try {
+            // Fix for Duplicate Key Error: Ensure nameID index is sparse
+            // This will drop the existing index if it doesn't match the schema (e.g. was not sparse)
+            await User.syncIndexes();
+            console.log('[Identity] Indexes synced');
+        } catch (idxErr) {
+            console.error('[Identity] Index sync error:', idxErr);
+        }
+    })
     .catch(err => console.error('[Identity] MongoDB error:', err));
 
 // --- Utilities ---
