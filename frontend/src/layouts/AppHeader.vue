@@ -51,7 +51,7 @@ onMounted(() => {
     
     <div class="header-right">
       <div class="user-display">
-        <img v-if="userAvatarUrl" :src="userAvatarUrl" class="user-avatar-img" alt="Profile" />
+        <img v-if="userAvatarUrl" :src="userAvatarUrl" class="user-avatar-img" alt="Profile" referrerpolicy="no-referrer" />
         <div v-else class="user-avatar">{{ userInitial }}</div>
         <span class="user-name">{{ userName }}</span>
       </div>
