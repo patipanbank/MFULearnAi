@@ -5,7 +5,7 @@ import bcrypt from 'bcrypt';
 export type UserRole = 'student' | 'staff' | 'admin' | 'superadmin';
 
 export interface UserDocument extends Document {
-    nameID: string;
+    nameID?: string;
     username: string;
     email: string;
     firstName?: string;
@@ -25,7 +25,7 @@ export interface UserDocument extends Document {
 }
 
 const UserSchema: Schema = new Schema({
-    nameID: { type: String, required: true, unique: true },
+    nameID: { type: String, required: false, unique: true, sparse: true },
     username: { type: String, required: true },
     email: { type: String, required: true },
     firstName: { type: String },
