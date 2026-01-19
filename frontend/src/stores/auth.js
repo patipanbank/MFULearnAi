@@ -58,10 +58,12 @@ export const useAuthStore = defineStore('auth', () => {
         localStorage.removeItem('auth_provider')
         localStorage.removeItem('active_collection_id') // Clear chat persistence if any
 
+        const adfsIdToken = localStorage.getItem('adfs_id_token')
+        localStorage.removeItem('adfs_id_token')
+
         // Redirect to SSO Logout if applicable (SLO)
-        if (authProvider === 'sso') {
-            window.open('/login', '_blank')
-            window.location.href = `${api.defaults.baseURL}/auth/logout`
+        if (authProvider === 'sso' || authProvider === 'adfs') {
+            window.location.href = `${api.defaults.baseURL}/auth/logout?id_token_hint=${adfsIdToken || ''}`
         } else if (authProvider === 'google') {
             // For Google, we just clear local data (which is done above)
             // and redirect to login. authenticating again will force new token.
