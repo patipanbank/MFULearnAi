@@ -1,25 +1,34 @@
 <template>
   <div class="page-container">
     <div class="page-header">
-      <div class="header-left">
-        <!-- Mobile Toggle -->
-        <button v-if="selectedPrompt && isMobile" @click="selectedPrompt = null" class="btn-icon-sm mr-2 md:hidden">
-            <i class="fas fa-arrow-left"></i>
-        </button>
-        <h1>{{ t('myPersonas') }}</h1>
-        <p class="subtitle">{{ t('knowledgeSubtitle') }}</p>
-      </div>
-      
-      <div class="header-actions">
-        <button @click="openCreateModal" class="btn-primary">
-            <i class="fas fa-plus mr-2"></i>{{ t('createPersona') }}
-        </button>
+      <div class="header-content w-full">
+        <div class="flex justify-between items-start mb-2">
+            <div>
+                <h1>{{ t('myPersonas') }}</h1>
+                <p class="subtitle">{{ t('knowledgeSubtitle') }}</p>
+            </div>
+            <div class="header-actions">
+                <button @click="openCreateModal" class="btn-primary">
+                    <i class="fas fa-plus mr-2"></i>{{ t('createPersona') }}
+                </button>
+            </div>
+        </div>
+        
+        <!-- Mobile Selector -->
+        <div class="md:hidden mt-4">
+            <select :value="selectedPrompt?._id" @change="e => selectPromptById(e.target.value)" class="form-select w-full">
+                <option :value="undefined" disabled>{{ t('selectPersona') || 'Select Persona' }}</option>
+                <option v-for="p in myScenarios" :key="p._id" :value="p._id">
+                    {{ p.name }} <span v-if="isActiveScenario(p._id)">({{ t('active') }})</span>
+                </option>
+            </select>
+        </div>
       </div>
     </div>
 
     <div class="content-wrapper">
       <!-- Sidebar List -->
-      <div class="sidebar" :class="{ 'hidden-mobile': selectedPrompt && isMobile }">
+      <div class="sidebar hidden-mobile">
         <div class="sidebar-header">
            <div class="flex justify-between items-center">
                 <h2>{{ t('myPersonas') }}</h2>
@@ -298,6 +307,11 @@ const fetchPrompts = async () => {
 };
 
 const refreshPrompts = () => fetchPrompts();
+
+const selectPromptById = (id) => {
+    const p = prompts.value.find(x => x._id === id);
+    if(p) selectPrompt(p);
+};
 
 const selectPrompt = async (prompt) => {
     if (hasChanges.value) {
@@ -846,6 +860,19 @@ onMounted(() => fetchPrompts());
 .typing { color: var(--color-text-muted); }
 
 
+
+.form-select {
+    width: 100%;
+    background: var(--color-bg-tertiary, #2a2a2a);
+    border: 1px solid var(--color-border);
+    color: var(--color-text-primary);
+    padding: 10px;
+    border-radius: 6px;
+    font-size: 14px;
+    outline: none;
+}
+.form-select:focus { border-color: var(--color-accent); }
+
 /* Mobile Responsiveness */
 @media (max-width: 768px) {
     .page-container {
@@ -855,41 +882,28 @@ onMounted(() => fetchPrompts());
     .content-wrapper {
         position: relative;
         overflow: hidden;
+        flex-direction: column;
     }
 
-    .sidebar {
-        width: 100%;
-        position: absolute;
-        top: 0;
-        bottom: 0;
-        left: 0;
-        z-index: 10;
-        transition: transform 0.3s ease;
-    }
-
+    /* Hide Sidebar completely on mobile, replaced by dropdown */
     .sidebar.hidden-mobile {
-        transform: translateX(-110%);
+        display: none;
     }
 
     .editor-container {
-        position: absolute;
-        top: 0;
-        bottom: 0;
-        left: 0;
-        right: 0;
+        /* Always show editor */
+        position: relative; 
+        flex: 1;
         background: var(--color-bg-primary); 
-        z-index: 20;
+        z-index: 1;
+        width: 100%;
+        display: flex !important; /* Override any hidden logic */
+        transform: none !important;
     }
 
-    .editor-container.hidden-mobile {
-         transform: translateX(110%);
-         display: none;
-    }
-    
-    .editor-container.visible-mobile {
-        display: flex;
-        transform: translateX(0);
-    }
+    /* Reset absolute positioning for mobile editor since it's just flow now */
+    .editor-container.hidden-mobile { display: flex !important; transform: none !important; }
+    .editor-container.visible-mobile { display: flex; transform: none; }
 }
 
 /* Theme Colors Semantic Classes */
