@@ -23,7 +23,7 @@ const chatStore = useChatStore()
 const { t } = useLanguage()
 
 // State
-const isCollapsedInternal = ref(false)
+const isCollapsedInternal = ref(true)
 const isHovered = ref(false)
 const showSettings = ref(false)
 
