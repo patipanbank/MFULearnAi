@@ -503,52 +503,9 @@ app.get('/health', (req, res) => res.json({
 const PORT = process.env.PORT || 8080;
 
 
-// --- Prompt Management API (Superadmin) ---
-app.get('/api/prompts', authenticateToken, async (req: any, res: Response) => {
-    // Strict RBAC: Superadmin Only
-    if (req.user.role !== 'superadmin') {
-        return res.status(403).json({ error: 'Forbidden: Requires Superadmin role' });
-    }
 
-    try {
-        const prompts = await SystemPrompt.find().sort({ key: 1 });
-        res.json({ prompts });
-    } catch (error: any) {
-        res.status(500).json({ error: 'Failed to fetch prompts' });
-    }
-});
 
-app.put('/api/prompts/:key', authenticateToken, async (req: any, res: Response) => {
-    // Strict RBAC: Superadmin Only
-    if (req.user.role !== 'superadmin') {
-        return res.status(403).json({ error: 'Forbidden: Requires Superadmin role' });
-    }
 
-    const { key } = req.params;
-    const { content, description } = req.body;
-    const userId = req.user.userId;
-
-    try {
-        const prompt = await SystemPrompt.findOneAndUpdate(
-            { key },
-            {
-                content,
-                description,
-                updatedBy: userId,
-                updatedAt: new Date()
-            },
-            { upsert: true, new: true, setDefaultsOnInsert: true }
-        );
-
-        // Invalidate Cache
-        await redis.del(SYSTEM_PROMPT_KEY_PREFIX + key);
-
-        logActivity('audit', 'update_system_prompt', { key }, userId);
-        res.json({ success: true, prompt });
-    } catch (error: any) {
-        res.status(500).json({ error: 'Failed to update prompt' });
-    }
-});
 
 app.listen(PORT, () => {
     console.log(`[Orchestrator] Running on port ${PORT} [Env: ${ENV_TYPE}]`);
