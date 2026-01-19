@@ -116,6 +116,6 @@ app.get('/api/auth/logout', (req, res) => {
     }
 });
 
-app.listen(PORT, () => {
+app.listen(Number(PORT), '0.0.0.0', () => {
     console.log(`[SSO Service] Running on ${PORT}`);
 });

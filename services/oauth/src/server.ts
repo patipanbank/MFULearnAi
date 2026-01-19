@@ -94,6 +94,6 @@ app.get('/api/auth/google/callback',
     }
 );
 
-app.listen(PORT, () => {
+app.listen(Number(PORT), '0.0.0.0', () => {
     console.log(`[OAuth Service] Running on ${PORT}`);
 });

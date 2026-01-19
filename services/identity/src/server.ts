@@ -273,6 +273,6 @@ app.get('/api/users/admins', authenticateUser, async (req: any, res: Response) =
 
 app.get('/health', (req, res) => res.json({ status: 'ok', service: 'identity-service' }));
 
-app.listen(PORT, () => {
+app.listen(Number(PORT), '0.0.0.0', () => {
     console.log(`[Identity Service] Running on ${PORT}`);
 });
