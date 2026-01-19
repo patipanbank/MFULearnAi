@@ -13,8 +13,8 @@ defineProps({
         <img src="@/assets/dindin-ai.png" alt="DinDin AI" class="welcome-logo-img" />
       </div>
 
-      <h1>Welcome {{ userName }},</h1>
-      <p>How can I help you today?</p>
+      <h1>{{ t('welcome') }} {{ userName }}</h1>
+      <p>{{ t('welcomeSub') }}</p>
     </div>
   </div>
 </template>
