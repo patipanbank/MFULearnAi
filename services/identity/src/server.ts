@@ -146,7 +146,8 @@ app.post('/internal/login', authenticateInternal, async (req: Request, res: Resp
                 role: user.role,
                 department: user.department,
                 firstName: user.firstName,
-                lastName: user.lastName
+                lastName: user.lastName,
+                picture: user.picture
             }
         });
 
