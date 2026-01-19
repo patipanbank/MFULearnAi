@@ -46,7 +46,7 @@
 
 <script setup>
 import { ref, onMounted } from 'vue';
-import axios from 'axios';
+import api from '../../utils/api';
 
 const departments = ref([]);
 const loading = ref(false);
@@ -59,7 +59,7 @@ const formatDate = (dateStr) => {
 const fetchDepartments = async () => {
     loading.value = true;
     try {
-        const response = await axios.get('/api/departments');
+        const response = await api.get('/departments');
         departments.value = response.data.departments || [];
     } catch (error) {
         console.error('Failed to fetch departments:', error);
