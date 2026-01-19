@@ -55,10 +55,16 @@ export const useAuthStore = defineStore('auth', () => {
         localStorage.removeItem('auth_token')
         localStorage.removeItem('user_info')
         localStorage.removeItem('auth_provider')
+        localStorage.removeItem('active_collection_id') // Clear chat persistence if any
 
+        // Redirect to SSO Logout if applicable (SLO)
         // Redirect to SSO Logout if applicable (SLO)
         if (authProvider === 'sso') {
             window.location.href = `${api.defaults.baseURL}/auth/logout`
+        } else if (authProvider === 'google') {
+            // For Google, we just clear local data (which is done above)
+            // and redirect to login. authenticating again will force new token.
+            window.location.href = '/login'
         } else {
             // Local logout: just reload or redirect to login
             window.location.href = '/login'
