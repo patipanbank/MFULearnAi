@@ -690,9 +690,7 @@ app.post('/api/prompts/:key/activate', authenticateToken, async (req: any, res: 
 app.post('/api/prompts/test', authenticateToken, async (req: any, res: Response) => {
     const { systemContent, userMessage } = req.body;
 
-    // Simple proxy to Bedrock with provided system prompt
-    // This allows testing without saving
-
+    // Bedrock Proxy with Stream Parsing
     try {
         const messages = [
             { role: 'system', content: systemContent },
@@ -701,26 +699,35 @@ app.post('/api/prompts/test', authenticateToken, async (req: any, res: Response)
 
         const response = await axios.post(`${BEDROCK_TEXT_URL}/chat`, {
             messages,
-            modelId: 'anthropic.claude-3-sonnet-20240229-v1:0', // Default for test
+            modelId: 'anthropic.claude-3-sonnet-20240229-v1:0',
+        }, {
+            responseType: 'stream'
         });
 
-        // Bedrock wrapper usually returns stream or json.
-        // Assuming JSON for simple test endpoint
-        // If it streams, we might need a different handling or just wait for full.
-        // Our Bedrock service supports non-streaming?
-        // Let's assume it returns { text: ... } or similar if we don't ask for stream.
-        // But our orchestrator usually asks for stream. Use Axios default (no stream).
+        let fullText = '';
 
-        // Wait, Bedrock service /chat might default to stream?
-        // Let's assume the response.data contains the text or we need to handle it.
-        // For now, send back raw data or text.
+        response.data.on('data', (chunk: Buffer) => {
+            const lines = chunk.toString().split('\n');
+            for (const line of lines) {
+                if (line.startsWith('data: ')) {
+                    const dataStr = line.replace('data: ', '').trim();
+                    if (dataStr === '[DONE]') continue;
+                    try {
+                        const data = JSON.parse(dataStr);
+                        if (data.text) fullText += data.text;
+                    } catch (e) { }
+                }
+            }
+        });
 
-        let text = '';
-        if (typeof response.data === 'string') text = response.data;
-        else if (response.data.text) text = response.data.text;
-        else text = JSON.stringify(response.data);
+        response.data.on('end', () => {
+            res.json({ text: fullText });
+        });
 
-        res.send(text);
+        response.data.on('error', (err: any) => {
+            console.error('Stream error:', err);
+            if (!res.headersSent) res.status(500).json({ error: 'Stream processing failed' });
+        });
 
     } catch (error: any) {
         res.status(500).send('Test execution failed: ' + error.message);
