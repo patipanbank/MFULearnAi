@@ -4,7 +4,6 @@ import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
 import axios from 'axios';
 import dotenv from 'dotenv';
 import cors from 'cors';
-import { Buffer } from 'buffer';
 
 dotenv.config();
 
