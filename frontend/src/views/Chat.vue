@@ -9,21 +9,13 @@ import { ref, computed, watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import axios from 'axios'
 import { useAuthStore } from '@/stores/auth'
-import { useChatStore } from '@/stores/chat'
-import { useTheme, useLanguage } from '@/composables/useSettings'
-import { useScrollToBottom } from '@/composables/useUtils'
-
-import {
-  ChatMessage,
-  ChatInput,
-  ChatWelcome,
-  ChatTypingIndicator
-} from '@/components/chat'
+import { useKnowledgeStore } from '@/stores/knowledge'
 
 // Router & Stores
 const router = useRouter()
 const authStore = useAuthStore()
 const chatStore = useChatStore()
+const knowledgeStore = useKnowledgeStore()
 
 // Settings
 const { isDark, toggle: toggleTheme, init: initTheme } = useTheme()
@@ -34,6 +26,9 @@ const messagesRef = ref(null)
 const inputRef = ref(null)
 const showSidebar = ref(true)
 const inputMessage = ref('')
+const attachments = ref([])
+const isProcessingFile = ref(false)
+
 // Environment
 const envName = import.meta.env.VITE_ENV_NAME || 'MFULearnAI'
 
@@ -81,8 +76,30 @@ const handleSelectSession = (sessionId) => {
 }
 
 const handleSendMessage = async (message) => {
-  if (!message?.trim()) return
-  await chatStore.sendMessage(message)
+  if (!message?.trim() && attachments.value.length === 0) return
+
+  // Prepare payload
+  let finalMessage = message || ''
+  const imagesToSend = []
+
+  // Process attachments
+  // 1. Append Text/PDF content to message
+  // 2. Collect Images
+  for (const file of attachments.value) {
+    if (file.type === 'doc') {
+        finalMessage += `\n\n[Context from ${file.name}]:\n${file.content}`
+    } else if (file.type === 'image') {
+        imagesToSend.push({
+            data: file.data.split(',')[1], // Remove prefix
+            mediaType: file.mediaType
+        })
+    }
+  }
+
+  // Clear attachments immediately so UI resets
+  attachments.value = []
+
+  await chatStore.sendMessage(finalMessage, null, imagesToSend)
   inputRef.value?.focus()
 }
 
@@ -91,8 +108,43 @@ const handleLogout = () => {
   router.push('/login')
 }
 
-const handleFileUpload = (files) => {
-  console.log('Files to upload:', files)
+const handleFileUpload = async (files) => {
+  isProcessingFile.value = true
+  try {
+    for (const file of files) {
+        // Image
+        if (file.type.startsWith('image/')) {
+            const reader = new FileReader()
+            reader.onload = (e) => {
+                attachments.value.push({
+                    type: 'image',
+                    name: file.name,
+                    data: e.target.result,
+                    mediaType: file.type
+                })
+            }
+            reader.readAsDataURL(file)
+        } 
+        // Document (PDF/Text)
+        else {
+            const text = await knowledgeStore.extractText(file)
+            attachments.value.push({
+                type: 'doc',
+                name: file.name,
+                content: text
+            })
+        }
+    }
+  } catch (e) {
+    console.error('File processing failed:', e)
+    // Could show a toast/error here
+  } finally {
+    isProcessingFile.value = false
+  }
+}
+
+const handleRemoveAttachment = (index) => {
+    attachments.value.splice(index, 1)
 }
 
 const handleCopyMessage = (content) => {
@@ -136,11 +188,13 @@ const handleCopyMessage = (content) => {
       <ChatInput
         ref="inputRef"
         v-model="inputMessage"
+        :attachments="attachments"
         :disabled="chatStore.isStreaming"
-        :loading="chatStore.isStreaming"
+        :loading="chatStore.isStreaming || isProcessingFile"
         :t="t"
         @send="handleSendMessage"
         @upload="handleFileUpload"
+        @remove-attachment="handleRemoveAttachment"
       />
     </main>
   </div>

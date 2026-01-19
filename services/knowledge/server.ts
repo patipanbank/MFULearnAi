@@ -285,6 +285,32 @@ app.post('/api/knowledge', upload.single('file'), async (req: any, res: Response
     }
 });
 
+// 1.01 EXTRACT TEXT (No Save)
+app.post('/api/knowledge/extract', upload.single('file'), async (req: any, res: Response) => {
+    // Basic Auth Check (Any authenticated user can extract)
+    const user = extractUser(req);
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+
+    if (!req.file) return res.status(400).json({ error: 'No file' });
+
+    const { mimetype, buffer } = req.file;
+
+    try {
+        let text = '';
+        if (mimetype === 'application/pdf') text = (await pdf(buffer)).text;
+        else if (mimetype === 'text/plain') text = buffer.toString('utf-8');
+        else return res.status(400).json({ error: 'Unsupported file' });
+
+        text = text.replace(/\s+/g, ' ').trim();
+        if (!text) return res.status(400).json({ error: 'Empty text' });
+
+        res.json({ success: true, text });
+    } catch (e: any) {
+        console.error('Extract error:', e);
+        res.status(500).json({ error: e.message });
+    }
+});
+
 // 1.05 DELETE KNOWLEDGE
 app.delete('/api/knowledge/:id', async (req: Request, res: Response) => {
     const user = extractUser(req);

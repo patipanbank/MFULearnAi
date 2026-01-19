@@ -41,6 +41,10 @@ const ConversationSchema = new mongoose.Schema({
     messages: [{
         role: { type: String, enum: ['user', 'assistant', 'system'] },
         content: String,
+        images: [{
+            data: String,
+            mediaType: String
+        }],
         timestamp: { type: Date, default: Date.now }
     }],
     modelId: String,
@@ -212,7 +216,7 @@ const getScenarioPrompt = async (scenarioId: string, userId: string): Promise<st
 
 // --- Chat Endpoint ---
 app.post('/api/chat', authenticateToken, rateLimiter, async (req: any, res: Response) => {
-    const { message, sessionId, modelId, context, collectionId } = req.body;
+    const { message, sessionId, modelId, context, collectionId, images } = req.body;
     const userId = req.user.userId;
 
     if (!message) {
@@ -280,6 +284,7 @@ app.post('/api/chat', authenticateToken, rateLimiter, async (req: any, res: Resp
         const currentMessage: ChatMessage = {
             role: 'user',
             content: message,
+            images: images || [],
             timestamp: new Date()
         };
 

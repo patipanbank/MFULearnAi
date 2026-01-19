@@ -127,6 +127,26 @@ export const useKnowledgeStore = defineStore('knowledge', () => {
         }
     }
 
+    async function extractText(file) {
+        loading.value = true
+        try {
+            const formData = new FormData()
+            formData.append('file', file)
+            const res = await axios.post(`${API_URL}/knowledge/extract`, formData, {
+                headers: {
+                    ...getHeaders().headers,
+                    'Content-Type': 'multipart/form-data'
+                }
+            })
+            return res.data.text
+        } catch (e) {
+            error.value = e.response?.data?.error || e.message
+            throw e
+        } finally {
+            loading.value = false
+        }
+    }
+
     // --- Collection Actions ---
 
     async function fetchCollections() {
@@ -232,6 +252,7 @@ export const useKnowledgeStore = defineStore('knowledge', () => {
         fetchCollectionDetails,
         fetchCollectionDetails,
         mapKnowledge,
-        fetchPendingRequests
+        fetchPendingRequests,
+        extractText
     }
 })

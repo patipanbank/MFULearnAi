@@ -3,12 +3,13 @@ import { ref, watch } from 'vue'
 
 const props = defineProps({
   modelValue: { type: String, default: '' },
+  attachments: { type: Array, default: () => [] },
   disabled: { type: Boolean, default: false },
   loading: { type: Boolean, default: false },
   t: { type: Function, required: true }
 })
 
-const emit = defineEmits(['update:modelValue', 'send', 'upload'])
+const emit = defineEmits(['update:modelValue', 'send', 'upload', 'remove-attachment'])
 
 const fileInputRef = ref(null)
 const inputValue = ref(props.modelValue)
@@ -49,6 +50,28 @@ defineExpose({
 <template>
   <div class="input-area">
     <div class="input-container">
+      <!-- Attachments Preview -->
+      <div v-if="attachments && attachments.length > 0" class="attachments-preview">
+        <div v-for="(file, index) in attachments" :key="index" class="attachment-item">
+            <div v-if="file.type === 'image'" class="thumb-wrapper">
+                <img :src="file.data" class="attachment-thumb" />
+            </div>
+            <div v-else class="file-icon-wrapper">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                    <polyline points="14 2 14 8 20 8"></polyline>
+                </svg>
+            </div>
+            <span v-if="file.type !== 'image'" class="file-name">{{ file.name }}</span>
+            <button class="btn-remove" @click="$emit('remove-attachment', index)">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
+        </div>
+      </div>
+
       <div class="input-row">
         <!-- File Upload Button -->
         <button 
@@ -83,8 +106,8 @@ defineExpose({
         <!-- Send Button -->
         <button 
           class="btn-send"
-          :class="{ active: inputValue.trim() }"
-          :disabled="disabled || loading || !inputValue.trim()"
+          :class="{ active: inputValue.trim() || (attachments && attachments.length > 0) }"
+          :disabled="disabled || loading || (!inputValue.trim() && (!attachments || attachments.length === 0))"
           @click="handleSend"
         >
           <svg v-if="!loading" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
@@ -109,6 +132,83 @@ defineExpose({
 .input-container {
   max-width: 768px;
   margin: 0 auto;
+}
+
+/* Attachments */
+.attachments-preview {
+    display: flex;
+    gap: 10px;
+    padding-bottom: 12px;
+    overflow-x: auto;
+}
+
+.attachment-item {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background: var(--color-bg-secondary);
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    padding: 6px;
+    width: 80px;
+    flex-shrink: 0;
+}
+
+.thumb-wrapper {
+    width: 60px;
+    height: 60px;
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 4px;
+}
+
+.attachment-thumb {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.file-icon-wrapper {
+    width: 60px;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-text-muted);
+}
+
+.file-name {
+    font-size: 10px;
+    text-align: center;
+    width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--color-text-primary);
+}
+
+.btn-remove {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: var(--color-bg-tertiary);
+    border: 1px solid var(--color-border);
+    color: var(--color-text-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 12px;
+}
+
+.btn-remove:hover {
+    background: var(--color-error);
+    color: white;
+    border-color: var(--color-error);
 }
 
 .input-row {

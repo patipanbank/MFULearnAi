@@ -36,7 +36,16 @@ const formatTime = (timestamp) => {
       <div class="user-row">
         <div class="content-stack">
             <div class="bubble user">
-                <p>{{ message.content }}</p>
+                <div v-if="message.images && message.images.length > 0" class="message-images">
+                    <img 
+                        v-for="(img, index) in message.images" 
+                        :key="index"
+                        :src="`data:${img.mediaType};base64,${img.data}`" 
+                        class="msg-image"
+                        alt="Attached image"
+                    />
+                </div>
+                <p v-if="message.content">{{ message.content }}</p>
             </div>
             <!-- Copy Button Below Bubble -->
             <div class="user-actions">
@@ -299,6 +308,21 @@ const formatTime = (timestamp) => {
 
 .user-row:hover .fade-hover {
     opacity: 1;
+}
+
+.message-images {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.msg-image {
+    max-width: 200px;
+    max-height: 200px;
+    border-radius: 8px;
+    object-fit: cover;
+    border: 1px solid rgba(255,255,255,0.1);
 }
 
 </style>
