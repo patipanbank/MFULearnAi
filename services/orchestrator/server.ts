@@ -464,10 +464,12 @@ const PORT = process.env.PORT || 8080;
 
 // --- Prompt Management API (Superadmin) ---
 app.get('/api/prompts', authenticateToken, async (req: any, res: Response) => {
-    try {
-        // In a real app, check for superadmin role here or in middleware
-        // if (req.user.role !== 'superadmin') return res.status(403).json(...);
+    // Strict RBAC: Superadmin Only
+    if (req.user.role !== 'superadmin') {
+        return res.status(403).json({ error: 'Forbidden: Requires Superadmin role' });
+    }
 
+    try {
         const prompts = await SystemPrompt.find().sort({ key: 1 });
         res.json({ prompts });
     } catch (error: any) {
@@ -476,6 +478,11 @@ app.get('/api/prompts', authenticateToken, async (req: any, res: Response) => {
 });
 
 app.put('/api/prompts/:key', authenticateToken, async (req: any, res: Response) => {
+    // Strict RBAC: Superadmin Only
+    if (req.user.role !== 'superadmin') {
+        return res.status(403).json({ error: 'Forbidden: Requires Superadmin role' });
+    }
+
     const { key } = req.params;
     const { content, description } = req.body;
     const userId = req.user.userId;

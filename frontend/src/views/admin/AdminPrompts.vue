@@ -1,101 +1,97 @@
 <template>
-  <div class="h-full flex flex-col bg-gray-900 text-white p-6">
-    <div class="flex justify-between items-center mb-6">
-      <div>
-        <h1 class="text-2xl font-bold mb-1">System Prompts</h1>
-        <p class="text-gray-400 text-sm">Manage system prompts for different environments.</p>
+  <div class="page-container">
+    <div class="page-header">
+      <div class="header-left">
+        <h1>System Prompts</h1>
+        <p class="subtitle">Manage AI personality and behavior instructions.</p>
       </div>
       <button 
         @click="refreshPrompts" 
-        class="p-2 rounded-lg hover:bg-gray-800 text-gray-400 transition-colors"
+        class="btn-icon-only"
         title="Refresh"
+        :disabled="loading"
       >
-        <i class="fas fa-sync-alt" :class="{ 'fa-spin': loading }"></i>
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" :class="{ 'spin': loading }"><path d="M23 4v6h-6"></path><path d="M1 20v-6h6"></path><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
       </button>
     </div>
 
-    <div class="flex flex-1 gap-6 overflow-hidden">
-      <!-- Prompt List (Left Sidebar) -->
-      <div class="w-1/3 bg-gray-800 rounded-xl border border-gray-700 flex flex-col">
-        <div class="p-4 border-b border-gray-700 bg-gray-800/50">
-          <h2 class="text-lg font-semibold text-gray-200">Available Prompts</h2>
+    <div class="content-wrapper">
+      <!-- Sidebar List -->
+      <div class="sidebar">
+        <div class="sidebar-header">
+           <h2>Available Prompts</h2>
         </div>
-        <div class="flex-1 overflow-y-auto p-2 space-y-2">
+        <div class="prompt-list">
+            <div v-if="loading && prompts.length === 0" class="p-4 text-center text-muted">Loading...</div>
+            <div v-else-if="prompts.length === 0" class="p-4 text-center text-muted">No prompts found.</div>
+            
             <div 
               v-for="prompt in prompts" 
               :key="prompt.key"
               @click="selectPrompt(prompt)"
-              class="p-3 rounded-lg cursor-pointer transition-all border group"
-              :class="selectedPrompt?.key === prompt.key 
-                ? 'bg-blue-600/20 border-blue-500' 
-                : 'bg-gray-700/30 border-gray-700 hover:bg-gray-700 hover:border-gray-600'"
+              class="prompt-item"
+              :class="{ 'active': selectedPrompt?.key === prompt.key }"
             >
-              <div class="flex justify-between items-start">
-                <span class="font-medium text-gray-200">{{ formatKey(prompt.key) }}</span>
-                <span v-if="prompt.key.includes('PROD')" class="px-2 py-0.5 text-xs bg-green-500/20 text-green-400 rounded-full border border-green-500/30">Prod</span>
-                <span v-else class="px-2 py-0.5 text-xs bg-yellow-500/20 text-yellow-400 rounded-full border border-yellow-500/30">Test</span>
+              <div class="prompt-header">
+                <span class="prompt-name">{{ formatKey(prompt.key) }}</span>
+                <span v-if="prompt.key.includes('PROD')" class="badge badge-prod">PROD</span>
+                <span v-else class="badge badge-test">TEST</span>
               </div>
-              <p class="text-xs text-gray-400 mt-1 truncate">{{ prompt.description || 'No description' }}</p>
-              <div class="mt-2 text-[10px] text-gray-500 flex justify-between">
+              <p class="prompt-desc">{{ prompt.description || 'No description' }}</p>
+              <div class="prompt-meta">
                  <span>v{{ prompt.version || 1 }}</span>
                  <span>{{ formatDate(prompt.updatedAt) }}</span>
               </div>
             </div>
-
-            <!-- Loading Skeleton -->
-            <div v-if="loading && prompts.length === 0" class="space-y-2">
-                <div v-for="i in 3" :key="i" class="h-20 bg-gray-700/50 rounded-lg animate-pulse"></div>
-            </div>
         </div>
       </div>
 
-      <!-- Editor (Right Content) -->
-      <div class="flex-1 bg-gray-800 rounded-xl border border-gray-700 flex flex-col relative overflow-hidden">
-        <div v-if="selectedPrompt" class="flex flex-col h-full">
+      <!-- Editor Area -->
+      <div class="editor-container">
+        <div v-if="selectedPrompt" class="editor-content">
             <!-- Toolbar -->
-            <div class="flex justify-between items-center p-4 border-b border-gray-700 bg-gray-800/50">
-                <div class="flex items-center gap-3">
-                    <span class="text-lg font-medium text-blue-400">{{ formatKey(selectedPrompt.key) }}</span>
-                    <span class="text-xs text-gray-500 bg-gray-900 px-2 py-1 rounded">{{ selectedPrompt.key }}</span>
+            <div class="editor-toolbar">
+                <div class="toolbar-info">
+                    <span class="toolbar-title">{{ formatKey(selectedPrompt.key) }}</span>
+                    <span class="toolbar-key">{{ selectedPrompt.key }}</span>
                 </div>
-                <div class="flex gap-3">
+                <div class="toolbar-actions">
+                    <span v-if="!isSuperAdmin" class="read-only-badge">Read Only</span>
                     <button 
+                        v-if="isSuperAdmin"
                         @click="resetChanges"
                         :disabled="!hasChanges"
-                        class="px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-gray-300 hover:bg-gray-700"
+                        class="btn-secondary"
                     >
                         Reset
                     </button>
                     <button 
+                        v-if="isSuperAdmin"
                         @click="savePrompt"
                         :disabled="!hasChanges || saving"
-                        class="px-5 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-blue-900/20 flex items-center gap-2"
+                        class="btn-primary"
                     >
-                        <i v-if="saving" class="fas fa-circle-notch fa-spin"></i>
-                        <span>{{ saving ? 'Saving...' : 'Save Changes' }}</span>
+                        {{ saving ? 'Saving...' : 'Save Changes' }}
                     </button>
                 </div>
             </div>
 
-            <!-- Editor Input -->
-            <div class="flex-1 relative group">
+            <!-- Text Area -->
+            <div class="editor-wrapper">
                 <textarea 
                     v-model="editBuffer"
-                    class="w-full h-full bg-[#1e1e1e] text-gray-300 p-6 font-mono text-sm leading-relaxed outline-none resize-none focus:bg-[#1a1a1a] transition-colors"
+                    class="code-editor"
                     spellcheck="false"
+                    :disabled="!isSuperAdmin"
                 ></textarea>
-                <!-- Badge for modifications -->
-                <div v-if="hasChanges" class="absolute bottom-4 right-4 px-3 py-1 bg-yellow-500/10 border border-yellow-500/30 text-yellow-500 text-xs rounded-full">
-                    Unsaved Changes
-                </div>
+                <div v-if="hasChanges" class="unsaved-badge">Unsaved Changes</div>
             </div>
-            
         </div>
 
         <!-- Empty State -->
-        <div v-else class="flex-1 flex flex-col items-center justify-center text-gray-500">
-            <i class="fas fa-terminal text-6xl mb-4 opacity-30"></i>
-            <p class="text-lg">Select a prompt to edit</p>
+        <div v-else class="empty-state">
+            <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="text-muted"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="9" y1="3" x2="9" y2="21"></line></svg>
+            <p>Select a system prompt to view or edit</p>
         </div>
       </div>
     </div>
@@ -104,10 +100,12 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue';
-import axios from 'axios';
+import api from '../../utils/api'; // Use consistent API utility
 import { useAuthStore } from '../../stores/auth';
 
 const authStore = useAuthStore();
+const isSuperAdmin = computed(() => authStore.role === 'superadmin');
+
 const prompts = ref([]);
 const loading = ref(false);
 const saving = ref(false);
@@ -137,36 +135,27 @@ const formatDate = (dateStr) => {
 const fetchPrompts = async () => {
     loading.value = true;
     try {
-        // Mock data if backend is empty (for initial testing, but we should hit API)
-        const response = await axios.get('/api/prompts'); // Need to configure proxy or full URL
-        // Currently axios base URL might effectively be set in main.js or similar
-        // Direct call to orchestrator via Nginx gateway
-        // Assuming /api routes go to gateway -> service
-        
+        const response = await api.get('/prompts'); 
         if (response.data.prompts && response.data.prompts.length > 0) {
             prompts.value = response.data.prompts;
         } else {
-            // Seed defaults if empty so UI isn't blank (Helper for first run)
-            prompts.value = [
-                { key: 'DINDINAI_SYSTEM_PROMPT', content: 'Loading...', description: 'Production Prompt', isActive: true },
-                { key: 'MFULEARNAI_SYSTEM_PROMPT', content: 'Loading...', description: 'Test Environment Prompt', isActive: true }
-            ];
-            // Fetch individually in background if list endpoint returned empty (optional fallback)
+            // Fallback for first run UI experience if DB is empty but Backend has hardcoded defaults
+            // In a real scenario, we might want an endpoint to 'sync' defaults to DB
+            // asking user to trigger it is usually safer
+            prompts.value = [];
         }
     } catch (error) {
         console.error('Failed to fetch prompts:', error);
-        // Fallback mock
-        prompts.value = [
-            { key: 'DINDINAI_SYSTEM_PROMPT', content: '# Default DinDinAI Prompt\n...', description: 'Default Production', isActive: true },
-            { key: 'MFULEARNAI_SYSTEM_PROMPT', content: '# Default MFULearnAI Prompt\n...', description: 'Default Test', isActive: true }
-        ];
+        // Do not use mock data here to avoid confusion. Show error state or empty.
     } finally {
         loading.value = false;
     }
 };
 
 const selectPrompt = (prompt) => {
-    // If unsaved changes, maybe warn? For now just switch.
+    if (hasChanges.value) {
+        if(!confirm('You have unsaved changes. Discard them?')) return;
+    }
     selectedPrompt.value = prompt;
     editBuffer.value = prompt.content;
 };
@@ -178,7 +167,7 @@ const resetChanges = () => {
 };
 
 const savePrompt = async () => {
-    if (!selectedPrompt.value) return;
+    if (!selectedPrompt.value || !isSuperAdmin.value) return;
     
     saving.value = true;
     try {
@@ -187,21 +176,21 @@ const savePrompt = async () => {
             description: selectedPrompt.value.description
         };
         
-        await axios.put(`/api/prompts/${selectedPrompt.value.key}`, payload);
+        await api.put(`/prompts/${selectedPrompt.value.key}`, payload);
         
         // Update local state
         selectedPrompt.value.content = editBuffer.value;
+        selectedPrompt.value.updatedAt = new Date().toISOString();
+        
+        // Update list item
         const idx = prompts.value.findIndex(p => p.key === selectedPrompt.value.key);
         if (idx !== -1) {
             prompts.value[idx].content = editBuffer.value;
-            prompts.value[idx].updatedAt = new Date();
+            prompts.value[idx].updatedAt = selectedPrompt.value.updatedAt;
         }
-        
-        // Notify success (simple alert or toast)
-        // alert('Saved successfully');
     } catch (error) {
         console.error('Failed to save prompt:', error);
-        alert('Failed to save changes');
+        alert(error.response?.data?.error || 'Failed to save changes');
     } finally {
         saving.value = false;
     }
@@ -210,6 +199,7 @@ const savePrompt = async () => {
 const refreshPrompts = () => {
     fetchPrompts();
     selectedPrompt.value = null;
+    editBuffer.value = '';
 };
 
 onMounted(() => {
@@ -218,15 +208,276 @@ onMounted(() => {
 </script>
 
 <style scoped>
-/* Simple scrollbar styling for the editor */
-textarea::-webkit-scrollbar {
-    width: 6px;
+.page-container {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    padding: 24px;
+    background: var(--color-bg-primary, #121212);
+    color: var(--color-text-primary, #ffffff);
 }
-textarea::-webkit-scrollbar-track {
-    background: #1e1e1e;
+
+.page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 24px;
 }
-textarea::-webkit-scrollbar-thumb {
-    background: #444;
-    border-radius: 3px;
+
+.header-left h1 {
+    font-size: 24px;
+    font-weight: 700;
+    margin: 0 0 4px 0;
+}
+
+.subtitle {
+    color: var(--color-text-muted, #9ca3af);
+    font-size: 14px;
+}
+
+.btn-icon-only {
+    background: var(--color-bg-tertiary, #2a2a2a);
+    border: 1px solid var(--color-border, #374151);
+    color: var(--color-text-secondary, #d1d5db);
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.btn-icon-only:hover {
+    background: var(--color-bg-hover, #333);
+    color: white;
+}
+.spin { animation: spin 1s linear infinite; }
+@keyframes spin { 100% { transform: rotate(360deg); } }
+
+.content-wrapper {
+    flex: 1;
+    display: flex;
+    gap: 24px;
+    overflow: hidden;
+}
+
+/* Sidebar */
+.sidebar {
+    width: 320px;
+    background: var(--color-bg-secondary, #1e1e1e);
+    border: 1px solid var(--color-border, #374151);
+    border-radius: 12px;
+    display: flex;
+    flex-direction: column;
+}
+
+.sidebar-header {
+    padding: 16px;
+    border-bottom: 1px solid var(--color-border, #374151);
+}
+
+.sidebar-header h2 {
+    font-size: 16px;
+    font-weight: 600;
+    margin: 0;
+}
+
+.prompt-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.prompt-item {
+    padding: 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    border: 1px solid transparent;
+    transition: all 0.2s;
+}
+
+.prompt-item:hover {
+    background: var(--color-bg-tertiary, #2a2a2a);
+}
+
+.prompt-item.active {
+    background: rgba(59, 130, 246, 0.1);
+    border-color: rgba(59, 130, 246, 0.5);
+}
+
+.prompt-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 4px;
+}
+
+.prompt-name {
+    font-weight: 500;
+    font-size: 14px;
+}
+
+.badge {
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 999px;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+.badge-prod { background: rgba(16, 185, 129, 0.2); color: #34d399; }
+.badge-test { background: rgba(245, 158, 11, 0.2); color: #fbbf24; }
+
+.prompt-desc {
+    font-size: 12px;
+    color: var(--color-text-muted, #9ca3af);
+    margin: 0 0 8px 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.prompt-meta {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    color: var(--color-text-secondary, #6b7280);
+}
+
+/* Editor */
+.editor-container {
+    flex: 1;
+    background: var(--color-bg-secondary, #1e1e1e);
+    border: 1px solid var(--color-border, #374151);
+    border-radius: 12px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.editor-content {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.editor-toolbar {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--color-border, #374151);
+    background: var(--color-bg-tertiary, #252525);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.toolbar-info {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+}
+
+.toolbar-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--color-accent, #60a5fa);
+}
+
+.toolbar-key {
+    font-size: 12px;
+    color: var(--color-text-muted);
+    font-family: monospace;
+    background: rgba(0,0,0,0.2);
+    padding: 2px 6px;
+    border-radius: 4px;
+}
+
+.toolbar-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.read-only-badge {
+    font-size: 12px;
+    color: var(--color-text-muted);
+    background: rgba(255,255,255,0.1);
+    padding: 4px 8px;
+    border-radius: 4px;
+    margin-right: 8px;
+}
+
+.btn-secondary {
+    background: transparent;
+    color: var(--color-text-secondary);
+    border: 1px solid var(--color-border);
+    padding: 6px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+}
+.btn-secondary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.btn-primary {
+    background: var(--color-accent, #2563eb);
+    color: white;
+    border: none;
+    padding: 6px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+}
+.btn-primary:hover { opacity: 0.9; }
+.btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.editor-wrapper {
+    flex: 1;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+}
+
+.code-editor {
+    flex: 1;
+    background: #151515; /* Darker than card */
+    color: #e5e7eb;
+    border: none;
+    padding: 20px;
+    font-family: 'Fira Code', monospace;
+    font-size: 13px;
+    line-height: 1.6;
+    resize: none;
+    outline: none;
+}
+.code-editor:disabled {
+    opacity: 0.8;
+    cursor: default;
+}
+
+.unsaved-badge {
+    position: absolute;
+    bottom: 16px;
+    right: 16px;
+    background: rgba(245, 158, 11, 0.2);
+    color: #fbbf24;
+    border: 1px solid rgba(245, 158, 11, 0.4);
+    padding: 4px 12px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 500;
+    pointer-events: none;
+}
+
+.empty-state {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-text-muted);
+    gap: 16px;
 }
 </style>
