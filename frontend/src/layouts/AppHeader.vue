@@ -133,7 +133,7 @@ onMounted(() => {
 .user-avatar {
   width: 32px;
   height: 32px;
-  background: var(--color-accent);
+  background: var(--color-user-gradient);
   border-radius: 50%;
   display: flex;
   align-items: center;

@@ -101,7 +101,7 @@ const formatTime = (timestamp) => {
 }
 
 .avatar-circle.user {
-  background: var(--color-accent);
+  background: var(--color-user-gradient);
   color: white;
 }
 

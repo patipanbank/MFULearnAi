@@ -249,7 +249,7 @@ const navigateTo = (path) => {
 .avatar-large {
   width: 64px;
   height: 64px;
-  background: linear-gradient(135deg, #3b82f6, #6366f1);
+  background: var(--color-user-gradient);
   border-radius: 50%;
   border: 3px solid var(--color-bg-secondary);
   box-shadow: 0 0 0 2px #3b82f6;
