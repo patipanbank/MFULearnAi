@@ -269,6 +269,67 @@ app.get('/api/departments', authenticateUser, async (req: any, res: Response) =>
     }
 });
 
+// 6.1 Create Department (Superadmin)
+app.post('/api/departments', authenticateUser, async (req: any, res: Response) => {
+    if (req.user.role !== 'superadmin') return res.status(403).json({ error: 'Forbidden' });
+
+    try {
+        const { code, name } = req.body;
+        if (!name) return res.status(400).json({ error: 'Name is required' });
+
+        // Auto-generate code if missing
+        const deptCode = code || name.trim().toUpperCase().replace(/\s+/g, '_');
+
+        const newDept = await Department.create({
+            code: deptCode,
+            name: name.trim()
+        });
+
+        console.log(`[Identity] Created Department: ${newDept.name}`);
+        res.json({ department: newDept });
+    } catch (e: any) {
+        if (e.code === 11000) {
+            return res.status(400).json({ error: 'Department code already exists' });
+        }
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// 6.2 Update Department (Superadmin)
+app.put('/api/departments/:id', authenticateUser, async (req: any, res: Response) => {
+    if (req.user.role !== 'superadmin') return res.status(403).json({ error: 'Forbidden' });
+
+    try {
+        const { name } = req.body;
+        // We generally don't allow updating CODE as it might break relationships if stored by code
+        // But if stored by ID, it's fine. Here we assume code might be editable if careful, 
+        // but let's stick to Name for safety unless requested.
+
+        const dept = await Department.findByIdAndUpdate(
+            req.params.id,
+            { name: name.trim() },
+            { new: true }
+        );
+
+        if (!dept) return res.status(404).json({ error: 'Department not found' });
+        res.json({ department: dept });
+    } catch (e: any) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// 6.3 Delete Department (Superadmin)
+app.delete('/api/departments/:id', authenticateUser, async (req: any, res: Response) => {
+    if (req.user.role !== 'superadmin') return res.status(403).json({ error: 'Forbidden' });
+
+    try {
+        await Department.findByIdAndDelete(req.params.id);
+        res.json({ success: true });
+    } catch (e: any) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
 // 7. List Admin Users (Superadmin Only)
 app.get('/api/users/admins', authenticateUser, async (req: any, res: Response) => {
     if (req.user.role !== 'superadmin') {
