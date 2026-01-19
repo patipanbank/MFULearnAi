@@ -103,34 +103,34 @@
                 
                 <div class="modal-body-split">
                     <!-- Left: Config/Edit -->
+                    <!-- Left: Config/Edit -->
                     <div class="split-left">
-                        <div class="tabs small-tabs">
-                             <button 
-                                class="tab-btn" 
-                                :class="{ active: detailTab === 'info' }"
-                                @click="detailTab = 'info'"
-                              >
-                                Info & Prompt
-                              </button>
+                        <div class="editor-toolbar">
+                             <span class="toolbar-title">{{ canEdit(selectedScenario) ? 'Start Editing' : 'View Only' }}</span>
+                             <span v-if="hasChanges" class="badge-unsaved">Unsaved Changes</span>
                         </div>
+
                         <div class="config-content">
                             <div class="form-group">
-                                <label>Description</label>
-                                <input v-if="canEdit(selectedScenario)" v-model="editDescription" class="form-input" />
+                                <label>Description / Role</label>
+                                <input v-if="canEdit(selectedScenario)" v-model="editDescription" class="form-input-dark" placeholder="Short description..." />
                                 <div v-else class="read-only-text">{{ selectedScenario.description }}</div>
                             </div>
                             <div class="form-group flex-1 flex flex-col">
-                                <label>Instructions (System Prompt)</label>
-                                <textarea 
-                                    v-if="canEdit(selectedScenario)"
-                                    v-model="editContent" 
-                                    class="code-editor" 
-                                    spellcheck="false"
-                                ></textarea>
-                                <pre v-else class="code-preview">{{ getCurrentContent(selectedScenario) }}</pre>
+                                <label>Persona Instructions</label>
+                                <div class="editor-wrapper">
+                                    <textarea 
+                                        v-if="canEdit(selectedScenario)"
+                                        v-model="editContent" 
+                                        class="code-editor" 
+                                        spellcheck="false"
+                                        placeholder="Enter instructions..."
+                                    ></textarea>
+                                    <pre v-else class="code-preview">{{ getCurrentContent(selectedScenario) }}</pre>
+                                </div>
                             </div>
                             
-                            <div v-if="canEdit(selectedScenario)" class="actions-row">
+                            <div v-if="canEdit(selectedScenario)" class="actions-footer">
                                 <button @click="deleteScenario" class="btn-text-danger">Delete</button>
                                 <button @click="saveChanges" :disabled="!hasChanges || saving" class="btn-primary">
                                     {{ saving ? 'Saving...' : 'Save Changes' }}
@@ -541,28 +541,9 @@ onMounted(() => fetchScenarios());
 }
 
 /* Config Content */
-.config-content {
-    flex: 1; padding: 24px; display: flex; flex-direction: column; gap: 16px; overflow-y: auto;
-}
 .small-tabs {
     border-radius: 0; margin-bottom: 0;
 }
-.form-group label { display: block; font-size: 13px; font-weight:600; color: var(--color-text-secondary); margin-bottom: 6px; }
-.form-input {
-    width: 100%; background: var(--color-bg-primary); border: 1px solid var(--color-border);
-    padding: 10px; color: var(--color-text-primary); border-radius: 6px;
-}
-.code-editor {
-    width: 100%; flex: 1; min-height: 200px;
-    background: #111; color: #e5e7eb; padding: 16px;
-    font-family: 'Fira Code', monospace; border: 1px solid var(--color-border); border-radius: 6px;
-    resize: none; font-size: 13px; line-height: 1.5;
-}
-.read-only-text { color: var(--color-text-primary); padding: 10px 0; }
-.code-preview {
-    background: #111; padding: 16px; border-radius: 6px; overflow: auto; flex: 1; font-family: monospace; font-size: 12px;
-}
-
 .actions-row { display: flex; justify-content: space-between; align-items: center; margin-top: auto; padding-top: 16px; border-top: 1px solid var(--color-border); }
 .btn-text-danger { background: none; border: none; color: #ef4444; font-size: 13px; cursor: pointer; }
 
