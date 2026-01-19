@@ -88,19 +88,59 @@
             </div>
         </div>
 
-        <!-- Empty State -->
+            <!-- Empty State -->
         <div v-else class="empty-state">
             <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="text-muted"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="9" y1="3" x2="9" y2="21"></line></svg>
             <p>Select a system prompt to view or edit</p>
+            <div v-if="isSuperAdmin" class="mt-4">
+                 <button @click="openCreateModal" class="btn-primary">
+                    <i class="fas fa-plus mr-2"></i>Create New Prompt
+                 </button>
+            </div>
         </div>
       </div>
+    </div>
+    
+    <!-- Create Modal -->
+    <div v-if="showCreateModal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Create New System Prompt</h3>
+                <button @click="closeCreateModal" class="close-btn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Prompt Key <span class="text-red-500">*</span></label>
+                    <input v-model="newItem.key" type="text" placeholder="e.g. MFULEARNAI_SYSTEM_PROMPT" class="form-input" />
+                    <small class="text-muted block mt-1">
+                        Recommended Keys:
+                        <br><code>MFULEARNAI_SYSTEM_PROMPT</code> (Test Env)
+                        <br><code>DINDINAI_SYSTEM_PROMPT</code> (Prod Env)
+                    </small>
+                </div>
+                <div class="form-group">
+                    <label>Description</label>
+                    <input v-model="newItem.description" type="text" placeholder="Prompt purpose..." class="form-input" />
+                </div>
+                <div class="form-group">
+                    <label>Initial Content</label>
+                    <textarea v-model="newItem.content" class="form-input h-32 font-mono" placeholder="You are an AI assistant..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button @click="closeCreateModal" class="btn-secondary mr-2">Cancel</button>
+                <button @click="createPrompt" :disabled="!newItem.key || creating" class="btn-primary">
+                    {{ creating ? 'Creating...' : 'Create Prompt' }}
+                </button>
+            </div>
+        </div>
     </div>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue';
-import api from '../../utils/api'; // Use consistent API utility
+import api from '../../utils/api'; 
 import { useAuthStore } from '../../stores/auth';
 
 const authStore = useAuthStore();
@@ -109,8 +149,17 @@ const isSuperAdmin = computed(() => authStore.role === 'superadmin');
 const prompts = ref([]);
 const loading = ref(false);
 const saving = ref(false);
+const creating = ref(false); // State for create action
+const showCreateModal = ref(false); // Modal visibility
 const selectedPrompt = ref(null);
 const editBuffer = ref('');
+
+// New Item State
+const newItem = ref({
+    key: '',
+    description: '',
+    content: ''
+});
 
 // Computed
 const hasChanges = computed(() => {
@@ -131,22 +180,56 @@ const formatDate = (dateStr) => {
     return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute:'2-digit' });
 };
 
-// API
+// ... API Methods ...
+
+// Create Logic
+const openCreateModal = () => {
+    newItem.value = { key: '', description: '', content: '' };
+    showCreateModal.value = true;
+};
+
+const closeCreateModal = () => {
+    showCreateModal.value = false;
+};
+
+const createPrompt = async () => {
+    if (!newItem.value.key) return;
+    creating.value = true;
+    
+    try {
+        const payload = {
+            content: newItem.value.content || ' ',
+            description: newItem.value.description
+        };
+        // Use existing PUT /:key endpoint which handles upsert (create if new)
+        await api.put(`/prompts/${newItem.value.key.trim()}`, payload);
+        
+        // Refresh list
+        await fetchPrompts();
+        closeCreateModal();
+        
+        // Select the new prompt
+        const created = prompts.value.find(p => p.key === newItem.value.key.trim());
+        if (created) selectPrompt(created);
+        
+    } catch (error) {
+        console.error('Failed to create prompt:', error);
+        alert('Failed to create prompt: ' + (error.response?.data?.error || error.message));
+    } finally {
+        creating.value = false;
+    }
+};
+
+// Existing API
 const fetchPrompts = async () => {
     loading.value = true;
     try {
         const response = await api.get('/prompts'); 
-        if (response.data.prompts && response.data.prompts.length > 0) {
+        if (response.data.prompts) {
             prompts.value = response.data.prompts;
-        } else {
-            // Fallback for first run UI experience if DB is empty but Backend has hardcoded defaults
-            // In a real scenario, we might want an endpoint to 'sync' defaults to DB
-            // asking user to trigger it is usually safer
-            prompts.value = [];
         }
     } catch (error) {
         console.error('Failed to fetch prompts:', error);
-        // Do not use mock data here to avoid confusion. Show error state or empty.
     } finally {
         loading.value = false;
     }
@@ -206,6 +289,102 @@ onMounted(() => {
     fetchPrompts();
 });
 </script>
+
+<style scoped>
+.page-container {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    padding: 24px;
+    background: var(--color-bg-primary, #121212);
+    color: var(--color-text-primary, #ffffff);
+}
+/* ... existing styles ... */
+
+/* Modal Styles */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.modal-content {
+    background: var(--color-bg-secondary, #1e1e1e);
+    border: 1px solid var(--color-border, #374151);
+    border-radius: 12px;
+    width: 500px;
+    max-width: 90%;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+}
+
+.modal-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--color-border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.modal-header h3 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.close-btn {
+    background: none;
+    border: none;
+    color: var(--color-text-muted);
+    font-size: 24px;
+    cursor: pointer;
+}
+
+.modal-body {
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--color-text-secondary);
+}
+
+.form-input {
+    width: 100%;
+    background: var(--color-bg-tertiary, #2a2a2a);
+    border: 1px solid var(--color-border);
+    color: white;
+    padding: 10px;
+    border-radius: 6px;
+    font-size: 14px;
+}
+.form-input:focus {
+    outline: none;
+    border-color: var(--color-accent, #3b82f6);
+}
+
+.modal-footer {
+    padding: 16px 20px;
+    border-top: 1px solid var(--color-border);
+    display: flex;
+    justify-content: flex-end;
+}
+/* ... existing styles ... */
+
 
 <style scoped>
 .page-container {
