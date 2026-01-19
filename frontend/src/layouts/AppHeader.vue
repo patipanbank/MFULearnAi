@@ -137,7 +137,7 @@ onMounted(() => {
 }
 
 .app-name {
-  font-size: 18px;
+  font-size: 24px;
   font-weight: 700;
   color: var(--color-text-primary);
   margin: 0;
