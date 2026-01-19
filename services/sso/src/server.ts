@@ -32,7 +32,7 @@ passport.use(new SamlStrategy(
     {
         issuer: process.env.SAML_SP_ENTITY_ID || 'mfu-learn-ai',
         callbackUrl: process.env.SAML_SP_ACS_URL || `${process.env.API_GATEWAY_URL || 'http://localhost:6000'}/api/auth/saml/callback`,
-        entryPoint: process.env.SAML_IDP_SSO_URL || 'https://idp.mfu.ac.th/sso', // Mock/Real URL
+        entryPoint: process.env.SAML_IDP_SSO_URL || 'https://idp.mfu.ac.th/sso',
         logoutUrl: process.env.SAML_IDP_SLO_URL || '',
         cert: process.env.SAML_CERTIFICATE || '',
         disableRequestedAuthnContext: true,
@@ -45,39 +45,48 @@ passport.use(new SamlStrategy(
     },
     async (req: any, profile: any, done: any) => {
         try {
-            // Log Raw Profile for Data Extraction
             console.log('[SSO] Raw SAML Profile:', JSON.stringify(profile, null, 2));
 
-            // Transform SAML Profile to Standard User Object
-            const nameID = profile.nameID;
-            // Handle IDP Typo 'User.Userrname'
+            // 1. Extract Basic Info
+            const nameID = profile.nameID || '';
             const username = profile['User.Userrname'] || profile['User.Username'] || nameID;
-            const email = profile['User.Email'] || profile.email;
-            const firstName = profile['first_name'] || profile.givenName;
-            const lastName = profile['last_name'] || profile.sn;
+            const email = profile['User.Email'] || profile.email || '';
+            const firstName = profile['first_name'] || profile.givenName || '';
+            const lastName = profile['last_name'] || profile.sn || '';
             const department = profile['depart_name'] || 'General';
 
-            // Raw Groups (SIDs) and Human Readable Groups
-            const groups = profile['http://schemas.xmlsoap.org/claims/Group'] || [];
-            const groupNames = profile['Groups'] || ''; // e.g. "Students"
+            // 2. Extract Groups
+            const rawGroups = profile['http://schemas.xmlsoap.org/claims/Group'] || [];
+            const humanGroups = profile['Groups'] || []; // explicit default to empty array if missing
 
-            // --- Logic from backend-old to determine role ---
+            // 3. Determine Role
             let role = 'student'; // Default
 
-            // Check for specific group SIDs or Names
-            const groupsArray = Array.isArray(groups) ? groups : [groups];
-            const isStudentGroup = groupsArray.some((g: string) => g === 'student_all_grp');
-            const isStudentName = groupNames.includes('Students');
+            // Logic A: Check SIDs (rawGroups)
+            const groupsArray = Array.isArray(rawGroups) ? rawGroups : [rawGroups];
+            const isStudentSID = groupsArray.some((g: string) => g === 'student_all_grp');
 
-            if (isStudentGroup || isStudentName) {
+            // Logic B: Check Human Names (humanGroups)
+            // Ensure humanGroups is treated as string or array safely
+            let isStudentName = false;
+            if (Array.isArray(humanGroups)) {
+                isStudentName = humanGroups.includes('Students');
+            } else if (typeof humanGroups === 'string') {
+                isStudentName = humanGroups.includes('Students');
+            }
+
+            if (isStudentSID || isStudentName) {
                 role = 'student';
-            } else if (groupNames.includes('Staffs') || groupNames.includes('Employee')) {
-                role = 'staff';
-            } else if (mapGroupsToRole(groups) === 'superadmin') {
-                role = 'superadmin';
             } else {
-                // improvements: check regex or other attributes if needed
-                role = 'staff'; // Fallback for employees usually
+                // Check for staff
+                const humanGroupsStr = Array.isArray(humanGroups) ? humanGroups.join(' ') : String(humanGroups);
+                if (humanGroupsStr.includes('Staffs') || humanGroupsStr.includes('Employee')) {
+                    role = 'staff';
+                } else if (mapGroupsToRole(rawGroups) === 'superadmin') {
+                    role = 'superadmin';
+                } else {
+                    role = 'staff'; // Fallback
+                }
             }
 
             const userData = {
@@ -87,12 +96,11 @@ passport.use(new SamlStrategy(
                 firstName,
                 lastName,
                 department,
-                groups,
-                role // Use the calculated role from above
+                groups: groupsArray, // Normalize to array
+                role
             };
 
-            // Call Identity Service to Login/Create User and Get Token
-            // console.log('[SSO] Calling Identity Service with:', userData.email);
+            // console.log('[SSO] Processed UserData:', userData);
 
             const response = await axios.post(`${IDENTITY_SERVICE_URL}/internal/login`, userData, {
                 headers: { 'x-internal-key': INTERNAL_API_KEY }
