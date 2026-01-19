@@ -5,7 +5,7 @@ export type PromptType = 'core' | 'scenario';
 export interface IPromptVersion {
     version: number;
     content: string;
-    variables: string[];
+    variables?: string[];
     changelog: string;
     createdBy: string; // User ID
     createdAt: Date;
