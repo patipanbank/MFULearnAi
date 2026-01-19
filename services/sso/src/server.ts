@@ -45,6 +45,9 @@ passport.use(new SamlStrategy(
     },
     async (req: any, profile: any, done: any) => {
         try {
+            // Log Raw Profile for Data Extraction
+            console.log('[SSO] Raw SAML Profile:', JSON.stringify(profile, null, 2));
+
             // Transform SAML Profile to Standard User Object
             const nameID = profile.nameID;
             const username = profile['User.Userrname'] || profile['User.Username'] || nameID;

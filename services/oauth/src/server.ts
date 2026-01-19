@@ -29,6 +29,9 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
         },
         async (accessToken, refreshToken, profile, done) => {
             try {
+                // Log Raw Profile for Data Extraction
+                console.log('[OAuth] Raw Google Profile:', JSON.stringify(profile, null, 2));
+
                 // Transform Google Profile to Standard User Object
                 const email = profile.emails?.[0].value;
                 if (!email) return done(new Error('No email from Google'));
