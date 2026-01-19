@@ -68,7 +68,10 @@ app.get('/health', (req, res) => res.json({ status: 'ok', service: 'oauth-servic
 // Init Login
 app.get('/api/auth/login/google', (req, res, next) => {
     if (!process.env.GOOGLE_CLIENT_ID) return res.status(503).json({ error: 'Google Auth not configured' });
-    passport.authenticate('google', { session: false })(req, res, next);
+    passport.authenticate('google', {
+        session: false,
+        prompt: 'select_account'
+    })(req, res, next);
 });
 
 // Callback
