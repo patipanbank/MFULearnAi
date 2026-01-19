@@ -9,7 +9,17 @@ import { ref, computed, watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import axios from 'axios'
 import { useAuthStore } from '@/stores/auth'
+import { useChatStore } from '@/stores/chat'
 import { useKnowledgeStore } from '@/stores/knowledge'
+import { useTheme, useLanguage } from '@/composables/useSettings'
+import { useScrollToBottom } from '@/composables/useUtils'
+
+import {
+  ChatMessage,
+  ChatInput,
+  ChatWelcome,
+  ChatTypingIndicator
+} from '@/components/chat'
 
 // Router & Stores
 const router = useRouter()
