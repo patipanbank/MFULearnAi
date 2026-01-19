@@ -13,6 +13,11 @@ const emit = defineEmits(['copy'])
 
 const { render, copyToClipboard } = useMarkdown()
 const copied = ref(false)
+const viewingImage = ref(null)
+
+const viewImage = (src) => {
+    viewingImage.value = src
+}
 
 const handleCopy = async () => {
   const success = await copyToClipboard(props.message.content)
@@ -35,17 +40,21 @@ const formatTime = (timestamp) => {
     <template v-if="message.role === 'user'">
       <div class="user-row">
         <div class="content-stack">
+            <!-- Images (Outside Bubble) -->
+            <div v-if="message.images && message.images.length > 0" class="message-images outside">
+                <img 
+                    v-for="(img, index) in message.images" 
+                    :key="index"
+                    :src="`data:${img.mediaType};base64,${img.data}`" 
+                    class="msg-image clickable"
+                    alt="Attached image"
+                    @click="viewImage(`data:${img.mediaType};base64,${img.data}`)"
+                />
+            </div>
+
             <div class="bubble user">
-                <div v-if="message.images && message.images.length > 0" class="message-images">
-                    <img 
-                        v-for="(img, index) in message.images" 
-                        :key="index"
-                        :src="`data:${img.mediaType};base64,${img.data}`" 
-                        class="msg-image"
-                        alt="Attached image"
-                    />
-                </div>
                 <p v-if="message.content">{{ message.content }}</p>
+                <p v-else class="empty-content">Sent an image</p>
             </div>
             <!-- Copy Button Below Bubble -->
             <div class="user-actions">
@@ -65,6 +74,14 @@ const formatTime = (timestamp) => {
              <span v-else>{{ userInitial }}</span>
         </div>
       </div>
+
+    <!-- Lightbox Modal -->
+    <Teleport to="body">
+        <div v-if="viewingImage" class="lightbox-overlay" @click="viewingImage = null">
+            <button class="btn-close-lightbox">&times;</button>
+            <img :src="viewingImage" class="lightbox-img" @click.stop />
+        </div>
+    </Teleport>
     </template>
     
     <!-- ASSISTANT: Canvas style (improved) -->
@@ -309,6 +326,86 @@ const formatTime = (timestamp) => {
 .user-row:hover .fade-hover {
     opacity: 1;
 }
+
+.message-images {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 4px;
+    justify-content: flex-end; /* Align right for user */
+}
+
+.msg-image {
+    max-width: 200px;
+    max-height: 200px;
+    border-radius: 12px;
+    object-fit: cover;
+    border: 1px solid var(--color-border);
+    transition: transform 0.2s;
+}
+
+.msg-image.clickable {
+    cursor: zoom-in;
+}
+
+.msg-image.clickable:hover {
+    transform: scale(1.02);
+}
+
+.empty-content {
+    color: var(--color-text-muted);
+    font-style: italic;
+    font-size: 13px;
+    margin: 0;
+}
+
+/* Lightbox */
+.lightbox-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.85);
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: fadeIn 0.2s ease;
+}
+
+.lightbox-img {
+    max-width: 90vw;
+    max-height: 90vh;
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+    animation: zoomIn 0.2s ease;
+}
+
+.btn-close-lightbox {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    background: rgba(255,255,255,0.2);
+    border: none;
+    color: white;
+    font-size: 30px;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s;
+}
+
+.btn-close-lightbox:hover {
+    background: rgba(255,255,255,0.4);
+}
+
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes zoomIn { from { transform: scale(0.9); } to { transform: scale(1); } }
 
 .message-images {
     display: flex;

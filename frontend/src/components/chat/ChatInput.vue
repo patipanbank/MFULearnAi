@@ -50,71 +50,75 @@ defineExpose({
 <template>
   <div class="input-area">
     <div class="input-container">
-      <!-- Attachments Preview -->
-      <div v-if="attachments && attachments.length > 0" class="attachments-preview">
-        <div v-for="(file, index) in attachments" :key="index" class="attachment-item">
-            <div v-if="file.type === 'image'" class="thumb-wrapper">
-                <img :src="file.data" class="attachment-thumb" />
+      
+      <!-- Combined Input Wrapper -->
+      <div class="input-wrapper">
+          <!-- Attachments (Inside) -->
+          <div v-if="attachments && attachments.length > 0" class="attachments-preview">
+            <div v-for="(file, index) in attachments" :key="index" class="attachment-item">
+                <div v-if="file.type === 'image'" class="thumb-wrapper">
+                    <img :src="file.data" class="attachment-thumb" />
+                </div>
+                <div v-else class="file-icon-wrapper">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                        <polyline points="14 2 14 8 20 8"></polyline>
+                    </svg>
+                </div>
+                <span v-if="file.type !== 'image'" class="file-name">{{ file.name }}</span>
+                <button class="btn-remove" @click="$emit('remove-attachment', index)">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
             </div>
-            <div v-else class="file-icon-wrapper">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                    <polyline points="14 2 14 8 20 8"></polyline>
-                </svg>
-            </div>
-            <span v-if="file.type !== 'image'" class="file-name">{{ file.name }}</span>
-            <button class="btn-remove" @click="$emit('remove-attachment', index)">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <line x1="18" y1="6" x2="6" y2="18"></line>
-                    <line x1="6" y1="6" x2="18" y2="18"></line>
-                </svg>
-            </button>
-        </div>
-      </div>
+          </div>
 
-      <div class="input-row">
-        <!-- File Upload Button -->
-        <button 
-          class="btn-attach" 
-          @click="handleFileClick"
-          :title="t('uploadFile')"
-          :disabled="disabled"
-        >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
-          </svg>
-        </button>
-        <input
-          ref="fileInputRef"
-          type="file"
-          class="file-input"
-          @change="handleFileChange"
-          multiple
-          accept="image/*,.pdf,.doc,.docx,.txt"
-        />
-        
-        <!-- Text Input -->
-        <textarea 
-          v-model="inputValue"
-          class="chat-input"
-          :placeholder="t('typeMessage')"
-          :disabled="disabled || loading"
-          @keydown="handleKeydown"
-          rows="1"
-        ></textarea>
-        
-        <!-- Send Button -->
-        <button 
-          class="btn-send"
-          :class="{ active: inputValue.trim() || (attachments && attachments.length > 0) }"
-          :disabled="disabled || loading || (!inputValue.trim() && (!attachments || attachments.length === 0))"
-          @click="handleSend"
-        >
-          <svg v-if="!loading" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
-          </svg>
-          <div v-else class="spinner"></div>
-        </button>
+          <div class="input-controls">
+            <!-- File Upload Button -->
+            <button 
+              class="btn-attach" 
+              @click="handleFileClick"
+              :title="t('uploadFile')"
+              :disabled="disabled"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
+              </svg>
+            </button>
+            <input
+              ref="fileInputRef"
+              type="file"
+              class="file-input"
+              @change="handleFileChange"
+              multiple
+              accept="image/*,.pdf,.doc,.docx,.txt"
+            />
+            
+            <!-- Text Input -->
+            <textarea 
+              v-model="inputValue"
+              class="chat-input"
+              :placeholder="t('typeMessage')"
+              :disabled="disabled || loading"
+              @keydown="handleKeydown"
+              rows="1"
+            ></textarea>
+            
+            <!-- Send Button -->
+            <button 
+              class="btn-send"
+              :class="{ active: inputValue.trim() || (attachments && attachments.length > 0) }"
+              :disabled="disabled || loading || (!inputValue.trim() && (!attachments || attachments.length === 0))"
+              @click="handleSend"
+            >
+              <svg v-if="!loading" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+              </svg>
+              <div v-else class="spinner"></div>
+            </button>
+          </div>
       </div>
       
       <p class="disclaimer">{{ t('disclaimer') }}</p>
@@ -134,11 +138,28 @@ defineExpose({
   margin: 0 auto;
 }
 
-/* Attachments */
+.input-wrapper {
+  background: var(--color-bg-secondary);
+  border: 1px solid transparent; 
+  border-radius: var(--radius-lg);
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+}
+
+.input-controls {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+/* Attachments inside Input */
 .attachments-preview {
     display: flex;
     gap: 10px;
     padding-bottom: 12px;
+    margin-bottom: 8px;
+    border-bottom: 1px solid var(--color-border);
     overflow-x: auto;
 }
 
@@ -147,17 +168,17 @@ defineExpose({
     display: flex;
     flex-direction: column;
     align-items: center;
-    background: var(--color-bg-secondary);
+    background: var(--color-bg-primary); /* Contrast against secondary */
     border: 1px solid var(--color-border);
     border-radius: 8px;
     padding: 6px;
-    width: 80px;
+    width: 72px;
     flex-shrink: 0;
 }
 
 .thumb-wrapper {
-    width: 60px;
-    height: 60px;
+    width: 50px;
+    height: 50px;
     border-radius: 4px;
     overflow: hidden;
     margin-bottom: 4px;
@@ -170,8 +191,8 @@ defineExpose({
 }
 
 .file-icon-wrapper {
-    width: 60px;
-    height: 60px;
+    width: 50px;
+    height: 50px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -179,7 +200,7 @@ defineExpose({
 }
 
 .file-name {
-    font-size: 10px;
+    font-size: 9px;
     text-align: center;
     width: 100%;
     overflow: hidden;
@@ -202,23 +223,14 @@ defineExpose({
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    font-size: 12px;
+    font-size: 10px;
+    z-index: 2;
 }
 
 .btn-remove:hover {
     background: var(--color-error);
     color: white;
     border-color: var(--color-error);
-}
-
-.input-row {
-  display: flex;
-  align-items: flex-end;
-  gap: 8px;
-  background: var(--color-bg-secondary);
-  border: 1px solid transparent; /* Hidden border */
-  border-radius: var(--radius-lg);
-  padding: 8px;
 }
 
 .file-input {
