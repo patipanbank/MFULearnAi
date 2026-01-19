@@ -131,6 +131,12 @@
                     <label>Display Name <span class="text-red-500">*</span></label>
                     <input v-model="newItem.name" type="text" placeholder="e.g. DinDin Strict Mode" class="form-input" />
                 </div>
+                
+                <div class="form-group mb-4">
+                    <label>Internal Key (Unique)</label>
+                    <input v-model="newItem.key" class="form-input" placeholder="e.g. SYSTEM_PROMPT_V1" />
+                </div>
+
                 <div class="form-group">
                     <label>Initial Content</label>
                     <textarea v-model="newItem.content" class="form-input h-32 font-mono"></textarea>
@@ -286,6 +292,7 @@ const createPrompt = async () => {
             key: newItem.value.key,
             name: newItem.value.name,
             content: newItem.value.content,
+            tags: ['GLOBAL'], // Default tag for consistency, though unused by logic now
             description: 'Core System Prompt'
         });
         await fetchPrompts();

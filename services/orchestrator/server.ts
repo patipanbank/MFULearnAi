@@ -759,6 +759,7 @@ app.post('/api/prompts/:key/deactivate', authenticateToken, async (req: any, res
         await prompt.save();
 
         // Invalidate Cache
+        await redis.del(`${SYSTEM_PROMPT_KEY_PREFIX}CORE:GLOBAL`);
         await redis.del(`${SYSTEM_PROMPT_KEY_PREFIX}CORE:PROD`);
         await redis.del(`${SYSTEM_PROMPT_KEY_PREFIX}CORE:TEST`);
 

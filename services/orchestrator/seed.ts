@@ -6,19 +6,11 @@ export const seedPrompts = async () => {
 
     const promptsToSeed = [
         {
-            key: 'DINDINAI_SYSTEM_PROMPT',
-            name: 'DinDin AI (Production)',
-            description: 'Official production system prompt for DinDin AI',
-            content: DINDINAI_SYSTEM_PROMPT,
-            tags: ['PROD'],
-            type: 'core'
-        },
-        {
-            key: 'MFULEARNAI_SYSTEM_PROMPT',
-            name: 'MFULearnAI (Test)',
-            description: 'Experimental system prompt for MFULearnAI test environment',
-            content: MFULEARNAI_SYSTEM_PROMPT,
-            tags: ['TEST'],
+            key: 'GLOBAL_SYSTEM_PROMPT',
+            name: 'Global System Prompt (Default)',
+            description: 'The single active system prompt for all environments.',
+            content: DINDINAI_SYSTEM_PROMPT, // Default to Prod content as base
+            tags: ['GLOBAL'],
             type: 'core'
         }
     ];
