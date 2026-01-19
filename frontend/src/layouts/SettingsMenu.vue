@@ -25,8 +25,8 @@ const handleLogout = () => {
 }
 
 const confirmLogout = () => {
+    // Logic handled in authStore.logout() including redirect
     authStore.logout()
-    router.push('/login')
     showLogoutConfirm.value = false
 }
 
