@@ -37,7 +37,9 @@ onMounted(() => {
 
       <!-- App Branding (Moved from Sidebar) -->
       <div class="app-branding">
-         <h1 class="app-name">{{ t('appName') }}</h1>
+         <h1 class="app-name">
+            <span class="brand-gradient">DinDin</span> AI
+         </h1>
       </div>
       
         <!-- Premium Knowledge Selector -->
@@ -142,6 +144,14 @@ onMounted(() => {
   color: var(--color-text-primary);
   margin: 0;
   white-space: nowrap;
+}
+
+.brand-gradient {
+  background: var(--color-user-gradient);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  color: transparent; /* Fallback */
 }
 
 .header-right {
