@@ -67,8 +67,7 @@ const formatTime = (timestamp) => {
 
             <div class="bubble user">
                 <p v-if="message.content">{{ message.content }}</p>
-                <p v-else class="empty-content" v-if="!(message.images?.length > 0) && !(message.files?.length > 0)">Sent a file</p>
-                <p v-else style="display:none"></p><!-- Hide empty text if only files -->
+                <p v-else-if="!(message.images?.length > 0) && !(message.files?.length > 0)" class="empty-content">Sent a file</p>
             </div>
             <!-- Copy Button Below Bubble -->
             <div class="user-actions">
