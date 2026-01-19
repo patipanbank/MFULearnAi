@@ -1,5 +1,5 @@
 import mongoose, { Schema, Document } from 'mongoose';
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 
 // Embedded types because we are in a microservice (shared types might not be accessible during build if not careful, duplicating for safety/autonomy)
 export type UserRole = 'student' | 'staff' | 'admin' | 'superadmin';
