@@ -52,11 +52,15 @@
               :key="prompt._id"
               @click="selectPrompt(prompt)"
               class="prompt-item"
-              :class="{ 'active': selectedPrompt?._id === prompt._id }"
+              :class="{ 
+                'active': selectedPrompt?._id === prompt._id,
+                'is-active-scenario': isActiveScenario(prompt._id)
+              }"
             >
               <div class="prompt-header">
                 <span class="prompt-name">{{ prompt.name }}</span>
                 <span v-if="prompt.isPublic" class="badge badge-public">SYSTEM</span>
+                <span v-if="isActiveScenario(prompt._id)" class="badge badge-active-scenario">IN USE</span>
               </div>
               <div class="prompt-desc">{{ prompt.description }}</div>
               <div class="prompt-meta">
@@ -76,14 +80,26 @@
                     <span class="toolbar-title">{{ selectedPrompt.name }}</span>
                     <span class="toolbar-key">{{ selectedPrompt.key }}</span>
                     <span v-if="selectedPrompt.isPublic" class="badge badge-public ml-2">Official</span>
+                    <span v-if="isActiveScenario(selectedPrompt._id)" class="badge badge-active-scenario ml-2">Currently Active</span>
                 </div>
                 <div class="toolbar-actions">
                     <button @click="openPlayground" class="btn-secondary">
-                        <i class="fas fa-play mr-2"></i>Test Persona
+                        <i class="fas fa-play mr-2"></i>Test
                     </button>
 
-                    <button @click="useScenario" class="btn-primary-outline">
-                         <i class="fas fa-comment-alt mr-2"></i>Use
+                    <button 
+                        v-if="!isActiveScenario(selectedPrompt._id)"
+                        @click="activateScenario" 
+                        class="btn-primary-outline text-green-400 border-green-800 hover:bg-green-900/30"
+                    >
+                         <i class="fas fa-check mr-2"></i>Set as Active
+                    </button>
+                    <button 
+                        v-else
+                        @click="deactivateScenario" 
+                        class="btn-secondary text-yellow-500 border-yellow-800 hover:bg-yellow-900/30"
+                    >
+                         <i class="fas fa-times mr-2"></i>Deactivate
                     </button>
                     
                     <button 
@@ -92,7 +108,7 @@
                         :disabled="!hasChanges || saving"
                         class="btn-primary"
                     >
-                        {{ saving ? 'Saving...' : 'Save New Version' }}
+                        {{ saving ? 'Saving...' : 'Save Version' }}
                     </button>
 
                     <button 
@@ -236,6 +252,7 @@ const router = useRouter();
 
 const isSuperAdmin = computed(() => authStore.role === 'superadmin');
 const userId = computed(() => authStore.userId);
+const activeScenarioId = computed(() => chatStore.currentScenarioId);
 
 const prompts = ref([]);
 const loading = ref(false);
@@ -265,11 +282,14 @@ const filteredScenarios = computed(() => {
     }
 });
 
+const isActiveScenario = (id) => activeScenarioId.value === id;
+
 const hasChanges = computed(() => {
     if (!selectedPrompt.value) return false;
     return editBuffer.value !== getCurrentContent(selectedPrompt.value) || 
            editDescription.value !== selectedPrompt.value.description;
 });
+
 
 const canEdit = (item) => {
     return item && (item.ownerId === userId.value || isSuperAdmin.value);
@@ -426,10 +446,13 @@ const sendMessage = async () => {
     }
 };
 
-const useScenario = () => {
+const activateScenario = () => {
     if (!selectedPrompt.value) return;
     chatStore.setScenario(selectedPrompt.value._id);
-    router.push('/chat');
+};
+
+const deactivateScenario = () => {
+    chatStore.setScenario(null);
 };
 
 onMounted(() => fetchPrompts());
@@ -524,10 +547,16 @@ onMounted(() => fetchPrompts());
     margin-bottom: 4px;
 }
 
+.prompt-item.is-active-scenario {
+    border-left: 3px solid #10b981; /* Green border for active */
+    background: rgba(16, 185, 129, 0.05);
+}
+
 .prompt-name {
     font-weight: 500;
     font-size: 14px;
 }
+
 
 .prompt-desc {
     font-size: 12px;
@@ -546,8 +575,10 @@ onMounted(() => fetchPrompts());
     text-transform: uppercase;
 }
 .badge-public { background: #4f46e5; color: white; }
+.badge-active-scenario { background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); }
 
 .prompt-meta {
+
     display: flex;
     justify-content: space-between;
     font-size: 11px;
