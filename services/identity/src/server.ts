@@ -82,6 +82,12 @@ app.post('/internal/login', authenticateInternal, async (req: Request, res: Resp
     // console.log(`[Identity] Processing internal login for ${email}`);
 
     try {
+        // Find or Update
+        const query = nameID ? { nameID } : { email }; // Fallback for Google which might use email as key initially
+
+        // Map groups to role if not explicitly provided (Logic simplified from original)
+        let finalRole: UserRole = role || 'student';
+
         // Check if user exists to enforce isActive check
         let user = await User.findOne(query);
 
@@ -127,6 +133,8 @@ app.post('/internal/login', authenticateInternal, async (req: Request, res: Resp
             updateData,
             { upsert: true, new: true, setDefaultsOnInsert: true }
         );
+
+        if (!user) throw new Error('Failed to create/update user');
 
         const token = generateToken(user);
 
