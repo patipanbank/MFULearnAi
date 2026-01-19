@@ -109,14 +109,25 @@ app.post('/internal/login', authenticateInternal, async (req: Request, res: Resp
         updateData.role = finalRole;
 
         // Auto-Create Department if provided
+        // Auto-Create Department if provided
         if (department) {
-            // Simple logic: Use department name as code if not provided, or consistent slug
-            // For now, assuming department name IS the unique identifier we want to track
+            console.log(`[Identity] ensuring department exists: ${department}`);
+            // Use UPPERCASE_UNDERSCORE for code to ensure uniqueness and standard format
+            const deptCode = department.trim().toUpperCase().replace(/\s+/g, '_');
+
             await Department.findOneAndUpdate(
-                { code: department },
-                { name: department },
-                { upsert: true, setDefaultsOnInsert: true }
-            );
+                { code: deptCode },
+                {
+                    code: deptCode,
+                    name: department
+                },
+                { upsert: true, new: true, setDefaultsOnInsert: true }
+            )
+                .then(d => console.log(`[Identity] Department synced: ${d.code}`))
+                .catch(err => console.error(`[Identity] Department sync error: ${err.message}`));
+
+            // Optional: Store the standardized name or code in the user? 
+            // For now, keeping the original input 'department' string for user display as requested.
         }
 
         const user = await User.findOneAndUpdate(
