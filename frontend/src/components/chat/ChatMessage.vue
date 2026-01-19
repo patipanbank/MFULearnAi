@@ -35,7 +35,13 @@ const formatTime = (timestamp) => {
       <div class="user-bubble-container">
         <div class="bubble user">
           <p>{{ message.content }}</p>
-          <span class="time">{{ formatTime(message.timestamp) }}</span>
+          <button class="copy-btn-user" @click="handleCopy" :class="{ copied }">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect v-if="!copied" x="9" y="9" width="13" height="13" rx="2"/>
+              <path v-if="!copied" d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+              <polyline v-else points="20 6 9 17 4 12"/>
+            </svg>
+          </button>
         </div>
         <div class="avatar-circle user">{{ userInitial }}</div>
       </div>
@@ -51,7 +57,6 @@ const formatTime = (timestamp) => {
         <div class="content-col">
           <div class="assistant-header">
             <span class="name">{{ t('aiAssistant') }}</span>
-            <span class="time">{{ formatTime(message.timestamp) }}</span>
           </div>
           
           <div class="prose-content" v-if="message.content" v-html="render(message.content)"></div>
@@ -129,13 +134,16 @@ const formatTime = (timestamp) => {
 }
 
 .bubble.user {
-  background: var(--color-accent);
-  color: white;
+  background: var(--color-bg-secondary); /* Restored to generic variable for theme adaptation */
+  color: var(--color-text-primary);
   padding: 12px 18px;
   border-radius: 18px;
   border-bottom-right-radius: 4px;
   position: relative;
-  box-shadow: var(--shadow-md);
+  box-shadow: var(--shadow-sm);
+  display: flex; /* Allow button positioning */
+  gap: 8px;
+  align-items: center;
 }
 
 .bubble.user p {
@@ -145,13 +153,25 @@ const formatTime = (timestamp) => {
   white-space: pre-wrap;
 }
 
-.bubble.user .time {
-  display: block;
-  font-size: 11px;
-  opacity: 0.8;
-  margin-top: 6px;
-  text-align: right;
-  font-weight: 500;
+/* Copy Button for User - Fade in on hover */
+.copy-btn-user {
+  opacity: 0;
+  background: transparent;
+  border: none;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  transition: opacity 0.2s ease, color 0.2s ease;
+}
+
+.bubble.user:hover .copy-btn-user {
+  opacity: 1;
+}
+
+.copy-btn-user:hover {
+  color: var(--color-primary);
 }
 
 @media (max-width: 768px) {
@@ -200,11 +220,6 @@ const formatTime = (timestamp) => {
   font-size: 14px;
   font-weight: 600;
   color: var(--color-text-primary);
-}
-
-.assistant-header .time {
-  font-size: 11px;
-  color: var(--color-text-muted);
 }
 
 /* Improved Prose (Markdown) */
