@@ -155,7 +155,7 @@ onMounted(() => {
 }
 
 .ai-gradient {
-  background: linear-gradient(135deg, #3b82f6, #1e3a8a);
+  background: linear-gradient(135deg, #00e1ff, #0099ff);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
