@@ -67,6 +67,15 @@
                     >
                         {{ activating ? 'Activating...' : 'Set as Active' }}
                     </button>
+
+                    <button 
+                        v-if="isSuperAdmin && selectedPrompt.isActive"
+                        @click="deactivatePrompt"
+                        :disabled="activating"
+                        class="btn-secondary text-yellow-500 border-yellow-800 hover:bg-yellow-900"
+                    >
+                        {{ activating ? 'Processing...' : 'Deactivate' }}
+                    </button>
                     
                     <button 
                         v-if="isSuperAdmin"
@@ -245,6 +254,22 @@ const activatePrompt = async () => {
         alert('Prompt Activated!');
     } catch (e) {
         alert(e.response?.data?.error || 'Failed to activate');
+    } finally {
+        activating.value = false;
+    }
+};
+
+const deactivatePrompt = async () => {
+    if (!confirm('Are you sure you want to DEACTIVATE this core prompt? The system will fall back to default hardcoded prompts.')) return;
+    
+    activating.value = true;
+    try {
+        await api.post(`/prompts/${selectedPrompt.value.key}/deactivate`);
+        selectedPrompt.value.isActive = false;
+        await fetchPrompts();
+        alert('Prompt Deactivated! System will now use hardcoded defaults.');
+    } catch (e) {
+        alert(e.response?.data?.error || 'Failed to deactivate');
     } finally {
         activating.value = false;
     }

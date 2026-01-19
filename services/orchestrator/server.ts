@@ -583,25 +583,9 @@ app.get('/api/prompts', authenticateToken, async (req: any, res: Response) => {
             // If user specifically asked for scenarios, show all or filtered. 
             // Admin view of core prompts is default if type=core.
         } else {
-            // Regular user constraints
-            if (type === 'core') {
-                // Users generally don't list core prompts unless for some read-only view?
-                // Let's allow read for now? Or restrict? 
-                // AdminCorePrompts uses type=core. User doesn't access it.
-                // Scenarios uses type=scenario.
-            }
-
-            // For scenarios:
-            query.$or = [
-                { isPublic: true },
-                { ownerId: userId }
-            ];
-
-            // If they specifically asked for their own:
-            if (ownerId === userId) {
-                delete query.$or;
-                query.ownerId = userId;
-            }
+            // Regular user constraints - Strict My Persona Architecture
+            // We NO LONGER show public/system scenarios.
+            query.ownerId = userId;
         }
 
         const prompts = await Prompt.find(query).sort({ updatedAt: -1 });
@@ -757,6 +741,31 @@ app.post('/api/prompts/:key/activate', authenticateToken, async (req: any, res: 
     } catch (error: any) {
         console.error('Activation Error:', error);
         res.status(500).json({ error: 'Activation failed' });
+    }
+});
+
+app.post('/api/prompts/:key/deactivate', authenticateToken, async (req: any, res: Response) => {
+    const { key } = req.params;
+
+    if (req.user.role !== 'superadmin') {
+        return res.status(403).json({ error: 'Only superadmins can deactivate prompts' });
+    }
+
+    try {
+        const prompt = await Prompt.findOne({ key });
+        if (!prompt) return res.status(404).json({ error: 'Prompt not found' });
+
+        prompt.isActive = false;
+        await prompt.save();
+
+        // Invalidate Cache
+        await redis.del(`${SYSTEM_PROMPT_KEY_PREFIX}CORE:PROD`);
+        await redis.del(`${SYSTEM_PROMPT_KEY_PREFIX}CORE:TEST`);
+
+        res.json({ success: true, prompt });
+    } catch (error: any) {
+        console.error('Deactivation Error:', error);
+        res.status(500).json({ error: 'Deactivation failed' });
     }
 });
 

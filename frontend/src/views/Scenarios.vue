@@ -273,12 +273,9 @@ const testInput = ref('');
 const testMessages = ref([]);
 const testing = ref(false);
 
-const filteredScenarios = computed(() => {
-    if (viewTab.value === 'public') {
-        return prompts.value.filter(s => s.isPublic);
-    } else {
-        return prompts.value.filter(s => s.ownerId === userId.value); // My Scenarios
-    }
+const myScenarios = computed(() => {
+    // Strictly specific to owner. Even if backend returns public, we filter UI side to be consistent with "My Persona" view.
+    return prompts.value.filter(s => s.ownerId === userId.value); 
 });
 
 const isActiveScenario = (id) => activeScenarioId.value === id;
