@@ -1,3 +1,4 @@
+<script setup>
 import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
@@ -34,6 +35,7 @@ const handleAdminLogin = async () => {
         isLoading.value = false
     }
 }
+</script>
 
 <template>
   <div class="login-container">
