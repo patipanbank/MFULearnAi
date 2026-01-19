@@ -1,13 +1,39 @@
-<script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
+import { useRouter } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
 import { useLanguage } from '@/composables/useSettings'
 
+const router = useRouter()
+const authStore = useAuthStore()
 const { t } = useLanguage()
+
 const envName = import.meta.env.VITE_ENV_NAME || 'MFULearnAI'
 const envType = import.meta.env.VITE_ENV_TYPE || 'TEST'
 
 const isTestEnv = computed(() => envType === 'TEST')
-</script>
+
+// Admin Login State
+const showAdminLogin = ref(false)
+const adminUsername = ref('')
+const adminPassword = ref('')
+const loginError = ref('')
+const isLoading = ref(false)
+
+const handleAdminLogin = async () => {
+    if (!adminUsername.value || !adminPassword.value) return
+    
+    isLoading.value = true
+    loginError.value = ''
+    
+    try {
+        await authStore.loginAdmin(adminUsername.value, adminPassword.value)
+        router.push('/chat')
+    } catch (error) {
+        loginError.value = error.response?.data?.error || 'Login failed'
+    } finally {
+        isLoading.value = false
+    }
+}
 
 <template>
   <div class="login-container">
@@ -33,6 +59,41 @@ const isTestEnv = computed(() => envType === 'TEST')
           </svg>
           {{ t('loginGoogle') }}
         </a>
+      </div>
+
+      <!-- Admin Login Button -->
+       <div class="login-buttons mt-4">
+        <button @click="showAdminLogin = true" class="btn-login btn-admin">
+            <svg class="icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+            Admin Login
+        </button>
+      </div>
+      
+      <!-- Admin Login Modal Overlay -->
+      <div v-if="showAdminLogin" class="admin-login-overlay" @click.self="showAdminLogin = false">
+        <div class="admin-login-card">
+            <div class="admin-header">
+                <h3>Admin Login</h3>
+                <button @click="showAdminLogin = false" class="close-btn">&times;</button>
+            </div>
+            
+            <div class="admin-form">
+                <div class="form-group">
+                    <label>Username</label>
+                    <input v-model="adminUsername" type="text" class="form-input" placeholder="Admin Username" @keyup.enter="handleAdminLogin" />
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <input v-model="adminPassword" type="password" class="form-input" placeholder="Password" @keyup.enter="handleAdminLogin" />
+                </div>
+                
+                <div v-if="loginError" class="error-msg">{{ loginError }}</div>
+                
+                <button @click="handleAdminLogin" :disabled="isLoading" class="btn-login btn-mfu w-full">
+                    {{ isLoading ? 'Logging in...' : 'Login' }}
+                </button>
+            </div>
+        </div>
       </div>
 
       <!-- Footer -->
@@ -168,6 +229,63 @@ const isTestEnv = computed(() => envType === 'TEST')
   background: #f8f8f8;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
 }
+
+.btn-admin {
+    background: transparent;
+    color: var(--color-text-secondary);
+    border: 1px solid var(--color-border);
+}
+.btn-admin:hover {
+    background: var(--color-bg-hover);
+    color: var(--color-text);
+}
+
+/* Admin Modal */
+.mt-4 { margin-top: 1rem; }
+.w-full { width: 100%; }
+
+.admin-login-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0,0,0,0.6);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 20;
+    border-radius: 24px; /* Match card radius */
+    animation: fadeIn 0.1s ease-out;
+}
+
+.admin-login-card {
+    background: var(--color-bg-card);
+    border: 1px solid var(--color-border);
+    padding: 24px;
+    border-radius: 16px;
+    width: 90%;
+    max-width: 320px;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+    animation: scaleIn 0.1s ease-out;
+}
+
+.admin-header {
+    display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;
+}
+.admin-header h3 { margin: 0; font-size: 18px; color: var(--color-text); }
+.close-btn { background: none; border: none; font-size: 24px; color: var(--color-text-muted); cursor: pointer; }
+
+.form-group { margin-bottom: 16px; }
+.form-group label { display: block; margin-bottom: 6px; font-size: 13px; color: var(--color-text-secondary); }
+.form-input { 
+    width: 100%; padding: 10px; background: var(--color-bg-dark); border: 1px solid var(--color-border);
+    border-radius: 8px; color: var(--color-text); outline: none;
+}
+.form-input:focus { border-color: var(--color-accent); }
+
+.error-msg { color: #ef4444; font-size: 13px; text-align: center; margin-bottom: 12px; }
+
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; }}
+@keyframes scaleIn { from { transform: scale(0.95); opacity: 0; } to { transform: scale(1); opacity: 1; }}
 
 .login-footer {
   margin-top: 32px;
