@@ -262,6 +262,7 @@ app.post('/api/users/create-admin', authenticateUser, async (req: any, res: Resp
 app.get('/api/departments', authenticateUser, async (req: any, res: Response) => {
     try {
         const departments = await Department.find().sort({ name: 1 });
+        console.log(`[Identity] API /departments: Found ${departments.length} records`);
         res.json({ departments });
     } catch (e: any) {
         res.status(500).json({ error: 'Failed to fetch departments' });
