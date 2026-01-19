@@ -20,7 +20,7 @@ const department = deptArg || 'IT';
 
 // 1. Define User Schema
 const UserSchema = new mongoose.Schema({
-    nameID: { type: String, required: true, unique: true },
+    nameID: { type: String, required: false, unique: true, sparse: true },
     username: { type: String, required: true },
     email: { type: String, required: true },
     firstName: { type: String },
