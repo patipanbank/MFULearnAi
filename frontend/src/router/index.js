@@ -41,7 +41,12 @@ const router = createRouter({
                 {
                     path: 'admin/prompts',
                     name: 'AdminPrompts',
-                    component: () => import('../views/admin/AdminPrompts.vue')
+                    component: () => import('../views/admin/AdminCorePrompts.vue')
+                },
+                {
+                    path: 'personas',
+                    name: 'Personas',
+                    component: () => import('../views/Scenarios.vue')
                 },
                 {
                     path: 'admin/departments',

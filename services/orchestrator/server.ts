@@ -7,7 +7,7 @@ import Redis from 'ioredis';
 import mongoose from 'mongoose';
 import { ChatMessage, ServiceResponse } from '../../shared/types';
 import { getSystemPrompt, CONTEXT_PROMPTS } from './systemPrompts';
-import SystemPrompt from './models/SystemPrompt';
+import Prompt from './models/Prompt';
 
 dotenv.config();
 
@@ -156,30 +156,58 @@ async function searchKnowledgeBase(query: string, userContext: any, collectionId
     return '';
 }
 
-// --- Dynamic Prompt Logic ---
+// --- Prompt Logic ---
 const SYSTEM_PROMPT_KEY_PREFIX = 'system_prompt:';
 
-const getDynamicSystemPrompt = async (envType: 'TEST' | 'PROD'): Promise<string> => {
-    const key = envType === 'PROD' ? 'DINDINAI_SYSTEM_PROMPT' : 'MFULEARNAI_SYSTEM_PROMPT';
+const getCoreSystemPrompt = async (envType: 'TEST' | 'PROD'): Promise<string> => {
+    // 1. Try Cache
+    const cacheKey = `${SYSTEM_PROMPT_KEY_PREFIX}CORE:${envType}`;
+    const cached = await redis.get(cacheKey);
+    if (cached) return cached;
 
-    try {
-        // 1. Try Redis
-        const cached = await redis.get(SYSTEM_PROMPT_KEY_PREFIX + key);
-        if (cached) return cached;
+    // 2. Try DB (Find active core prompt for this env)
+    // We assume tags contain 'PROD' or 'TEST' or key contains it
+    // For simplicity, let's stick to the convention: key must be DINDINAI_PROD or MFULEARNAI_TEST to be auto-picked
+    // OR we allow setting one active core prompt globally per type.
 
-        // 2. Try DB
-        const promptDoc = await SystemPrompt.findOne({ key, isActive: true });
-        if (promptDoc) {
-            // Cache for 10 minutes
-            await redis.set(SYSTEM_PROMPT_KEY_PREFIX + key, promptDoc.content, 'EX', 600);
-            return promptDoc.content;
-        }
-    } catch (err) {
-        console.warn('[Orchestrator] Error fetching dynamic prompt:', err);
+    // Better strategy: Find active prompt with type='core' and tag=envType
+    // But currently data migration might be empty.
+
+    // Fallback Keys
+    const fallbackKey = envType === 'PROD' ? 'DINDINAI_SYSTEM_PROMPT' : 'MFULEARNAI_SYSTEM_PROMPT';
+
+    const promptDoc = await Prompt.findOne({
+        type: 'core',
+        isActive: true,
+        $or: [{ key: fallbackKey }, { tags: envType }]
+    });
+
+    if (promptDoc) {
+        const content = promptDoc.versions.find(v => v.version === promptDoc.activeVersion)?.content || promptDoc.versions[0]?.content || '';
+        await redis.set(cacheKey, content, 'EX', 300); // 5 min cache
+        return content;
     }
 
     // 3. Fallback to File
     return getSystemPrompt(envType);
+};
+
+const getScenarioPrompt = async (scenarioId: string, userId: string): Promise<string> => {
+    const cacheKey = `${SYSTEM_PROMPT_KEY_PREFIX}SCENARIO:${scenarioId}`;
+    const cached = await redis.get(cacheKey);
+    if (cached) return cached;
+
+    const prompt = await Prompt.findOne({ _id: scenarioId }); // Assuming ID is passed, or Key
+    if (!prompt) return '';
+
+    // Access Check (Public or Owner)
+    if (!prompt.isPublic && prompt.ownerId !== userId) return '';
+
+    const content = prompt.versions.find(v => v.version === prompt.activeVersion)?.content || '';
+    if (content) {
+        await redis.set(cacheKey, content, 'EX', 300);
+    }
+    return content;
 };
 
 // --- Chat Endpoint ---
@@ -224,15 +252,28 @@ app.post('/api/chat', authenticateToken, rateLimiter, async (req: any, res: Resp
         }
 
         // 3. Prepare messages
-        // UPDATE: Use dynamic prompt
-        const baseSystemPrompt = await getDynamicSystemPrompt(ENV_TYPE);
+        // 3. Prepare messages
+        // UPDATE: Use dynamic prompt + Scenario
+        const corePrompt = await getCoreSystemPrompt(ENV_TYPE);
+        let scenarioPrompt = '';
+
+        // Check for 'scenarioId' in body (passed from frontend)
+        if (req.body.scenarioId) {
+            scenarioPrompt = await getScenarioPrompt(req.body.scenarioId, req.user.userId);
+            if (scenarioPrompt) {
+                scenarioPrompt = `\n\n=== ACT AS FOLLOWS ===\n${scenarioPrompt}`;
+            }
+        }
+
         const additionalContext = context && CONTEXT_PROMPTS[context as keyof typeof CONTEXT_PROMPTS]
             ? `\n\n${CONTEXT_PROMPTS[context as keyof typeof CONTEXT_PROMPTS]}`
             : '';
 
+        const finalSystemContent = corePrompt + additionalContext + ragSystemPrompt + scenarioPrompt;
+
         const systemMessage: ChatMessage = {
             role: 'system',
-            content: baseSystemPrompt + additionalContext + ragSystemPrompt,
+            content: finalSystemContent,
             timestamp: new Date()
         };
 
