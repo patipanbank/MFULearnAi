@@ -8,6 +8,7 @@ WORKDIR /app
 COPY services/knowledge/package.json ./
 COPY services/knowledge/tsconfig.json ./
 
+RUN apk add --no-cache git
 RUN npm install
 
 COPY services/knowledge/ ./
