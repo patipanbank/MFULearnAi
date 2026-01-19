@@ -50,12 +50,35 @@ passport.use(new SamlStrategy(
 
             // Transform SAML Profile to Standard User Object
             const nameID = profile.nameID;
+            // Handle IDP Typo 'User.Userrname'
             const username = profile['User.Userrname'] || profile['User.Username'] || nameID;
             const email = profile['User.Email'] || profile.email;
             const firstName = profile['first_name'] || profile.givenName;
             const lastName = profile['last_name'] || profile.sn;
             const department = profile['depart_name'] || 'General';
+
+            // Raw Groups (SIDs) and Human Readable Groups
             const groups = profile['http://schemas.xmlsoap.org/claims/Group'] || [];
+            const groupNames = profile['Groups'] || ''; // e.g. "Students"
+
+            // --- Logic from backend-old to determine role ---
+            let role = 'student'; // Default
+
+            // Check for specific group SIDs or Names
+            const groupsArray = Array.isArray(groups) ? groups : [groups];
+            const isStudentGroup = groupsArray.some((g: string) => g === 'student_all_grp');
+            const isStudentName = groupNames.includes('Students');
+
+            if (isStudentGroup || isStudentName) {
+                role = 'student';
+            } else if (groupNames.includes('Staffs') || groupNames.includes('Employee')) {
+                role = 'staff';
+            } else if (mapGroupsToRole(groups) === 'superadmin') {
+                role = 'superadmin';
+            } else {
+                // improvements: check regex or other attributes if needed
+                role = 'staff'; // Fallback for employees usually
+            }
 
             const userData = {
                 nameID,
@@ -65,7 +88,7 @@ passport.use(new SamlStrategy(
                 lastName,
                 department,
                 groups,
-                role: mapGroupsToRole(groups)
+                role // Use the calculated role from above
             };
 
             // Call Identity Service to Login/Create User and Get Token

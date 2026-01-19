@@ -43,24 +43,34 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
                     lastName: profile.name?.familyName,
                     username: email.split('@')[0],
                     // Determine Role by Domain
-                    role: email.endsWith('@mfu.ac.th') && email.includes('staff') ? 'staff' : 'student'
-                };
+                    // Determine Role by Domain (HD field is more reliable)
+                    const hd = profile._json.hd || '';
+                    let role = 'student';
 
-                // Call Identity Service to Login/Create User and Get Token
-                const response = await axios.post(`${IDENTITY_SERVICE_URL}/internal/login`, userData, {
-                    headers: { 'x-internal-key': INTERNAL_API_KEY }
-                });
+                    if(hd === 'mfu.ac.th') {
+        role = 'staff';
+    } else if (hd === 'lamduan.mfu.ac.th') {
+        role = 'student';
+    } else if (email.includes('staff')) { // Fallback checks
+        role = 'staff';
+    }
+};
 
-                const { token, user } = response.data;
-                return done(null, { token, user });
+// Call Identity Service to Login/Create User and Get Token
+const response = await axios.post(`${IDENTITY_SERVICE_URL}/internal/login`, userData, {
+    headers: { 'x-internal-key': INTERNAL_API_KEY }
+});
+
+const { token, user } = response.data;
+return done(null, { token, user });
 
             } catch (err: any) {
-                if (axios.isAxiosError(err) && err.response) {
-                    console.error('[OAuth] Identity Service Error:', JSON.stringify(err.response.data));
-                }
-                console.error('[OAuth] Identity Handshake Failed:', err.message);
-                return done(err);
-            }
+    if (axios.isAxiosError(err) && err.response) {
+        console.error('[OAuth] Identity Service Error:', JSON.stringify(err.response.data));
+    }
+    console.error('[OAuth] Identity Handshake Failed:', err.message);
+    return done(err);
+}
         }
     ));
 } else {
