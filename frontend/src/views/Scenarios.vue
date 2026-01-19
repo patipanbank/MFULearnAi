@@ -15,7 +15,7 @@
         </div>
         
         <!-- Mobile/Tablet Selector -->
-        <div class="lg:hidden mt-4">
+        <div class="mobile-selector mt-4">
             <select :value="selectedPrompt?._id" @change="e => selectPromptById(e.target.value)" class="form-select w-full">
                 <option :value="undefined" disabled>{{ t('selectPersona') || 'Select Persona' }}</option>
                 <option v-for="p in myScenarios" :key="p._id" :value="p._id">
@@ -873,7 +873,13 @@ onMounted(() => fetchPrompts());
 }
 .form-select:focus { border-color: var(--color-accent); }
 
+/* Mobile Selector Visibility */
+.mobile-selector {
+    display: block;
+}
+
 /* Mobile/Tablet Responsiveness */
+/* Mobile/Tablet Responsiveness (Max 1023px) */
 @media (max-width: 1023px) {
     .page-container {
         padding: 16px;
@@ -904,6 +910,13 @@ onMounted(() => fetchPrompts());
     /* Reset absolute positioning for mobile editor since it's just flow now */
     .editor-container.hidden-mobile { display: flex !important; transform: none !important; }
     .editor-container.visible-mobile { display: flex; transform: none; }
+}
+
+/* Desktop: Force Hide Selector (Min 1024px) */
+@media (min-width: 1024px) {
+    .mobile-selector {
+        display: none !important;
+    }
 }
 
 /* Theme Colors Semantic Classes */
