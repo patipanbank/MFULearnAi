@@ -74,7 +74,9 @@ async function run() {
 
         // 2. Create/Update Superadmin
         console.log(`Creating superadmin '${username}'...`);
+        console.log('Hashing password...');
         const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
+        console.log('Password hashed.');
 
         const userData = {
             nameID: username,
@@ -90,11 +92,13 @@ async function run() {
             permissions: ['*'] // wildcard permission for superadmin
         };
 
+        console.log('Upserting User to DB...');
         const result = await User.findOneAndUpdate(
             { username: username },
             userData,
             { upsert: true, new: true, setDefaultsOnInsert: true }
         );
+        console.log('User upsert complete.');
 
         console.log('-----------------------------------');
         console.log('SuperAdmin Account Ready:');
