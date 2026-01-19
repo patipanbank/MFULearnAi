@@ -185,6 +185,12 @@
                     <label>Instructions</label>
                     <textarea v-model="newItem.content" class="form-input h-32" placeholder="You are a helpful assistant who..."></textarea>
                 </div>
+                <div v-if="authStore.role === 'superadmin'" class="form-group checkbox-group">
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" v-model="newItem.isPublic" class="form-checkbox" />
+                        <span class="text-sm font-medium text-white">Make this a System Persona (Public)</span>
+                    </label>
+                </div>
             </div>
             <div class="modal-footer">
                 <button @click="closeCreateModal" class="btn-secondary mr-2">Cancel</button>
@@ -227,7 +233,7 @@ const testing = ref(false);
 
 // Create State
 const creating = ref(false);
-const newItem = ref({ name: '', description: '', content: '' });
+const newItem = ref({ name: '', description: '', content: '', isPublic: false });
 
 // Computeds
 const myScenarios = computed(() => scenarios.value.filter(s => s.ownerId === userId.value));
@@ -301,7 +307,7 @@ const saveChanges = async () => {
     }
 };
 
-const openCreateModal = () => { newItem.value = {name:'', description:'', content:''}; showCreateModal.value = true; };
+const openCreateModal = () => { newItem.value = {name:'', description:'', content:'', isPublic: false}; showCreateModal.value = true; };
 const closeCreateModal = () => { showCreateModal.value = false; };
 
 const createScenario = async () => {
@@ -313,7 +319,8 @@ const createScenario = async () => {
             key: key,
             name: newItem.value.name,
             description: newItem.value.description,
-            content: newItem.value.content || ' '
+            content: newItem.value.content || ' ',
+            isPublic: newItem.value.isPublic
         });
         await fetchScenarios();
         closeCreateModal();
