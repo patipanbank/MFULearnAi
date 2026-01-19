@@ -3,7 +3,7 @@
     <div class="page-header">
       <div class="header-left">
         <h1>Departments</h1>
-        <p class="subtitle">Manage university departments. These are also auto-created from SSO logins.</p>
+        <p class="subtitle">Manage university departments. Auto-created from SSO logins.</p>
       </div>
       <button class="btn-primary" @click="openCreateModal">
         <span class="icon">+</span> Create Department
@@ -15,33 +15,20 @@
       <table class="data-table">
         <thead>
           <tr>
-            <th>Code</th>
             <th>Name</th>
             <th>Created At</th>
-            <th class="text-right">Actions</th>
           </tr>
         </thead>
         <tbody>
            <tr v-if="loading && departments.length === 0">
-               <td colspan="4" class="empty-row">Loading...</td>
+               <td colspan="2" class="empty-row">Loading...</td>
            </tr>
            <tr v-else-if="departments.length === 0">
-               <td colspan="4" class="empty-row">No departments found.</td>
+               <td colspan="2" class="empty-row">No departments found.</td>
            </tr>
            <tr v-for="dept in departments" :key="dept._id" class="clickable-row" @click="openEditModal(dept)">
-             <td class="col-code">
-               <span class="badge badge-dept">{{ dept.code }}</span>
-             </td>
              <td class="font-medium">{{ dept.name }}</td>
-             <td class="text-muted">{{ formatDate(dept.createdAt) }}</td>
-             <td class="actions-cell">
-                 <button class="btn-icon" @click.stop="openEditModal(dept)" title="Edit">
-                    ✏️
-                 </button>
-                 <button class="btn-icon delete" @click.stop="handleDelete(dept._id)" title="Delete">
-                    🗑️
-                 </button>
-             </td>
+             <td class="text-date">{{ formatDate(dept.createdAt) }}</td>
            </tr>
         </tbody>
       </table>
@@ -58,15 +45,13 @@
                  <input v-model="form.name" type="text" placeholder="e.g. School of IT" ref="nameInput">
              </div>
 
-             <div class="form-group" v-if="!isEditing">
-                 <label>Code (Optional)</label>
-                 <input v-model="form.code" type="text" placeholder="Auto-generated if empty">
-                 <p class="hint">Unique identifier used for mapping.</p>
-             </div>
-
+             <!-- Code field hidden as per request, handled automatically -->
+             
              <div v-if="error" class="error">{{ error }}</div>
 
              <div class="actions">
+                 <button v-if="isEditing" class="btn-delete" @click="handleDelete(form._id)">Delete</button>
+                 <div class="spacer"></div>
                  <button class="btn-cancel" @click="closeModal">Cancel</button>
                  <button class="btn-primary" @click="handleSubmit" :disabled="submitting || !form.name">
                      {{ submitting ? 'Saving...' : 'Save' }}
@@ -99,6 +84,7 @@ const form = ref({
 
 const formatDate = (dateStr) => {
     if (!dateStr) return '-';
+    // Use a clearer format
     return new Date(dateStr).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
 };
 
@@ -144,7 +130,7 @@ const handleSubmit = async () => {
         if (isEditing.value) {
             await api.put(`/departments/${form.value._id}`, { name: form.value.name });
         } else {
-            await api.post('/departments', { name: form.value.name, code: form.value.code });
+            await api.post('/departments', { name: form.value.name, code: null });
         }
         await fetchDepartments();
         closeModal();
@@ -161,6 +147,7 @@ const handleDelete = async (id) => {
     try {
         await api.delete(`/departments/${id}`);
         departments.value = departments.value.filter(d => d._id !== id);
+        closeModal(); // Close modal after delete
     } catch (err) {
         alert(err.response?.data?.error || 'Failed to delete');
     }
@@ -177,7 +164,7 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   padding: 24px;
-  background: var(--color-bg-primary, #121212); /* Fallback */
+  background: var(--color-bg-primary, #121212); 
   color: var(--color-text-primary, #ffffff);
 }
 
@@ -225,16 +212,15 @@ onMounted(() => {
 }
 .btn-cancel:hover { background: var(--color-bg-tertiary, #2a2a2a); }
 
-.btn-icon {
-    background: none;
-    border: none;
+.btn-delete {
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+    border: 1px solid rgba(239, 68, 68, 0.2);
+    padding: 8px 16px;
+    border-radius: 8px;
     cursor: pointer;
-    font-size: 16px;
-    opacity: 0.7;
-    transition: opacity 0.2s;
 }
-.btn-icon:hover { opacity: 1; }
-.btn-icon.delete:hover { filter: brightness(0.8); }
+.btn-delete:hover { background: rgba(239, 68, 68, 0.2); }
 
 /* Table */
 .table-container {
@@ -275,22 +261,10 @@ onMounted(() => {
     padding: 32px;
 }
 
-.text-right { text-align: right; }
-.actions-cell { text-align: right; display: flex; gap: 8px; justify-content: flex-end; }
 .font-medium { font-weight: 500; }
-.text-muted { color: var(--color-text-muted, #9ca3af); font-size: 13px; }
-
-/* Badges */
-.badge {
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-size: 12px;
-  font-weight: 600;
-  font-family: monospace;
-}
-.badge-dept { 
-    background: rgba(16, 185, 129, 0.1); 
-    color: #10b981; 
+.text-date { 
+    color: var(--color-text-secondary, #d1d5db); /* Brighter than muted for better visibility */
+    font-size: 13px; 
 }
 
 /* Modal */
@@ -351,8 +325,10 @@ onMounted(() => {
 
 .actions {
     display: flex;
-    justify-content: flex-end;
+    align-items: center;
     gap: 12px;
     margin-top: 24px;
 }
+
+.spacer { flex: 1; }
 </style>

@@ -1,176 +1,448 @@
 <template>
-  <div class="h-full flex flex-col bg-gray-900 text-white p-6">
-    <div class="flex justify-between items-center mb-6">
-      <div>
-        <h1 class="text-2xl font-bold mb-1">Admin Management</h1>
-        <p class="text-gray-400 text-sm">Manage local administrator accounts.</p>
+  <div class="page-container">
+    <div class="page-header">
+      <div class="header-left">
+        <h1>Users</h1>
+        <p class="subtitle">Manage all user accounts and roles.</p>
       </div>
-      <button 
-        @click="showCreateModal = true"
-        class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-sm font-medium transition-colors shadow-lg shadow-blue-900/20 flex items-center gap-2"
+      <div><!-- Spacer --></div>
+    </div>
+
+    <!-- Filters -->
+    <div class="filters">
+       <button 
+        v-for="role in ['all', 'superadmin', 'admin', 'teacher', 'student']" 
+        :key="role"
+        class="filter-btn"
+        :class="{ active: filterRole === role }"
+        @click="filterRole = role"
       >
-        <i class="fas fa-plus"></i> New Admin
+        {{ role.charAt(0).toUpperCase() + role.slice(1) }}
       </button>
     </div>
 
-    <!-- Admin List -->
-    <div class="flex-1 bg-gray-800 rounded-xl border border-gray-700 overflow-hidden flex flex-col">
-        <div class="overflow-x-auto">
-            <table class="w-full text-left">
-                <thead class="bg-gray-800/50 border-b border-gray-700">
-                    <tr>
-                        <th class="p-4 font-medium text-gray-400 text-xs uppercase tracking-wider">Username</th>
-                        <th class="p-4 font-medium text-gray-400 text-xs uppercase tracking-wider">Name</th>
-                        <th class="p-4 font-medium text-gray-400 text-xs uppercase tracking-wider">Department</th>
-                        <th class="p-4 font-medium text-gray-400 text-xs uppercase tracking-wider">Role</th>
-                        <th class="p-4 font-medium text-gray-400 text-xs uppercase tracking-wider">Last Login</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-gray-700">
-                    <tr v-if="loading && admins.length === 0">
-                        <td colspan="5" class="p-4 text-center text-gray-500 py-8">Loading admins...</td>
-                    </tr>
-                    <tr v-for="admin in admins" :key="admin._id" class="hover:bg-gray-700/50 transition-colors">
-                        <td class="p-4 font-medium text-gray-200">{{ admin.username }}</td>
-                        <td class="p-4 text-gray-400">{{ admin.firstName }} {{ admin.lastName }}</td>
-                        <td class="p-4 text-gray-400">
-                            <span v-if="admin.department" class="bg-gray-700 px-2 py-1 rounded text-xs text-gray-300">{{ admin.department }}</span>
-                            <span v-else class="text-gray-600">-</span>
-                        </td>
-                        <td class="p-4">
-                            <span 
-                                class="px-2 py-0.5 text-xs rounded-full border"
-                                :class="admin.role === 'superadmin' ? 'bg-purple-500/20 text-purple-400 border-purple-500/30' : 'bg-blue-500/20 text-blue-400 border-blue-500/30'"
-                            >
-                                {{ admin.role }}
-                            </span>
-                        </td>
-                         <td class="p-4 text-gray-500 text-sm">{{ formatDate(admin.lastLogin) }}</td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
+    <!-- Table -->
+    <div class="table-container">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>User</th>
+            <th>Role</th>
+            <th>Department</th>
+            <th>Status</th>
+            <th>Registered</th>
+          </tr>
+        </thead>
+        <tbody>
+           <tr v-if="loading && filteredUsers.length === 0">
+               <td colspan="5" class="empty-row">Loading...</td>
+           </tr>
+           <tr v-else-if="filteredUsers.length === 0">
+               <td colspan="5" class="empty-row">No users found.</td>
+           </tr>
+           <tr v-for="user in filteredUsers" :key="user._id" class="clickable-row" @click="openEditModal(user)">
+             <td class="font-medium">
+                <div class="user-cell">
+                    <div class="user-info">
+                        <div class="name">{{ user.firstName }} {{ user.lastName }}</div>
+                        <div class="email">{{ user.email || user.username }}</div>
+                    </div>
+                </div>
+             </td>
+             <td>
+                <span class="badge" :class="getRoleBadge(user.role)">{{ user.role }}</span>
+             </td>
+             <td class="text-muted">{{ user.department || '-' }}</td>
+             <td>
+                <span class="status-indicator" :class="{ 'active': user.isActive, 'inactive': !user.isActive }">
+                    {{ user.isActive ? 'Active' : 'Inactive' }}
+                </span>
+             </td>
+             <td class="text-date">{{ formatDate(user.createdAt) }}</td>
+           </tr>
+        </tbody>
+      </table>
     </div>
 
-    <!-- Create Admin Modal -->
-    <div v-if="showCreateModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-        <div class="bg-gray-800 rounded-xl border border-gray-700 shadow-2xl w-full max-w-md overflow-hidden relative">
-            <div class="p-6">
-                <h2 class="text-xl font-bold mb-4">Create Admin Account</h2>
-                
-                <form @submit.prevent="createAdmin" class="space-y-4">
-                    <div>
-                        <label class="block text-xs font-medium text-gray-400 mb-1">Username</label>
-                        <input v-model="form.username" type="text" required class="w-full bg-gray-900 border border-gray-700 rounded-lg p-2.5 text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-colors" placeholder="e.g. admin_it">
-                    </div>
-                    
-                    <div class="grid grid-cols-2 gap-4">
-                        <div>
-                             <label class="block text-xs font-medium text-gray-400 mb-1">First Name</label>
-                             <input v-model="form.firstName" type="text" class="w-full bg-gray-900 border border-gray-700 rounded-lg p-2.5 text-white focus:border-blue-500 outline-none" placeholder="John">
-                        </div>
-                        <div>
-                             <label class="block text-xs font-medium text-gray-400 mb-1">Last Name</label>
-                             <input v-model="form.lastName" type="text" class="w-full bg-gray-900 border border-gray-700 rounded-lg p-2.5 text-white focus:border-blue-500 outline-none" placeholder="Doe">
-                        </div>
-                    </div>
+    <!-- Edit User Modal -->
+    <Teleport to="body">
+       <div v-if="showModal" class="modal-overlay" @click.self="closeModal">
+          <div class="knowledge-modal">
+             <h2>Edit User</h2>
+             
+             <div class="user-summary mb-4 p-3 bg-gray-800 rounded">
+                 <div class="font-bold">{{ form.firstName }} {{ form.lastName }}</div>
+                 <div class="text-xs text-gray-400">{{ form.username }}</div>
+             </div>
 
-                    <div>
-                        <label class="block text-xs font-medium text-gray-400 mb-1">Password</label>
-                        <input v-model="form.password" type="password" required class="w-full bg-gray-900 border border-gray-700 rounded-lg p-2.5 text-white focus:border-blue-500 outline-none" placeholder="••••••••">
-                    </div>
+             <div class="form-group">
+                 <label>Role</label>
+                 <select v-model="form.role">
+                     <option value="student">Student</option>
+                     <option value="teacher">Teacher</option>
+                     <option value="admin">Admin</option>
+                     <option value="superadmin">Superadmin</option>
+                 </select>
+             </div>
 
-                    <div>
-                        <label class="block text-xs font-medium text-gray-400 mb-1">Department</label>
-                        <!-- In a real app, this would be a select from fetched departments -->
-                        <div class="relative">
-                            <input v-model="form.department" type="text" list="dept-list" required class="w-full bg-gray-900 border border-gray-700 rounded-lg p-2.5 text-white focus:border-blue-500 outline-none" placeholder="Select or type department code">
-                            <datalist id="dept-list">
-                                <option v-for="d in cachedDepartments" :key="d.code" :value="d.code">{{ d.name }}</option>
-                            </datalist>
-                        </div>
-                         <p class="text-[10px] text-gray-500 mt-1">If department doesn't exist, it will be auto-created.</p>
-                    </div>
+             <div class="form-group">
+                 <label>Department</label>
+                 <input v-model="form.department" type="text" placeholder="Department">
+             </div>
 
-                    <div v-if="error" class="p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-red-400 text-sm">
-                        {{ error }}
-                    </div>
-                    
-                    <div class="flex gap-3 mt-6">
-                        <button type="button" @click="showCreateModal = false" class="flex-1 px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm text-gray-200 transition-colors">Cancel</button>
-                        <button type="submit" :disabled="submitting" class="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg text-sm text-white font-medium transition-colors disabled:opacity-50">
-                            {{ submitting ? 'Creating...' : 'Create Account' }}
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
+             <div class="form-group checkbox-group">
+                 <label>
+                     <input type="checkbox" v-model="form.isActive">
+                     Account Active
+                 </label>
+             </div>
+             
+             <div v-if="error" class="error">{{ error }}</div>
+
+             <div class="actions">
+                 <button class="btn-delete" @click="handleDelete(form._id)">Delete User</button>
+                 <div class="spacer"></div>
+                 <button class="btn-cancel" @click="closeModal">Cancel</button>
+                 <button class="btn-primary" @click="handleSubmit" :disabled="submitting">
+                     {{ submitting ? 'Saving...' : 'Save' }}
+                 </button>
+             </div>
+          </div>
+       </div>
+    </Teleport>
+
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
-import axios from 'axios';
+import { ref, computed, onMounted } from 'vue';
+import api from '../../utils/api';
 
-const admins = ref([]);
-const cachedDepartments = ref([]);
+const users = ref([]);
 const loading = ref(false);
-const showCreateModal = ref(false);
+const filterRole = ref('all');
+const showModal = ref(false);
 const submitting = ref(false);
 const error = ref(null);
 
 const form = ref({
+    _id: null,
     username: '',
-    password: '',
     firstName: '',
     lastName: '',
-    department: ''
+    role: '',
+    department: '',
+    isActive: true
+});
+
+const filteredUsers = computed(() => {
+    if (filterRole.value === 'all') return users.value;
+    return users.value.filter(u => u.role === filterRole.value);
 });
 
 const formatDate = (dateStr) => {
     if (!dateStr) return '-';
-    return new Date(dateStr).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute:'2-digit' });
+    return new Date(dateStr).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
 };
 
-const fetchAdmins = async () => {
+const getRoleBadge = (role) => {
+    switch(role) {
+        case 'superadmin': return 'badge-superadmin';
+        case 'admin': return 'badge-admin';
+        case 'teacher': return 'badge-teacher';
+        default: return 'badge-student';
+    }
+};
+
+const fetchUsers = async () => {
     loading.value = true;
     try {
-        const response = await axios.get('/api/users/admins');
-        admins.value = response.data.admins || [];
-    } catch (error) {
-        console.error('Failed to fetch admins:', error);
+        // Use generic users endpoint
+        const response = await api.get('/users');
+        users.value = response.data.users || [];
+    } catch (err) {
+        console.error('Failed to fetch users:', err);
     } finally {
         loading.value = false;
     }
 };
 
-const fetchDepartments = async () => {
-    try {
-        const response = await axios.get('/api/departments');
-        cachedDepartments.value = response.data.departments || [];
-    } catch (e) { /* ignore */ }
+const openEditModal = (user) => {
+    form.value = { ...user };
+    error.value = null;
+    showModal.value = true;
 };
 
-const createAdmin = async () => {
+const closeModal = () => {
+    showModal.value = false;
+};
+
+const handleSubmit = async () => {
     submitting.value = true;
     error.value = null;
+
     try {
-        await axios.post('/api/users/create-admin', form.value);
-        showCreateModal.value = false;
-        form.value = { username: '', password: '', firstName: '', lastName: '', department: '' }; // Reset
-        fetchAdmins(); // Refresh
-        fetchDepartments(); // Refresh departments in case new one created
-        // Success toast could go here
+        await api.put(`/users/${form.value._id}`, {
+            role: form.value.role,
+            department: form.value.department,
+            isActive: form.value.isActive
+        });
+        await fetchUsers();
+        closeModal();
     } catch (err) {
-        error.value = err.response?.data?.error || 'Failed to create admin';
+        error.value = err.response?.data?.error || err.message || 'Operation failed';
     } finally {
         submitting.value = false;
     }
 };
 
+const handleDelete = async (id) => {
+    if (!confirm('Are you sure you want to delete this user? This cannot be undone.')) return;
+    
+    try {
+        await api.delete(`/users/${id}`);
+        users.value = users.value.filter(u => u._id !== id);
+        closeModal();
+    } catch (err) {
+        alert(err.response?.data?.error || 'Failed to delete');
+    }
+};
+
 onMounted(() => {
-    fetchAdmins();
-    fetchDepartments();
+    fetchUsers();
 });
 </script>
+
+<style scoped>
+.page-container {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: 24px;
+  background: var(--color-bg-primary, #121212);
+  color: var(--color-text-primary, #ffffff);
+}
+
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 24px;
+}
+
+.header-left h1 {
+  font-size: 24px;
+  font-weight: 700;
+  margin: 0 0 4px 0;
+}
+
+.subtitle {
+  color: var(--color-text-muted, #9ca3af);
+  font-size: 14px;
+}
+
+/* Filters */
+.filters {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.filter-btn {
+  padding: 6px 16px;
+  border-radius: 20px;
+  border: 1px solid var(--color-border, #374151);
+  background: transparent;
+  color: var(--color-text-secondary, #9ca3af);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.filter-btn:hover {
+  background: var(--color-bg-tertiary, #2a2a2a);
+}
+
+.filter-btn.active {
+  background: var(--color-accent, #3b82f6);
+  color: white;
+  border-color: var(--color-accent, #3b82f6);
+}
+
+/* Buttons */
+.btn-primary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: var(--color-accent, #3b82f6);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: 500;
+  cursor: pointer;
+}
+.btn-primary:hover { opacity: 0.9; }
+.btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.btn-cancel {
+    background: transparent;
+    color: var(--color-text-secondary, #d1d5db);
+    border: 1px solid var(--color-border, #374151);
+    padding: 8px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+}
+.btn-cancel:hover { background: var(--color-bg-tertiary, #2a2a2a); }
+
+.btn-delete {
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+    border: 1px solid rgba(239, 68, 68, 0.2);
+    padding: 8px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+}
+.btn-delete:hover { background: rgba(239, 68, 68, 0.2); }
+
+/* Table */
+.table-container {
+  background: var(--color-bg-secondary, #1e1e1e);
+  border: 1px solid var(--color-border, #374151);
+  border-radius: 12px;
+  overflow: hidden;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.data-table th, .data-table td {
+  padding: 16px;
+  text-align: left;
+  border-bottom: 1px solid var(--color-border, #374151);
+}
+
+.data-table th {
+  color: var(--color-text-muted, #9ca3af);
+  font-weight: 500;
+  font-size: 13px;
+  background: var(--color-bg-tertiary, #252525);
+  text-transform: uppercase;
+}
+
+.clickable-row:hover {
+    background: var(--color-bg-tertiary, #2a2a2a);
+    cursor: pointer;
+}
+
+.empty-row {
+    text-align: center;
+    color: var(--color-text-muted);
+    padding: 32px;
+}
+
+.font-medium { font-weight: 500; }
+.text-muted { color: var(--color-text-muted, #9ca3af); font-size: 13px; }
+.text-date { color: var(--color-text-secondary, #d1d5db); font-size: 13px; }
+
+.user-cell {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+.user-info .name { font-weight: 500; color: var(--color-text-primary, white); }
+.user-info .email { font-size: 12px; color: var(--color-text-muted, #9ca3af); }
+
+/* Badges */
+.badge {
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+.badge-superadmin { background: rgba(139, 92, 246, 0.1); color: #8b5cf6; }
+.badge-admin { background: rgba(59, 130, 246, 0.1); color: #3b82f6; }
+.badge-teacher { background: rgba(16, 185, 129, 0.1); color: #10b981; }
+.badge-student { background: rgba(107, 114, 128, 0.1); color: #9ca3af; }
+
+.status-indicator {
+    font-size: 12px;
+    font-weight: 500;
+}
+.status-indicator.active { color: #10b981; }
+.status-indicator.inactive { color: #ef4444; }
+
+/* Modal */
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 50;
+    backdrop-filter: blur(2px);
+}
+
+.knowledge-modal {
+    background-color: var(--color-bg-card, #202020);
+    padding: 24px;
+    border-radius: 12px;
+    width: 480px;
+    border: 1px solid var(--color-border, #374151);
+    color: var(--color-text-primary, white);
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3);
+}
+
+.knowledge-modal h2 { margin-top: 0; font-size: 18px; margin-bottom: 20px; }
+
+.form-group { margin-bottom: 16px; }
+
+.form-group label {
+    display: block;
+    margin-bottom: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--color-text-secondary, #e5e7eb);
+}
+
+.checkbox-group label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+}
+
+.form-group input[type="text"], 
+.form-group select {
+    width: 100%;
+    padding: 10px;
+    border-radius: 6px;
+    border: 1px solid var(--color-border, #4b5563);
+    background: var(--color-bg-tertiary, #2a2a2a);
+    color: var(--color-text-primary, white);
+    font-size: 14px;
+}
+.form-group input:focus, .form-group select:focus {
+    outline: none;
+    border-color: var(--color-accent, #3b82f6);
+}
+
+.error { color: #ef4444; font-size: 13px; margin-bottom: 16px; background: rgba(239, 68, 68, 0.1); padding: 8px; border-radius: 4px; }
+
+.actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 24px;
+}
+
+.spacer { flex: 1; }
+</style>

@@ -330,20 +330,59 @@ app.delete('/api/departments/:id', authenticateUser, async (req: any, res: Respo
     }
 });
 
-// 7. List Admin Users (Superadmin Only)
-app.get('/api/users/admins', authenticateUser, async (req: any, res: Response) => {
-    if (req.user.role !== 'superadmin') {
-        return res.status(403).json({ error: 'Authorized for Superadmin only' });
+// 7. User Management (Superadmin/Admin)
+
+// 7.1 List All Users (Admin sees own department? Superadmin sees all? For now, let's allow listing all for simplicity of the requested task)
+app.get('/api/users', authenticateUser, async (req: any, res: Response) => {
+    if (!['admin', 'superadmin'].includes(req.user.role)) {
+        return res.status(403).json({ error: 'Forbidden' });
     }
+
     try {
-        const admins = await User.find({ role: { $in: ['admin', 'superadmin'] } })
+        const users = await User.find()
             .select('-password')
-            .sort({ role: -1, username: 1 });
-        res.json({ admins });
+            .sort({ createdAt: -1 });
+        res.json({ users });
     } catch (e: any) {
-        res.status(500).json({ error: 'Failed to fetch admins' });
+        res.status(500).json({ error: 'Failed to fetch users' });
     }
 });
+
+// 7.2 Update User (Superadmin Only)
+app.put('/api/users/:id', authenticateUser, async (req: any, res: Response) => {
+    if (req.user.role !== 'superadmin') return res.status(403).json({ error: 'Forbidden' });
+
+    try {
+        const { role, department, isActive, firstName, lastName } = req.body;
+
+        const updateData: any = {};
+        if (role) updateData.role = role;
+        if (department) updateData.department = department;
+        if (typeof isActive === 'boolean') updateData.isActive = isActive;
+        if (firstName) updateData.firstName = firstName;
+        if (lastName) updateData.lastName = lastName;
+
+        const user = await User.findByIdAndUpdate(req.params.id, updateData, { new: true }).select('-password');
+        if (!user) return res.status(404).json({ error: 'User not found' });
+
+        res.json({ user });
+    } catch (e: any) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// 7.3 Delete User (Superadmin Only)
+app.delete('/api/users/:id', authenticateUser, async (req: any, res: Response) => {
+    if (req.user.role !== 'superadmin') return res.status(403).json({ error: 'Forbidden' });
+
+    try {
+        await User.findByIdAndDelete(req.params.id);
+        res.json({ success: true });
+    } catch (e: any) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
 
 app.get('/health', (req, res) => res.json({ status: 'ok', service: 'identity-service' }));
 
