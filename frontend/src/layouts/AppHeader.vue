@@ -38,7 +38,7 @@ onMounted(() => {
       <!-- App Branding (Moved from Sidebar) -->
       <div class="app-branding">
          <h1 class="app-name">
-            <span class="brand-gradient">DinDin</span> AI
+            <span class="brand-gradient">DinDin</span> <span class="ai-gradient">AI</span>
          </h1>
       </div>
       
@@ -148,6 +148,14 @@ onMounted(() => {
 
 .brand-gradient {
   background: var(--color-user-gradient);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  color: transparent; /* Fallback */
+}
+
+.ai-gradient {
+  background: linear-gradient(135deg, #3b82f6, #1e3a8a);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
