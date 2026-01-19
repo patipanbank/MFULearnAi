@@ -52,6 +52,9 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
                 return done(null, { token, user });
 
             } catch (err: any) {
+                if (axios.isAxiosError(err) && err.response) {
+                    console.error('[OAuth] Identity Service Error:', JSON.stringify(err.response.data));
+                }
                 console.error('[OAuth] Identity Handshake Failed:', err.message);
                 return done(err);
             }
