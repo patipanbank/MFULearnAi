@@ -44,7 +44,9 @@ const formatTime = (timestamp) => {
     <!-- ASSISTANT: Canvas style (improved) -->
     <template v-else>
       <div class="assistant-canvas">
-        <div class="avatar-circle assistant">🤖</div>
+        <div class="avatar-circle assistant">
+          <img src="@/assets/dindin-ai.png" alt="AI Avatar" class="avatar-img" />
+        </div>
         
         <div class="content-col">
           <div class="assistant-header">
@@ -106,7 +108,15 @@ const formatTime = (timestamp) => {
 .avatar-circle.assistant {
   background: var(--color-bg-secondary);
   border: 1px solid var(--color-border);
-  font-size: 18px;
+  padding: 2px; /* Add little padding */
+  overflow: hidden; /* Clip image */
+}
+
+.avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
 }
 
 /* === USER STYLES === */
