@@ -187,7 +187,7 @@ const fetchPrompts = async () => {
     loading.value = true;
     try {
         const res = await api.get('/prompts?type=core');
-        prompts.value = res.data.prompts;
+        prompts.value = res.data.prompts || [];
     } catch (e) {
         console.error(e);
     } finally {
