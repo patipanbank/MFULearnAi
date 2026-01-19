@@ -3,6 +3,9 @@ import { onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useKnowledgeStore } from '@/stores/knowledge'
 import KnowledgeSelector from '@/components/chat/KnowledgeSelector.vue'
+import { useLanguage } from '@/composables/useSettings'
+
+const { t } = useLanguage()
 
 const props = defineProps({
   envName: { type: String, default: 'MFULearnAI' },
@@ -31,6 +34,14 @@ onMounted(() => {
           <line x1="3" y1="18" x2="21" y2="18"/>
         </svg>
       </button>
+
+      <!-- App Branding (Moved from Sidebar) -->
+      <div class="app-branding">
+         <div class="logo-small">
+           <img src="@/assets/dindin-ai.png" alt="DinDin AI" class="header-logo-img" />
+         </div>
+         <h1 class="app-name">{{ t('appName') }}</h1>
+      </div>
       
         <!-- Premium Knowledge Selector -->
         <div v-if="route.path.includes('/chat') && knowledgeStore.collections.length > 0" class="ml-6">
@@ -108,11 +119,32 @@ onMounted(() => {
   font-size: 24px;
 }
 
-.app-brand h1 {
+.app-branding {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  /* margin-right: 24px; REMOVED to keep it tighter to the left */
+}
+
+.logo-small {
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+}
+
+.header-logo-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  border-radius: 50%;
+}
+
+.app-name {
   font-size: 18px;
   font-weight: 700;
   color: var(--color-text-primary);
   margin: 0;
+  white-space: nowrap;
 }
 
 .header-right {
