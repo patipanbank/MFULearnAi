@@ -2,25 +2,30 @@
   <div class="page-container">
     <div class="page-header">
       <div class="header-left">
-        <h1>Persona Prompts</h1>
-        <p class="subtitle">Create and manage your specialized AI assistants.</p>
+        <!-- Mobile Toggle (Visible only on small screens) -->
+        <button v-if="selectedPrompt && isMobile" @click="selectedPrompt = null" class="btn-icon-sm mr-2 md:hidden">
+            <i class="fas fa-arrow-left"></i>
+        </button>
+        
+        <h1>{{ t('myPersonas') }}</h1>
+        <p class="subtitle">{{ t('knowledgeSubtitle') }}</p> <!-- Reusing generic subtitle or create specific 'personaSubtitle' -->
       </div>
       
       <div class="header-actions">
         <button @click="openCreateModal" class="btn-primary">
-            <i class="fas fa-plus mr-2"></i>New Persona
+            <i class="fas fa-plus mr-2"></i>{{ t('createPersona') }}
         </button>
       </div>
     </div>
 
     <div class="content-wrapper">
-      <!-- Sidebar List -->
-      <div class="sidebar">
+      <!-- Sidebar List (Hidden on Mobile if Editor is open) -->
+      <div class="sidebar" :class="{ 'hidden-mobile': selectedPrompt && isMobile }">
         <div class="sidebar-header">
            <div class="flex flex-col gap-3">
                 <div class="flex justify-between items-center">
-                    <h2>Defined Personas</h2>
-                    <button @click="refreshPrompts" class="btn-icon-sm" title="Refresh">
+                    <h2>{{ t('myPersonas') }}</h2>
+                    <button @click="refreshPrompts" class="btn-icon-sm" :title="t('refresh')">
                         <i class="fas fa-sync" :class="{ 'spin': loading }"></i>
                     </button>
                 </div>
@@ -30,19 +35,19 @@
                         @click="viewTab = 'my'"
                         class="flex-1 text-xs py-1 rounded text-center transition-colors bg-gray-700 text-white font-medium"
                     >
-                        My Personas
+                        {{ t('myPersonas') }}
                     </button>
                 </div>
            </div>
         </div>
         <div class="dashboard-content">
-        <div v-if="loading" class="text-muted p-4">Loading...</div>
+        <div v-if="loading" class="text-muted p-4">{{ t('loading') || 'Loading...' }}</div>
         
-        <!-- My Personas Grid (Default & Only View) -->
+        <!-- My Personas Grid -->
         <div class="grid-layout fade-in">
              <div v-if="myScenarios.length === 0 && !loading" class="empty-card" @click="openCreateModal">
                 <div class="plus-icon">+</div>
-                <p>Create your first custom persona</p>
+                <p>{{ t('createPersona') }}</p>
             </div>
             <div 
               v-for="item in myScenarios" 
@@ -63,27 +68,27 @@
                 </div>
                 <p class="card-desc">{{ item.description }}</p>
                 <div class="card-footer">
-                    <span v-if="isActiveScenario(item._id)" class="badge-active-inline">Active</span>
+                    <span v-if="isActiveScenario(item._id)" class="badge-active-inline">{{ t('isActive') }}</span>
                 </div>
             </div>
         </div>
     </div>
       </div>
 
-      <!-- Editor Area -->
-      <div class="editor-container">
+      <!-- Editor Area (Full screen on mobile) -->
+      <div class="editor-container" :class="{ 'visible-mobile': selectedPrompt && isMobile, 'hidden-mobile': !selectedPrompt && isMobile }">
         <div v-if="selectedPrompt" class="editor-content">
             <!-- Toolbar -->
             <div class="editor-toolbar">
                 <div class="toolbar-info">
                     <span class="toolbar-title">{{ selectedPrompt.name }}</span>
                     <span class="toolbar-key">{{ selectedPrompt.key }}</span>
-                    <span v-if="selectedPrompt.isPublic" class="badge badge-public ml-2">Official</span>
-                    <span v-if="isActiveScenario(selectedPrompt._id)" class="badge badge-active-scenario ml-2">Currently Active</span>
+                    <span v-if="selectedPrompt.isPublic" class="badge badge-public ml-2">{{ t('public') }}</span>
+                    <span v-if="isActiveScenario(selectedPrompt._id)" class="badge badge-active-scenario ml-2">{{ t('isActive') }}</span>
                 </div>
                 <div class="toolbar-actions">
                     <button @click="openPlayground" class="btn-secondary">
-                        <i class="fas fa-play mr-2"></i>Test
+                        <i class="fas fa-play mr-2"></i><span class="hidden sm:inline">{{ t('playground') }}</span>
                     </button>
 
                     <button 
@@ -91,14 +96,14 @@
                         @click="activateScenario" 
                         class="btn-primary-outline text-green-400 border-green-800 hover:bg-green-900/30"
                     >
-                         <i class="fas fa-check mr-2"></i>Set as Active
+                         <i class="fas fa-check mr-2"></i><span class="hidden sm:inline">{{ t('activate') }}</span>
                     </button>
                     <button 
                         v-else
                         @click="deactivateScenario" 
                         class="btn-secondary text-yellow-500 border-yellow-800 hover:bg-yellow-900/30"
                     >
-                         <i class="fas fa-times mr-2"></i>Deactivate
+                         <i class="fas fa-times mr-2"></i><span class="hidden sm:inline">{{ t('deactivate') }}</span>
                     </button>
                     
                     <button 
@@ -107,14 +112,14 @@
                         :disabled="!hasChanges || saving"
                         class="btn-primary"
                     >
-                        {{ saving ? 'Saving...' : 'Save Version' }}
+                        {{ saving ? t('saving') || 'Saving...' : t('saveVersion') }}
                     </button>
 
                     <button 
                          v-if="canEdit(selectedPrompt)"
                          @click="deleteScenario"
                          class="btn-icon-danger"
-                         title="Delete"
+                         :title="t('delete')"
                     >
                         <i class="fas fa-trash"></i>
                     </button>
@@ -124,18 +129,14 @@
             <!-- Meta Inputs (Description) -->
              <div class="p-3 bg-gray-800 border-b border-gray-700 flex flex-col gap-2">
                 <div class="flex gap-2">
-                     <span class="text-xs text-gray-500 w-20 pt-2 uppercase font-bold tracking-wider">Description</span>
+                     <span class="text-xs text-gray-500 w-20 pt-2 uppercase font-bold tracking-wider">{{ t('description') }}</span>
                      <input 
                         v-if="canEdit(selectedPrompt)"
                         v-model="editDescription" 
                         class="form-input flex-1 h-8 text-sm" 
-                        placeholder="Short description..."
+                        :placeholder="t('description')"
                     />
                     <div v-else class="flex-1 text-sm py-1 px-2 text-gray-300">{{ selectedPrompt.description }}</div>
-                </div>
-                 <div v-if="hasChanges && canEdit(selectedPrompt)" class="flex gap-2 animate-pulse-slow">
-                     <span class="text-xs text-yellow-500 w-20 pt-2 uppercase font-bold tracking-wider">Changelog</span>
-                    <input v-model="changeLog" placeholder="Describe changes (required to save)" class="form-input flex-1 h-8 text-sm border-yellow-700/50 focus:border-yellow-500" />
                 </div>
             </div>
 
@@ -146,16 +147,16 @@
                     class="code-editor"
                     spellcheck="false"
                     :disabled="!canEdit(selectedPrompt)"
-                    placeholder="Enter persona instructions..."
+                    :placeholder="t('content')"
                 ></textarea>
-                <div v-if="hasChanges" class="unsaved-badge">Unsaved Changes</div>
+                <div v-if="hasChanges" class="unsaved-badge">{{ t('unsaved') || 'Unsaved' }}</div>
             </div>
         </div>
 
             <!-- Empty State -->
         <div v-else class="empty-state">
             <i class="fas fa-robot text-6xl text-gray-700 mb-4"></i>
-            <p>Select a persona to view or edit</p>
+            <p>{{ t('searchPersonas') }}</p>
         </div>
       </div>
     </div>
@@ -164,38 +165,32 @@
     <div v-if="showCreateModal" class="modal-overlay">
         <div class="modal-content">
             <div class="modal-header">
-                <h3>New Persona</h3>
+                <h3>{{ t('createPersona') }}</h3>
                 <button @click="closeCreateModal" class="close-btn">&times;</button>
             </div>
             <div class="modal-body">
                 <div class="form-group">
-                    <label>Internal Key (Unique)</label>
+                    <label>{{ t('internalKey') }}</label>
                     <input v-model="newItem.key" type="text" placeholder="e.g. PYTHON_HELPER" class="form-input" />
-                    <small class="text-muted block mt-1">Auto-generated if empty</small>
+                    <small class="text-muted block mt-1">{{ t('autoGenerated') || 'Auto-generated if empty' }}</small>
                 </div>
                 <div class="form-group">
-                    <label>Persona Name <span class="text-red-500">*</span></label>
+                    <label>{{ t('name') }} <span class="text-red-500">*</span></label>
                     <input v-model="newItem.name" type="text" placeholder="e.g. Python Expert" class="form-input" />
                 </div>
                 <div class="form-group">
-                     <label>Description</label>
-                    <input v-model="newItem.description" type="text" placeholder="What does it do?" class="form-input" />
+                     <label>{{ t('description') }}</label>
+                    <input v-model="newItem.description" type="text" class="form-input" />
                 </div>
                 <div class="form-group">
-                    <label>Initial Instructions</label>
+                    <label>{{ t('content') }}</label>
                     <textarea v-model="newItem.content" class="form-input h-32 font-mono"></textarea>
-                </div>
-                 <div v-if="isSuperAdmin" class="form-group checkbox-group">
-                    <label class="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" v-model="newItem.isPublic" class="form-checkbox" />
-                        <span class="text-sm font-medium text-white">Make this a System Persona (Public)</span>
-                    </label>
                 </div>
             </div>
             <div class="modal-footer">
-                <button @click="closeCreateModal" class="btn-secondary mr-2">Cancel</button>
+                <button @click="closeCreateModal" class="btn-secondary mr-2">{{ t('cancel') }}</button>
                 <button @click="createPrompt" :disabled="!newItem.name || creating" class="btn-primary">
-                    {{ creating ? 'Creating...' : 'Create Draft' }}
+                    {{ creating ? t('creating') || 'Creating...' : t('create') || 'Create' }}
                 </button>
             </div>
         </div>
@@ -848,6 +843,51 @@ onMounted(() => fetchPrompts());
 .spin { animation: spin 1s linear infinite; }
 @keyframes spin { 100% { transform: rotate(360deg); } }
 
-.badge-active-inline { display: inline-block; background: rgba(16, 185, 129, 0.1); color: #34d399; font-size: 10px; padding: 2px 6px; border-radius: 4px; font-weight: 700; text-transform: uppercase; float: right; }
+.badge-active-inline { background: rgba(16, 185, 129, 0.1); color: #34d399; font-size: 10px; padding: 2px 6px; border-radius: 4px; font-weight: 700; text-transform: uppercase; float: right; }
 
+/* Mobile Responsiveness */
+@media (max-width: 768px) {
+    .page-container {
+        padding: 16px;
+    }
+    
+    .content-wrapper {
+        position: relative;
+        overflow: hidden;
+    }
+
+    .sidebar {
+        width: 100%;
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: 0;
+        z-index: 10;
+        transition: transform 0.3s ease;
+    }
+
+    .sidebar.hidden-mobile {
+        transform: translateX(-110%);
+    }
+
+    .editor-container {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background: var(--color-bg-primary); 
+        z-index: 20;
+    }
+
+    .editor-container.hidden-mobile {
+         transform: translateX(110%);
+         display: none;
+    }
+    
+    .editor-container.visible-mobile {
+        display: flex;
+        transform: translateX(0);
+    }
+}
 </style>
