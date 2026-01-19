@@ -11,6 +11,7 @@ const props = defineProps({
   envName: { type: String, default: 'MFULearnAI' },
   userName: { type: String, default: 'User' },
   userInitial: { type: String, default: 'U' },
+  userAvatarUrl: { type: String, default: '' },
   showSidebarToggle: { type: Boolean, default: true }
 })
 
@@ -50,7 +51,8 @@ onMounted(() => {
     
     <div class="header-right">
       <div class="user-display">
-        <div class="user-avatar">{{ userInitial }}</div>
+        <img v-if="userAvatarUrl" :src="userAvatarUrl" class="user-avatar-img" alt="Profile" />
+        <div v-else class="user-avatar">{{ userInitial }}</div>
         <span class="user-name">{{ userName }}</span>
       </div>
     </div>
@@ -175,6 +177,13 @@ onMounted(() => {
   background: var(--color-bg-tertiary);
   border-radius: 50px;
   border: 1px solid var(--color-border);
+}
+
+.user-avatar-img {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
 }
 
 .user-avatar {

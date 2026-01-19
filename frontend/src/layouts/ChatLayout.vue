@@ -63,6 +63,7 @@ onUnmounted(() => {
         :env-name="envName"
         :user-name="userName"
         :user-initial="userInitial"
+        :user-avatar-url="authStore.profilePicture"
         :show-sidebar-toggle="isMobile"
         @toggle-sidebar="toggleSidebar"
       />

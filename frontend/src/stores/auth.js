@@ -14,6 +14,7 @@ export const useAuthStore = defineStore('auth', () => {
 
     const userId = computed(() => user.value?._id || user.value?.userId)
     const department = computed(() => user.value?.department)
+    const profilePicture = computed(() => user.value?.picture || user.value?.avatarUrl)
 
     const displayName = computed(() => {
         if (!user.value) return 'Guest'
@@ -115,6 +116,7 @@ export const useAuthStore = defineStore('auth', () => {
         role,
         userId,
         department,
+        profilePicture,
         displayName,
         init,
         setAuth,

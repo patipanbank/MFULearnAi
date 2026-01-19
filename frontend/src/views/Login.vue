@@ -1,45 +1,12 @@
 <script setup>
-import { computed, ref } from 'vue'
-import { useRouter } from 'vue-router'
-import { useAuthStore } from '@/stores/auth'
+import { computed } from 'vue'
 import { useLanguage } from '@/composables/useSettings'
 
 const { t } = useLanguage()
-const authStore = useAuthStore()
-const router = useRouter()
 const envName = import.meta.env.VITE_ENV_NAME || 'MFULearnAI'
 const envType = import.meta.env.VITE_ENV_TYPE || 'TEST'
 
 const isTestEnv = computed(() => envType === 'TEST')
-const isAdminLogin = ref(false)
-const username = ref('')
-const password = ref('')
-const error = ref('')
-const isLoading = ref(false)
-
-const handleAdminLogin = async () => {
-  if (!username.value || !password.value) return
-  
-  error.value = ''
-  isLoading.value = true
-  
-  try {
-    await authStore.loginAdmin(username.value, password.value)
-    localStorage.setItem('auth_provider', 'local')
-    router.push('/chat')
-  } catch (e) {
-    error.value = e.response?.data?.error || 'Login failed'
-  } finally {
-    isLoading.value = false
-  }
-}
-
-const toggleAdminMode = () => {
-  isAdminLogin.value = !isAdminLogin.value
-  error.value = ''
-  username.value = ''
-  password.value = ''
-}
 </script>
 
 <template>
@@ -55,58 +22,8 @@ const toggleAdminMode = () => {
         <span v-if="isTestEnv" class="env-badge">{{ t('stagingEnv') }}</span>
       </div>
 
-      <!-- Admin Login Form -->
-      <div v-if="isAdminLogin" class="admin-login-form">
-        <div class="form-group">
-          <label>Username</label>
-          <input 
-            v-model="username" 
-            type="text" 
-            placeholder="Admin username"
-            @keyup.enter="handleAdminLogin"
-            :disabled="isLoading"
-          >
-        </div>
-        
-        <div class="form-group">
-          <label>Password</label>
-          <input 
-            v-model="password" 
-            type="password" 
-            placeholder="Password"
-            @keyup.enter="handleAdminLogin"
-            :disabled="isLoading"
-          >
-        </div>
-
-        <div v-if="error" class="error-msg">{{ error }}</div>
-
-        <button 
-          @click="handleAdminLogin" 
-          class="btn-login btn-mfu w-100"
-          :disabled="isLoading"
-        >
-          {{ isLoading ? 'Logging in...' : 'Login' }}
-        </button>
-
-        <div class="divider">
-          <span>OR</span>
-        </div>
-        
-        <button @click="toggleAdminMode" class="btn-text">
-          Back to SSO Login
-        </button>
-      </div>
-
-      <!-- SSO Login Buttons -->
-      <div v-else class="login-buttons">
-        <a href="/api/auth/login/saml" class="btn-login btn-mfu">
-          <svg class="icon" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
-          </svg>
-          {{ t('loginMFU') }}
-        </a>
-        
+      <!-- Login Buttons -->
+      <div class="login-buttons">
         <a href="/api/auth/login/google" class="btn-login btn-google">
           <svg class="icon" viewBox="0 0 24 24">
             <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
@@ -116,11 +33,6 @@ const toggleAdminMode = () => {
           </svg>
           {{ t('loginGoogle') }}
         </a>
-
-        <div class="divider"></div>
-        <button @click="toggleAdminMode" class="btn-text">
-          Admin Login
-        </button>
       </div>
 
       <!-- Footer -->
@@ -314,85 +226,5 @@ const toggleAdminMode = () => {
   right: 10%;
 }
 
-.admin-login-form {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
 
-.form-group {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  text-align: left;
-}
-
-.form-group label {
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--color-text);
-}
-
-.form-group input {
-  padding: 12px;
-  border-radius: 8px;
-  border: 1px solid var(--color-border);
-  background: var(--color-bg-input);
-  color: var(--color-text);
-  font-size: 14px;
-  transition: all 0.2s;
-}
-
-.form-group input:focus {
-  outline: none;
-  border-color: var(--color-primary);
-  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
-}
-
-.w-100 {
-  width: 100%;
-}
-
-.btn-text {
-  background: none;
-  border: none;
-  color: var(--color-text-muted);
-  font-size: 14px;
-  cursor: pointer;
-  text-decoration: underline;
-  padding: 8px;
-}
-
-.btn-text:hover {
-  color: var(--color-primary);
-}
-
-.divider {
-  display: flex;
-  align-items: center;
-  text-align: center;
-  color: var(--color-text-muted);
-  font-size: 12px;
-  margin: 12px 0;
-}
-
-.divider::before,
-.divider::after {
-  content: '';
-  flex: 1;
-  border-bottom: 1px solid var(--color-border);
-}
-
-.divider span {
-  padding: 0 10px;
-}
-
-.error-msg {
-  color: #ef4444;
-  font-size: 13px;
-  text-align: center;
-  background: rgba(239, 68, 68, 0.1);
-  padding: 8px;
-  border-radius: 8px;
-}
 </style>
