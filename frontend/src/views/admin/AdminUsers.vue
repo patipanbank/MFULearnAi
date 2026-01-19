@@ -493,6 +493,7 @@ onMounted(() => {
 }
 
 .form-group input[type="text"], 
+.form-group input[type="password"],
 .form-group select {
     width: 100%;
     padding: 10px;
