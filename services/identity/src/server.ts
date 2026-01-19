@@ -122,7 +122,9 @@ app.post('/internal/login', authenticateInternal, async (req: Request, res: Resp
                 _id: user._id,
                 username: user.username,
                 role: user.role,
-                department: user.department
+                department: user.department,
+                firstName: user.firstName,
+                lastName: user.lastName
             }
         });
 
