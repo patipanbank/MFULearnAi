@@ -2,10 +2,6 @@
   <div class="page-container">
     <div class="page-header">
       <div class="header-left">
-        <!-- Mobile Toggle (Visible only on small screens) -->
-        <button v-if="selectedPrompt && isMobile" @click="selectedPrompt = null" class="btn-icon-sm mr-2 md:hidden">
-            <i class="fas fa-arrow-left"></i>
-        </button>
         
         <h1>{{ t('myPersonas') }}</h1>
         <p class="subtitle">{{ t('knowledgeSubtitle') }}</p> <!-- Reusing generic subtitle or create specific 'personaSubtitle' -->
@@ -19,8 +15,8 @@
     </div>
 
     <div class="content-wrapper">
-      <!-- Sidebar List (Hidden on Mobile if Editor is open) -->
-      <div class="sidebar" :class="{ 'hidden-mobile': selectedPrompt && isMobile }">
+      <!-- Sidebar List (Horizontal Top on Mobile) -->
+      <div class="sidebar">
         <div class="sidebar-header">
            <div class="flex flex-col gap-3">
                 <div class="flex justify-between items-center">
@@ -75,8 +71,8 @@
     </div>
       </div>
 
-      <!-- Editor Area (Full screen on mobile) -->
-      <div class="editor-container" :class="{ 'visible-mobile': selectedPrompt && isMobile, 'hidden-mobile': !selectedPrompt && isMobile }">
+      <!-- Editor Area -->
+      <div class="editor-container">
         <div v-if="selectedPrompt" class="editor-content">
             <!-- Toolbar -->
             <div class="editor-toolbar">
