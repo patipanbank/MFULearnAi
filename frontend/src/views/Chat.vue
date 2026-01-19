@@ -91,13 +91,17 @@ const handleSendMessage = async (message) => {
   // Prepare payload
   let finalMessage = message || ''
   const imagesToSend = []
+  const filesToSend = []
 
   // Process attachments
-  // 1. Append Text/PDF content to message
-  // 2. Collect Images
   for (const file of attachments.value) {
     if (file.type === 'doc') {
-        finalMessage += `\n\n[Context from ${file.name}]:\n${file.content}`
+        filesToSend.push({
+            name: file.name,
+            content: file.content,
+            size: file.size || 0,
+            mediaType: file.mediaType || 'text/plain'
+        })
     } else if (file.type === 'image') {
         imagesToSend.push({
             data: file.data.split(',')[1], // Remove prefix
@@ -109,7 +113,8 @@ const handleSendMessage = async (message) => {
   // Clear attachments immediately so UI resets
   attachments.value = []
 
-  await chatStore.sendMessage(finalMessage, null, imagesToSend)
+  // Send to store (update store action to accept files)
+  await chatStore.sendMessage(finalMessage, null, imagesToSend, filesToSend)
   inputRef.value?.focus()
 }
 
@@ -135,19 +140,20 @@ const handleFileUpload = async (files) => {
             }
             reader.readAsDataURL(file)
         } 
-        // Document (PDF/Text)
+        // Document (PDF/Text/Doc/Sheet)
         else {
-            const text = await knowledgeStore.extractText(file)
+            const text = await knowledgeStore.extractText(file) // Now supports DOCX/XLSX
             attachments.value.push({
                 type: 'doc',
                 name: file.name,
-                content: text
+                content: text,
+                size: file.size,
+                mediaType: file.type
             })
         }
     }
   } catch (e) {
     console.error('File processing failed:', e)
-    // Could show a toast/error here
   } finally {
     isProcessingFile.value = false
   }

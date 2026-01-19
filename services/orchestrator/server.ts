@@ -45,6 +45,12 @@ const ConversationSchema = new mongoose.Schema({
             data: String,
             mediaType: String
         }],
+        files: [{
+            name: String,
+            content: String,
+            size: Number,
+            mediaType: String
+        }],
         timestamp: { type: Date, default: Date.now }
     }],
     modelId: String,
@@ -216,11 +222,11 @@ const getScenarioPrompt = async (scenarioId: string, userId: string): Promise<st
 
 // --- Chat Endpoint ---
 app.post('/api/chat', authenticateToken, rateLimiter, async (req: any, res: Response) => {
-    const { message, sessionId, modelId, context, collectionId, images } = req.body;
+    const { message, sessionId, modelId, context, collectionId, images, files } = req.body;
     const userId = req.user.userId;
 
-    if (!message) {
-        return res.status(400).json({ error: 'Message is required' });
+    if (!message && (!images || images.length === 0) && (!files || files.length === 0)) {
+        return res.status(400).json({ error: 'Message or attachment is required' });
     }
 
     const actualSessionId = sessionId || `session-${Date.now()}`;
@@ -228,9 +234,10 @@ app.post('/api/chat', authenticateToken, rateLimiter, async (req: any, res: Resp
     try {
         logActivity('info', 'chat_request_received', {
             sessionId: actualSessionId,
-            messageLength: message.length,
+            messageLength: message?.length || 0,
             modelId,
-            collectionId
+            collectionId,
+            fileCount: files?.length || 0
         }, userId);
 
         // 1. Get conversation history from Redis
@@ -238,16 +245,19 @@ app.post('/api/chat', authenticateToken, rateLimiter, async (req: any, res: Resp
         const rawHistory = await redis.lrange(historyKey, 0, -1);
         const history: ChatMessage[] = rawHistory
             .map(item => JSON.parse(item))
-            .filter(msg => (msg.content && msg.content.trim().length > 0) || (msg.images && msg.images.length > 0));
+            .filter(msg =>
+                (msg.content && msg.content.trim().length > 0) ||
+                (msg.images && msg.images.length > 0) ||
+                (msg.files && msg.files.length > 0)
+            );
 
-        // 2. RAG: Retrieve Context from Knowledge Base
-        // Need to pass user info for permission checks
+        // 2. RAG: Retrieve Context (kept same)
         const userContext = {
             userId: req.user.userId,
             role: req.user.role,
             department: req.user.department
         };
-        const ragContext = await searchKnowledgeBase(message, userContext, collectionId);
+        const ragContext = await searchKnowledgeBase(message || '', userContext, collectionId);
 
         let ragSystemPrompt = '';
         if (ragContext) {
@@ -256,12 +266,9 @@ app.post('/api/chat', authenticateToken, rateLimiter, async (req: any, res: Resp
         }
 
         // 3. Prepare messages
-        // 3. Prepare messages
-        // UPDATE: Use dynamic prompt + Scenario
         const corePrompt = await getCoreSystemPrompt(ENV_TYPE);
         let scenarioPrompt = '';
 
-        // Check for 'scenarioId' in body (passed from frontend)
         if (req.body.scenarioId) {
             scenarioPrompt = await getScenarioPrompt(req.body.scenarioId, req.user.userId);
             if (scenarioPrompt) {
@@ -283,15 +290,33 @@ app.post('/api/chat', authenticateToken, rateLimiter, async (req: any, res: Resp
 
         const currentMessage: ChatMessage = {
             role: 'user',
-            content: message,
+            content: message || '',
             images: images || [],
+            files: files || [],
             timestamp: new Date()
         };
 
+        // Construct Bedrock Messages (Inject File Content into Message Text for the model)
+        const formatMessageForAI = (msg: ChatMessage) => {
+            let content = msg.content || '';
+            if (msg.files && msg.files.length > 0) {
+                msg.files.forEach(f => {
+                    content += `\n\n<file_context name="${f.name}">\n${f.content}\n</file_context>`;
+                });
+            }
+            return {
+                role: msg.role,
+                content: content, // Combined content
+                images: msg.images // Keep images separate (multimodal)
+            };
+        };
+
         // Inject system message (new syntax always puts it first)
-        const messagesToSend = history.length === 0
-            ? [systemMessage, currentMessage]
-            : [systemMessage, ...history, currentMessage];
+        const messagesToSend = [
+            systemMessage,
+            ...history.map(formatMessageForAI), // Transform history
+            formatMessageForAI(currentMessage)  // Transform current
+        ];
 
         // 4. Set up SSE headers
         res.setHeader('Content-Type', 'text/event-stream');

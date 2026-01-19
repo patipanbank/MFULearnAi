@@ -285,6 +285,11 @@ app.post('/api/knowledge', upload.single('file'), async (req: any, res: Response
     }
 });
 
+import mammoth from 'mammoth';
+import * as XLSX from 'xlsx';
+
+// ... imports
+
 // 1.01 EXTRACT TEXT (No Save)
 app.post('/api/knowledge/extract', upload.single('file'), async (req: any, res: Response) => {
     // Basic Auth Check (Any authenticated user can extract)
@@ -293,13 +298,49 @@ app.post('/api/knowledge/extract', upload.single('file'), async (req: any, res: 
 
     if (!req.file) return res.status(400).json({ error: 'No file' });
 
-    const { mimetype, buffer } = req.file;
+    const { mimetype, buffer, originalname } = req.file;
 
     try {
         let text = '';
-        if (mimetype === 'application/pdf') text = (await pdf(buffer)).text;
-        else if (mimetype === 'text/plain') text = buffer.toString('utf-8');
-        else return res.status(400).json({ error: 'Unsupported file' });
+
+        // PDF
+        if (mimetype === 'application/pdf') {
+            text = (await pdf(buffer)).text;
+        }
+        // Text
+        else if (mimetype === 'text/plain') {
+            text = buffer.toString('utf-8');
+        }
+        // Word (DOCX)
+        else if (mimetype === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
+            const result = await mammoth.extractRawText({ buffer });
+            text = result.value;
+            if (result.messages.length > 0) {
+                console.log('Mammoth messages:', result.messages);
+            }
+        }
+        // Excel / CSV (XLSX, XLS, CSV)
+        else if (
+            mimetype === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
+            mimetype === 'application/vnd.ms-excel' ||
+            mimetype === 'text/csv' ||
+            originalname.endsWith('.xlsx') ||
+            originalname.endsWith('.xls') ||
+            originalname.endsWith('.csv')
+        ) {
+            const workbook = XLSX.read(buffer, { type: 'buffer' });
+            const sheetNames = workbook.SheetNames;
+
+            // Extract text from all sheets
+            sheetNames.forEach(name => {
+                const sheet = workbook.Sheets[name];
+                const csv = XLSX.utils.sheet_to_csv(sheet);
+                text += `\n--- Sheet: ${name} ---\n${csv}`;
+            });
+        }
+        else {
+            return res.status(400).json({ error: `Unsupported file type: ${mimetype}` });
+        }
 
         text = text.replace(/\s+/g, ' ').trim();
         if (!text) return res.status(400).json({ error: 'Empty text' });

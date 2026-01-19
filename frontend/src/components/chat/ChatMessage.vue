@@ -52,9 +52,23 @@ const formatTime = (timestamp) => {
                 />
             </div>
 
+            <!-- Documents (Outside Bubble) -->
+            <div v-if="message.files && message.files.length > 0" class="message-files outside">
+                <div v-for="(file, index) in message.files" :key="index" class="msg-file">
+                    <div class="file-icon">
+                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                            <polyline points="14 2 14 8 20 8"></polyline>
+                        </svg>
+                    </div>
+                    <span class="file-name" :title="file.name">{{ file.name }}</span>
+                </div>
+            </div>
+
             <div class="bubble user">
                 <p v-if="message.content">{{ message.content }}</p>
-                <p v-else class="empty-content">Sent an image</p>
+                <p v-else class="empty-content" v-if="!(message.images?.length > 0) && !(message.files?.length > 0)">Sent a file</p>
+                <p v-else style="display:none"></p><!-- Hide empty text if only files -->
             </div>
             <!-- Copy Button Below Bubble -->
             <div class="user-actions">
@@ -411,7 +425,39 @@ const formatTime = (timestamp) => {
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
+    margin-bottom: 4px;
+    justify-content: flex-end; /* Align right for user */
+}
+
+.message-files {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
     margin-bottom: 8px;
+    align-items: flex-end;
+}
+
+.msg-file {
+    display: flex;
+    align-items: center;
+    background: var(--color-bg-secondary);
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    padding: 8px 12px;
+    gap: 8px;
+    max-width: 200px;
+}
+
+.msg-file .file-icon {
+    color: var(--color-text-muted);
+}
+
+.msg-file .file-name {
+    font-size: 13px;
+    color: var(--color-text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .msg-image {

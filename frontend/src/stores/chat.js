@@ -77,9 +77,8 @@ export const useChatStore = defineStore('chat', () => {
     }
 
     // Send message with streaming
-    // Send message with streaming
-    async function sendMessage(content, modelId = null, images = []) {
-        if (!content.trim() && images.length === 0 && isStreaming.value) return
+    async function sendMessage(content, modelId = null, images = [], files = []) {
+        if ((!content.trim() && images.length === 0 && files.length === 0) || isStreaming.value) return
 
         // Lazy session creation: if no session, create one now
         if (!currentSessionId.value) {
@@ -95,6 +94,7 @@ export const useChatStore = defineStore('chat', () => {
             role: 'user',
             content: content.trim(),
             images: images,
+            files: files,
             timestamp: new Date()
         })
 
@@ -104,7 +104,7 @@ export const useChatStore = defineStore('chat', () => {
         const userMessages = messages.value.filter(m => m.role === 'user')
         if (userMessages.length === 1) {
             // Use the full content, let CSS handle truncation
-            const newTitle = content.trim()
+            const newTitle = content.trim() || 'New Chat'
 
             // Find existing session in the list
             const sessionIndex = sessions.value.findIndex(s => s.sessionId === currentSessionId.value)
@@ -153,7 +153,8 @@ export const useChatStore = defineStore('chat', () => {
                     sessionId: currentSessionId.value,
                     modelId: selectedModel,
                     collectionId: currentCollectionId.value,
-                    images: images
+                    images: images,
+                    files: files
                 })
             })
 
