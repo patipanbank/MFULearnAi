@@ -7,7 +7,7 @@ export interface IPromptVersion {
     content: string;
     variables: string[];
     changelog: string;
-    author: string; // User ID
+    createdBy: string; // User ID
     createdAt: Date;
     modelConfig?: {
         modelId: string;
@@ -42,7 +42,7 @@ const PromptVersionSchema = new Schema({
     content: { type: String, required: true },
     variables: [{ type: String }],
     changelog: { type: String },
-    author: { type: String },
+    createdBy: { type: String },
     createdAt: { type: Date, default: Date.now },
     modelConfig: {
         modelId: String,
