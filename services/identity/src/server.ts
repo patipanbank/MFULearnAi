@@ -76,7 +76,7 @@ const authenticateUser = (req: any, res: Response, next: any) => {
 // Receives standardized user profile, returns JWT
 app.post('/internal/login', authenticateInternal, async (req: Request, res: Response) => {
     const {
-        nameID, username, email, firstName, lastName, department, role, groups, googleId
+        nameID, username, email, firstName, lastName, department, role, groups, googleId, picture
     } = req.body;
 
     // console.log(`[Identity] Processing internal login for ${email}`);
@@ -102,6 +102,7 @@ app.post('/internal/login', authenticateInternal, async (req: Request, res: Resp
         if (groups) updateData.groups = groups;
         if (googleId) updateData.googleId = googleId;
         if (nameID) updateData.nameID = nameID;
+        if (picture) updateData.picture = picture; // Save Google/SSO Picture
 
         // Only update role if it's currently generic 'student' or we are authoritative (SSO usually authoritative)
         // For now, let's respect the passed role

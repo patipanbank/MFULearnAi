@@ -14,6 +14,7 @@ export interface UserDocument extends Document {
     role: UserRole;
     groups: string[];
     googleId?: string;
+    picture?: string;
     password?: string;
     lastLogin?: Date;
     loginCount?: number;
@@ -38,6 +39,7 @@ const UserSchema: Schema = new Schema({
     },
     groups: [{ type: String }],
     googleId: { type: String },
+    picture: { type: String }, // User Profile Picture
     password: { type: String },
     lastLogin: { type: Date },
     loginCount: { type: Number, default: 0 },
