@@ -874,7 +874,7 @@ onMounted(() => fetchPrompts());
 .form-select:focus { border-color: var(--color-accent); }
 
 /* Mobile/Tablet Responsiveness */
-@media (max-width: 1024px) {
+@media (max-width: 1023px) {
     .page-container {
         padding: 16px;
     }
