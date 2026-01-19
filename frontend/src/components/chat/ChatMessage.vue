@@ -5,6 +5,7 @@ import { ref } from 'vue'
 const props = defineProps({
   message: { type: Object, required: true },
   userInitial: { type: String, default: 'U' },
+  userAvatarUrl: { type: String, default: '' },
   t: { type: Function, required: true }
 })
 
@@ -32,18 +33,28 @@ const formatTime = (timestamp) => {
   <div class="message-wrapper" :class="message.role">
     <!-- USER: Bubble style -->
     <template v-if="message.role === 'user'">
-      <div class="user-bubble-container">
-        <div class="bubble user">
-          <p>{{ message.content }}</p>
-          <button class="copy-btn-user" @click="handleCopy" :class="{ copied }">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <rect v-if="!copied" x="9" y="9" width="13" height="13" rx="2"/>
-              <path v-if="!copied" d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
-              <polyline v-else points="20 6 9 17 4 12"/>
-            </svg>
-          </button>
+      <div class="user-row">
+        <div class="content-stack">
+            <div class="bubble user">
+                <p>{{ message.content }}</p>
+            </div>
+            <!-- Copy Button Below Bubble -->
+            <div class="user-actions">
+                <button class="btn-icon-copy fade-hover" @click="handleCopy" :class="{ copied }" :title="t('copy')">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect v-if="!copied" x="9" y="9" width="13" height="13" rx="2"/>
+                    <path v-if="!copied" d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                    <polyline v-else points="20 6 9 17 4 12"/>
+                    </svg>
+                </button>
+            </div>
         </div>
-        <div class="avatar-circle user">{{ userInitial }}</div>
+
+        <!-- Avatar -->
+        <div class="avatar-circle user">
+             <img v-if="userAvatarUrl" :src="userAvatarUrl" class="avatar-img" alt="User" referrerpolicy="no-referrer" />
+             <span v-else>{{ userInitial }}</span>
+        </div>
       </div>
     </template>
     
@@ -71,14 +82,14 @@ const formatTime = (timestamp) => {
             <span class="text">{{ t('thinking') }}</span>
           </div>
           
+          <!-- AI Actions (Copy Button icon only) -->
           <div class="actions" v-if="message.content">
-            <button class="btn-copy" @click="handleCopy" :class="{ copied }">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <button class="btn-icon-copy" @click="handleCopy" :class="{ copied }" :title="t('copy')">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <rect v-if="!copied" x="9" y="9" width="13" height="13" rx="2"/>
                 <path v-if="!copied" d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
                 <polyline v-else points="20 6 9 17 4 12"/>
               </svg>
-              <span>{{ copied ? t('copied') : t('copy') }}</span>
             </button>
           </div>
         </div>
@@ -103,6 +114,7 @@ const formatTime = (timestamp) => {
   font-size: 14px;
   flex-shrink: 0;
   font-weight: 600;
+  overflow: hidden;
 }
 
 .avatar-circle.user {
@@ -113,8 +125,7 @@ const formatTime = (timestamp) => {
 .avatar-circle.assistant {
   background: var(--color-bg-secondary);
   border: 1px solid var(--color-border);
-  padding: 2px; /* Add little padding */
-  overflow: hidden; /* Clip image */
+  padding: 2px;
 }
 
 .avatar-img {
@@ -125,25 +136,29 @@ const formatTime = (timestamp) => {
 }
 
 /* === USER STYLES === */
-.user-bubble-container {
+.user-row {
   display: flex;
-  align-items: flex-end;
   justify-content: flex-end;
   gap: 12px;
   padding-left: 20%;
 }
 
+.content-stack {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end; /* Align bubble and copy button to right */
+    gap: 4px;
+    max-width: 100%; /* Ensure it takes space but respects parent flex */
+}
+
 .bubble.user {
-  background: var(--color-bg-secondary); /* Restored to generic variable for theme adaptation */
+  background: var(--color-bg-secondary); 
   color: var(--color-text-primary);
   padding: 12px 18px;
   border-radius: 18px;
   border-bottom-right-radius: 4px;
-  position: relative;
   box-shadow: var(--shadow-sm);
-  display: flex; /* Allow button positioning */
-  gap: 8px;
-  align-items: center;
+  /* removed flex/gap since button moved out */
 }
 
 .bubble.user p {
@@ -153,35 +168,20 @@ const formatTime = (timestamp) => {
   white-space: pre-wrap;
 }
 
-/* Copy Button for User - Fade in on hover */
-.copy-btn-user {
-  opacity: 0;
-  background: transparent;
-  border: none;
-  color: var(--color-text-muted);
-  cursor: pointer;
-  padding: 4px;
-  display: flex;
-  align-items: center;
-  transition: opacity 0.2s ease, color 0.2s ease;
-}
-
-.bubble.user:hover .copy-btn-user {
-  opacity: 1;
-}
-
-.copy-btn-user:hover {
-  color: var(--color-primary);
+.user-actions {
+    height: 24px; /* fixed height to prevent jumping */
+    display: flex;
+    align-items: center;
 }
 
 @media (max-width: 768px) {
-    .user-bubble-container {
-        padding-left: 10%; /* More details on mobile */
+    .user-row {
+        padding-left: 10%; 
     }
     
     .bubble.user {
         padding: 10px 14px;
-        font-size: 14px; /* Slightly smaller text */
+        font-size: 14px; 
     }
 }
 
@@ -229,7 +229,7 @@ const formatTime = (timestamp) => {
   color: var(--color-text-primary);
 }
 
-/* Typing Indicator (Embedded) */
+/* Typing Indicator */
 .typing-indicator {
   display: flex;
   align-items: center;
@@ -264,30 +264,41 @@ const formatTime = (timestamp) => {
 }
 
 .actions {
-  margin-top: 12px;
+  margin-top: 8px;
+  display: flex;
 }
 
-.btn-copy {
+/* === SHARED BUTTON STYLES === */
+.btn-icon-copy {
+  background: transparent;
+  border: none;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  padding: 4px;
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 10px;
-  background: transparent;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  color: var(--color-text-muted);
-  font-size: 12px;
-  cursor: pointer;
-  transition: all 0.2s;
+  justify-content: center;
+  border-radius: 4px;
+  transition: all 0.2s ease;
 }
 
-.btn-copy:hover {
+.btn-icon-copy:hover {
+  color: var(--color-primary);
   background: var(--color-bg-tertiary);
-  color: var(--color-text-secondary);
 }
 
-.btn-copy.copied {
+.btn-icon-copy.copied {
   color: var(--color-success);
-  border-color: var(--color-success);
 }
+
+/* Fade Hover Effect for User Actions */
+.fade-hover {
+    opacity: 0;
+    transition: opacity 0.2s ease, color 0.2s ease, background 0.2s ease;
+}
+
+.user-row:hover .fade-hover {
+    opacity: 1;
+}
+
 </style>

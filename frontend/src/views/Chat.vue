@@ -123,6 +123,7 @@ const handleCopyMessage = (content) => {
               :key="idx"
               :message="msg"
               :user-initial="userInitial"
+              :user-avatar-url="authStore.profilePicture"
               :t="t"
               @copy="handleCopyMessage"
             />
