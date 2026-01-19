@@ -5,7 +5,7 @@
         <h1>Users</h1>
         <p class="subtitle">Manage all user accounts and roles.</p>
       </div>
-      <button class="btn-primary" @click="openCreateModal">
+      <button v-if="isSuperAdmin" class="btn-primary" @click="openCreateModal">
         <span class="icon">+</span> Create User
       </button>
     </div>
@@ -80,28 +80,28 @@
              <div v-if="!isEditing" class="form-group-row">
                  <div class="form-group flex-1">
                      <label>Username</label>
-                     <input v-model="form.username" type="text" placeholder="username">
+                     <input v-model="form.username" type="text" placeholder="username" :disabled="!isSuperAdmin">
                  </div>
                  <div class="form-group flex-1">
                      <label>Password</label>
-                     <input v-model="form.password" type="password" placeholder="••••••">
+                     <input v-model="form.password" type="password" placeholder="••••••" :disabled="!isSuperAdmin">
                  </div>
              </div>
 
              <div v-if="!isEditing" class="form-group-row">
                  <div class="form-group flex-1">
                      <label>First Name</label>
-                     <input v-model="form.firstName" type="text">
+                     <input v-model="form.firstName" type="text" :disabled="!isSuperAdmin">
                  </div>
                  <div class="form-group flex-1">
                      <label>Last Name</label>
-                     <input v-model="form.lastName" type="text">
+                     <input v-model="form.lastName" type="text" :disabled="!isSuperAdmin">
                  </div>
              </div>
 
              <div class="form-group">
                  <label>Role</label>
-                 <select v-model="form.role">
+                 <select v-model="form.role" :disabled="!isSuperAdmin">
                      <option value="" disabled>Select Role</option>
                      <option value="student">Student</option>
                      <option value="teacher">Teacher</option>
@@ -112,7 +112,7 @@
 
              <div class="form-group">
                  <label>Department</label>
-                 <select v-model="form.department">
+                 <select v-model="form.department" :disabled="!isSuperAdmin">
                      <option value="" disabled>Select Department</option>
                      <option v-for="dept in departments" :key="dept._id" :value="dept.name">
                          {{ dept.name }}
@@ -122,7 +122,7 @@
 
              <div class="form-group checkbox-group">
                  <label>
-                     <input type="checkbox" v-model="form.isActive">
+                     <input type="checkbox" v-model="form.isActive" :disabled="!isSuperAdmin">
                      Account Active
                  </label>
              </div>
@@ -130,10 +130,10 @@
              <div v-if="error" class="error">{{ error }}</div>
 
              <div class="actions">
-                 <button v-if="isEditing" class="btn-delete" @click="handleDelete(form._id)">Delete User</button>
+                 <button v-if="isEditing && isSuperAdmin" class="btn-delete" @click="handleDelete(form._id)">Delete User</button>
                  <div class="spacer"></div>
-                 <button class="btn-cancel" @click="closeModal">Cancel</button>
-                 <button class="btn-primary" @click="handleSubmit" :disabled="submitting || (!isEditing && !form.username)">
+                 <button class="btn-cancel" @click="closeModal">{{ isSuperAdmin ? 'Cancel' : 'Close' }}</button>
+                 <button v-if="isSuperAdmin" class="btn-primary" @click="handleSubmit" :disabled="submitting || (!isEditing && !form.username)">
                      {{ submitting ? 'Saving...' : 'Save' }}
                  </button>
              </div>
@@ -147,6 +147,10 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import api from '../../utils/api';
+import { useAuthStore } from '../../stores/auth';
+
+const authStore = useAuthStore();
+const isSuperAdmin = computed(() => authStore.role === 'superadmin');
 
 const users = ref([]);
 const departments = ref([]);
