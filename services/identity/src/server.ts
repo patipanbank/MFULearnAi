@@ -82,18 +82,19 @@ app.post('/internal/login', authenticateInternal, async (req: Request, res: Resp
     // console.log(`[Identity] Processing internal login for ${email}`);
 
     try {
-        // Find or Update
-        const query = nameID ? { nameID } : { email }; // Fallback for Google which might use email as key initially
+        // Check if user exists to enforce isActive check
+        let user = await User.findOne(query);
 
-        // Map groups to role if not explicitly provided (Logic simplified from original)
-        let finalRole: UserRole = role || 'student';
+        if (user && user.isActive === false) {
+            console.log(`[Identity] Blocked login for inactive user: ${email}`);
+            return res.status(403).json({ error: 'Account is disabled' });
+        }
 
         const updateData: any = {
             username: username || email.split('@')[0],
             email,
             firstName,
             lastName,
-            isActive: true,
             lastLogin: new Date(),
             $inc: { loginCount: 1 }
         };
@@ -102,35 +103,26 @@ app.post('/internal/login', authenticateInternal, async (req: Request, res: Resp
         if (groups) updateData.groups = groups;
         if (googleId) updateData.googleId = googleId;
         if (nameID) updateData.nameID = nameID;
-        if (picture) updateData.picture = picture; // Save Google/SSO Picture
+        if (picture) updateData.picture = picture;
 
-        // Only update role if it's currently generic 'student' or we are authoritative (SSO usually authoritative)
-        // For now, let's respect the passed role
-        updateData.role = finalRole;
+        // If user doesn't exist, set defaults. If exists, do NOT overwrite meaningful fields (Role)
+        if (!user) {
+            updateData.role = finalRole;
+            updateData.isActive = true;
+        }
 
-        // Auto-Create Department if provided
         // Auto-Create Department if provided
         if (department) {
             console.log(`[Identity] ensuring department exists: ${department}`);
-            // Use UPPERCASE_UNDERSCORE for code to ensure uniqueness and standard format
             const deptCode = department.trim().toUpperCase().replace(/\s+/g, '_');
-
             await Department.findOneAndUpdate(
                 { code: deptCode },
-                {
-                    code: deptCode,
-                    name: department
-                },
+                { code: deptCode, name: department },
                 { upsert: true, new: true, setDefaultsOnInsert: true }
-            )
-                .then(d => console.log(`[Identity] Department synced: ${d.code}`))
-                .catch(err => console.error(`[Identity] Department sync error: ${err.message}`));
-
-            // Optional: Store the standardized name or code in the user? 
-            // For now, keeping the original input 'department' string for user display as requested.
+            ).catch(err => console.error(`[Identity] Department sync error: ${err.message}`));
         }
 
-        const user = await User.findOneAndUpdate(
+        user = await User.findOneAndUpdate(
             query,
             updateData,
             { upsert: true, new: true, setDefaultsOnInsert: true }

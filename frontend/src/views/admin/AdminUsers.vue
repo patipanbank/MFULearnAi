@@ -5,7 +5,9 @@
         <h1>Users</h1>
         <p class="subtitle">Manage all user accounts and roles.</p>
       </div>
-      <div><!-- Spacer --></div>
+      <button class="btn-primary" @click="openCreateModal">
+        <span class="icon">+</span> Create User
+      </button>
     </div>
 
     <!-- Filters -->
@@ -52,7 +54,7 @@
              <td>
                 <span class="badge" :class="getRoleBadge(user.role)">{{ user.role }}</span>
              </td>
-             <td class="text-muted">{{ user.department || '-' }}</td>
+             <td class="text-secondary">{{ user.department || '-' }}</td>
              <td>
                 <span class="status-indicator" :class="{ 'active': user.isActive, 'inactive': !user.isActive }">
                     {{ user.isActive ? 'Active' : 'Inactive' }}
@@ -64,20 +66,43 @@
       </table>
     </div>
 
-    <!-- Edit User Modal -->
+    <!-- Edit/Create User Modal -->
     <Teleport to="body">
        <div v-if="showModal" class="modal-overlay" @click.self="closeModal">
           <div class="knowledge-modal">
-             <h2>Edit User</h2>
+             <h2>{{ isEditing ? 'Edit User' : 'Create User' }}</h2>
              
-             <div class="user-summary mb-4 p-3 bg-gray-800 rounded">
+             <div v-if="isEditing" class="user-summary mb-4 p-3 bg-gray-800 rounded">
                  <div class="font-bold">{{ form.firstName }} {{ form.lastName }}</div>
                  <div class="text-xs text-gray-400">{{ form.username }}</div>
+             </div>
+
+             <div v-if="!isEditing" class="form-group-row">
+                 <div class="form-group flex-1">
+                     <label>Username</label>
+                     <input v-model="form.username" type="text" placeholder="username">
+                 </div>
+                 <div class="form-group flex-1">
+                     <label>Password</label>
+                     <input v-model="form.password" type="password" placeholder="••••••">
+                 </div>
+             </div>
+
+             <div v-if="!isEditing" class="form-group-row">
+                 <div class="form-group flex-1">
+                     <label>First Name</label>
+                     <input v-model="form.firstName" type="text">
+                 </div>
+                 <div class="form-group flex-1">
+                     <label>Last Name</label>
+                     <input v-model="form.lastName" type="text">
+                 </div>
              </div>
 
              <div class="form-group">
                  <label>Role</label>
                  <select v-model="form.role">
+                     <option value="" disabled>Select Role</option>
                      <option value="student">Student</option>
                      <option value="teacher">Teacher</option>
                      <option value="admin">Admin</option>
@@ -87,7 +112,12 @@
 
              <div class="form-group">
                  <label>Department</label>
-                 <input v-model="form.department" type="text" placeholder="Department">
+                 <select v-model="form.department">
+                     <option value="" disabled>Select Department</option>
+                     <option v-for="dept in departments" :key="dept._id" :value="dept.name">
+                         {{ dept.name }}
+                     </option>
+                 </select>
              </div>
 
              <div class="form-group checkbox-group">
@@ -100,10 +130,10 @@
              <div v-if="error" class="error">{{ error }}</div>
 
              <div class="actions">
-                 <button class="btn-delete" @click="handleDelete(form._id)">Delete User</button>
+                 <button v-if="isEditing" class="btn-delete" @click="handleDelete(form._id)">Delete User</button>
                  <div class="spacer"></div>
                  <button class="btn-cancel" @click="closeModal">Cancel</button>
-                 <button class="btn-primary" @click="handleSubmit" :disabled="submitting">
+                 <button class="btn-primary" @click="handleSubmit" :disabled="submitting || (!isEditing && !form.username)">
                      {{ submitting ? 'Saving...' : 'Save' }}
                  </button>
              </div>
@@ -119,15 +149,18 @@ import { ref, computed, onMounted } from 'vue';
 import api from '../../utils/api';
 
 const users = ref([]);
+const departments = ref([]);
 const loading = ref(false);
 const filterRole = ref('all');
 const showModal = ref(false);
 const submitting = ref(false);
 const error = ref(null);
+const isEditing = ref(false);
 
 const form = ref({
     _id: null,
     username: '',
+    password: '',
     firstName: '',
     lastName: '',
     role: '',
@@ -157,7 +190,6 @@ const getRoleBadge = (role) => {
 const fetchUsers = async () => {
     loading.value = true;
     try {
-        // Use generic users endpoint
         const response = await api.get('/users');
         users.value = response.data.users || [];
     } catch (err) {
@@ -167,7 +199,33 @@ const fetchUsers = async () => {
     }
 };
 
+const fetchDepartments = async () => {
+    try {
+        const response = await api.get('/departments');
+        departments.value = response.data.departments || [];
+    } catch (err) {
+        console.error('Failed to fetch departments:', err);
+    }
+};
+
+const openCreateModal = () => {
+    isEditing.value = false;
+    form.value = {
+        _id: null,
+        username: '',
+        password: '',
+        firstName: '',
+        lastName: '',
+        role: 'student', // Default
+        department: '',
+        isActive: true
+    };
+    error.value = null;
+    showModal.value = true;
+};
+
 const openEditModal = (user) => {
+    isEditing.value = true;
     form.value = { ...user };
     error.value = null;
     showModal.value = true;
@@ -182,11 +240,23 @@ const handleSubmit = async () => {
     error.value = null;
 
     try {
-        await api.put(`/users/${form.value._id}`, {
-            role: form.value.role,
-            department: form.value.department,
-            isActive: form.value.isActive
-        });
+        if (isEditing.value) {
+            await api.put(`/users/${form.value._id}`, {
+                role: form.value.role,
+                department: form.value.department,
+                isActive: form.value.isActive
+            });
+        } else {
+            await api.post('/users', {
+                username: form.value.username,
+                password: form.value.password,
+                firstName: form.value.firstName,
+                lastName: form.value.lastName,
+                role: form.value.role,
+                department: form.value.department,
+                isActive: form.value.isActive
+            });
+        }
         await fetchUsers();
         closeModal();
     } catch (err) {
@@ -210,6 +280,7 @@ const handleDelete = async (id) => {
 
 onMounted(() => {
     fetchUsers();
+    fetchDepartments();
 });
 </script>
 
@@ -349,6 +420,7 @@ onMounted(() => {
 
 .font-medium { font-weight: 500; }
 .text-muted { color: var(--color-text-muted, #9ca3af); font-size: 13px; }
+.text-secondary { color: var(--color-text-secondary, #e5e7eb); font-size: 13px; } /* Lighter gray */
 .text-date { color: var(--color-text-secondary, #d1d5db); font-size: 13px; }
 
 .user-cell {
@@ -444,5 +516,12 @@ onMounted(() => {
     margin-top: 24px;
 }
 
+.form-group-row {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.form-group-row .form-group { margin-bottom: 0; }
+.flex-1 { flex: 1; }
 .spacer { flex: 1; }
 </style>
