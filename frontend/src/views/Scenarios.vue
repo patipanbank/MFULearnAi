@@ -28,47 +28,46 @@
                 <div class="flex bg-gray-900 rounded p-1 gap-1">
                     <button 
                         @click="viewTab = 'my'"
-                        class="flex-1 text-xs py-1 rounded text-center transition-colors"
-                        :class="viewTab === 'my' ? 'bg-gray-700 text-white font-medium' : 'text-gray-500 hover:text-gray-300'"
+                        class="flex-1 text-xs py-1 rounded text-center transition-colors bg-gray-700 text-white font-medium"
                     >
                         My Personas
-                    </button>
-                    <button 
-                        @click="viewTab = 'public'"
-                        class="flex-1 text-xs py-1 rounded text-center transition-colors"
-                        :class="viewTab === 'public' ? 'bg-gray-700 text-white font-medium' : 'text-gray-500 hover:text-gray-300'"
-                    >
-                        System
                     </button>
                 </div>
            </div>
         </div>
-        <div class="prompt-list">
-            <div v-if="loading && filteredScenarios.length === 0" class="p-4 text-center text-muted">Loading...</div>
-            <div v-else-if="filteredScenarios.length === 0" class="p-4 text-center text-muted">No personas found.</div>
-            
+        <div class="dashboard-content">
+        <div v-if="loading" class="text-muted p-4">Loading...</div>
+        
+        <!-- My Personas Grid (Default & Only View) -->
+        <div class="grid-layout fade-in">
+             <div v-if="myScenarios.length === 0 && !loading" class="empty-card" @click="openCreateModal">
+                <div class="plus-icon">+</div>
+                <p>Create your first custom persona</p>
+            </div>
             <div 
-              v-for="prompt in filteredScenarios" 
-              :key="prompt._id"
-              @click="selectPrompt(prompt)"
-              class="prompt-item"
+              v-for="item in myScenarios" 
+              :key="item._id" 
+              class="scenario-card"
               :class="{ 
-                'active': selectedPrompt?._id === prompt._id,
-                'is-active-scenario': isActiveScenario(prompt._id)
+                'active': selectedPrompt?._id === item._id, 
+                'is-active-scenario': isActiveScenario(item._id) 
               }"
+              @click="selectPrompt(item)"
             >
-              <div class="prompt-header">
-                <span class="prompt-name">{{ prompt.name }}</span>
-                <span v-if="prompt.isPublic" class="badge badge-public">SYSTEM</span>
-                <span v-if="isActiveScenario(prompt._id)" class="badge badge-active-scenario">IN USE</span>
-              </div>
-              <div class="prompt-desc">{{ prompt.description }}</div>
-              <div class="prompt-meta">
-                 <span>v{{ prompt.activeVersion }}</span>
-                 <span>{{ formatDate(prompt.updatedAt) }}</span>
-              </div>
+                <div class="card-header">
+                    <div class="card-icon">{{ item.name.charAt(0).toUpperCase() }}</div>
+                    <div class="card-meta">
+                        <h3>{{ item.name }}</h3>
+                        <span class="version-tag">v{{ item.activeVersion }}</span>
+                    </div>
+                </div>
+                <p class="card-desc">{{ item.description }}</p>
+                <div class="card-footer">
+                    <span v-if="isActiveScenario(item._id)" class="badge-active-inline">Active</span>
+                </div>
             </div>
         </div>
+    </div>
       </div>
 
       <!-- Editor Area -->
@@ -839,5 +838,7 @@ onMounted(() => fetchPrompts());
 .btn-icon-sm:hover { color: white; }
 .spin { animation: spin 1s linear infinite; }
 @keyframes spin { 100% { transform: rotate(360deg); } }
+
+.badge-active-inline { display: inline-block; background: rgba(16, 185, 129, 0.1); color: #34d399; font-size: 10px; padding: 2px 6px; border-radius: 4px; font-weight: 700; text-transform: uppercase; float: right; }
 
 </style>

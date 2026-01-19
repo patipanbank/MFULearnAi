@@ -176,29 +176,24 @@ const getCoreSystemPrompt = async (envType: 'TEST' | 'PROD'): Promise<string> =>
     if (cached) return cached;
 
     // 2. Try DB (Find active core prompt for this env)
-    // We assume tags contain 'PROD' or 'TEST' or key contains it
-    // For simplicity, let's stick to the convention: key must be DINDINAI_PROD or MFULEARNAI_TEST to be auto-picked
-    // OR we allow setting one active core prompt globally per type.
-
-    // Better strategy: Find active prompt with type='core' and tag=envType
-    // But currently data migration might be empty.
-
-    // Fallback Keys
-    const fallbackKey = envType === 'PROD' ? 'DINDINAI_SYSTEM_PROMPT' : 'MFULEARNAI_SYSTEM_PROMPT';
-
+    // STRICT LOGIC: Must be type 'core', isActive=true.
+    // We prioritize based on tags matching the ENV_TYPE.
     const promptDoc = await Prompt.findOne({
         type: 'core',
         isActive: true,
-        $or: [{ key: fallbackKey }, { tags: envType }]
+        tags: envType // Strict Tag Matching: The prompt MUST be tagged 'PROD' or 'TEST' to be used in that env.
     });
 
     if (promptDoc) {
+        console.log(`[Orchestrator] Using DB Core Prompt: ${promptDoc.name} (${promptDoc.key})`);
         const content = promptDoc.versions.find(v => v.version === promptDoc.activeVersion)?.content || promptDoc.versions[0]?.content || '';
-        await redis.set(cacheKey, content, 'EX', 300); // 5 min cache
+        await redis.set(cacheKey, content, 'EX', 300);
         return content;
     }
 
-    // 3. Fallback to File
+    // 3. Fallback (Only if absolutely no DB prompt exists)
+    // We log a warning because this should not happen in a configured system.
+    console.warn(`[Orchestrator] WARNING: No active DB Core Prompt found for ${envType}. Using hardcoded fallback.`);
     return getSystemPrompt(envType);
 };
 
@@ -207,11 +202,13 @@ const getScenarioPrompt = async (scenarioId: string, userId: string): Promise<st
     const cached = await redis.get(cacheKey);
     if (cached) return cached;
 
-    const prompt = await Prompt.findOne({ _id: scenarioId }); // Assuming ID is passed, or Key
-    if (!prompt) return '';
+    // STRICT OWNER LOGIC: Only fetch if ownerId matches. Public/System "System Personas" are removed.
+    const prompt = await Prompt.findOne({ _id: scenarioId, ownerId: userId });
 
-    // Access Check (Public or Owner)
-    if (!prompt.isPublic && prompt.ownerId !== userId) return '';
+    if (!prompt) {
+        console.warn(`[Orchestrator] Scenario ${scenarioId} not found or access denied for user ${userId}`);
+        return '';
+    }
 
     const content = prompt.versions.find(v => v.version === prompt.activeVersion)?.content || '';
     if (content) {
