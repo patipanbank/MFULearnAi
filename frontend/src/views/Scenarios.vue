@@ -2,9 +2,12 @@
   <div class="page-container">
     <div class="page-header">
       <div class="header-left">
-        
+        <!-- Mobile Toggle -->
+        <button v-if="selectedPrompt && isMobile" @click="selectedPrompt = null" class="btn-icon-sm mr-2 md:hidden">
+            <i class="fas fa-arrow-left"></i>
+        </button>
         <h1>{{ t('myPersonas') }}</h1>
-        <p class="subtitle">{{ t('knowledgeSubtitle') }}</p> <!-- Reusing generic subtitle or create specific 'personaSubtitle' -->
+        <p class="subtitle">{{ t('knowledgeSubtitle') }}</p>
       </div>
       
       <div class="header-actions">
@@ -15,91 +18,70 @@
     </div>
 
     <div class="content-wrapper">
-      <!-- Sidebar List (Horizontal Top on Mobile) -->
-      <div class="sidebar">
+      <!-- Sidebar List -->
+      <div class="sidebar" :class="{ 'hidden-mobile': selectedPrompt && isMobile }">
         <div class="sidebar-header">
-           <div class="flex flex-col gap-3">
-                <div class="flex justify-between items-center">
-                    <h2>{{ t('myPersonas') }}</h2>
-                    <button @click="refreshPrompts" class="btn-icon-sm" :title="t('refresh')">
-                        <i class="fas fa-sync" :class="{ 'spin': loading }"></i>
-                    </button>
-                </div>
-                <!-- Tabs -->
-                <div class="flex tabs-container rounded p-1 gap-1">
-                    <button 
-                        @click="viewTab = 'my'"
-                        class="flex-1 text-xs py-1 rounded text-center transition-colors tab-active font-medium"
-                    >
-                        {{ t('myPersonas') }}
-                    </button>
-                </div>
+           <div class="flex justify-between items-center">
+                <h2>{{ t('myPersonas') }}</h2>
+                <button @click="refreshPrompts" class="btn-icon-sm" :title="t('refresh')">
+                    <i class="fas fa-sync" :class="{ 'spin': loading }"></i>
+                </button>
            </div>
         </div>
-        <div class="dashboard-content">
-        <div v-if="loading" class="text-muted p-4">{{ t('loading') || 'Loading...' }}</div>
-        
-        <!-- My Personas Grid -->
-        <div class="grid-layout fade-in">
-             <div v-if="myScenarios.length === 0 && !loading" class="empty-card" @click="openCreateModal">
-                <div class="plus-icon">+</div>
-                <p>{{ t('createPersona') }}</p>
-            </div>
+        <div class="prompt-list">
+            <div v-if="loading && prompts.length === 0" class="p-4 text-center text-muted">{{ t('loading') || 'Loading...' }}</div>
+            <div v-else-if="prompts.length === 0" class="p-4 text-center text-muted">{{ t('noPersonas') || 'No personas found.' }}</div>
+            
             <div 
-              v-for="item in myScenarios" 
-              :key="item._id" 
-              class="scenario-card"
-              :class="{ 
-                'active': selectedPrompt?._id === item._id, 
-                'is-active-scenario': isActiveScenario(item._id) 
-              }"
-              @click="selectPrompt(item)"
+              v-for="prompt in myScenarios" 
+              :key="prompt._id"
+              @click="selectPrompt(prompt)"
+              class="prompt-item"
+              :class="{ 'active': selectedPrompt?._id === prompt._id, 'is-active-core': isActiveScenario(prompt._id) }"
             >
-                <div class="card-header">
-                    <div class="card-icon">{{ item.name.charAt(0).toUpperCase() }}</div>
-                    <div class="card-meta">
-                        <h3>{{ item.name }}</h3>
-                        <span class="version-tag">v{{ item.activeVersion }}</span>
-                    </div>
-                </div>
-                <p class="card-desc">{{ item.description }}</p>
-                <div class="card-footer">
-                    <span v-if="isActiveScenario(item._id)" class="badge-active-inline">{{ t('isActive') }}</span>
-                </div>
+              <div class="prompt-header">
+                <span class="prompt-name">{{ prompt.name }}</span>
+                <span v-if="isActiveScenario(prompt._id)" class="badge badge-active">{{ t('isActive') }}</span>
+              </div>
+              <div class="prompt-key">{{ prompt.key }}</div> 
+              <div class="prompt-meta">
+                 <span>v{{ prompt.activeVersion }}</span>
+                 <span>{{ formatDate(prompt.updatedAt) }}</span>
+              </div>
             </div>
         </div>
-    </div>
       </div>
 
       <!-- Editor Area -->
-      <div class="editor-container">
+      <div class="editor-container" :class="{ 'visible-mobile': selectedPrompt && isMobile, 'hidden-mobile': !selectedPrompt && isMobile }">
         <div v-if="selectedPrompt" class="editor-content">
             <!-- Toolbar -->
             <div class="editor-toolbar">
                 <div class="toolbar-info">
                     <span class="toolbar-title">{{ selectedPrompt.name }}</span>
-                    <span class="toolbar-key">{{ selectedPrompt.key }}</span>
+                    <!-- <span class="toolbar-key">{{ selectedPrompt.key }}</span> -->
                     <span v-if="selectedPrompt.isPublic" class="badge badge-public ml-2">{{ t('public') }}</span>
-                    <span v-if="isActiveScenario(selectedPrompt._id)" class="badge badge-active-scenario ml-2">{{ t('isActive') }}</span>
+                    <span v-if="isActiveScenario(selectedPrompt._id)" class="badge badge-active ml-2">{{ t('isActive') }}</span>
                 </div>
                 <div class="toolbar-actions">
-                    <button @click="openPlayground" class="btn-secondary">
+                     <button @click="openPlayground" class="btn-secondary">
                         <i class="fas fa-play mr-2"></i><span class="hidden sm:inline">{{ t('playground') }}</span>
                     </button>
 
                     <button 
                         v-if="!isActiveScenario(selectedPrompt._id)"
-                        @click="activateScenario" 
-                        class="btn-primary-outline text-green-400 border-green-800 hover:bg-green-900/30"
+                        @click="activateScenario"
+                        class="btn-secondary text-green-400 border-green-800 hover:bg-green-900"
                     >
-                         <i class="fas fa-check mr-2"></i><span class="hidden sm:inline">{{ t('activate') }}</span>
+                        <i class="fas fa-check mr-2"></i>{{ t('activate') }}
                     </button>
+
                     <button 
                         v-else
-                        @click="deactivateScenario" 
-                        class="btn-secondary text-yellow-500 border-yellow-800 hover:bg-yellow-900/30"
+                        @click="deactivateScenario"
+                        class="btn-secondary text-yellow-500 border-yellow-800 hover:bg-yellow-900"
                     >
-                         <i class="fas fa-times mr-2"></i><span class="hidden sm:inline">{{ t('deactivate') }}</span>
+                         <i class="fas fa-times mr-2"></i>{{ t('deactivate') }}
                     </button>
                     
                     <button 
@@ -108,13 +90,13 @@
                         :disabled="!hasChanges || saving"
                         class="btn-primary"
                     >
-                        {{ saving ? t('saving') || 'Saving...' : t('saveVersion') }}
+                        {{ saving ? t('saving') || '...' : t('saveVersion') }}
                     </button>
 
                     <button 
                          v-if="canEdit(selectedPrompt)"
                          @click="deleteScenario"
-                         class="btn-icon-danger"
+                         class="btn-icon-danger ml-2"
                          :title="t('delete')"
                     >
                         <i class="fas fa-trash"></i>
@@ -122,11 +104,11 @@
                 </div>
             </div>
 
-            <!-- Meta Inputs (Description) -->
-            <!-- Meta Inputs (Description) -->
-             <div class="p-3 bg-tertiary border-b border-color flex flex-col gap-2">
-                <div class="flex gap-2">
-                     <span class="text-xs text-muted w-20 pt-2 uppercase font-bold tracking-wider">{{ t('description') }}</span>
+            <!-- Version/Changelog Inputs -->
+            <div class="p-3 bg-tertiary border-b border-color flex flex-col gap-2">
+                 <!-- Description Edit -->
+                <div class="flex gap-2 items-center">
+                     <span class="text-xs text-muted w-24 pt-1 uppercase font-bold tracking-wider">{{ t('description') }}</span>
                      <input 
                         v-if="canEdit(selectedPrompt)"
                         v-model="editDescription" 
@@ -134,6 +116,11 @@
                         :placeholder="t('description')"
                     />
                     <div v-else class="flex-1 text-sm py-1 px-2 text-primary">{{ selectedPrompt.description }}</div>
+                </div>
+                <!-- Changelog (Only shows if content changed) -->
+                <div v-if="hasChanges" class="flex gap-2 items-center">
+                    <span class="text-xs text-muted w-24 pt-1 uppercase font-bold tracking-wider">{{ t('changelog') }}</span>
+                    <input v-model="changeLog" :placeholder="t('changeLogPlaceholder') || 'Describe changes...'" class="form-input flex-1 h-8 text-sm" />
                 </div>
             </div>
 
@@ -152,7 +139,7 @@
 
             <!-- Empty State -->
         <div v-else class="empty-state">
-            <i class="fas fa-robot text-6xl text-gray-700 mb-4"></i>
+             <i class="fas fa-robot text-6xl text-muted mb-4 opacity-50"></i>
             <p>{{ t('searchPersonas') }}</p>
         </div>
       </div>
@@ -175,7 +162,7 @@
                     <label>{{ t('name') }} <span class="text-red-500">*</span></label>
                     <input v-model="newItem.name" type="text" placeholder="e.g. Python Expert" class="form-input" />
                 </div>
-                <div class="form-group">
+                 <div class="form-group">
                      <label>{{ t('description') }}</label>
                     <input v-model="newItem.description" type="text" class="form-input" />
                 </div>
@@ -187,7 +174,7 @@
             <div class="modal-footer">
                 <button @click="closeCreateModal" class="btn-secondary mr-2">{{ t('cancel') }}</button>
                 <button @click="createPrompt" :disabled="!newItem.name || creating" class="btn-primary">
-                    {{ creating ? t('creating') || 'Creating...' : t('create') || 'Create' }}
+                    {{ creating ? t('creating') || '...' : t('create') || 'Create' }}
                 </button>
             </div>
         </div>
@@ -261,7 +248,6 @@ const selectedPrompt = ref(null);
 const editBuffer = ref('');
 const editDescription = ref('');
 const changeLog = ref('');
-const viewTab = ref('my'); // 'my' | 'public'
 
 const newItem = ref({ key: '', name: '', description: '', content: '', isPublic: false });
 
@@ -277,16 +263,15 @@ const myScenarios = computed(() => {
 
 const isActiveScenario = (id) => activeScenarioId.value === id;
 
+const canEdit = (item) => {
+    return item && (item.ownerId === userId.value || isSuperAdmin.value);
+};
+
 const hasChanges = computed(() => {
     if (!selectedPrompt.value) return false;
     return editBuffer.value !== getCurrentContent(selectedPrompt.value) || 
            editDescription.value !== selectedPrompt.value.description;
 });
-
-
-const canEdit = (item) => {
-    return item && (item.ownerId === userId.value || isSuperAdmin.value);
-};
 
 const getCurrentContent = (prompt) => {
     if (!prompt || !prompt.versions) return '';
@@ -335,28 +320,48 @@ const selectPrompt = async (prompt) => {
 
 const saveVersion = async () => {
     if (!changeLog.value) {
-        alert('Please enter a changelog description to save this version.');
-        return;
+        // If no content changes, just description?
+        if (editBuffer.value === getCurrentContent(selectedPrompt.value) && editDescription.value !== selectedPrompt.value.description) {
+            // Probably just updating metadata if API supports it, but here we assume versioning flow.
+            // Let's force a changelog if content changed.
+            // If only description changed, we should probably allow saving without changelog logic but API might be version-based.
+            // For MVP, we'll just require changelog for any save.
+        }
     }
+    
+    if (!changeLog.value && editBuffer.value !== getCurrentContent(selectedPrompt.value)) {
+         alert('Please enter a changelog description to save this version.');
+         return;
+    }
+
     saving.value = true;
     try {
-        // If description changed, we might need a separate endpoint or just update local object if API doesn't support it yet via /versions
-        // The /versions endpoint only updates content. 
-        // We might need to update description via PUT /prompts/:key (if it exists) or just ignore for now in this MVP refactor.
-        // Assuming current API structure from server.ts:
-        // app.post('/api/prompts/:key/versions') -> updates content.
-        // It doesn't seem to update Description. I might need to add that support or just accept content updates.
-        // For now, I'll send the request.
+        // We will send version update. Note: API needs to support description update during versioning or separate endpoint.
+        // Assuming /versions only updates content. 
+        // We really should update description too. 
+        // Let's assume the backend 'updatePrompt' PUT /prompts/:key handles description, and POST /versions handles content.
+        // We'll try to do both if needed.
         
-        await api.post(`/prompts/${selectedPrompt.value.key}/versions`, {
-            content: editBuffer.value,
-            changelog: changeLog.value
-        });
+        if (editDescription.value !== selectedPrompt.value.description) {
+            // Update metadata
+             await api.put(`/prompts/${selectedPrompt.value.key}`, {
+                name: selectedPrompt.value.name,
+                description: editDescription.value,
+                isPublic: selectedPrompt.value.isPublic
+            });
+        }
+        
+        if (editBuffer.value !== getCurrentContent(selectedPrompt.value)) {
+             await api.post(`/prompts/${selectedPrompt.value.key}/versions`, {
+                content: editBuffer.value,
+                changelog: changeLog.value || 'Update'
+            });
+        }
         
         // Refresh
         await selectPrompt(selectedPrompt.value);
         await fetchPrompts();
-        alert('New version saved!');
+        alert('Saved!');
     } catch (e) {
         alert(e.response?.data?.error || 'Failed to save');
     } finally {
@@ -364,7 +369,33 @@ const saveVersion = async () => {
     }
 };
 
+const activateScenario = () => {
+    if (!selectedPrompt.value) return;
+    chatStore.setScenario(selectedPrompt.value._id);
+};
 
+const deactivateScenario = () => {
+    chatStore.setScenario(null);
+};
+
+const deleteScenario = async () => {
+    if (!selectedPrompt.value) return;
+    if (!confirm(`Are you sure you want to delete "${selectedPrompt.value.name}"? This cannot be undone.`)) return;
+
+    try {
+        await api.delete(`/prompts/${selectedPrompt.value._id}`); // Pass ID
+        
+        // If active, deactivate
+        if (isActiveScenario(selectedPrompt.value._id)) {
+            deactivateScenario();
+        }
+
+        selectedPrompt.value = null;
+        await fetchPrompts();
+    } catch (e) {
+        alert(e.response?.data?.error || 'Deletion failed');
+    }
+};
 
 const openCreateModal = () => { 
     newItem.value = { key: '', name: '', description: '', content: '', isPublic: false }; 
@@ -413,12 +444,8 @@ const sendMessage = async () => {
             userMessage: userMsg
         });
         
-        // Handling stream or text response. server.ts sends stream but client (axios) here might just buffer if not configured. 
-        // Existing code handled string or object.
         let reply = '';
          if (typeof res.data === 'string') {
-            // It might be an SSE stream string if axios isn't handled right, but let's assume the previous imp worked.
-            // Actually, previous imp used simple post.
             reply = res.data;
         } else {
             reply = res.data.text || JSON.stringify(res.data);
@@ -429,34 +456,6 @@ const sendMessage = async () => {
         testMessages.value.push({ role: 'assistant', content: 'Error: ' + e.message });
     } finally {
         testing.value = false;
-    }
-};
-
-const activateScenario = () => {
-    if (!selectedPrompt.value) return;
-    chatStore.setScenario(selectedPrompt.value._id);
-};
-
-const deactivateScenario = () => {
-    chatStore.setScenario(null);
-};
-
-const deleteScenario = async () => {
-    if (!selectedPrompt.value) return;
-    if (!confirm(`Are you sure you want to delete "${selectedPrompt.value.name}"? This cannot be undone.`)) return;
-
-    try {
-        await api.delete(`/prompts/${selectedPrompt.value._id}`); // Pass ID
-        
-        // If active, deactivate
-        if (isActiveScenario(selectedPrompt.value._id)) {
-            deactivateScenario();
-        }
-
-        selectedPrompt.value = null;
-        await fetchPrompts();
-    } catch (e) {
-        alert(e.response?.data?.error || 'Deletion failed');
     }
 };
 
@@ -545,6 +544,10 @@ onMounted(() => fetchPrompts());
     border-color: rgba(59, 130, 246, 0.5);
 }
 
+.prompt-item.is-active-core {
+    border-left: 3px solid #10b981;
+}
+
 .prompt-header {
     display: flex;
     justify-content: space-between;
@@ -552,24 +555,16 @@ onMounted(() => fetchPrompts());
     margin-bottom: 4px;
 }
 
-.prompt-item.is-active-scenario {
-    border-left: 3px solid #10b981; /* Green border for active */
-    background: rgba(16, 185, 129, 0.05);
-}
-
 .prompt-name {
     font-weight: 500;
     font-size: 14px;
 }
 
-
-.prompt-desc {
-    font-size: 12px;
-    color: var(--color-text-secondary);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    margin-bottom: 8px;
+.prompt-key {
+    font-family: monospace;
+    font-size: 11px;
+    color: var(--color-text-muted);
+    margin-bottom: 6px;
 }
 
 .badge {
@@ -579,11 +574,10 @@ onMounted(() => fetchPrompts());
     font-weight: 600;
     text-transform: uppercase;
 }
+.badge-active { background: rgba(16, 185, 129, 0.2); color: #34d399; }
 .badge-public { background: #4f46e5; color: white; }
-.badge-active-scenario { background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); }
 
 .prompt-meta {
-
     display: flex;
     justify-content: space-between;
     font-size: 11px;
@@ -647,12 +641,15 @@ onMounted(() => fetchPrompts());
     background: transparent;
     color: var(--color-text-secondary);
     border: 1px solid var(--color-border);
-    padding: 6px 12px;
+    padding: 6px 16px;
     border-radius: 6px;
     cursor: pointer;
-    font-size: 12px;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
-.btn-secondary:hover { background: rgba(255,255,255,0.05); }
+.btn-secondary:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .btn-primary {
     background: var(--color-accent, #2563eb);
@@ -663,26 +660,43 @@ onMounted(() => fetchPrompts());
     cursor: pointer;
     font-size: 13px;
     font-weight: 500;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 .btn-primary:hover { opacity: 0.9; }
 .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
 
-.btn-primary-outline {
+/* Icon Button */
+.btn-icon-sm {
     background: transparent;
-    color: var(--color-accent);
-    border: 1px solid var(--color-accent);
-    padding: 6px 12px;
+    border: none;
+    color: var(--color-text-muted);
+    cursor: pointer;
+    padding: 4px;
+}
+.btn-icon-sm:hover { color: white; }
+.spin { animation: spin 1s linear infinite; }
+@keyframes spin { 100% { transform: rotate(360deg); } }
+
+/* Improved Delete Icon Visibility */
+.btn-icon-danger {
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+    border: 1px solid rgba(239, 68, 68, 0.2);
+    padding: 8px;
     border-radius: 6px;
     cursor: pointer;
-    font-size: 12px;
-    font-weight: 500;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
-.btn-primary-outline:hover { background: rgba(37, 99, 235, 0.1); }
-
-.btn-icon-danger {
-    background: transparent; border: none; color: #ef4444; padding: 6px; cursor: pointer; opacity: 0.6;
+.btn-icon-danger:hover {
+    background: rgba(239, 68, 68, 0.2);
+    border-color: rgba(239, 68, 68, 0.4);
+    transform: scale(1.05);
 }
-.btn-icon-danger:hover { opacity: 1; }
 
 .editor-wrapper {
     flex: 1;
@@ -693,8 +707,8 @@ onMounted(() => fetchPrompts());
 
 .code-editor {
     flex: 1;
-    background: #151515;
-    color: #e5e7eb;
+    background: var(--color-bg-primary); /* Matches page/editor bg */
+    color: var(--color-text-primary);
     border: none;
     padding: 20px;
     font-family: 'Fira Code', monospace;
@@ -750,7 +764,7 @@ onMounted(() => fetchPrompts());
     background: var(--color-bg-secondary, #1e1e1e);
     border: 1px solid var(--color-border, #374151);
     border-radius: 12px;
-    width: 500px;
+    width: 600px;
     max-width: 90%;
     display: flex;
     flex-direction: column;
@@ -800,7 +814,7 @@ onMounted(() => fetchPrompts());
     width: 100%;
     background: var(--color-bg-tertiary, #2a2a2a);
     border: 1px solid var(--color-border);
-    color: white;
+    color: var(--color-text-primary);
     padding: 10px;
     border-radius: 6px;
     font-size: 14px;
@@ -817,11 +831,11 @@ onMounted(() => fetchPrompts());
     justify-content: flex-end;
 }
 
+/* Playground Styles */
 .playground-modal {
     width: 800px;
 }
 
-/* Chat Bubbles in Playground */
 .chat-msg { display: flex; margin-bottom: 10px;}
 .chat-msg.user { justify-content: flex-end; }
 .chat-msg .bubble {
@@ -831,31 +845,6 @@ onMounted(() => fetchPrompts());
 .chat-msg.assistant .bubble { background: var(--color-bg-tertiary); color: var(--color-text-primary); border: 1px solid var(--color-border); }
 .typing { color: var(--color-text-muted); }
 
-.animate-pulse-slow {
-   animation: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-}
-@keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: .7; }
-}
-
-/* Icons */
-.btn-icon-sm { background: transparent; border: none; color: #9ca3af; cursor: pointer; padding: 4px; }
-.btn-icon-sm:hover { color: white; }
-.spin { animation: spin 1s linear infinite; }
-@keyframes spin { 100% { transform: rotate(360deg); } }
-
-.badge-active-inline { background: rgba(16, 185, 129, 0.1); color: #34d399; font-size: 10px; padding: 2px 6px; border-radius: 4px; font-weight: 700; text-transform: uppercase; float: right; }
-
-/* Theme Colors Semantic Classes */
-.bg-primary { background: var(--color-bg-primary, #121212); }
-.bg-tertiary { background: var(--color-bg-tertiary, #2a2a2a); }
-.border-color { border-color: var(--color-border, #374151); }
-.text-muted { color: var(--color-text-muted, #9ca3af); }
-.text-primary { color: var(--color-text-primary, #ffffff); }
-
-.tabs-container { border: 1px solid var(--color-border); background: var(--color-bg-secondary); }
-.tab-active { background: var(--color-bg-tertiary); color: var(--color-text-primary); }
 
 /* Mobile Responsiveness */
 @media (max-width: 768px) {
@@ -902,4 +891,11 @@ onMounted(() => fetchPrompts());
         transform: translateX(0);
     }
 }
+
+/* Theme Colors Semantic Classes */
+.bg-primary { background: var(--color-bg-primary, #121212); }
+.bg-tertiary { background: var(--color-bg-tertiary, #2a2a2a); }
+.border-color { border-color: var(--color-border, #374151); }
+.text-muted { color: var(--color-text-muted, #9ca3af); }
+.text-primary { color: var(--color-text-primary, #ffffff); }
 </style>
