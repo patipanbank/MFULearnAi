@@ -809,9 +809,14 @@ app.delete('/api/prompts/:key', authenticateToken, async (req: any, res: Respons
     const isSuperAdmin = req.user.role === 'superadmin';
 
     try {
-        // Try finding by ID first
-        let prompt = await Prompt.findById(key);
-        // If not found by ID, try by Key
+        let prompt = null;
+
+        // Try finding by ID first (Safe Check)
+        if (mongoose.Types.ObjectId.isValid(key)) {
+            prompt = await Prompt.findById(key);
+        }
+
+        // If not found by valid ID, try by Key
         if (!prompt) {
             prompt = await Prompt.findOne({ key });
         }
