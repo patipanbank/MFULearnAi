@@ -348,6 +348,51 @@ app.get('/api/users', authenticateUser, async (req: any, res: Response) => {
     }
 });
 
+// 7.2 Create User (Superadmin Only)
+app.post('/api/users', authenticateUser, async (req: any, res: Response) => {
+    if (req.user.role !== 'superadmin') return res.status(403).json({ error: 'Forbidden' });
+
+    try {
+        const { username, password, role, department, firstName, lastName, isActive } = req.body;
+
+        if (!username || !password) {
+            return res.status(400).json({ error: 'Username and Password are required' });
+        }
+
+        const existingUser = await User.findOne({ username });
+        if (existingUser) {
+            return res.status(400).json({ error: 'Username already exists' });
+        }
+
+        const hashedPassword = await bcrypt.hash(password, 10);
+
+        const newUser = await User.create({
+            username,
+            password: hashedPassword,
+            role: role || 'student',
+            department: department || '',
+            firstName: firstName || username,
+            lastName: lastName || '',
+            isActive: isActive !== undefined ? isActive : true,
+            email: req.body.email || `${username}@local.domain`
+        });
+
+        // Auto-Create Department if provided
+        if (department) {
+            const deptCode = department.trim().toUpperCase().replace(/\s+/g, '_');
+            await Department.findOneAndUpdate(
+                { code: deptCode },
+                { code: deptCode, name: department },
+                { upsert: true, setDefaultsOnInsert: true }
+            ).catch(err => console.error(`[Identity] Department sync error: ${err.message}`));
+        }
+
+        res.json({ user: newUser });
+    } catch (e: any) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
 // 7.2 Update User (Superadmin Only)
 app.put('/api/users/:id', authenticateUser, async (req: any, res: Response) => {
     if (req.user.role !== 'superadmin') return res.status(403).json({ error: 'Forbidden' });
