@@ -111,7 +111,7 @@ const handleCopyMessage = (content) => {
       <div class="messages-area" ref="messagesRef">
         <ChatWelcome
           v-if="chatStore.messages.length === 0"
-          :user-name="authStore.user?.firstName"
+          :user-name="userName"
           :env-name="envName"
           :t="t"
         />
