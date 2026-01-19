@@ -10,11 +10,11 @@ defineProps({
   <div class="welcome">
     <div class="welcome-content">
       <div class="logo-large">
-        <span>🤖</span>
+        <img src="@/assets/dindin-ai.png" alt="DinDin AI" class="welcome-logo-img" />
       </div>
-      
-      <h1>{{ t('welcome') }}{{ userName ? ', ' + userName : '' }}!</h1>
-      <p>{{ t('welcomeSub') }}</p>
+
+      <h1>Welcome {{ userName }},</h1>
+      <p>How can I help you today?</p>
     </div>
   </div>
 </template>
@@ -33,16 +33,21 @@ defineProps({
 }
 
 .logo-large {
-  width: 100px;
-  height: 100px;
+  width: 120px;
+  height: 120px;
   margin: 0 auto 24px;
-  background: var(--color-bg-tertiary);
-  border: 2px solid var(--color-border);
-  border-radius: var(--radius-xl);
+  background: transparent;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 48px;
+}
+
+.welcome-logo-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  border-radius: 50%;
+  box-shadow: var(--shadow-lg);
 }
 
 h1 {
