@@ -500,7 +500,235 @@ app.get('/health', (req, res) => res.json({
     rateLimit: RATE_LIMIT
 }));
 
+
+// --- Prompt Management API ---
+
+// 1. List Prompts (searchable/filterable)
+app.get('/api/prompts', authenticateToken, async (req: any, res: Response) => {
+    const { type, isPublic, ownerId } = req.query;
+    const userId = req.user.userId;
+
+    try {
+        const query: any = {};
+
+        // Filter by type if provided
+        if (type) query.type = type;
+
+        // Visibility Logic:
+        // Superadmin: Can see all (if no filters)
+        // User: Can see (isPublic=true) OR (ownerId=userId)
+
+        if (req.user.role === 'superadmin') {
+            if (isPublic) query.isPublic = isPublic === 'true';
+            if (ownerId) query.ownerId = ownerId;
+            // If user specifically asked for scenarios, show all or filtered. 
+            // Admin view of core prompts is default if type=core.
+        } else {
+            // Regular user constraints
+            if (type === 'core') {
+                // Users generally don't list core prompts unless for some read-only view?
+                // Let's allow read for now? Or restrict? 
+                // AdminCorePrompts uses type=core. User doesn't access it.
+                // Scenarios uses type=scenario.
+            }
+
+            // For scenarios:
+            query.$or = [
+                { isPublic: true },
+                { ownerId: userId }
+            ];
+
+            // If they specifically asked for their own:
+            if (ownerId === userId) {
+                delete query.$or;
+                query.ownerId = userId;
+            }
+        }
+
+        const prompts = await Prompt.find(query).sort({ updatedAt: -1 });
+        res.json({ prompts });
+    } catch (error: any) {
+        res.status(500).json({ error: 'Failed to fetch prompts' });
+    }
+});
+
+// 2. Get Single Prompt
+app.get('/api/prompts/:key', authenticateToken, async (req: any, res: Response) => {
+    const { key } = req.params;
+    const userId = req.user.userId;
+
+    try {
+        const prompt = await Prompt.findOne({ key });
+        if (!prompt) return res.status(404).json({ error: 'Prompt not found' });
+
+        // Access Check
+        if (req.user.role !== 'superadmin' && !prompt.isPublic && prompt.ownerId !== userId) {
+            return res.status(403).json({ error: 'Access denied' });
+        }
+
+        res.json({ prompt });
+    } catch (error: any) {
+        res.status(500).json({ error: 'Failed to fetch prompt' });
+    }
+});
+
+// 3. Create Prompt
+app.post('/api/prompts', authenticateToken, async (req: any, res: Response) => {
+    const { type, key, name, description, content, isPublic, tags } = req.body;
+    const userId = req.user.userId;
+
+    // RBAC: Only superadmin can create CORE prompts
+    if (type === 'core' && req.user.role !== 'superadmin') {
+        return res.status(403).json({ error: 'Only superadmins can create core prompts' });
+    }
+
+    try {
+        const newPrompt = new Prompt({
+            key,
+            type: type || 'scenario',
+            ownerId: type === 'core' ? null : userId, // Core prompts are system-owned (null)
+            name,
+            description,
+            isPublic: type === 'core' ? false : !!isPublic, // Default scenarios to private
+            tags: tags || [],
+            activeVersion: 1,
+            versions: [{
+                version: 1,
+                content: content || '',
+                changelog: 'Initial creation',
+                createdBy: userId,
+                createdAt: new Date()
+            }]
+        });
+
+        await newPrompt.save();
+        res.status(201).json({ prompt: newPrompt });
+    } catch (error: any) {
+        if (error.code === 11000) {
+            return res.status(400).json({ error: 'Prompt key already exists' });
+        }
+        res.status(500).json({ error: 'Failed to create prompt' });
+    }
+});
+
+// 4. Add Version (Update Content)
+app.post('/api/prompts/:key/versions', authenticateToken, async (req: any, res: Response) => {
+    const { key } = req.params;
+    const { content, changelog } = req.body;
+    const userId = req.user.userId;
+
+    try {
+        const prompt = await Prompt.findOne({ key });
+        if (!prompt) return res.status(404).json({ error: 'Prompt not found' });
+
+        // Access Check
+        if (req.user.role !== 'superadmin' && prompt.ownerId !== userId) {
+            return res.status(403).json({ error: 'Access denied' });
+        }
+
+        const newVersion = (prompt.activeVersion || 0) + 1;
+
+        prompt.versions.push({
+            version: newVersion,
+            content,
+            changelog: changelog || 'Updated version',
+            createdBy: userId,
+            createdAt: new Date()
+        });
+
+        // Auto-activate new version for now (User UX preference usually)
+        prompt.activeVersion = newVersion;
+        prompt.updatedAt = new Date();
+
+        await prompt.save();
+
+        // Invalidate Cache
+        if (prompt.type === 'core') {
+            const cacheKey = `${SYSTEM_PROMPT_KEY_PREFIX}CORE:${prompt.tags.includes('PROD') ? 'PROD' : 'TEST'}`;
+            // Broad invalidation
+            await redis.del(`${SYSTEM_PROMPT_KEY_PREFIX}CORE:PROD`);
+            await redis.del(`${SYSTEM_PROMPT_KEY_PREFIX}CORE:TEST`);
+        } else {
+            await redis.del(`${SYSTEM_PROMPT_KEY_PREFIX}SCENARIO:${prompt._id}`);
+        }
+
+        res.json({ success: true, prompt });
+    } catch (error: any) {
+        res.status(500).json({ error: 'Failed to add version' });
+    }
+});
+
+// 5. Activate Prompt (Toggle isActive) - Mainly for Core Prompts
+app.post('/api/prompts/:key/activate', authenticateToken, async (req: any, res: Response) => {
+    const { key } = req.params;
+
+    if (req.user.role !== 'superadmin') {
+        return res.status(403).json({ error: 'Only superadmins can activate prompts' });
+    }
+
+    try {
+        const prompt = await Prompt.findOne({ key });
+        if (!prompt) return res.status(404).json({ error: 'Prompt not found' });
+
+        prompt.isActive = true;
+        // Optionally deactivate others of same type/tag? 
+        // For now, just set true. Orchestrator logic will pick it up.
+        await prompt.save();
+
+        // Invalidate Cache
+        await redis.del(`${SYSTEM_PROMPT_KEY_PREFIX}CORE:PROD`);
+        await redis.del(`${SYSTEM_PROMPT_KEY_PREFIX}CORE:TEST`);
+
+        res.json({ success: true, prompt });
+    } catch (error: any) {
+        res.status(500).json({ error: 'Activation failed' });
+    }
+});
+
+
+// 6. Test Prompt (Playground Proxy)
+app.post('/api/prompts/test', authenticateToken, async (req: any, res: Response) => {
+    const { systemContent, userMessage } = req.body;
+
+    // Simple proxy to Bedrock with provided system prompt
+    // This allows testing without saving
+
+    try {
+        const messages = [
+            { role: 'system', content: systemContent },
+            { role: 'user', content: userMessage }
+        ];
+
+        const response = await axios.post(`${BEDROCK_TEXT_URL}/chat`, {
+            messages,
+            modelId: 'anthropic.claude-3-sonnet-20240229-v1:0', // Default for test
+        });
+
+        // Bedrock wrapper usually returns stream or json.
+        // Assuming JSON for simple test endpoint
+        // If it streams, we might need a different handling or just wait for full.
+        // Our Bedrock service supports non-streaming?
+        // Let's assume it returns { text: ... } or similar if we don't ask for stream.
+        // But our orchestrator usually asks for stream. Use Axios default (no stream).
+
+        // Wait, Bedrock service /chat might default to stream?
+        // Let's assume the response.data contains the text or we need to handle it.
+        // For now, send back raw data or text.
+
+        let text = '';
+        if (typeof response.data === 'string') text = response.data;
+        else if (response.data.text) text = response.data.text;
+        else text = JSON.stringify(response.data);
+
+        res.send(text);
+
+    } catch (error: any) {
+        res.status(500).send('Test execution failed: ' + error.message);
+    }
+});
+
 const PORT = process.env.PORT || 8080;
+
 
 
 
