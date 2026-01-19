@@ -293,13 +293,18 @@ app.post('/api/chat', authenticateToken, rateLimiter, async (req: any, res: Resp
         if (req.body.scenarioId) {
             scenarioPrompt = await getScenarioPrompt(req.body.scenarioId, req.user.userId);
             if (scenarioPrompt) {
+                console.log(`[Orchestrator] Using Scenario Prompt: ${req.body.scenarioId}`);
                 scenarioPrompt = `\n\n=== ACT AS FOLLOWS ===\n${scenarioPrompt}`;
+            } else {
+                console.log(`[Orchestrator] Scenario Prompt NOT FOUND or Empty: ${req.body.scenarioId}`);
             }
         }
 
         const additionalContext = context && CONTEXT_PROMPTS[context as keyof typeof CONTEXT_PROMPTS]
             ? `\n\n${CONTEXT_PROMPTS[context as keyof typeof CONTEXT_PROMPTS]}`
             : '';
+
+        console.log(`[Orchestrator] Final System Prompt Logic - Core Len: ${corePrompt.length}, Scenario Len: ${scenarioPrompt.length}, RAG: ${!!ragSystemPrompt}`);
 
         let finalSystemContent = corePrompt + additionalContext + ragSystemPrompt + scenarioPrompt;
 

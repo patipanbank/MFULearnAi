@@ -94,6 +94,12 @@
                     </div>
                     <button @click="closeScenario" class="close-btn">&times;</button>
                 </div>
+                <div class="modal-actions-bar">
+                    <button @click="useScenario" class="btn-primary w-full justify-center mb-4">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+                        Start Chat with this Persona
+                    </button>
+                </div>
                 
                 <div class="modal-body-split">
                     <!-- Left: Config/Edit -->
@@ -207,10 +213,14 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue';
+import { useRouter } from 'vue-router';
 import api from '../utils/api'; 
 import { useAuthStore } from '../stores/auth';
+import { useChatStore } from '../stores/chat';
 
 const authStore = useAuthStore();
+const chatStore = useChatStore();
+const router = useRouter();
 const userId = computed(() => authStore.userId);
 
 const loading = ref(false);
@@ -359,6 +369,14 @@ const sendMessage = async () => {
     } finally {
         testing.value = false;
     }
+};
+
+const useScenario = () => {
+    if (!selectedScenario.value) return;
+    chatStore.setScenario(selectedScenario.value._id); // Assuming _id is the Identifier
+    // Also set active collection if needed, or leave as is
+    closeScenario();
+    router.push('/chat');
 };
 
 onMounted(() => fetchScenarios());
