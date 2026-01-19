@@ -98,6 +98,36 @@ export const useChatStore = defineStore('chat', () => {
 
         isStreaming.value = true
 
+        // Update session title with first message content locally so it appears in sidebar
+        const userMessages = messages.value.filter(m => m.role === 'user')
+        if (userMessages.length === 1) {
+            // Use the full content, let CSS handle truncation
+            const newTitle = content.trim()
+
+            // Find existing session in the list
+            const sessionIndex = sessions.value.findIndex(s => s.sessionId === currentSessionId.value)
+
+            if (sessionIndex !== -1) {
+                // Update existing session
+                const session = sessions.value[sessionIndex]
+                if (!session.metadata) session.metadata = {}
+                session.metadata.title = newTitle
+                // Move to top if not already
+                if (sessionIndex > 0) {
+                    sessions.value.splice(sessionIndex, 1)
+                    sessions.value.unshift(session)
+                }
+            } else {
+                // Create new session entry locally
+                sessions.value.unshift({
+                    sessionId: currentSessionId.value,
+                    metadata: { title: newTitle },
+                    createdAt: new Date(),
+                    updatedAt: new Date()
+                })
+            }
+        }
+
         // Add placeholder for assistant
         const assistantIndex = messages.value.length
         messages.value.push({
