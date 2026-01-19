@@ -30,10 +30,10 @@
                     </button>
                 </div>
                 <!-- Tabs -->
-                <div class="flex bg-gray-900 rounded p-1 gap-1">
+                <div class="flex tabs-container rounded p-1 gap-1">
                     <button 
                         @click="viewTab = 'my'"
-                        class="flex-1 text-xs py-1 rounded text-center transition-colors bg-gray-700 text-white font-medium"
+                        class="flex-1 text-xs py-1 rounded text-center transition-colors tab-active font-medium"
                     >
                         {{ t('myPersonas') }}
                     </button>
@@ -127,16 +127,17 @@
             </div>
 
             <!-- Meta Inputs (Description) -->
-             <div class="p-3 bg-gray-800 border-b border-gray-700 flex flex-col gap-2">
+            <!-- Meta Inputs (Description) -->
+             <div class="p-3 bg-tertiary border-b border-color flex flex-col gap-2">
                 <div class="flex gap-2">
-                     <span class="text-xs text-gray-500 w-20 pt-2 uppercase font-bold tracking-wider">{{ t('description') }}</span>
+                     <span class="text-xs text-muted w-20 pt-2 uppercase font-bold tracking-wider">{{ t('description') }}</span>
                      <input 
                         v-if="canEdit(selectedPrompt)"
                         v-model="editDescription" 
                         class="form-input flex-1 h-8 text-sm" 
                         :placeholder="t('description')"
                     />
-                    <div v-else class="flex-1 text-sm py-1 px-2 text-gray-300">{{ selectedPrompt.description }}</div>
+                    <div v-else class="flex-1 text-sm py-1 px-2 text-primary">{{ selectedPrompt.description }}</div>
                 </div>
             </div>
 
@@ -199,13 +200,13 @@
     <!-- Playground Modal -->
     <div v-if="showPlayground" class="modal-overlay" @click.self="closePlayground">
          <div class="modal-content playground-modal">
-            <div class="modal-header bg-gray-800">
+            <div class="modal-header bg-tertiary">
                 <h3>Test Persona: {{ selectedPrompt.name }}</h3>
                 <button @click="closePlayground" class="close-btn">&times;</button>
             </div>
              <div class="playground-body flex flex-col h-[500px]">
-                  <div class="chat-preview flex-1 p-4 overflow-y-auto flex flex-col gap-3 bg-gray-900">
-                        <div v-if="testMessages.length === 0" class="text-center text-gray-500 mt-10">
+                  <div class="chat-preview flex-1 p-4 overflow-y-auto flex flex-col gap-3 bg-primary">
+                        <div v-if="testMessages.length === 0" class="text-center text-muted mt-10">
                             Start a conversation to test these instructions.
                         </div>
                         <div v-for="(msg, i) in testMessages" :key="i" class="chat-msg" :class="msg.role">
@@ -215,7 +216,7 @@
                             <div class="bubble typing">...</div>
                         </div>
                    </div>
-                   <div class="p-3 border-t border-gray-700 bg-gray-800 flex gap-2">
+                   <div class="p-3 border-t border-color bg-tertiary flex gap-2">
                         <input 
                             v-model="testInput" 
                             @keyup.enter="sendMessage"
@@ -239,10 +240,15 @@ import { useRouter } from 'vue-router';
 import api from '../utils/api'; 
 import { useAuthStore } from '../stores/auth';
 import { useChatStore } from '../stores/chat';
+import { useLanguage } from '@/composables/useSettings';
 
 const authStore = useAuthStore();
 const chatStore = useChatStore();
 const router = useRouter();
+const { t } = useLanguage();
+
+const isMobile = ref(window.innerWidth < 768);
+window.addEventListener('resize', () => { isMobile.value = window.innerWidth < 768; });
 
 const isSuperAdmin = computed(() => authStore.role === 'superadmin');
 const userId = computed(() => authStore.userId);
@@ -844,6 +850,16 @@ onMounted(() => fetchPrompts());
 @keyframes spin { 100% { transform: rotate(360deg); } }
 
 .badge-active-inline { background: rgba(16, 185, 129, 0.1); color: #34d399; font-size: 10px; padding: 2px 6px; border-radius: 4px; font-weight: 700; text-transform: uppercase; float: right; }
+
+/* Theme Colors Semantic Classes */
+.bg-primary { background: var(--color-bg-primary, #121212); }
+.bg-tertiary { background: var(--color-bg-tertiary, #2a2a2a); }
+.border-color { border-color: var(--color-border, #374151); }
+.text-muted { color: var(--color-text-muted, #9ca3af); }
+.text-primary { color: var(--color-text-primary, #ffffff); }
+
+.tabs-container { border: 1px solid var(--color-border); background: var(--color-bg-secondary); }
+.tab-active { background: var(--color-bg-tertiary); color: var(--color-text-primary); }
 
 /* Mobile Responsiveness */
 @media (max-width: 768px) {

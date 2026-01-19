@@ -102,7 +102,7 @@
             </div>
 
             <!-- Version/Changelog Inputs -->
-            <div v-if="hasChanges" class="p-3 bg-gray-800 border-b border-gray-700 flex gap-2">
+            <div v-if="hasChanges" class="p-3 bg-tertiary border-b border-color flex gap-2">
                 <input v-model="changeLog" :placeholder="t('changeLogPlaceholder') || 'Describe changes...'" class="form-input flex-1 h-8 text-sm" />
             </div>
 
@@ -556,8 +556,8 @@ onMounted(() => fetchPrompts());
 
 .code-editor {
     flex: 1;
-    background: #151515; /* Darker than card */
-    color: #e5e7eb;
+    background: var(--color-bg-primary); /* Matches page/editor bg */
+    color: var(--color-text-primary);
     border: none;
     padding: 20px;
     font-family: 'Fira Code', monospace;
@@ -723,4 +723,8 @@ onMounted(() => fetchPrompts());
         transform: translateX(0);
     }
 }
+
+/* Theme Colors Semantic Classes */
+.bg-tertiary { background: var(--color-bg-tertiary, #2a2a2a); }
+.border-color { border-color: var(--color-border, #374151); }
 </style>
