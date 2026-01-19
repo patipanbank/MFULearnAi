@@ -44,7 +44,7 @@ export function useLanguage() {
             typeMessage: 'พิมพ์ข้อความ...',
             disclaimer: 'AI อาจให้ข้อมูลที่ไม่ถูกต้อง กรุณาตรวจสอบข้อมูลสำคัญ',
             welcome: 'สวัสดี',
-            welcomeSub: 'วันนี้ให้ฉันช่วยอะไรคุณดี',
+            welcomeSub: 'วันนี้ให้ฉันช่วยอะไรคุณดี?',
             thinking: 'กำลังคิด...',
             uploadFile: 'อัพโหลดไฟล์',
             copy: 'คัดลอก',
