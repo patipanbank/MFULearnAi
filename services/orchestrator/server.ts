@@ -171,29 +171,26 @@ const SYSTEM_PROMPT_KEY_PREFIX = 'system_prompt:';
 
 const getCoreSystemPrompt = async (envType: 'TEST' | 'PROD'): Promise<string> => {
     // 1. Try Cache
-    const cacheKey = `${SYSTEM_PROMPT_KEY_PREFIX}CORE:${envType}`;
+    const cacheKey = `${SYSTEM_PROMPT_KEY_PREFIX}CORE:GLOBAL`;
     const cached = await redis.get(cacheKey);
     if (cached) return cached;
 
-    // 2. Try DB (Find active core prompt for this env)
-    // STRICT LOGIC: Must be type 'core', isActive=true.
-    // We prioritize based on tags matching the ENV_TYPE.
+    // 2. Try DB (Find active core prompt GLOBALLY)
+    // STRICT LOGIC: Find the single active prompt. Ignore Tags.
     const promptDoc = await Prompt.findOne({
         type: 'core',
-        isActive: true,
-        tags: envType // Strict Tag Matching: The prompt MUST be tagged 'PROD' or 'TEST' to be used in that env.
+        isActive: true
     });
 
     if (promptDoc) {
-        console.log(`[Orchestrator] Using DB Core Prompt: ${promptDoc.name} (${promptDoc.key})`);
+        console.log(`[Orchestrator] Using GLOBAL DB Core Prompt: ${promptDoc.name} (${promptDoc.key})`);
         const content = promptDoc.versions.find(v => v.version === promptDoc.activeVersion)?.content || promptDoc.versions[0]?.content || '';
         await redis.set(cacheKey, content, 'EX', 300);
         return content;
     }
 
-    // 3. Fallback (Only if absolutely no DB prompt exists)
-    // We log a warning because this should not happen in a configured system.
-    console.warn(`[Orchestrator] WARNING: No active DB Core Prompt found for ${envType}. Using hardcoded fallback.`);
+    // 3. Fallback (Environment Specific Fallback still exists for safety if DB is empty)
+    console.warn(`[Orchestrator] No active DB Core Prompt found. Using hardcoded fallback for ${envType}.`);
     return getSystemPrompt(envType);
 };
 
@@ -744,6 +741,42 @@ app.post('/api/prompts/:key/activate', authenticateToken, async (req: any, res: 
     }
 });
 
+// 5. Activate Core Prompt
+app.post('/api/prompts/:key/activate', authenticateToken, async (req: any, res: Response) => {
+    const { key } = req.params;
+
+    if (req.user.role !== 'superadmin') {
+        return res.status(403).json({ error: 'Only superadmins can activate prompts' });
+    }
+
+    try {
+        const prompt = await Prompt.findOne({ key });
+        if (!prompt) return res.status(404).json({ error: 'Prompt not found' });
+
+        // Deactivate ALL other core prompts (Global Single Active)
+        await Prompt.updateMany(
+            {
+                type: 'core',
+                _id: { $ne: prompt._id }
+            },
+            { $set: { isActive: false } }
+        );
+
+        prompt.isActive = true;
+        await prompt.save();
+
+        // Invalidate Cache for instant update
+        await redis.del(`${SYSTEM_PROMPT_KEY_PREFIX}CORE:GLOBAL`);
+        await redis.del(`${SYSTEM_PROMPT_KEY_PREFIX}CORE:PROD`);
+        await redis.del(`${SYSTEM_PROMPT_KEY_PREFIX}CORE:TEST`);
+
+        res.json({ success: true, prompt });
+    } catch (error: any) {
+        console.error('Activation Error:', error);
+        res.status(500).json({ error: 'Activation failed' });
+    }
+});
+
 app.post('/api/prompts/:key/deactivate', authenticateToken, async (req: any, res: Response) => {
     const { key } = req.params;
 
@@ -767,6 +800,39 @@ app.post('/api/prompts/:key/deactivate', authenticateToken, async (req: any, res
     } catch (error: any) {
         console.error('Deactivation Error:', error);
         res.status(500).json({ error: 'Deactivation failed' });
+    }
+});
+
+app.delete('/api/prompts/:key', authenticateToken, async (req: any, res: Response) => {
+    const { key } = req.params;
+    const userId = req.user.userId;
+    const isSuperAdmin = req.user.role === 'superadmin';
+
+    try {
+        // Try finding by ID first
+        let prompt = await Prompt.findById(key);
+        // If not found by ID, try by Key
+        if (!prompt) {
+            prompt = await Prompt.findOne({ key });
+        }
+
+        if (!prompt) return res.status(404).json({ error: 'Prompt not found' });
+
+        // Access Control
+        if (!isSuperAdmin && prompt.ownerId !== userId) {
+            return res.status(403).json({ error: 'Access denied' });
+        }
+
+        await prompt.deleteOne();
+
+        // Clear caches
+        await redis.del(`${SYSTEM_PROMPT_KEY_PREFIX}CORE:GLOBAL`);
+        await redis.del(`${SYSTEM_PROMPT_KEY_PREFIX}SCENARIO:${prompt._id}`);
+
+        res.json({ success: true });
+    } catch (error: any) {
+        console.error('Delete Error:', error);
+        res.status(500).json({ error: 'Deletion failed' });
     }
 });
 

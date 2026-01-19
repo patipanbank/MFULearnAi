@@ -83,7 +83,16 @@
                         :disabled="!hasChanges || saving"
                         class="btn-primary"
                     >
-                        {{ saving ? 'Saving...' : 'Save New Version' }}
+                        {{ saving ? 'Saving...' : 'Save Version' }}
+                    </button>
+
+                    <button 
+                         v-if="isSuperAdmin"
+                         @click="deletePrompt"
+                         class="btn-icon-danger ml-2"
+                         title="Delete Prompt"
+                    >
+                        <i class="fas fa-trash"></i>
                     </button>
                 </div>
             </div>
@@ -278,6 +287,23 @@ const deactivatePrompt = async () => {
         alert(e.response?.data?.error || 'Failed to deactivate');
     } finally {
         activating.value = false;
+    }
+};
+
+const deletePrompt = async () => {
+    if (!selectedPrompt.value) return;
+    if (selectedPrompt.value.isActive) {
+        alert('Cannot delete an active prompt. Deactivate it first.');
+        return;
+    }
+    if (!confirm(`CRITICAL WARNING: Are you sure you want to delete core prompt "${selectedPrompt.value.name}"? This is permanent.`)) return;
+
+    try {
+        await api.delete(`/prompts/${selectedPrompt.value.key}`);
+        selectedPrompt.value = null;
+        await fetchPrompts();
+    } catch (e) {
+        alert(e.response?.data?.error || 'Deletion failed');
     }
 };
 

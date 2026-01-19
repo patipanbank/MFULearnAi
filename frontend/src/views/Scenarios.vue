@@ -367,14 +367,7 @@ const saveVersion = async () => {
     }
 };
 
-const deleteScenario = async () => {
-     if(!confirm('Are you sure you want to delete this persona?')) return;
-     // API delete not implemented in server.ts view I saw, but let's assume standard DELETE /prompts/:key or :id
-     // server.ts list shows: 1. List, 2. Get, 3. Create, 4. Ver, 5. Activate, 6. Test.
-     // It does NOT show Delete.
-     // I will alert "Not implemented"
-     alert('Delete feature is not currently available/enabled in the backend.');
-};
+
 
 const openCreateModal = () => { 
     newItem.value = { key: '', name: '', description: '', content: '', isPublic: false }; 
@@ -449,6 +442,25 @@ const activateScenario = () => {
 
 const deactivateScenario = () => {
     chatStore.setScenario(null);
+};
+
+const deleteScenario = async () => {
+    if (!selectedPrompt.value) return;
+    if (!confirm(`Are you sure you want to delete "${selectedPrompt.value.name}"? This cannot be undone.`)) return;
+
+    try {
+        await api.delete(`/prompts/${selectedPrompt.value._id}`); // Pass ID
+        
+        // If active, deactivate
+        if (isActiveScenario(selectedPrompt.value._id)) {
+            deactivateScenario();
+        }
+
+        selectedPrompt.value = null;
+        await fetchPrompts();
+    } catch (e) {
+        alert(e.response?.data?.error || 'Deletion failed');
+    }
 };
 
 onMounted(() => fetchPrompts());
