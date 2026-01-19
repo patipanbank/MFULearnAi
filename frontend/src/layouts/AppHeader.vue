@@ -37,9 +37,6 @@ onMounted(() => {
 
       <!-- App Branding (Moved from Sidebar) -->
       <div class="app-branding">
-         <div class="logo-small">
-           <img src="@/assets/dindin-ai.png" alt="DinDin AI" class="header-logo-img" />
-         </div>
          <h1 class="app-name">{{ t('appName') }}</h1>
       </div>
       
