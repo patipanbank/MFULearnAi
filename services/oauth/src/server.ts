@@ -70,8 +70,8 @@ if (ADFS_CLIENT_ID && ADFS_CLIENT_SECRET) {
                 if (!decoded) return done(new Error('Invalid ID Token'));
 
                 // Map Claims to User Data
-                // Typical MFU ADFS claims: upn (email), unique_name, or standard email
-                const email = decoded.email || decoded.upn || decoded.unique_name;
+                // Typical MFU ADFS claims: upn (email), unique_name, depart_name, group
+                const email = decoded.upn || decoded.email || decoded.unique_name;
                 if (!email) return done(new Error('No email found in token'));
 
                 // Domain Check
@@ -85,9 +85,23 @@ if (ADFS_CLIENT_ID && ADFS_CLIENT_SECRET) {
                 }
 
                 // Determine Role
+                // ADFS sends "Student" or "Staff" in 'group' claim
                 let role = 'student';
-                if (domain === 'mfu.ac.th' || email.includes('staff')) {
-                    role = 'staff';
+                if (decoded.group) {
+                    const group = decoded.group.toLowerCase();
+                    if (group.includes('staff') || group.includes('employee')) role = 'staff';
+                    else if (group.includes('student')) role = 'student';
+                } else {
+                    // Fallback to domain
+                    if (domain === 'mfu.ac.th' || email.includes('staff')) {
+                        role = 'staff';
+                    }
+                }
+
+                // Extract Username (remove MFU\ prefix if present in unique_name)
+                let username = email.split('@')[0];
+                if (decoded.unique_name && decoded.unique_name.includes('\\')) {
+                    username = decoded.unique_name.split('\\')[1];
                 }
 
                 const userData = {
@@ -95,9 +109,11 @@ if (ADFS_CLIENT_ID && ADFS_CLIENT_SECRET) {
                     email,
                     firstName: decoded.given_name || decoded.firstname || email.split('@')[0],
                     lastName: decoded.family_name || decoded.lastname || '',
-                    username: email.split('@')[0],
+                    username,
                     role,
-                    picture: '' // ADFS rarely sends picture in ID Token
+                    department: decoded.depart_name || '', // Map depart_name
+                    departId: decoded.depart_id || '', // Map depart_id
+                    picture: ''
                 };
 
                 // Handshake with Identity Service

@@ -78,7 +78,7 @@ const authenticateUser = (req: any, res: Response, next: any) => {
 // Receives standardized user profile, returns JWT
 app.post('/internal/login', authenticateInternal, async (req: Request, res: Response) => {
     const {
-        nameID, username, email, firstName, lastName, department, role, groups, googleId, picture
+        nameID, username, email, firstName, lastName, department, departId, role, groups, googleId, picture
     } = req.body;
 
     // console.log(`[Identity] Processing internal login for ${email}`);
@@ -122,7 +122,9 @@ app.post('/internal/login', authenticateInternal, async (req: Request, res: Resp
         // Auto-Create Department if provided
         if (department) {
             console.log(`[Identity] ensuring department exists: ${department}`);
-            const deptCode = department.trim().toUpperCase().replace(/\s+/g, '_');
+            // Use departId as code if available, otherwise fallback to name-based code
+            const deptCode = req.body.departId || department.trim().toUpperCase().replace(/\s+/g, '_');
+
             await Department.findOneAndUpdate(
                 { code: deptCode },
                 { code: deptCode, name: department },
