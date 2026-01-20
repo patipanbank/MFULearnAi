@@ -19,10 +19,17 @@ onMounted(() => {
       const userDataStr = atob(userDataB64)
       const userData = JSON.parse(userDataStr)
       const provider = urlParams.get('provider') || 'sso' // Default to sso if missing
+      const idToken = urlParams.get('id_token')
       
       // Store in Pinia and localStorage
       authStore.setAuth(token, userData)
       localStorage.setItem('auth_provider', provider)
+      
+      if (idToken) {
+          localStorage.setItem('adfs_id_token', idToken)
+      } else {
+          localStorage.removeItem('adfs_id_token')
+      }
       
       console.log('Auth successful:', userData)
       router.push('/chat')

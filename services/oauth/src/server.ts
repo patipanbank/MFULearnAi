@@ -106,7 +106,8 @@ if (ADFS_CLIENT_ID && ADFS_CLIENT_SECRET) {
                 });
 
                 const { token, user } = response.data;
-                return done(null, { token, user });
+                // Pass ADFS idToken to done callback for frontend passing
+                return done(null, { token, user, idToken });
 
             } catch (err: any) {
                 console.error('[OAuth] Error in Strategy:', err.message);
@@ -141,11 +142,11 @@ const handleCallback = (req: Request, res: Response, next: NextFunction) => {
             return res.redirect(`${FRONTEND_URL}/login?error=auth_failed`);
         }
 
-        const { token: authToken, user: userData } = user;
+        const { token: authToken, user: userData, idToken } = user;
         const userDataStr = Buffer.from(JSON.stringify(userData)).toString('base64');
 
-        // Redirect to Frontend Callback Handler
-        res.redirect(`${FRONTEND_URL}/auth-callback?token=${authToken}&user_data=${userDataStr}&provider=adfs`);
+        // Redirect to Frontend Callback Handler with id_token
+        res.redirect(`${FRONTEND_URL}/auth-callback?token=${authToken}&user_data=${userDataStr}&provider=adfs&id_token=${idToken || ''}`);
     })(req, res, next);
 };
 
@@ -157,9 +158,15 @@ app.get('/api/auth/callback', handleCallback);
 
 // --- Logout ---
 app.get('/api/auth/logout', (req: Request, res: Response) => {
-    // Redirect to ADFS Logout if needed, otherwise just return 200
-    // ADFS Logout: https://authsso.mfu.ac.th/adfs/oauth2/logout
-    const logoutUrl = `https://authsso.mfu.ac.th/adfs/oauth2/logout?post_logout_redirect_uri=${FRONTEND_URL}/login`;
+    // Redirect to ADFS Logout
+    // ADFS Logout: https://authsso.mfu.ac.th/adfs/oauth2/logout?id_token_hint=...&post_logout_redirect_uri=...
+    const idTokenHint = req.query.id_token_hint as string;
+    let logoutUrl = `https://authsso.mfu.ac.th/adfs/oauth2/logout?post_logout_redirect_uri=${FRONTEND_URL}/login`;
+
+    if (idTokenHint) {
+        logoutUrl += `&id_token_hint=${idTokenHint}`;
+    }
+
     res.redirect(logoutUrl);
 });
 
