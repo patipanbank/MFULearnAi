@@ -1,6 +1,6 @@
 import express from 'express';
 import passport from 'passport';
-import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
+import { Strategy as OAuth2Strategy } from 'passport-oauth2';
 import axios from 'axios';
 import dotenv from 'dotenv';
 import cors from 'cors';
@@ -16,62 +16,91 @@ const PORT = process.env.PORT || 4003;
 const IDENTITY_SERVICE_URL = process.env.IDENTITY_SERVICE_URL || 'http://identity-service:4001';
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
 const INTERNAL_API_KEY = process.env.INTERNAL_API_KEY || 'internal-secret-key';
-const API_GATEWAY_URL = process.env.API_GATEWAY_URL || 'http://localhost:6000';
+const API_GATEWAY_URL = process.env.API_GATEWAY_URL || 'https://mfulearnai.mfu.ac.th';
+
+// Environment Variables for ADFS
+const ADFS_CLIENT_ID = process.env.ADFS_CLIENT_ID;
+const ADFS_CLIENT_SECRET = process.env.ADFS_CLIENT_SECRET;
+const ADFS_AUTH_URL = process.env.ADFS_AUTH_URL || 'https://authsso.mfu.ac.th/adfs/oauth2/authorize';
+const ADFS_TOKEN_URL = process.env.ADFS_TOKEN_URL || 'https://authsso.mfu.ac.th/adfs/oauth2/token';
+const REDIRECT_URI = process.env.REDIRECT_URI || 'https://mfulearnai.mfu.ac.th/auth/callback';
+
+// Helper to decode JWT (ID Token) without verification (ADFS verified it)
+const decodeJwt = (token: string) => {
+    try {
+        const base64Url = token.split('.')[1];
+        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        const jsonPayload = decodeURIComponent(atob(base64).split('').map(function (c) {
+            return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+        }).join(''));
+        return JSON.parse(jsonPayload);
+    } catch (e) {
+        console.error('[OAuth] Failed to decode JWT:', e);
+        return null;
+    }
+};
 
 // --- Passport Setup ---
-if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
-    passport.use(new GoogleStrategy(
+if (ADFS_CLIENT_ID && ADFS_CLIENT_SECRET) {
+    passport.use('adfs', new OAuth2Strategy(
         {
-            clientID: process.env.GOOGLE_CLIENT_ID,
-            clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-            callbackURL: process.env.GOOGLE_CALLBACK_URL || `${API_GATEWAY_URL}/api/auth/google/callback`,
-            scope: ['profile', 'email']
+            authorizationURL: ADFS_AUTH_URL,
+            tokenURL: ADFS_TOKEN_URL,
+            clientID: ADFS_CLIENT_ID,
+            clientSecret: ADFS_CLIENT_SECRET,
+            callbackURL: REDIRECT_URI,
+            // ADFS often requires resource parameter, but standard OAuth2 sends scope.
+            // We'll rely on correct scope.
+            scope: ['openid', 'profile', 'email']
         },
-        async (accessToken, refreshToken, profile, done) => {
+        async (accessToken: string, refreshToken: string, params: any, profile: any, done: any) => {
             try {
-                // Log Raw Profile for Data Extraction
-                console.log('[OAuth] Raw Google Profile:', JSON.stringify(profile, null, 2));
+                console.log('[OAuth] ADFS Callback received.');
 
-                // Transform Google Profile to Standard User Object
-                const email = profile.emails?.[0].value;
-                if (!email) return done(new Error('No email from Google'));
+                // ADFS returns id_token in params
+                const idToken = params.id_token;
+                if (!idToken) {
+                    console.error('[OAuth] No ID Token received from ADFS.');
+                    return done(new Error('No ID Token received'));
+                }
 
-                // Domain Restriction: Allow only lamduan.mfu.ac.th (Student) or mfu.ac.th (Staff)
-                // "disable emails that are not lamduan" requested by user, but usually staff need access too.
-                // Assuming strict organization check.
+                const decoded = decodeJwt(idToken);
+                console.log('[OAuth] Decoded ID Token Claims:', JSON.stringify(decoded, null, 2));
+
+                if (!decoded) return done(new Error('Invalid ID Token'));
+
+                // Map Claims to User Data
+                // Typical MFU ADFS claims: upn (email), unique_name, or standard email
+                const email = decoded.email || decoded.upn || decoded.unique_name;
+                if (!email) return done(new Error('No email found in token'));
+
+                // Domain Check
                 const allowedDomains = ['lamduan.mfu.ac.th', 'mfu.ac.th'];
                 const domain = email.split('@')[1];
-                if (!allowedDomains.includes(domain)) {
-                    console.warn(`[OAuth] Blocked login attempt from unauthorized domain: ${domain}`);
-                    return done(null, false, { message: 'Unauthorized Domain. Please use your @lamduan.mfu.ac.th or @mfu.ac.th account.' });
+
+                // Allow staff/students
+                if (!allowedDomains.includes(domain) && !email.endsWith('.mfu.ac.th')) {
+                    console.warn(`[OAuth] Unauthorized domain: ${domain}`);
+                    return done(null, false, { message: 'Unauthorized Domain' });
                 }
 
-                // Determine Role by Domain (HD field is more reliable)
-                const hd = profile._json.hd || '';
+                // Determine Role
                 let role = 'student';
-
-                if (hd === 'mfu.ac.th') {
-                    role = 'staff';
-                } else if (hd === 'lamduan.mfu.ac.th') {
-                    role = 'student';
-                } else if (email.includes('staff')) { // Fallback checks
+                if (domain === 'mfu.ac.th' || email.includes('staff')) {
                     role = 'staff';
                 }
-
-                // Extract Picture
-                const picture = profile.photos?.[0]?.value || profile._json.picture || '';
 
                 const userData = {
-                    googleId: profile.id,
+                    googleId: decoded.sub || email, // Use email/sub as key
                     email,
-                    firstName: profile.name?.givenName,
-                    lastName: profile.name?.familyName,
+                    firstName: decoded.given_name || decoded.firstname || email.split('@')[0],
+                    lastName: decoded.family_name || decoded.lastname || '',
                     username: email.split('@')[0],
                     role,
-                    picture
+                    picture: '' // ADFS rarely sends picture in ID Token
                 };
 
-                // Call Identity Service to Login/Create User and Get Token
+                // Handshake with Identity Service
                 const response = await axios.post(`${IDENTITY_SERVICE_URL}/internal/login`, userData, {
                     headers: { 'x-internal-key': INTERNAL_API_KEY }
                 });
@@ -80,45 +109,60 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
                 return done(null, { token, user });
 
             } catch (err: any) {
-                if (axios.isAxiosError(err) && err.response) {
-                    console.error('[OAuth] Identity Service Error:', JSON.stringify(err.response.data));
+                console.error('[OAuth] Error in Strategy:', err.message);
+                if (axios.isAxiosError(err)) {
+                    console.error('[OAuth] Identity Response:', err.response?.data);
                 }
-                console.error('[OAuth] Identity Handshake Failed:', err.message);
                 return done(err);
             }
         }
     ));
 } else {
-    console.warn('[OAuth] Google Client ID/Secret missing. Google Auth disabled.');
+    console.warn('[OAuth] ADFS Client ID/Secret missing. ADFS Auth disabled.');
 }
 
 // --- Routes ---
 
-app.get('/health', (req, res) => res.json({ status: 'ok', service: 'oauth-service' }));
+app.get('/health', (req, res) => res.json({ status: 'ok', service: 'oauth-service', mode: 'adfs' }));
 
 // Init Login
-app.get('/api/auth/login/google', (req, res, next) => {
-    if (!process.env.GOOGLE_CLIENT_ID) return res.status(503).json({ error: 'Google Auth not configured' });
-    passport.authenticate('google', {
+app.get('/api/auth/login', (req, res, next) => {
+    if (!ADFS_CLIENT_ID) return res.status(503).json({ error: 'ADFS not configured' });
+    passport.authenticate('adfs', {
         session: false,
-        prompt: 'select_account'
     })(req, res, next);
 });
 
-// Callback
-app.get('/api/auth/google/callback',
-    passport.authenticate('google', { session: false, failureRedirect: '/login?error=google_auth_failed' }),
-    (req: any, res) => {
-        const { token, user } = req.user;
+// Callback Handling
+const handleCallback = (req: any, res: any, next: any) => {
+    passport.authenticate('adfs', { session: false, failureRedirect: '/login?error=auth_failed' }, (err, user, info) => {
+        if (err || !user) {
+            console.error('[OAuth] Auth Failed:', err || info);
+            return res.redirect(`${FRONTEND_URL}/login?error=auth_failed`);
+        }
 
-        // Encode user data for frontend
-        const userDataStr = Buffer.from(JSON.stringify(user)).toString('base64');
+        const { token: authToken, user: userData } = user;
+        const userDataStr = Buffer.from(JSON.stringify(userData)).toString('base64');
 
-        // Redirect to Frontend
-        res.redirect(`${FRONTEND_URL}/auth-callback?token=${token}&user_data=${userDataStr}&provider=google`);
-    }
-);
+        // Redirect to Frontend Callback Handler
+        res.redirect(`${FRONTEND_URL}/auth-callback?token=${authToken}&user_data=${userDataStr}&provider=adfs`);
+    })(req, res, next);
+};
+
+// Route for Nginx-proxied callback (https://mfulearnai.mfu.ac.th/auth/callback)
+app.get('/auth/callback', handleCallback);
+
+// Legacy/API Route
+app.get('/api/auth/callback', handleCallback);
+
+// --- Logout ---
+app.get('/api/auth/logout', (req, res) => {
+    // Redirect to ADFS Logout if needed, otherwise just return 200
+    // ADFS Logout: https://authsso.mfu.ac.th/adfs/oauth2/logout
+    const logoutUrl = `https://authsso.mfu.ac.th/adfs/oauth2/logout?post_logout_redirect_uri=${FRONTEND_URL}/login`;
+    res.redirect(logoutUrl);
+});
 
 app.listen(Number(PORT), '0.0.0.0', () => {
-    console.log(`[OAuth Service] Running on ${PORT}`);
+    console.log(`[OAuth Service] Running on ${PORT} (Mode: ADFS)`);
 });
