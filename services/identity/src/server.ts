@@ -108,6 +108,7 @@ app.post('/internal/login', authenticateInternal, async (req: Request, res: Resp
         };
 
         if (department) updateData.department = department;
+        if (departId) updateData.departmentId = departId; // Save departmentId
         if (groups) updateData.groups = groups;
         if (googleId) updateData.googleId = googleId;
         if (nameID) updateData.nameID = nameID;
@@ -149,6 +150,7 @@ app.post('/internal/login', authenticateInternal, async (req: Request, res: Resp
                 username: user.username,
                 role: user.role,
                 department: user.department,
+                departmentId: user.departmentId,
                 firstName: user.firstName,
                 lastName: user.lastName,
                 picture: user.picture

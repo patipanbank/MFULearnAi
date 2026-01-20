@@ -98,10 +98,17 @@ if (ADFS_CLIENT_ID && ADFS_CLIENT_SECRET) {
                     }
                 }
 
-                // Extract Username (remove MFU\ prefix if present in unique_name)
-                let username = email.split('@')[0];
-                if (decoded.unique_name && decoded.unique_name.includes('\\')) {
-                    username = decoded.unique_name.split('\\')[1];
+                // Extract Username
+                // 1. Try explicit 'username' claim (New)
+                // 2. Try 'unique_name' (strip MFU\)
+                // 3. Fallback to email prefix
+                let username = decoded.username;
+                if (!username) {
+                    if (decoded.unique_name && decoded.unique_name.includes('\\')) {
+                        username = decoded.unique_name.split('\\')[1];
+                    } else {
+                        username = email.split('@')[0];
+                    }
                 }
 
                 const userData = {

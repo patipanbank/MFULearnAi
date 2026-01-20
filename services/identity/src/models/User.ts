@@ -11,6 +11,7 @@ export interface UserDocument extends Document {
     firstName?: string;
     lastName?: string;
     department?: string;
+    departmentId?: string;
     role: UserRole;
     groups: string[];
     googleId?: string;
@@ -32,6 +33,7 @@ const UserSchema: Schema = new Schema({
     firstName: { type: String },
     lastName: { type: String },
     department: { type: String },
+    departmentId: { type: String }, // Store ADFS Department ID
     role: {
         type: String,
         enum: ['student', 'staff', 'admin', 'superadmin'],
