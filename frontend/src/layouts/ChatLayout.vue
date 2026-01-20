@@ -1,71 +1,24 @@
-<script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { useAuthStore } from '@/stores/auth'
-import { useLanguage } from '@/composables/useSettings'
-import AppSidebar from './AppSidebar.vue'
-import AppHeader from './AppHeader.vue'
+const router = useRouter() // Import useRouter if not already
+// ... (imports)
 
-const authStore = useAuthStore()
-const { t } = useLanguage()
-
-// State
-const isMobile = ref(false)
-const isSidebarOpen = ref(false) // For mobile overlay
-
-// Props for Header
-const envName = import.meta.env.VITE_ENV_NAME || t('appName')
-const userName = computed(() => authStore.displayName || t('guest'))
-const userInitial = computed(() => authStore.displayName?.charAt(0)?.toUpperCase() || 'U')
-
-const checkMobile = () => {
-  isMobile.value = window.innerWidth < 768
-  if (!isMobile.value) {
-    isSidebarOpen.value = false // Reset on desktop
-  }
+const handleLogout = () => {
+  authStore.logout()
+  router.push('/login')
 }
 
-const toggleSidebar = () => {
-  isSidebarOpen.value = !isSidebarOpen.value
-}
+// ...
 
-const closeSidebar = () => {
-  isSidebarOpen.value = false
-}
-
-onMounted(() => {
-  checkMobile()
-  window.addEventListener('resize', checkMobile)
-})
-
-onUnmounted(() => {
-  window.removeEventListener('resize', checkMobile)
-})
-</script>
-
-<template>
-  <div class="chat-layout-container">
-    <!-- Sidebar with Mobile Props -->
-    <AppSidebar 
-        :is-mobile="isMobile"
-        :mobile-open="isSidebarOpen"
-        @close-mobile="closeSidebar"
-    />
-    
-    <!-- Mobile Overlay Backdrop -->
-    <div 
-        v-if="isMobile && isSidebarOpen" 
-        class="sidebar-backdrop"
-        @click="closeSidebar"
-    ></div>
-
-    <main class="chat-main-content">
-      <AppHeader 
+    <AppHeader 
         :env-name="envName"
         :user-name="userName"
         :user-initial="userInitial"
         :user-avatar-url="authStore.profilePicture"
+        :user-role="authStore.role"
+        :user-department="authStore.department"
+        :user-email="authStore.user?.email"
         :show-sidebar-toggle="isMobile"
         @toggle-sidebar="toggleSidebar"
+        @logout="handleLogout"
       />
       <div class="content-view">
         <router-view />

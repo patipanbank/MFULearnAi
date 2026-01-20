@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue' // Added ref, onUnmounted
 import { useRoute } from 'vue-router'
 import { useKnowledgeStore } from '@/stores/knowledge'
 import KnowledgeSelector from '@/components/chat/KnowledgeSelector.vue'
@@ -12,16 +12,37 @@ const props = defineProps({
   userName: { type: String, default: 'User' },
   userInitial: { type: String, default: 'U' },
   userAvatarUrl: { type: String, default: '' },
+  userRole: { type: String, default: '' },
+  userDepartment: { type: String, default: '' },
+  userEmail: { type: String, default: '' },
   showSidebarToggle: { type: Boolean, default: true }
 })
 
-const emit = defineEmits(['toggle-sidebar'])
+const emit = defineEmits(['toggle-sidebar', 'logout']) // Added logout
 
 const route = useRoute()
 const knowledgeStore = useKnowledgeStore()
 
+const showProfileMenu = ref(false)
+const profileMenuRef = ref(null)
+
+const toggleProfileMenu = () => {
+    showProfileMenu.value = !showProfileMenu.value
+}
+
+const closeProfileMenu = (e) => {
+    if (profileMenuRef.value && !profileMenuRef.value.contains(e.target)) {
+        showProfileMenu.value = false
+    }
+}
+
 onMounted(() => {
     knowledgeStore.fetchCollections()
+    document.addEventListener('click', closeProfileMenu)
+})
+
+onUnmounted(() => { // Cleanup
+    document.removeEventListener('click', closeProfileMenu)
 })
 </script>
 
@@ -50,10 +71,45 @@ onMounted(() => {
     </div>
     
     <div class="header-right">
-      <div class="user-display">
+      <div class="user-display" @click.stop="toggleProfileMenu" ref="profileMenuRef">
         <img v-if="userAvatarUrl" :src="userAvatarUrl" class="user-avatar-img" alt="Profile" referrerpolicy="no-referrer" />
         <div v-else class="user-avatar">{{ userInitial }}</div>
         <span class="user-name">{{ userName }}</span>
+
+        <!-- Profile Dropdown -->
+        <Transition name="fade">
+            <div v-if="showProfileMenu" class="profile-dropdown">
+                <div class="dropdown-header">
+                    <div class="user-info-large">
+                        <div class="user-avatar large">{{ userInitial }}</div>
+                        <div>
+                            <div class="font-bold">{{ userName }}</div>
+                            <div class="text-xs text-muted">{{ userEmail }}</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="dropdown-body">
+                    <div class="info-item">
+                        <span class="label">Role:</span>
+                        <span class="value badge">{{ userRole }}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="label">Department:</span>
+                        <span class="value">{{ userDepartment || 'N/A' }}</span>
+                    </div>
+                </div>
+                <div class="dropdown-footer">
+                    <button class="btn-logout" @click="emit('logout')">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="mr-2">
+                            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                            <polyline points="16 17 21 12 16 7"/>
+                            <line x1="21" y1="12" x2="9" y2="12"/>
+                        </svg>
+                        Logout
+                    </button>
+                </div>
+            </div>
+        </Transition>
       </div>
     </div>
   </header>
@@ -177,6 +233,13 @@ onMounted(() => {
   background: var(--color-bg-tertiary);
   border-radius: 50px;
   border: 1px solid var(--color-border);
+  cursor: pointer;
+  position: relative; /* For dropdown positioning */
+  transition: background 0.2s;
+}
+
+.user-display:hover {
+    background: var(--color-bg-hover);
 }
 
 .user-avatar-img {
@@ -252,5 +315,113 @@ onMounted(() => {
       width: 32px;
       height: 32px;
   }
+}
+
+/* Dropdown Styles */
+.profile-dropdown {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    margin-top: 8px;
+    width: 280px;
+    background: var(--color-bg-primary);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+    z-index: 100;
+    overflow: hidden;
+}
+
+.dropdown-header {
+    padding: 16px;
+    background: var(--color-bg-tertiary);
+    border-bottom: 1px solid var(--color-border);
+}
+
+.user-info-large {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.user-avatar.large {
+    width: 48px;
+    height: 48px;
+    font-size: 20px;
+}
+
+.text-muted {
+    font-size: 0.8rem;
+    color: var(--color-text-secondary);
+    word-break: break-all;
+}
+
+.dropdown-body {
+    padding: 16px;
+}
+
+.info-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+    font-size: 0.9rem;
+}
+
+.info-item:last-child {
+    margin-bottom: 0;
+}
+
+.label {
+    color: var(--color-text-secondary);
+}
+
+.value {
+    font-weight: 500;
+    color: var(--color-text-primary);
+}
+
+.badge {
+    background: var(--color-bg-tertiary);
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    border: 1px solid var(--color-border);
+    text-transform: uppercase;
+}
+
+.dropdown-footer {
+    padding: 8px;
+    border-top: 1px solid var(--color-border);
+}
+
+.btn-logout {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px;
+    border: none;
+    background: transparent;
+    color: #ef4444; /* Red color */
+    cursor: pointer;
+    border-radius: var(--radius-md);
+    font-weight: 500;
+    transition: background 0.15s;
+}
+
+.btn-logout:hover {
+    background: rgba(239, 68, 68, 0.1);
+}
+
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+  transform: translateY(-10px);
 }
 </style>
