@@ -1,4 +1,4 @@
-import express from 'express';
+import express, { Request, Response, NextFunction } from 'express';
 import passport from 'passport';
 import { Strategy as OAuth2Strategy } from 'passport-oauth2';
 import axios from 'axios';
@@ -123,10 +123,10 @@ if (ADFS_CLIENT_ID && ADFS_CLIENT_SECRET) {
 
 // --- Routes ---
 
-app.get('/health', (req, res) => res.json({ status: 'ok', service: 'oauth-service', mode: 'adfs' }));
+app.get('/health', (req: Request, res: Response) => res.json({ status: 'ok', service: 'oauth-service', mode: 'adfs' }));
 
 // Init Login
-app.get('/api/auth/login', (req, res, next) => {
+app.get('/api/auth/login', (req: Request, res: Response, next: NextFunction) => {
     if (!ADFS_CLIENT_ID) return res.status(503).json({ error: 'ADFS not configured' });
     passport.authenticate('adfs', {
         session: false,
@@ -134,8 +134,8 @@ app.get('/api/auth/login', (req, res, next) => {
 });
 
 // Callback Handling
-const handleCallback = (req: any, res: any, next: any) => {
-    passport.authenticate('adfs', { session: false, failureRedirect: '/login?error=auth_failed' }, (err, user, info) => {
+const handleCallback = (req: Request, res: Response, next: NextFunction) => {
+    passport.authenticate('adfs', { session: false, failureRedirect: '/login?error=auth_failed' }, (err: any, user: any, info: any) => {
         if (err || !user) {
             console.error('[OAuth] Auth Failed:', err || info);
             return res.redirect(`${FRONTEND_URL}/login?error=auth_failed`);
@@ -156,7 +156,7 @@ app.get('/auth/callback', handleCallback);
 app.get('/api/auth/callback', handleCallback);
 
 // --- Logout ---
-app.get('/api/auth/logout', (req, res) => {
+app.get('/api/auth/logout', (req: Request, res: Response) => {
     // Redirect to ADFS Logout if needed, otherwise just return 200
     // ADFS Logout: https://authsso.mfu.ac.th/adfs/oauth2/logout
     const logoutUrl = `https://authsso.mfu.ac.th/adfs/oauth2/logout?post_logout_redirect_uri=${FRONTEND_URL}/login`;
