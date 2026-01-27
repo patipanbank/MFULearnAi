@@ -279,13 +279,14 @@ onMounted(() => fetchPrompts());
 </script>
 
 <style scoped>
+/* CSS Variables Usage for Theme Compatibility */
 .page-container {
     height: 100%;
     display: flex;
     flex-direction: column;
     padding: 24px;
-    background: var(--color-bg-primary, #121212);
-    color: var(--color-text-primary, #ffffff);
+    background: var(--color-bg-primary);
+    color: var(--color-text-primary);
 }
 
 .page-header {
@@ -293,16 +294,19 @@ onMounted(() => fetchPrompts());
     justify-content: space-between;
     align-items: flex-start;
     margin-bottom: 24px;
+    flex-wrap: wrap;
+    gap: 16px;
 }
 
 .header-left h1 {
     font-size: 24px;
     font-weight: 700;
     margin: 0 0 4px 0;
+    color: var(--color-text-primary);
 }
 
 .subtitle {
-    color: var(--color-text-muted, #9ca3af);
+    color: var(--color-text-muted);
     font-size: 14px;
 }
 
@@ -313,25 +317,42 @@ onMounted(() => fetchPrompts());
     overflow: hidden;
 }
 
+/* Responsive: Stack sidebar and editor on small screens */
+@media (max-width: 768px) {
+    .content-wrapper {
+        flex-direction: column;
+    }
+    .sidebar {
+        width: 100%;
+        height: 250px; /* Fixed height for list when stacked */
+        flex: none;
+    }
+    .editor-container {
+        flex: 1;
+    }
+}
+
 /* Sidebar */
 .sidebar {
     width: 320px;
-    background: var(--color-bg-secondary, #1e1e1e);
-    border: 1px solid var(--color-border, #374151);
+    background: var(--color-bg-secondary);
+    border: 1px solid var(--color-border);
     border-radius: 12px;
     display: flex;
     flex-direction: column;
+    flex-shrink: 0;
 }
 
 .sidebar-header {
     padding: 16px;
-    border-bottom: 1px solid var(--color-border, #374151);
+    border-bottom: 1px solid var(--color-border);
 }
 
 .sidebar-header h2 {
     font-size: 16px;
     font-weight: 600;
     margin: 0;
+    color: var(--color-text-primary);
 }
 
 .prompt-list {
@@ -352,12 +373,12 @@ onMounted(() => fetchPrompts());
 }
 
 .prompt-item:hover {
-    background: var(--color-bg-tertiary, #2a2a2a);
+    background: var(--color-bg-hover);
 }
 
 .prompt-item.active {
-    background: rgba(59, 130, 246, 0.1);
-    border-color: rgba(59, 130, 246, 0.5);
+    background: var(--color-bg-tertiary);
+    border-color: var(--color-accent);
 }
 
 .prompt-item.is-active-core {
@@ -374,6 +395,7 @@ onMounted(() => fetchPrompts());
 .prompt-name {
     font-weight: 500;
     font-size: 14px;
+    color: var(--color-text-primary);
 }
 
 .prompt-key {
@@ -397,18 +419,19 @@ onMounted(() => fetchPrompts());
     display: flex;
     justify-content: space-between;
     font-size: 11px;
-    color: var(--color-text-secondary, #6b7280);
+    color: var(--color-text-secondary);
 }
 
 /* Editor */
 .editor-container {
     flex: 1;
-    background: var(--color-bg-secondary, #1e1e1e);
-    border: 1px solid var(--color-border, #374151);
+    background: var(--color-bg-secondary);
+    border: 1px solid var(--color-border);
     border-radius: 12px;
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    min-width: 0; /* Prevent flex overflow */
 }
 
 .editor-content {
@@ -419,30 +442,33 @@ onMounted(() => fetchPrompts());
 
 .editor-toolbar {
     padding: 12px 16px;
-    border-bottom: 1px solid var(--color-border, #374151);
-    background: var(--color-bg-tertiary, #252525);
+    border-bottom: 1px solid var(--color-border);
+    background: var(--color-bg-tertiary);
     display: flex;
     justify-content: space-between;
     align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
 }
 
 .toolbar-info {
     display: flex;
     align-items: baseline;
     gap: 12px;
+    flex-wrap: wrap;
 }
 
 .toolbar-title {
     font-size: 16px;
     font-weight: 600;
-    color: var(--color-accent, #60a5fa);
+    color: var(--color-accent);
 }
 
 .toolbar-key {
     font-size: 12px;
     color: var(--color-text-muted);
     font-family: monospace;
-    background: rgba(0,0,0,0.2);
+    background: var(--color-bg-primary);
     padding: 2px 6px;
     border-radius: 4px;
 }
@@ -461,11 +487,16 @@ onMounted(() => fetchPrompts());
     border-radius: 6px;
     cursor: pointer;
     font-size: 13px;
+    transition: all 0.2s;
+}
+.btn-secondary:hover:not(:disabled) {
+    background: var(--color-bg-hover);
+    color: var(--color-text-primary);
 }
 .btn-secondary:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .btn-primary {
-    background: var(--color-accent, #2563eb);
+    background: var(--color-accent);
     color: white;
     border: none;
     padding: 6px 16px;
@@ -473,8 +504,9 @@ onMounted(() => fetchPrompts());
     cursor: pointer;
     font-size: 13px;
     font-weight: 500;
+    transition: all 0.2s;
 }
-.btn-primary:hover { opacity: 0.9; }
+.btn-primary:hover:not(:disabled) { opacity: 0.9; }
 .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
 
 /* Icon Button */
@@ -485,7 +517,7 @@ onMounted(() => fetchPrompts());
     cursor: pointer;
     padding: 4px;
 }
-.btn-icon-sm:hover { color: white; }
+.btn-icon-sm:hover { color: var(--color-text-primary); }
 .spin { animation: spin 1s linear infinite; }
 @keyframes spin { 100% { transform: rotate(360deg); } }
 
@@ -498,7 +530,7 @@ onMounted(() => fetchPrompts());
 
 .code-editor {
     flex: 1;
-    background: #151515; /* Darker than card */
+    background: #1e1e1e; /* Keep dark for code always? or use var? Let's use darker bg */
     color: #e5e7eb;
     border: none;
     padding: 20px;
@@ -508,6 +540,11 @@ onMounted(() => fetchPrompts());
     resize: none;
     outline: none;
 }
+/* If light mode is supported, we might want light editor, but typically code editors stay dark. 
+   For consistency with the app theme, let's try to verify if we want standard editor look.
+   For now keeping it dark #1e1e1e fits most 'code' vibes. 
+*/
+
 .code-editor:disabled {
     opacity: 0.8;
     cursor: default;
@@ -545,6 +582,7 @@ onMounted(() => fetchPrompts());
     right: 0;
     bottom: 0;
     background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(2px);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -552,8 +590,8 @@ onMounted(() => fetchPrompts());
 }
 
 .modal-content {
-    background: var(--color-bg-secondary, #1e1e1e);
-    border: 1px solid var(--color-border, #374151);
+    background: var(--color-bg-secondary);
+    border: 1px solid var(--color-border);
     border-radius: 12px;
     width: 500px;
     max-width: 90%;
@@ -574,6 +612,7 @@ onMounted(() => fetchPrompts());
     margin: 0;
     font-size: 18px;
     font-weight: 600;
+    color: var(--color-text-primary);
 }
 
 .close-btn {
@@ -583,6 +622,7 @@ onMounted(() => fetchPrompts());
     font-size: 24px;
     cursor: pointer;
 }
+.close-btn:hover { color: var(--color-text-primary); }
 
 .modal-body {
     padding: 20px;
@@ -601,16 +641,16 @@ onMounted(() => fetchPrompts());
 
 .form-input {
     width: 100%;
-    background: var(--color-bg-tertiary, #2a2a2a);
+    background: var(--color-bg-tertiary);
     border: 1px solid var(--color-border);
-    color: white;
+    color: var(--color-text-primary);
     padding: 10px;
     border-radius: 6px;
     font-size: 14px;
 }
 .form-input:focus {
     outline: none;
-    border-color: var(--color-accent, #3b82f6);
+    border-color: var(--color-accent);
 }
 
 .modal-footer {
@@ -618,5 +658,7 @@ onMounted(() => fetchPrompts());
     border-top: 1px solid var(--color-border);
     display: flex;
     justify-content: flex-end;
+    background: var(--color-bg-tertiary);
+    border-radius: 0 0 12px 12px;
 }
 </style>
