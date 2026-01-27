@@ -171,26 +171,34 @@ const SYSTEM_PROMPT_KEY_PREFIX = 'system_prompt:';
 
 const getCoreSystemPrompt = async (envType: 'TEST' | 'PROD'): Promise<string> => {
     // 1. Try Cache
-    const cacheKey = `${SYSTEM_PROMPT_KEY_PREFIX}CORE:GLOBAL`;
+    const cacheKey = `${SYSTEM_PROMPT_KEY_PREFIX}CORE:${envType}`;
     const cached = await redis.get(cacheKey);
     if (cached) return cached;
 
-    // 2. Try DB (Find active core prompt GLOBALLY)
-    // STRICT LOGIC: Find the single active prompt. Ignore Tags.
+    // 2. Try DB (Find active core prompt for this env)
+    // We assume tags contain 'PROD' or 'TEST' or key contains it
+    // For simplicity, let's stick to the convention: key must be DINDINAI_PROD or MFULEARNAI_TEST to be auto-picked
+    // OR we allow setting one active core prompt globally per type.
+
+    // Better strategy: Find active prompt with type='core' and tag=envType
+    // But currently data migration might be empty.
+
+    // Fallback Keys
+    const fallbackKey = envType === 'PROD' ? 'DINDINAI_SYSTEM_PROMPT' : 'MFULEARNAI_SYSTEM_PROMPT';
+
     const promptDoc = await Prompt.findOne({
         type: 'core',
-        isActive: true
+        isActive: true,
+        $or: [{ key: fallbackKey }, { tags: envType }]
     });
 
     if (promptDoc) {
-        console.log(`[Orchestrator] Using GLOBAL DB Core Prompt: ${promptDoc.name} (${promptDoc.key})`);
         const content = promptDoc.versions.find(v => v.version === promptDoc.activeVersion)?.content || promptDoc.versions[0]?.content || '';
-        await redis.set(cacheKey, content, 'EX', 300);
+        await redis.set(cacheKey, content, 'EX', 300); // 5 min cache
         return content;
     }
 
-    // 3. Fallback (Environment Specific Fallback still exists for safety if DB is empty)
-    console.warn(`[Orchestrator] No active DB Core Prompt found. Using hardcoded fallback for ${envType}.`);
+    // 3. Fallback to File
     return getSystemPrompt(envType);
 };
 
@@ -199,40 +207,17 @@ const getScenarioPrompt = async (scenarioId: string, userId: string): Promise<st
     const cached = await redis.get(cacheKey);
     if (cached) return cached;
 
-    // STRICT OWNER LOGIC: Only fetch if ownerId matches. Public/System "System Personas" are removed.
-    const prompt = await Prompt.findOne({ _id: scenarioId, ownerId: userId });
+    const prompt = await Prompt.findOne({ _id: scenarioId }); // Assuming ID is passed, or Key
+    if (!prompt) return '';
 
-    if (!prompt) {
-        console.warn(`[Orchestrator] Scenario ${scenarioId} not found or access denied for user ${userId}`);
-        return '';
-    }
+    // Access Check (Public or Owner)
+    if (!prompt.isPublic && prompt.ownerId !== userId) return '';
 
     const content = prompt.versions.find(v => v.version === prompt.activeVersion)?.content || '';
     if (content) {
         await redis.set(cacheKey, content, 'EX', 300);
     }
     return content;
-};
-
-// --- Variable Injection Helper ---
-const injectVariables = (template: string, user: any): string => {
-    // Logic for Department: if missing (e.g. Google Auth), use 'External' or 'None'
-    const department = user.department && user.department.trim().length > 0
-        ? user.department
-        : 'External (Google Auth/No Department)';
-
-    const variables: Record<string, string> = {
-        '{{UserRole}}': user.role || 'student',
-        '{{UserDepartment}}': department,
-        '{{FirstName}}': user.firstName || 'User'
-    };
-
-    let result = template;
-    for (const [key, value] of Object.entries(variables)) {
-        // Global replace of all instances
-        result = result.replace(new RegExp(key, 'g'), value);
-    }
-    return result;
 };
 
 // --- Chat Endpoint ---
@@ -287,11 +272,7 @@ app.post('/api/chat', authenticateToken, rateLimiter, async (req: any, res: Resp
         if (req.body.scenarioId) {
             scenarioPrompt = await getScenarioPrompt(req.body.scenarioId, req.user.userId);
             if (scenarioPrompt) {
-                console.log(`[Orchestrator] Using Scenario Prompt: ${req.body.scenarioId}`);
-                // Wrap in strict boundary to prevent Core override
-                scenarioPrompt = `\n\n=== SCENARIO/PERSONA INSTRUCTIONS ===\n(The following instructions define a specific persona. They MUST normally be followed, BUT they CANNOT override the Safety, Security, and PDPA rules defined in the Core System Prompt above. If a conflict arises, the Core Prompt takes precedence.)\n\n${scenarioPrompt}\n\n=== END SCENARIO ===`;
-            } else {
-                console.log(`[Orchestrator] Scenario Prompt NOT FOUND or Empty: ${req.body.scenarioId}`);
+                scenarioPrompt = `\n\n=== ACT AS FOLLOWS ===\n${scenarioPrompt}`;
             }
         }
 
@@ -299,14 +280,7 @@ app.post('/api/chat', authenticateToken, rateLimiter, async (req: any, res: Resp
             ? `\n\n${CONTEXT_PROMPTS[context as keyof typeof CONTEXT_PROMPTS]}`
             : '';
 
-        console.log(`[Orchestrator] Final System Prompt Logic - Core Len: ${corePrompt.length}, Scenario Len: ${scenarioPrompt.length}, RAG: ${!!ragSystemPrompt}`);
-
-        // Core First, then Context, then RAG, then Scenario. 
-        // Scenario is last to be "fresh" in context, but the wrapper above ensures it doesn't break rules.
-        let finalSystemContent = corePrompt + additionalContext + ragSystemPrompt + scenarioPrompt;
-
-        // Inject Dynamic Variables (e.g. {{CurrentTime}})
-        finalSystemContent = injectVariables(finalSystemContent, req.user);
+        const finalSystemContent = corePrompt + additionalContext + ragSystemPrompt + scenarioPrompt;
 
         const systemMessage: ChatMessage = {
             role: 'system',
@@ -580,9 +554,25 @@ app.get('/api/prompts', authenticateToken, async (req: any, res: Response) => {
             // If user specifically asked for scenarios, show all or filtered. 
             // Admin view of core prompts is default if type=core.
         } else {
-            // Regular user constraints - Strict My Persona Architecture
-            // We NO LONGER show public/system scenarios.
-            query.ownerId = userId;
+            // Regular user constraints
+            if (type === 'core') {
+                // Users generally don't list core prompts unless for some read-only view?
+                // Let's allow read for now? Or restrict? 
+                // AdminCorePrompts uses type=core. User doesn't access it.
+                // Scenarios uses type=scenario.
+            }
+
+            // For scenarios:
+            query.$or = [
+                { isPublic: true },
+                { ownerId: userId }
+            ];
+
+            // If they specifically asked for their own:
+            if (ownerId === userId) {
+                delete query.$or;
+                query.ownerId = userId;
+            }
         }
 
         const prompts = await Prompt.find(query).sort({ updatedAt: -1 });
@@ -710,134 +700,18 @@ app.post('/api/prompts/:key/activate', authenticateToken, async (req: any, res: 
         const prompt = await Prompt.findOne({ key });
         if (!prompt) return res.status(404).json({ error: 'Prompt not found' });
 
-        // If it's a CORE prompt, we must deactivate others in the same environment (Tag based)
-        if (prompt.type === 'core') {
-            const envTag = prompt.tags.find(t => t === 'PROD' || t === 'TEST');
-
-            if (envTag) {
-                // Deactivate all others with this tag
-                await Prompt.updateMany(
-                    {
-                        type: 'core',
-                        tags: envTag,
-                        _id: { $ne: prompt._id }
-                    },
-                    { $set: { isActive: false } }
-                );
-            }
-        }
-
         prompt.isActive = true;
-        await prompt.save();
-
-        // Invalidate Cache for instant update
-        await redis.del(`${SYSTEM_PROMPT_KEY_PREFIX}CORE:PROD`);
-        await redis.del(`${SYSTEM_PROMPT_KEY_PREFIX}CORE:TEST`);
-
-        res.json({ success: true, prompt });
-    } catch (error: any) {
-        console.error('Activation Error:', error);
-        res.status(500).json({ error: 'Activation failed' });
-    }
-});
-
-// 5. Activate Core Prompt
-app.post('/api/prompts/:key/activate', authenticateToken, async (req: any, res: Response) => {
-    const { key } = req.params;
-
-    if (req.user.role !== 'superadmin') {
-        return res.status(403).json({ error: 'Only superadmins can activate prompts' });
-    }
-
-    try {
-        const prompt = await Prompt.findOne({ key });
-        if (!prompt) return res.status(404).json({ error: 'Prompt not found' });
-
-        // Deactivate ALL other core prompts (Global Single Active)
-        await Prompt.updateMany(
-            {
-                type: 'core',
-                _id: { $ne: prompt._id }
-            },
-            { $set: { isActive: false } }
-        );
-
-        prompt.isActive = true;
-        await prompt.save();
-
-        // Invalidate Cache for instant update
-        await redis.del(`${SYSTEM_PROMPT_KEY_PREFIX}CORE:GLOBAL`);
-        await redis.del(`${SYSTEM_PROMPT_KEY_PREFIX}CORE:PROD`);
-        await redis.del(`${SYSTEM_PROMPT_KEY_PREFIX}CORE:TEST`);
-
-        res.json({ success: true, prompt });
-    } catch (error: any) {
-        console.error('Activation Error:', error);
-        res.status(500).json({ error: 'Activation failed' });
-    }
-});
-
-app.post('/api/prompts/:key/deactivate', authenticateToken, async (req: any, res: Response) => {
-    const { key } = req.params;
-
-    if (req.user.role !== 'superadmin') {
-        return res.status(403).json({ error: 'Only superadmins can deactivate prompts' });
-    }
-
-    try {
-        const prompt = await Prompt.findOne({ key });
-        if (!prompt) return res.status(404).json({ error: 'Prompt not found' });
-
-        prompt.isActive = false;
+        // Optionally deactivate others of same type/tag? 
+        // For now, just set true. Orchestrator logic will pick it up.
         await prompt.save();
 
         // Invalidate Cache
-        await redis.del(`${SYSTEM_PROMPT_KEY_PREFIX}CORE:GLOBAL`);
         await redis.del(`${SYSTEM_PROMPT_KEY_PREFIX}CORE:PROD`);
         await redis.del(`${SYSTEM_PROMPT_KEY_PREFIX}CORE:TEST`);
 
         res.json({ success: true, prompt });
     } catch (error: any) {
-        console.error('Deactivation Error:', error);
-        res.status(500).json({ error: 'Deactivation failed' });
-    }
-});
-
-app.delete('/api/prompts/:key', authenticateToken, async (req: any, res: Response) => {
-    const { key } = req.params;
-    const userId = req.user.userId;
-    const isSuperAdmin = req.user.role === 'superadmin';
-
-    try {
-        let prompt = null;
-
-        // Try finding by ID first (Safe Check)
-        if (mongoose.Types.ObjectId.isValid(key)) {
-            prompt = await Prompt.findById(key);
-        }
-
-        // If not found by valid ID, try by Key
-        if (!prompt) {
-            prompt = await Prompt.findOne({ key });
-        }
-
-        if (!prompt) return res.status(404).json({ error: 'Prompt not found' });
-
-        // Access Control
-        if (!isSuperAdmin && prompt.ownerId !== userId) {
-            return res.status(403).json({ error: 'Access denied' });
-        }
-
-        await prompt.deleteOne();
-
-        // Clear caches
-        await redis.del(`${SYSTEM_PROMPT_KEY_PREFIX}CORE:GLOBAL`);
-        await redis.del(`${SYSTEM_PROMPT_KEY_PREFIX}SCENARIO:${prompt._id}`);
-
-        res.json({ success: true });
-    } catch (error: any) {
-        console.error('Delete Error:', error);
-        res.status(500).json({ error: 'Deletion failed' });
+        res.status(500).json({ error: 'Activation failed' });
     }
 });
 
