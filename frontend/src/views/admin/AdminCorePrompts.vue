@@ -1,143 +1,143 @@
 <template>
-  <div class="page-container">
-    <div class="page-header">
-      <div class="header-left">
-        <h1>Core System Prompts</h1>
-        <p class="subtitle">Manage and Activate the foundational instructions for each environment.</p>
-      </div>
-      
-      <div class="header-actions">
-        <button v-if="isSuperAdmin" @click="openCreateModal" class="btn-primary">
-            <i class="fas fa-plus mr-2"></i>New Core Prompt
-        </button>
-      </div>
-    </div>
-
-    <div class="content-wrapper">
-      <!-- Sidebar List -->
-      <div class="sidebar">
-        <div class="sidebar-header">
-           <div class="flex justify-between items-center">
-                <h2>Defined Prompts</h2>
-                <button @click="refreshPrompts" class="btn-icon-sm" title="Refresh">
-                    <i class="fas fa-sync" :class="{ 'spin': loading }"></i>
-                </button>
-           </div>
+  <div class="prompt-manager">
+    <!-- 1. Top Navigation / Header -->
+    <header class="manager-header">
+      <div class="header-content">
+        <div class="header-title">
+          <h1>System Prompts</h1>
+          <span class="badge-count">{{ prompts.length }}</span>
         </div>
-        <div class="prompt-list">
-            <div v-if="loading && prompts.length === 0" class="p-4 text-center text-muted">Loading...</div>
-            <div v-else-if="prompts.length === 0" class="p-4 text-center text-muted">No core prompts found.</div>
-            
-            <div 
+        <div class="header-actions">
+           <button v-if="isSuperAdmin" @click="openCreateModal" class="btn-primary">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+            New Prompt
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- 2. Main Layout (Master-Detail) -->
+    <main class="manager-body">
+      
+      <!-- A. Sidebar List (Master) -->
+      <aside class="sidebar-list">
+        <!-- Search / Filter (Optional placeholder) -->
+        <div class="list-controls">
+           <input type="text" placeholder="Search prompts..." class="search-input" disabled title="Filter coming soon" />
+        </div>
+
+        <div class="list-scroll">
+            <div v-if="loading" class="p-4 text-center text-muted text-sm">Loading...</div>
+            <div v-else-if="prompts.length === 0" class="p-4 text-center text-muted text-sm">No prompts found.</div>
+
+            <button 
               v-for="prompt in prompts" 
               :key="prompt._id"
               @click="selectPrompt(prompt)"
-              class="prompt-item"
-              :class="{ 'active': selectedPrompt?._id === prompt._id, 'is-active-core': prompt.isActive }"
+              class="list-item"
+              :class="{ 'selected': selectedPrompt?._id === prompt._id }"
             >
-              <div class="prompt-header">
-                <span class="prompt-name">{{ prompt.name }}</span>
-                <div class="flex gap-1">
-                    <span v-for="tag in prompt.tags" :key="tag" class="badge badge-tag">{{ tag }}</span>
-                    <span v-if="prompt.isActive" class="badge badge-active">ACTIVE</span>
+              <div class="item-main">
+                <span class="item-name">{{ prompt.name }}</span>
+                <span v-if="prompt.isActive" class="status-indicator"></span>
+              </div>
+              <div class="item-meta">
+                <div class="tags">
+                   <span v-for="tag in prompt.tags" :key="tag" class="tag">{{ tag }}</span>
                 </div>
+                <span class="version">v{{ prompt.activeVersion }}</span>
               </div>
-              <div class="prompt-key">{{ prompt.key }}</div>
-              <div class="prompt-meta">
-                 <span>v{{ prompt.activeVersion }}</span>
-                 <span>{{ formatDate(prompt.updatedAt) }}</span>
-              </div>
-            </div>
+            </button>
         </div>
-      </div>
+      </aside>
 
-      <!-- Editor Area -->
-      <div class="editor-container">
-        <div v-if="selectedPrompt" class="editor-content">
+      <!-- B. Editor Area (Detail) -->
+      <section class="editor-pane">
+        <div v-if="selectedPrompt" class="editor-inner">
             <!-- Toolbar -->
-            <div class="editor-toolbar">
-                <div class="toolbar-info">
-                    <span class="toolbar-title">{{ selectedPrompt.name }}</span>
-                    <span class="toolbar-key">{{ selectedPrompt.key }}</span>
-                    <span v-if="selectedPrompt.isActive" class="badge badge-active ml-2">Currently Active</span>
+            <div class="editor-header">
+                <div class="editor-meta">
+                   <h2 class="preview-title">{{ selectedPrompt.name }}</h2>
+                   <code class="preview-key">{{ selectedPrompt.key }}</code>
+                   <span v-if="selectedPrompt.isActive" class="badge-status active">Active</span>
                 </div>
-                <div class="toolbar-actions">
+                <div class="editor-actions">
                     <button 
                         v-if="isSuperAdmin && !selectedPrompt.isActive"
                         @click="activatePrompt"
                         :disabled="activating"
-                        class="btn-secondary text-green-400 border-green-800 hover:bg-green-900"
+                        class="btn-text-action text-success"
                     >
-                        {{ activating ? 'Activating...' : 'Set as Active' }}
+                        {{ activating ? 'Activating...' : 'Set Active' }}
                     </button>
-                    
+                    <div class="divider-vertical"></div>
                     <button 
                         v-if="isSuperAdmin"
                         @click="saveVersion"
                         :disabled="!hasChanges || saving"
-                        class="btn-primary"
+                        class="btn-primary btn-sm"
                     >
-                        {{ saving ? 'Saving...' : 'Save New Version' }}
+                        {{ saving ? 'Saving...' : 'Save Changes' }}
                     </button>
                 </div>
             </div>
 
-            <!-- Version/Changelog Inputs -->
-            <div v-if="hasChanges" class="p-3 bg-gray-800 border-b border-gray-700 flex gap-2">
-                <input v-model="changeLog" placeholder="Describe changes (required to save)" class="form-input flex-1 h-8 text-sm" />
-            </div>
+            <!-- Change Log Input (Conditional) -->
+             <div v-if="hasChanges" class="changelog-bar">
+                <input v-model="changeLog" placeholder="Reason for change (Required to save)" class="changelog-input" />
+             </div>
 
-            <!-- Text Area -->
-            <div class="editor-wrapper">
+            <!-- The Editor -->
+            <div class="code-wrapper">
                 <textarea 
                     v-model="editBuffer"
-                    class="code-editor"
+                    class="monaco-like-editor"
                     spellcheck="false"
                     :disabled="!isSuperAdmin"
-                    placeholder="Enter system prompt content..."
                 ></textarea>
-                <div v-if="hasChanges" class="unsaved-badge">Unsaved Changes</div>
             </div>
         </div>
 
-            <!-- Empty State -->
-        <div v-else class="empty-state">
-            <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="text-muted"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="9" y1="3" x2="9" y2="21"></line></svg>
-            <p>Select a core prompt to view or edit</p>
+        <!-- Empty State -->
+        <div v-else class="empty-placeholder">
+            <div class="placeholder-content">
+                <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="mb-4 text-muted"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="9" y1="3" x2="9" y2="21"></line></svg>
+                <p>Select a prompt from the list to edit</p>
+            </div>
         </div>
-      </div>
-    </div>
-    
-    <!-- Create Modal -->
+      </section>
+
+    </main>
+
+    <!-- Modal (Reused Logic) -->
     <div v-if="showCreateModal" class="modal-overlay">
-        <div class="modal-content">
+        <div class="modal-card">
             <div class="modal-header">
-                <h3>New Core Prompt</h3>
-                <button @click="closeCreateModal" class="close-btn">&times;</button>
+                <h3>Create New Prompt</h3>
+                <button @click="closeCreateModal" class="btn-close">&times;</button>
             </div>
             <div class="modal-body">
-                <div class="form-group">
-                    <label>Internal Key (Unique) <span class="text-red-500">*</span></label>
-                    <input v-model="newItem.key" type="text" placeholder="e.g. DINDINAI_STRICT_V2" class="form-input" />
-                    <small class="text-muted block mt-1">Recommended: Use environment suffix e.g. _PROD or _TEST</small>
+                <div class="form-row">
+                    <label>Internal Key</label>
+                    <input v-model="newItem.key" placeholder="e.g. DINDIN_V3_TEST" class="input-std" />
+                    <p class="input-hint">Must be unique. Format: NAME_ENV</p>
                 </div>
-                <div class="form-group">
-                    <label>Display Name <span class="text-red-500">*</span></label>
-                    <input v-model="newItem.name" type="text" placeholder="e.g. DinDin Strict Mode" class="form-input" />
+                <div class="form-row">
+                    <label>Display Name</label>
+                    <input v-model="newItem.name" placeholder="e.g. DinDin Version 3 (Test)" class="input-std" />
                 </div>
-                <div class="form-group">
-                    <label>Initial Content</label>
-                    <textarea v-model="newItem.content" class="form-input h-32 font-mono"></textarea>
+                 <div class="form-row">
+                    <label>Initial Prompt</label>
+                    <textarea v-model="newItem.content" class="input-std input-area"></textarea>
                 </div>
             </div>
-            <div class="modal-footer">
-                <button @click="closeCreateModal" class="btn-secondary mr-2">Cancel</button>
-                <button @click="createPrompt" :disabled="!newItem.key || !newItem.name || creating" class="btn-primary">
-                    {{ creating ? 'Creating...' : 'Create Draft' }}
-                </button>
+            <div class="modal-actions">
+                <button @click="closeCreateModal" class="btn-ghost">Cancel</button>
+                <button @click="createPrompt" :disabled="!newItem.key || creating" class="btn-primary">Create</button>
             </div>
         </div>
     </div>
+
   </div>
 </template>
 
@@ -149,408 +149,297 @@ import { useAuthStore } from '../../stores/auth';
 const authStore = useAuthStore();
 const isSuperAdmin = computed(() => authStore.role === 'superadmin');
 
+// Data
 const prompts = ref([]);
 const loading = ref(false);
 const saving = ref(false);
 const activating = ref(false);
 const creating = ref(false);
-const showCreateModal = ref(false);
+
+// Selection
 const selectedPrompt = ref(null);
 const editBuffer = ref('');
 const changeLog = ref('');
 
+// Create Modal
+const showCreateModal = ref(false);
 const newItem = ref({ key: '', name: '', content: '' });
 
+// Computed
 const hasChanges = computed(() => {
     if (!selectedPrompt.value) return false;
-    // Compare editBuffer with the ACTIVE version content from the object
-    // Note: The API returns 'activeVersion' number. We need to find that version in 'versions' array?
-    // The current GET /api/prompts list returns summary. Details only on GET /:key ? 
-    // Wait, the API I wrote returns everything for now.
-    // Let's assume we fetch full details on select if needed, or use what we have.
-    // The previous API implementation returned "prompt" object with "versions" array.
-    // Let's assume on select we might want to refresh details.
     return editBuffer.value !== getCurrentContent(selectedPrompt.value);
 });
 
+// Helpers
 const getCurrentContent = (prompt) => {
     if (!prompt || !prompt.versions) return '';
-    // If we have versions array, find the active one
     const v = prompt.versions.find(ver => ver.version === prompt.activeVersion);
     return v ? v.content : (prompt.versions[0]?.content || '');
 };
 
-const formatDate = (dateStr) => {
-    if (!dateStr) return '';
-    return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute:'2-digit' });
-};
-
-// Actions
+// API Actions
 const fetchPrompts = async () => {
     loading.value = true;
     try {
         const res = await api.get('/prompts?type=core');
         prompts.value = res.data.prompts || [];
-    } catch (e) {
-        console.error(e);
-    } finally {
-        loading.value = false;
-    }
+    } catch (e) { console.error(e); } 
+    finally { loading.value = false; }
 };
 
 const selectPrompt = async (prompt) => {
-    if (hasChanges.value) {
-        if(!confirm('Discard unsaved changes?')) return;
-    }
+    if (hasChanges.value && !confirm('Discard unsaved changes?')) return;
     
-    // Fetch full details (versions)
+    // Optimistic UI update
+    const previous = selectedPrompt.value; 
+    selectedPrompt.value = prompt; // Show shell immediately
+
     try {
         const res = await api.get(`/prompts/${prompt.key}`);
         selectedPrompt.value = res.data.prompt;
         editBuffer.value = getCurrentContent(selectedPrompt.value);
         changeLog.value = '';
     } catch (e) {
-        console.error(e);
+        alert('Failed to load details');
+        selectedPrompt.value = previous; // Revert
     }
 };
 
 const saveVersion = async () => {
-    if (!changeLog.value) {
-        alert('Please enter a changelog description.');
-        return;
-    }
+    if (!changeLog.value) return alert('Changelog required');
     saving.value = true;
     try {
-        const res = await api.post(`/prompts/${selectedPrompt.value.key}/versions`, {
+        await api.post(`/prompts/${selectedPrompt.value.key}/versions`, {
             content: editBuffer.value,
             changelog: changeLog.value
         });
-        
-        // Refresh
-        await selectPrompt(selectedPrompt.value);
-        await fetchPrompts(); // Refresh list to show version update
-        alert('New version saved!');
-    } catch (e) {
-        alert(e.response?.data?.error || 'Failed to save');
-    } finally {
-        saving.value = false;
-    }
+        await selectPrompt(selectedPrompt.value); // Refresh
+        await fetchPrompts(); // Update list indicators
+        alert('Saved!');
+    } catch (e) { alert('Save failed'); }
+    finally { saving.value = false; }
 };
 
 const activatePrompt = async () => {
-    if (!confirm('Are you sure you want to ACTIVATE this prompt? It will immediately affect all users in this environment.')) return;
-    
+    if(!confirm('Activate this prompt?')) return;
     activating.value = true;
     try {
         await api.post(`/prompts/${selectedPrompt.value.key}/activate`);
         selectedPrompt.value.isActive = true;
         await fetchPrompts();
-        alert('Prompt Activated!');
-    } catch (e) {
-        alert(e.response?.data?.error || 'Failed to activate');
-    } finally {
-        activating.value = false;
-    }
+    } catch (e) { alert('Failed'); }
+    finally { activating.value = false; }
 };
-
-const openCreateModal = () => { newItem.value = { key: '', name: '', content: '' }; showCreateModal.value = true; };
-const closeCreateModal = () => { showCreateModal.value = false; };
 
 const createPrompt = async () => {
     creating.value = true;
     try {
-        await api.post('/prompts', {
-            type: 'core',
-            key: newItem.value.key,
-            name: newItem.value.name,
-            content: newItem.value.content,
-            description: 'Core System Prompt'
-        });
+        await api.post('/prompts', { ...newItem.value, type: 'core' });
         await fetchPrompts();
         closeCreateModal();
-    } catch (e) {
-        alert(e.response?.data?.error || 'Creation failed');
-    } finally {
-        creating.value = false;
-    }
+    } catch (e) { alert('Failed'); }
+    finally { creating.value = false; }
 };
 
-onMounted(() => fetchPrompts());
+// Modal Controls
+const openCreateModal = () => { newItem.value = { key:'', name:'', content:'' }; showCreateModal.value = true; };
+const closeCreateModal = () => showCreateModal.value = false;
+
+onMounted(fetchPrompts);
 </script>
 
 <style scoped>
-/* ROOT PAGE ARCHITECTURE */
-.page-container {
+/* 
+    DESIGN ARCHITECTURE:
+    - CSS Grid for top-level layout (Header + Body).
+    - Flex Row for Master-Detail (Sidebar + Main).
+    - CSS Variables for all colors.
+    - No nested scrolling issues (flex-1 + overflow-hidden on parents).
+*/
+
+.prompt-manager {
     height: 100%;
     display: flex;
     flex-direction: column;
-    overflow: hidden; /* Prevent body scroll */
     background: var(--color-bg-primary);
     color: var(--color-text-primary);
+    font-family: 'Inter', -apple-system, sans-serif; /* Ensure modern font */
 }
 
-/* 1. Header Section (Fixed Height) */
-.page-header {
+/* --- HEADER --- */
+.manager-header {
+    height: 60px;
+    border-bottom: 1px solid var(--color-border);
     flex-shrink: 0;
     display: flex;
-    justify-content: space-between;
     align-items: center;
-    padding: 24px 24px 16px;
-    border-bottom: 1px solid var(--color-border);
+    padding: 0 24px;
+    background: var(--color-bg-primary);
+}
+.header-content {
+    width: 100%;
+    display: flex; 
+    justify-content: space-between; 
+    align-items: center; 
+}
+.header-title { display: flex; align-items: center; gap: 12px; }
+.header-title h1 { margin: 0; font-size: 18px; font-weight: 600; color: var(--color-text-primary); }
+.badge-count { 
+    background: var(--color-bg-tertiary); color: var(--color-text-muted); 
+    font-size: 12px; padding: 2px 8px; border-radius: 99px; font-weight: 600; 
 }
 
-.header-left h1 {
-    font-size: 20px;
-    font-weight: 700;
-    margin: 0 0 4px 0;
-    color: var(--color-text-primary);
-}
-
-.subtitle {
-    font-size: 13px;
-    color: var(--color-text-muted);
-    margin: 0;
-}
-
-/* 2. Main Content (Scrollable Grid) */
-.content-wrapper {
+/* --- MAIN BODY --- */
+.manager-body {
     flex: 1;
-    display: grid;
-    grid-template-columns: 280px 1fr; /* Fixed Sidebar | Flexible Content */
-    overflow: hidden; /* Important for inner scrolls */
-    min-height: 0; /* Important for flex children scrolling */
+    display: flex;
+    overflow: hidden; /* Lock viewport */
 }
 
-/* --- SIDEBAR (Master View) --- */
-.sidebar {
+/* --- SIDEBAR LIST --- */
+.sidebar-list {
+    width: 280px;
     border-right: 1px solid var(--color-border);
     background: var(--color-bg-secondary);
     display: flex;
     flex-direction: column;
-    min-width: 0;
-    z-index: 10;
-}
-
-.sidebar-header {
-    padding: 12px 16px;
-    background: var(--color-bg-tertiary);
-    border-bottom: 1px solid var(--color-border);
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.sidebar-header h2 {
-    font-size: 12px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: var(--color-text-secondary);
-    margin: 0;
-}
-
-.prompt-list {
-    flex: 1;
-    overflow-y: auto;
-    padding: 8px;
-}
-
-.prompt-item {
-    padding: 12px;
-    margin-bottom: 4px;
-    border-radius: 6px;
-    border: 1px solid transparent;
-    cursor: pointer;
-    background: transparent;
-    transition: all 0.15s ease;
-}
-
-.prompt-item:hover {
-    background: var(--color-bg-hover);
-}
-
-.prompt-item.active {
-    background: var(--color-bg-tertiary); /* Better contrast */
-    border-color: var(--color-border);
-    box-shadow: 0 1px 2px rgba(0,0,0,0.1);
-}
-
-.prompt-header {
-    display: flex;
-    justify-content: space-between;
-    margin-bottom: 4px;
-}
-
-.prompt-name {
-    font-weight: 600;
-    font-size: 14px;
-    color: var(--color-text-primary);
-}
-
-.prompt-item.is-active-core .prompt-name {
-    color: #10b981; /* Green highlight for active persona */
-}
-
-.badge-tag {
-    font-size: 10px;
-    background: rgba(96, 165, 250, 0.15);
-    color: #60a5fa;
-    padding: 2px 6px;
-    border-radius: 4px;
-    margin-right: 6px;
-}
-.badge-active {
-    font-size: 9px;
-    background: rgba(16, 185, 129, 0.2);
-    color: #34d399;
-    padding: 2px 6px;
-    border-radius: 999px;
-    font-weight: 700;
-}
-
-.prompt-key {
-    font-family: monospace;
-    font-size: 10px;
-    color: var(--color-text-muted);
-}
-
-/* --- EDITOR (Detail View) --- */
-.editor-container {
-    display: flex;
-    flex-direction: column;
-    min-width: 0;
-    background: var(--color-bg-primary);
-}
-
-.editor-toolbar {
-    padding: 12px 24px;
-    border-bottom: 1px solid var(--color-border);
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    background: var(--color-bg-primary); /* Blend with header */
-    height: 60px;
     flex-shrink: 0;
 }
 
-.toolbar-info {
-    display: flex;
-    align-items: center;
-    gap: 12px;
+.list-controls {
+    padding: 12px;
+    border-bottom: 1px solid var(--color-border);
+}
+.search-input {
+    width: 100%; background: var(--color-bg-tertiary); border: 1px solid var(--color-border);
+    padding: 8px 12px; border-radius: 6px; color: var(--color-text-primary); font-size: 13px;
+}
+.search-input:focus { outline: none; border-color: var(--color-accent); }
+
+.list-scroll {
+    flex: 1; overflow-y: auto; padding: 8px;
+    display: flex; flex-direction: column; gap: 4px;
 }
 
-.toolbar-title {
-    font-size: 18px;
-    font-weight: 600;
-}
-
-.toolbar-actions {
-    display: flex;
-    gap: 8px;
-}
-
-.editor-wrapper {
-    flex: 1;
-    position: relative;
-    padding: 0;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-}
-
-.code-editor {
-    flex: 1;
-    width: 100%;
-    height: 100%;
-    border: none;
-    resize: none;
-    background: #1e1e1e; /* Editor separates itself */
-    color: #e5e7eb;
-    padding: 24px;
-    font-family: 'Fira Code', monospace;
-    font-size: 14px;
-    line-height: 1.6;
+.list-item {
+    text-align: left;
+    background: transparent; border: 1px solid transparent;
+    padding: 10px 12px; border-radius: 8px;
+    cursor: pointer; transition: all 0.2s;
     outline: none;
 }
+.list-item:hover { background: var(--color-bg-hover); }
+.list-item.selected { 
+    background: var(--color-bg-tertiary); 
+    border-color: var(--color-border);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+}
 
-.empty-state {
+.item-main { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+.item-name { font-weight: 500; font-size: 14px; color: var(--color-text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.status-indicator { width: 8px; height: 8px; background: #10b981; border-radius: 50%; box-shadow: 0 0 4px rgba(16,185,129,0.5); }
+
+.item-meta { display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: var(--color-text-secondary); }
+.tag { background: rgba(59,130,246,0.1); color: #3b82f6; padding: 1px 4px; border-radius: 4px; margin-right: 4px; }
+.version { font-family: monospace; }
+
+/* --- EDITOR PANE --- */
+.editor-pane {
     flex: 1;
     display: flex;
     flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    color: var(--color-text-muted);
-    gap: 16px;
+    overflow: hidden;
+    background: #1e1e1e; /* Dedicated dark theme for editor area */
 }
 
-/* --- RESPONSIVE LAYOUT (Mobile) --- */
+/* Editor Toolbar */
+.editor-header {
+    height: 56px;
+    border-bottom: 1px solid #333;
+    background: #1e1e1e;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 20px;
+    flex-shrink: 0;
+}
+
+.editor-meta { display: flex; align-items: center; gap: 12px; }
+.preview-title { margin: 0; font-size: 16px; font-weight: 600; color: #fff; }
+.preview-key { font-size: 12px; color: #888; background: #2a2a2a; padding: 2px 6px; border-radius: 4px; }
+.badge-status.active { font-size: 10px; background: rgba(16,185,129,0.2); color: #34d399; padding: 2px 8px; border-radius: 99px; text-transform: uppercase; font-weight: 700; }
+
+.editor-actions { display: flex; align-items: center; gap: 12px; }
+.btn-text-action { background: none; border: none; font-size: 13px; font-weight: 500; cursor: pointer; }
+.text-success { color: #34d399; } .text-success:hover { text-decoration: underline; }
+.divider-vertical { width: 1px; height: 16px; background: #444; }
+
+.changelog-bar {
+    padding: 8px 20px;
+    background: #252525;
+    border-bottom: 1px solid #333;
+}
+.changelog-input {
+    width: 100%; border: 1px solid #444; background: #1a1a1a; color: #ddd;
+    padding: 6px 10px; border-radius: 4px; font-size: 12px;
+}
+.changelog-input:focus { border-color: #3b82f6; outline: none; }
+
+.code-wrapper {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+}
+.monaco-like-editor {
+    width: 100%; height: 100%;
+    background: #1e1e1e; color: #d4d4d4;
+    border: none; padding: 24px;
+    font-family: 'Consolas', 'Monaco', monospace;
+    font-size: 14px; line-height: 1.6;
+    outline: none; resize: none;
+}
+
+/* Empty State */
+.empty-placeholder {
+    flex: 1; display: flex; align-items: center; justify-content: center;
+    background: var(--color-bg-primary); /* Use theme bg for empty state */
+}
+.placeholder-content { text-align: center; color: var(--color-text-muted); }
+
+/* --- RESPONSIVE ADJUSTMENTS --- */
 @media (max-width: 768px) {
-    .content-wrapper {
-        grid-template-columns: 1fr; /* Single column */
-        grid-template-rows: auto 1fr; /* List on top (auto), Editor below (flex) */
-    }
-
-    /* Transform Sidebar to a top-horizontal-scroller or collapsible */
-    .sidebar {
-        border-right: none;
-        border-bottom: 1px solid var(--color-border);
-        height: 200px; /* Fixed height for selection list */
-    }
-
-    .editor-container {
-        border-top: 4px solid var(--color-bg-tertiary); /* Visual separator */
-    }
-    
-    .page-header {
-        padding: 16px;
-    }
+    .manager-body { flex-direction: column; overflow-y: auto; }
+    .sidebar-list { width: 100%; height: 250px; border-right: none; border-bottom: 1px solid var(--color-border); }
+    .editor-pane { height: 600px; /* Fixed height editor on mobile */ }
 }
 
-/* --- COMPONENTS --- */
-.btn-primary, .btn-secondary, .btn-icon-sm {
-    cursor: pointer;
-    border-radius: 6px;
-    transition: all 0.2s;
-    font-size: 13px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
+/* --- BUTTONS & UTILS --- */
+.btn-primary { 
+    background: var(--color-accent); color: white; border: none; padding: 8px 16px; border-radius: 6px; 
+    font-weight: 500; font-size: 13px; cursor: pointer; display: inline-flex; align-items: center;
 }
-
-.btn-primary {
-    background: var(--color-accent);
-    color: white;
-    border: none;
-    padding: 8px 16px;
-    font-weight: 500;
-}
-.btn-primary:hover:not(:disabled) { opacity: 0.9; }
+.btn-primary:hover { opacity: 0.9; }
 .btn-primary:disabled { opacity: 0.5; }
+.btn-sm { padding: 4px 12px; font-size: 12px; }
 
-.btn-secondary {
-    background: transparent;
-    border: 1px solid var(--color-border);
-    color: var(--color-text-primary);
-    padding: 8px 16px;
-}
-.btn-secondary:hover:not(:disabled) { background: var(--color-bg-hover); }
+.btn-ghost { background: transparent; border: none; color: var(--color-text-secondary); cursor: pointer; }
+.btn-ghost:hover { color: var(--color-text-primary); }
 
-/* Modal (unchanged mostly) */
-.modal-overlay {
-    position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(2px);
-    z-index: 1000; display: flex; align-items: center; justify-content: center;
-}
-.modal-content {
-    background: var(--color-bg-secondary); border: 1px solid var(--color-border);
-    border-radius: 12px; width: 480px; max-width: 90%;
-    box-shadow: 0 20px 25px -5px rgba(0,0,0,0.5);
-}
-.modal-header { padding: 16px; border-bottom: 1px solid var(--color-border); display: flex; justify-content: space-between; }
-.modal-body { padding: 20px; display: flex; flex-direction: column; gap: 16px; }
-.modal-footer { padding: 16px; border-top: 1px solid var(--color-border); display: flex; justify-content: flex-end; background: var(--color-bg-tertiary); border-radius: 0 0 12px 12px; }
-.form-input { 
-    width: 100%; background: var(--color-bg-tertiary); border: 1px solid var(--color-border); 
-    padding: 10px; color: var(--color-text-primary); border-radius: 6px; 
-}
-.close-btn { background: none; border: none; color: var(--color-text-muted); cursor: pointer; }
+.text-muted { color: var(--color-text-muted); }
+.text-sm { font-size: 13px; }
+
+/* MODAL STYLES */
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(2px); z-index: 1000; display: flex; align-items: center; justify-content: center; }
+.modal-card { width: 440px; background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: 12px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.2); overflow: hidden; }
+.modal-header { padding: 16px 20px; border-bottom: 1px solid var(--color-border); display: flex; justify-content: space-between; align-items: center; background: var(--color-bg-tertiary); }
+.modal-header h3 { margin: 0; font-size: 16px; color: var(--color-text-primary); }
+.btn-close { background: none; border: none; font-size: 20px; color: var(--color-text-muted); cursor: pointer; }
+.modal-body { padding: 24px 20px; display: flex; flex-direction: column; gap: 16px; }
+.form-row label { display: block; font-size: 13px; font-weight: 500; margin-bottom: 6px; color: var(--color-text-secondary); }
+.input-std { width: 100%; background: var(--color-bg-primary); border: 1px solid var(--color-border); padding: 10px; border-radius: 6px; color: var(--color-text-primary); }
+.input-std:focus { outline: none; border-color: var(--color-accent); }
+.input-area { height: 100px; resize: none; font-family: monospace; }
+.input-hint { font-size: 11px; color: var(--color-text-muted); margin-top: 4px; }
+.modal-actions { padding: 16px 20px; background: var(--color-bg-tertiary); display: flex; justify-content: flex-end; gap: 12px; border-top: 1px solid var(--color-border); }
 </style>
