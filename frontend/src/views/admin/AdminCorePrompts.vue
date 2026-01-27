@@ -1,28 +1,15 @@
 <template>
   <div class="page-container">
     <div class="page-header">
-      <div class="header-content w-full">
-        <div class="flex justify-between items-start mb-2">
-            <div class="hidden lg:block">
-                <h1>{{ t('coreSystemPrompts') }}</h1>
-                <p class="subtitle">{{ t('corePromptWarning') }}</p>
-            </div>
-             <div class="header-actions">
-                <button v-if="isSuperAdmin" @click="openCreateModal" class="btn-primary">
-                    <i class="fas fa-plus mr-2"></i>{{ t('createPrompt') }}
-                </button>
-            </div>
-        </div>
-
-        <!-- Mobile/Tablet Selector -->
-        <div class="mobile-selector mt-4">
-            <select :value="selectedPrompt?._id" @change="e => selectPromptById(e.target.value)" class="form-select w-full">
-                <option :value="undefined" disabled>{{ t('selectPrompt') || 'Select Prompt' }}</option>
-                <option v-for="p in prompts" :key="p._id" :value="p._id">
-                    {{ p.name }} <span v-if="p.isActive">({{ t('active') }})</span>
-                </option>
-            </select>
-        </div>
+      <div class="header-left">
+        <h1>Core System Prompts</h1>
+        <p class="subtitle">Manage and Activate the foundational instructions for each environment.</p>
+      </div>
+      
+      <div class="header-actions">
+        <button v-if="isSuperAdmin" @click="openCreateModal" class="btn-primary">
+            <i class="fas fa-plus mr-2"></i>New Core Prompt
+        </button>
       </div>
     </div>
 
@@ -31,15 +18,15 @@
       <div class="sidebar">
         <div class="sidebar-header">
            <div class="flex justify-between items-center">
-                <h2>{{ t('coreSystemPrompts') }}</h2>
-                <button @click="refreshPrompts" class="btn-icon-sm" :title="t('refresh')">
+                <h2>Defined Prompts</h2>
+                <button @click="refreshPrompts" class="btn-icon-sm" title="Refresh">
                     <i class="fas fa-sync" :class="{ 'spin': loading }"></i>
                 </button>
            </div>
         </div>
         <div class="prompt-list">
-            <div v-if="loading && prompts.length === 0" class="p-4 text-center text-muted">{{ t('loading') || 'Loading...' }}</div>
-            <div v-else-if="prompts.length === 0" class="p-4 text-center text-muted">{{ t('noPrompts') || 'No prompts found.' }}</div>
+            <div v-if="loading && prompts.length === 0" class="p-4 text-center text-muted">Loading...</div>
+            <div v-else-if="prompts.length === 0" class="p-4 text-center text-muted">No core prompts found.</div>
             
             <div 
               v-for="prompt in prompts" 
@@ -50,7 +37,7 @@
             >
               <div class="prompt-header">
                 <span class="prompt-name">{{ prompt.name }}</span>
-                <span v-if="prompt.isActive" class="badge badge-active">{{ t('isActive') }}</span>
+                <span v-if="prompt.isActive" class="badge badge-active">ACTIVE</span>
               </div>
               <div class="prompt-key">{{ prompt.key }}</div>
               <div class="prompt-meta">
@@ -62,14 +49,14 @@
       </div>
 
       <!-- Editor Area -->
-      <div class="editor-container" :class="{ 'visible-mobile': selectedPrompt && isMobile, 'hidden-mobile': !selectedPrompt && isMobile }">
+      <div class="editor-container">
         <div v-if="selectedPrompt" class="editor-content">
             <!-- Toolbar -->
             <div class="editor-toolbar">
                 <div class="toolbar-info">
                     <span class="toolbar-title">{{ selectedPrompt.name }}</span>
                     <span class="toolbar-key">{{ selectedPrompt.key }}</span>
-                    <span v-if="selectedPrompt.isActive" class="badge badge-active ml-2">{{ t('isActive') }}</span>
+                    <span v-if="selectedPrompt.isActive" class="badge badge-active ml-2">Currently Active</span>
                 </div>
                 <div class="toolbar-actions">
                     <button 
@@ -78,16 +65,7 @@
                         :disabled="activating"
                         class="btn-secondary text-green-400 border-green-800 hover:bg-green-900"
                     >
-                        {{ activating ? t('activating') || '...' : t('activate') }}
-                    </button>
-
-                    <button 
-                        v-if="isSuperAdmin && selectedPrompt.isActive"
-                        @click="deactivatePrompt"
-                        :disabled="activating"
-                        class="btn-secondary text-yellow-500 border-yellow-800 hover:bg-yellow-900"
-                    >
-                        {{ activating ? t('processing') || '...' : t('deactivate') }}
+                        {{ activating ? 'Activating...' : 'Set as Active' }}
                     </button>
                     
                     <button 
@@ -96,23 +74,14 @@
                         :disabled="!hasChanges || saving"
                         class="btn-primary"
                     >
-                        {{ saving ? t('saving') || '...' : t('saveVersion') }}
-                    </button>
-
-                    <button 
-                         v-if="isSuperAdmin"
-                         @click="deletePrompt"
-                         class="btn-icon-danger ml-2"
-                         :title="t('delete')"
-                    >
-                        <i class="fas fa-trash"></i>
+                        {{ saving ? 'Saving...' : 'Save New Version' }}
                     </button>
                 </div>
             </div>
 
             <!-- Version/Changelog Inputs -->
-            <div v-if="hasChanges" class="p-3 bg-tertiary border-b border-color flex gap-2">
-                <input v-model="changeLog" :placeholder="t('changeLogPlaceholder') || 'Describe changes...'" class="form-input flex-1 h-8 text-sm" />
+            <div v-if="hasChanges" class="p-3 bg-gray-800 border-b border-gray-700 flex gap-2">
+                <input v-model="changeLog" placeholder="Describe changes (required to save)" class="form-input flex-1 h-8 text-sm" />
             </div>
 
             <!-- Text Area -->
@@ -122,16 +91,16 @@
                     class="code-editor"
                     spellcheck="false"
                     :disabled="!isSuperAdmin"
-                    :placeholder="t('content')"
+                    placeholder="Enter system prompt content..."
                 ></textarea>
-                <div v-if="hasChanges" class="unsaved-badge">{{ t('unsaved') || 'Unsaved' }}</div>
+                <div v-if="hasChanges" class="unsaved-badge">Unsaved Changes</div>
             </div>
         </div>
 
             <!-- Empty State -->
         <div v-else class="empty-state">
             <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="text-muted"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="9" y1="3" x2="9" y2="21"></line></svg>
-            <p>{{ t('filterPrompts') }}</p>
+            <p>Select a core prompt to view or edit</p>
         </div>
       </div>
     </div>
@@ -140,29 +109,28 @@
     <div v-if="showCreateModal" class="modal-overlay">
         <div class="modal-content">
             <div class="modal-header">
-                <h3>{{ t('createPrompt') }}</h3>
+                <h3>New Core Prompt</h3>
                 <button @click="closeCreateModal" class="close-btn">&times;</button>
             </div>
             <div class="modal-body">
                 <div class="form-group">
-                    <label>{{ t('internalKey') }} <span class="text-red-500">*</span></label>
+                    <label>Internal Key (Unique) <span class="text-red-500">*</span></label>
                     <input v-model="newItem.key" type="text" placeholder="e.g. DINDINAI_STRICT_V2" class="form-input" />
-                    <small class="text-muted block mt-1">{{ t('autoGenerated') || 'Recommended: Use env suffix' }}</small>
+                    <small class="text-muted block mt-1">Recommended: Use environment suffix e.g. _PROD or _TEST</small>
                 </div>
                 <div class="form-group">
-                    <label>{{ t('displayName') }} <span class="text-red-500">*</span></label>
+                    <label>Display Name <span class="text-red-500">*</span></label>
                     <input v-model="newItem.name" type="text" placeholder="e.g. DinDin Strict Mode" class="form-input" />
                 </div>
-
                 <div class="form-group">
-                    <label>{{ t('content') }}</label>
+                    <label>Initial Content</label>
                     <textarea v-model="newItem.content" class="form-input h-32 font-mono"></textarea>
                 </div>
             </div>
             <div class="modal-footer">
-                <button @click="closeCreateModal" class="btn-secondary mr-2">{{ t('cancel') }}</button>
+                <button @click="closeCreateModal" class="btn-secondary mr-2">Cancel</button>
                 <button @click="createPrompt" :disabled="!newItem.key || !newItem.name || creating" class="btn-primary">
-                    {{ creating ? t('creating') || '...' : t('create') || 'Create' }}
+                    {{ creating ? 'Creating...' : 'Create Draft' }}
                 </button>
             </div>
         </div>
@@ -174,14 +142,9 @@
 import { ref, computed, onMounted } from 'vue';
 import api from '../../utils/api'; 
 import { useAuthStore } from '../../stores/auth';
-import { useLanguage } from '@/composables/useSettings';
 
 const authStore = useAuthStore();
-const { t } = useLanguage();
 const isSuperAdmin = computed(() => authStore.role === 'superadmin');
-
-const isMobile = ref(window.innerWidth < 1024);
-window.addEventListener('resize', () => { isMobile.value = window.innerWidth < 1024; });
 
 const prompts = ref([]);
 const loading = ref(false);
@@ -230,11 +193,6 @@ const fetchPrompts = async () => {
     } finally {
         loading.value = false;
     }
-};
-
-const selectPromptById = (id) => {
-    const p = prompts.value.find(x => x._id === id);
-    if(p) selectPrompt(p);
 };
 
 const selectPrompt = async (prompt) => {
@@ -292,39 +250,6 @@ const activatePrompt = async () => {
     }
 };
 
-const deactivatePrompt = async () => {
-    if (!confirm('Are you sure you want to DEACTIVATE this core prompt? The system will fall back to default hardcoded prompts.')) return;
-    
-    activating.value = true;
-    try {
-        await api.post(`/prompts/${selectedPrompt.value.key}/deactivate`);
-        selectedPrompt.value.isActive = false;
-        await fetchPrompts();
-        alert('Prompt Deactivated! System will now use hardcoded defaults.');
-    } catch (e) {
-        alert(e.response?.data?.error || 'Failed to deactivate');
-    } finally {
-        activating.value = false;
-    }
-};
-
-const deletePrompt = async () => {
-    if (!selectedPrompt.value) return;
-    if (selectedPrompt.value.isActive) {
-        alert('Cannot delete an active prompt. Deactivate it first.');
-        return;
-    }
-    if (!confirm(`CRITICAL WARNING: Are you sure you want to delete core prompt "${selectedPrompt.value.name}"? This is permanent.`)) return;
-
-    try {
-        await api.delete(`/prompts/${selectedPrompt.value.key}`);
-        selectedPrompt.value = null;
-        await fetchPrompts();
-    } catch (e) {
-        alert(e.response?.data?.error || 'Deletion failed');
-    }
-};
-
 const openCreateModal = () => { newItem.value = { key: '', name: '', content: '' }; showCreateModal.value = true; };
 const closeCreateModal = () => { showCreateModal.value = false; };
 
@@ -336,7 +261,6 @@ const createPrompt = async () => {
             key: newItem.value.key,
             name: newItem.value.name,
             content: newItem.value.content,
-            tags: ['GLOBAL'], // Default tag for consistency, though unused by logic now
             description: 'Core System Prompt'
         });
         await fetchPrompts();
@@ -561,25 +485,6 @@ onMounted(() => fetchPrompts());
 .spin { animation: spin 1s linear infinite; }
 @keyframes spin { 100% { transform: rotate(360deg); } }
 
-/* Improved Delete Icon Visibility */
-.btn-icon-danger {
-    background: rgba(239, 68, 68, 0.1);
-    color: #ef4444;
-    border: 1px solid rgba(239, 68, 68, 0.2);
-    padding: 8px;
-    border-radius: 6px;
-    cursor: pointer;
-    transition: all 0.2s;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-.btn-icon-danger:hover {
-    background: rgba(239, 68, 68, 0.2);
-    border-color: rgba(239, 68, 68, 0.4);
-    transform: scale(1.05);
-}
-
 .editor-wrapper {
     flex: 1;
     position: relative;
@@ -589,8 +494,8 @@ onMounted(() => fetchPrompts());
 
 .code-editor {
     flex: 1;
-    background: var(--color-bg-primary); /* Matches page/editor bg */
-    color: var(--color-text-primary);
+    background: #151515; /* Darker than card */
+    color: #e5e7eb;
     border: none;
     padding: 20px;
     font-family: 'Fira Code', monospace;
@@ -710,67 +615,4 @@ onMounted(() => fetchPrompts());
     display: flex;
     justify-content: flex-end;
 }
-
-
-.form-select {
-    width: 100%;
-    background: var(--color-bg-tertiary, #2a2a2a);
-    border: 1px solid var(--color-border);
-    color: var(--color-text-primary);
-    padding: 10px;
-    border-radius: 6px;
-    font-size: 14px;
-    outline: none;
-}
-.form-select:focus { border-color: var(--color-accent); }
-
-/* Mobile Selector Visibility */
-.mobile-selector {
-    display: block;
-}
-
-/* Mobile/Tablet Responsiveness */
-/* Mobile/Tablet Responsiveness (Max 1023px) */
-@media (max-width: 1023px) {
-    .page-container {
-        padding: 16px;
-    }
-    
-    .content-wrapper {
-        position: relative;
-        overflow: hidden;
-        flex-direction: column;
-    }
-
-    /* Hide Sidebar completely on mobile, replaced by dropdown */
-    .sidebar {
-        display: none !important;
-    }
-
-    .editor-container {
-        /* Always show editor */
-        position: relative; 
-        flex: 1;
-        background: var(--color-bg-primary); 
-        z-index: 1;
-        width: 100%;
-        display: flex !important; /* Override any hidden logic */
-        transform: none !important;
-    }
-
-    /* Reset absolute positioning for mobile editor since it's just flow now */
-    .editor-container.hidden-mobile { display: flex !important; transform: none !important; }
-    .editor-container.visible-mobile { display: flex; transform: none; }
-}
-
-/* Desktop: Force Hide Selector (Min 1024px) */
-@media (min-width: 1024px) {
-    .mobile-selector {
-        display: none !important;
-    }
-}
-
-/* Theme Colors Semantic Classes */
-.bg-tertiary { background: var(--color-bg-tertiary, #2a2a2a); }
-.border-color { border-color: var(--color-border, #374151); }
 </style>
