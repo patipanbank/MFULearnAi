@@ -1,10 +1,12 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useLanguage } from '@/composables/useSettings'
 import AppSidebar from './AppSidebar.vue'
 import AppHeader from './AppHeader.vue'
 
+const router = useRouter()
 const authStore = useAuthStore()
 const { t } = useLanguage()
 
@@ -30,6 +32,11 @@ const toggleSidebar = () => {
 
 const closeSidebar = () => {
   isSidebarOpen.value = false
+}
+
+const handleLogout = () => {
+  authStore.logout()
+  router.push('/login')
 }
 
 onMounted(() => {
@@ -64,8 +71,12 @@ onUnmounted(() => {
         :user-name="userName"
         :user-initial="userInitial"
         :user-avatar-url="authStore.profilePicture"
+        :user-role="authStore.role"
+        :user-department="authStore.department"
+        :user-email="authStore.user?.email"
         :show-sidebar-toggle="isMobile"
         @toggle-sidebar="toggleSidebar"
+        @logout="handleLogout"
       />
       <div class="content-view">
         <router-view />

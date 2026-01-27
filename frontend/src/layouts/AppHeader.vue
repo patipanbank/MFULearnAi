@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted } from 'vue'
+import { ref, onMounted, onUnmounted, nextTick, reactive } from 'vue' // Added reactive
 import { useRoute } from 'vue-router'
 import { useKnowledgeStore } from '@/stores/knowledge'
 import KnowledgeSelector from '@/components/chat/KnowledgeSelector.vue'
@@ -12,16 +12,61 @@ const props = defineProps({
   userName: { type: String, default: 'User' },
   userInitial: { type: String, default: 'U' },
   userAvatarUrl: { type: String, default: '' },
+  userRole: { type: String, default: '' },
+  userDepartment: { type: String, default: '' },
+  userEmail: { type: String, default: '' },
   showSidebarToggle: { type: Boolean, default: true }
 })
 
-const emit = defineEmits(['toggle-sidebar'])
+const emit = defineEmits(['toggle-sidebar', 'logout'])
 
 const route = useRoute()
 const knowledgeStore = useKnowledgeStore()
 
+const showProfileMenu = ref(false)
+const profileMenuRef = ref(null) // Button ref
+const dropdownRef = ref(null) // Menu ref (not strictly needed for click-outside if using backdrop)
+const dropdownPosition = reactive({ top: 0, left: 0 })
+
+const updatePosition = () => {
+    if (profileMenuRef.value) {
+        const rect = profileMenuRef.value.getBoundingClientRect()
+        dropdownPosition.top = rect.bottom + 8
+        // Align right edge: left = right - width (300px)
+        dropdownPosition.left = rect.right - 280 
+        
+        // Safety check for mobile/small screens
+        if (dropdownPosition.left < 10) dropdownPosition.left = 10
+    }
+}
+
+const toggleProfileMenu = async () => {
+    if (!showProfileMenu.value) {
+        showProfileMenu.value = true
+        await nextTick()
+        updatePosition()
+    } else {
+        showProfileMenu.value = false
+    }
+}
+
+const closeProfileMenu = () => {
+    showProfileMenu.value = false
+}
+
+const handleScrollResize = () => {
+    if (showProfileMenu.value) updatePosition()
+}
+
 onMounted(() => {
     knowledgeStore.fetchCollections()
+    window.addEventListener('resize', handleScrollResize)
+    window.addEventListener('scroll', handleScrollResize, true)
+})
+
+onUnmounted(() => {
+    window.removeEventListener('resize', handleScrollResize)
+    window.removeEventListener('scroll', handleScrollResize, true)
 })
 </script>
 
@@ -50,10 +95,54 @@ onMounted(() => {
     </div>
     
     <div class="header-right">
-      <div class="user-display">
+      <div class="user-display" @click.stop="toggleProfileMenu" ref="profileMenuRef">
         <img v-if="userAvatarUrl" :src="userAvatarUrl" class="user-avatar-img" alt="Profile" referrerpolicy="no-referrer" />
         <div v-else class="user-avatar">{{ userInitial }}</div>
         <span class="user-name">{{ userName }}</span>
+
+        <!-- Teleported Profile Dropdown -->
+        <Teleport to="body">
+            <div v-if="showProfileMenu" class="overlay-container">
+                 <div class="backdrop" @click="closeProfileMenu"></div>
+                 <div 
+                    class="profile-dropdown"
+                    :style="{
+                        top: `${dropdownPosition.top}px`,
+                        left: `${dropdownPosition.left}px`
+                    }"
+                >
+                    <div class="dropdown-header">
+                        <div class="user-info-large">
+                            <div class="user-avatar large">{{ userInitial }}</div>
+                            <div>
+                                <div class="font-bold">{{ userName }}</div>
+                                <div class="text-xs text-muted">{{ userEmail }}</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="dropdown-body">
+                        <div class="info-item">
+                            <span class="label">Role:</span>
+                            <span class="value badge">{{ userRole }}</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="label">Department:</span>
+                            <span class="value">{{ userDepartment || 'N/A' }}</span>
+                        </div>
+                    </div>
+                    <div class="dropdown-footer">
+                        <button class="btn-logout" @click="emit('logout')">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="mr-2">
+                                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                                <polyline points="16 17 21 12 16 7"/>
+                                <line x1="21" y1="12" x2="9" y2="12"/>
+                            </svg>
+                            Logout
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </Teleport>
       </div>
     </div>
   </header>
@@ -177,6 +266,13 @@ onMounted(() => {
   background: var(--color-bg-tertiary);
   border-radius: 50px;
   border: 1px solid var(--color-border);
+  cursor: pointer;
+  position: relative; /* For dropdown positioning */
+  transition: background 0.2s;
+}
+
+.user-display:hover {
+    background: var(--color-bg-hover);
 }
 
 .user-avatar-img {
@@ -253,4 +349,121 @@ onMounted(() => {
       height: 32px;
   }
 }
+
+/* Overlay & Teleport Styles */
+.overlay-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 2147483647; /* Max z-index */
+    pointer-events: none;
+}
+
+.backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: transparent;
+    pointer-events: auto;
+}
+
+/* Dropdown Styles */
+.profile-dropdown {
+    position: fixed; /* Fixed relative to viewport (Teleport) */
+    width: 280px;
+    background: var(--color-bg-primary);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+    z-index: 100;
+    overflow: hidden;
+    pointer-events: auto;
+}
+
+.dropdown-header {
+    padding: 16px;
+    background: var(--color-bg-tertiary);
+    border-bottom: 1px solid var(--color-border);
+}
+
+.user-info-large {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.user-avatar.large {
+    width: 48px;
+    height: 48px;
+    font-size: 20px;
+}
+
+.text-muted {
+    font-size: 0.8rem;
+    color: var(--color-text-secondary);
+    word-break: break-all;
+}
+
+.dropdown-body {
+    padding: 16px;
+}
+
+.info-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+    font-size: 0.9rem;
+}
+
+.info-item:last-child {
+    margin-bottom: 0;
+}
+
+.label {
+    color: var(--color-text-secondary);
+}
+
+.value {
+    font-weight: 500;
+    color: var(--color-text-primary);
+}
+
+.badge {
+    background: var(--color-bg-tertiary);
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    border: 1px solid var(--color-border);
+    text-transform: uppercase;
+}
+
+.dropdown-footer {
+    padding: 8px;
+    border-top: 1px solid var(--color-border);
+}
+
+.btn-logout {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px;
+    border: none;
+    background: transparent;
+    color: #ef4444; /* Red color */
+    cursor: pointer;
+    border-radius: var(--radius-md);
+    font-weight: 500;
+    transition: background 0.15s;
+}
+
+.btn-logout:hover {
+    background: rgba(239, 68, 68, 0.1);
+}
+
 </style>

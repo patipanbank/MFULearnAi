@@ -100,7 +100,45 @@ export function useLanguage() {
             knowledgeBase: 'ฐานความรู้',
             collections: 'คอลเลกชัน',
             newCollection: 'สร้างคอลเลกชัน',
-            uploadFile: 'อัพโหลดไฟล์'
+            uploadFile: 'อัพโหลดไฟล์',
+
+            // Personas (Scenarios)
+            myPersonas: 'บทบาทของฉัน',
+            createPersona: 'สร้างบทบาทใหม่',
+            searchPersonas: 'ค้นหาบทบาท...',
+            editPersona: 'แก้ไขบทบาท',
+            deletePersona: 'ลบบทบาท',
+            activate: 'ใช้งาน',
+            deactivate: 'ยกเลิกใช้งาน',
+            isActive: 'กำลังใช้งาน',
+            versionHistory: 'ประวัติเวอร์ชัน',
+            saveVersion: 'บันทึกเวอร์ชัน',
+            playground: 'ทดลองใช้งาน',
+            viewCode: 'ดูโค้ด',
+
+            // Admin Core Prompts
+            coreSystemPrompts: 'Core System Prompts',
+            createPrompt: 'สร้าง Prompt ใหม่',
+            filterPrompts: 'ค้นหา...',
+            displayName: 'ชื่อที่แสดง',
+            internalKey: 'คีย์ภายใน (Internal Key)',
+            details: 'รายละเอียด',
+            corePromptWarning: 'Core System Prompts กำหนดพฤติกรรมหลัก (ความปลอดภัย, ตัวตน) ของ AI',
+            environmentTarget: 'เป้าหมาย Environment',
+
+            // Common
+            save: 'บันทึก',
+            delete: 'ลบ',
+            edit: 'แก้ไข',
+            name: 'ชื่อ',
+            description: 'คำอธิบาย',
+            content: 'เนื้อหา Prompt',
+            public: 'สาธารณะ',
+            private: 'ส่วนตัว',
+            required: 'จำเป็น',
+            optional: 'ไม่จำเป็น',
+            close: 'ปิด',
+            back: 'ย้อนกลับ'
         },
         en: {
             // Chat
@@ -166,7 +204,45 @@ export function useLanguage() {
             knowledgeBase: 'Knowledge Base',
             collections: 'Collections',
             newCollection: 'New Collection',
-            uploadFile: 'Upload File'
+            uploadFile: 'Upload File',
+
+            // Personas (Scenarios)
+            myPersonas: 'My Personas',
+            createPersona: 'Create Persona',
+            searchPersonas: 'Search personas...',
+            editPersona: 'Edit Persona',
+            deletePersona: 'Delete Persona',
+            activate: 'Set as Active',
+            deactivate: 'Deactivate',
+            isActive: 'Active',
+            versionHistory: 'Version History',
+            saveVersion: 'Save Version',
+            playground: 'Test Playground',
+            viewCode: 'View Code',
+
+            // Admin Core Prompts
+            coreSystemPrompts: 'Core System Prompts',
+            createPrompt: 'Create Prompt',
+            filterPrompts: 'Filter prompts...',
+            displayName: 'Display Name',
+            internalKey: 'Internal Key',
+            details: 'Details',
+            corePromptWarning: 'Core System Prompts define the fundamental behavior (Safety, Persona) of the AI.',
+            environmentTarget: 'Environment Target',
+
+            // Common
+            save: 'Save',
+            delete: 'Delete',
+            edit: 'Edit',
+            name: 'Name',
+            description: 'Description',
+            content: 'Content',
+            public: 'Public',
+            private: 'Private',
+            required: 'Required',
+            optional: 'Optional',
+            close: 'Close',
+            back: 'Back'
         }
     }
 
