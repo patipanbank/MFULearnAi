@@ -355,34 +355,43 @@ onMounted(fetchPrompts);
 
 /* Editor Toolbar */
 .editor-header {
-    height: 56px;
+    height: 64px; /* Increased height */
     border-bottom: 1px solid #333;
     background: #1e1e1e;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 0 20px;
+    padding: 0 24px; /* More breathing room */
     flex-shrink: 0;
 }
 
-.editor-meta { display: flex; align-items: center; gap: 12px; }
-.preview-title { margin: 0; font-size: 16px; font-weight: 600; color: #fff; }
-.preview-key { font-size: 12px; color: #888; background: #2a2a2a; padding: 2px 6px; border-radius: 4px; }
-.badge-status.active { font-size: 10px; background: rgba(16,185,129,0.2); color: #34d399; padding: 2px 8px; border-radius: 99px; text-transform: uppercase; font-weight: 700; }
+.editor-meta { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+.preview-title { margin: 0; font-size: 18px; font-weight: 600; color: #fff; }
+.preview-key { font-size: 12px; color: #999; background: #2a2a2a; padding: 4px 8px; border-radius: 4px; font-family: monospace; }
+.badge-status.active { 
+    font-size: 11px; letter-spacing: 0.05em;
+    background: rgba(16,185,129,0.2); color: #34d399; 
+    padding: 4px 10px; border-radius: 99px; 
+    text-transform: uppercase; font-weight: 700; 
+}
 
 .editor-actions { display: flex; align-items: center; gap: 12px; }
-.btn-text-action { background: none; border: none; font-size: 13px; font-weight: 500; cursor: pointer; }
-.text-success { color: #34d399; } .text-success:hover { text-decoration: underline; }
+.btn-text-action { background: none; border: none; font-size: 13px; font-weight: 500; cursor: pointer; transition: opacity 0.2s;}
+.btn-text-action:hover { opacity: 0.8; }
+.text-success { color: #34d399; }
 .divider-vertical { width: 1px; height: 16px; background: #444; }
 
 .changelog-bar {
-    padding: 8px 20px;
+    padding: 12px 24px;
     background: #252525;
     border-bottom: 1px solid #333;
+    animation: slideDown 0.2s ease-out;
 }
+@keyframes slideDown { from { transform: translateY(-10px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
 .changelog-input {
     width: 100%; border: 1px solid #444; background: #1a1a1a; color: #ddd;
-    padding: 6px 10px; border-radius: 4px; font-size: 12px;
+    padding: 8px 12px; border-radius: 6px; font-size: 13px;
 }
 .changelog-input:focus { border-color: #3b82f6; outline: none; }
 
@@ -390,15 +399,26 @@ onMounted(fetchPrompts);
     flex: 1;
     position: relative;
     overflow: hidden;
+    background: #151515; /* Darker than toolbar for contrast */
 }
 .monaco-like-editor {
     width: 100%; height: 100%;
-    background: #1e1e1e; color: #d4d4d4;
-    border: none; padding: 24px;
-    font-family: 'Consolas', 'Monaco', monospace;
-    font-size: 14px; line-height: 1.6;
-    outline: none; resize: none;
+    background: #151515; 
+    color: #e0e0e0;
+    border: none; 
+    padding: 32px 40px; /* Generous padding for content */
+    font-family: 'Consolas', 'Monaco', 'Fira Code', monospace;
+    font-size: 14px; 
+    line-height: 1.8; /* Better readability */
+    outline: none; 
+    resize: none;
+    tab-size: 4;
 }
+/* Custom Scrollbar for Editor */
+.monaco-like-editor::-webkit-scrollbar { width: 10px; }
+.monaco-like-editor::-webkit-scrollbar-track { background: #151515; }
+.monaco-like-editor::-webkit-scrollbar-thumb { background: #333; border-radius: 5px; }
+.monaco-like-editor::-webkit-scrollbar-thumb:hover { background: #444; }
 
 /* Empty State */
 .empty-placeholder {
