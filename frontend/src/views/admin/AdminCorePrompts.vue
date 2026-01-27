@@ -350,48 +350,60 @@ onMounted(fetchPrompts);
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    background: #1e1e1e; /* Ensure the entire pane background matches the editor */
-    position: relative;
-    height: 100%; /* Force full height usage */
+    background: #1e1e1e; /* Dedicated dark theme for editor area */
 }
 
-/* ... Editor Toolbar ... */
+/* Editor Toolbar */
+.editor-inner {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
 .editor-header {
     height: 56px;
     border-bottom: 1px solid #333;
-    background: #1e1e1e; /* Match editor bg */
+    background: #1e1e1e;
     display: flex;
     justify-content: space-between;
     align-items: center;
     padding: 0 20px;
     flex-shrink: 0;
 }
-/* ... */
+
+.editor-meta { display: flex; align-items: center; gap: 12px; }
+.preview-title { margin: 0; font-size: 16px; font-weight: 600; color: #fff; }
+.preview-key { font-size: 12px; color: #888; background: #2a2a2a; padding: 2px 6px; border-radius: 4px; }
+.badge-status.active { font-size: 10px; background: rgba(16,185,129,0.2); color: #34d399; padding: 2px 8px; border-radius: 99px; text-transform: uppercase; font-weight: 700; }
+
+.editor-actions { display: flex; align-items: center; gap: 12px; }
+.btn-text-action { background: none; border: none; font-size: 13px; font-weight: 500; cursor: pointer; }
+.text-success { color: #34d399; } .text-success:hover { text-decoration: underline; }
+.divider-vertical { width: 1px; height: 16px; background: #444; }
+
+.changelog-bar {
+    padding: 8px 20px;
+    background: #252525;
+    border-bottom: 1px solid #333;
+}
+.changelog-input {
+    width: 100%; border: 1px solid #444; background: #1a1a1a; color: #ddd;
+    padding: 6px 10px; border-radius: 4px; font-size: 12px;
+}
+.changelog-input:focus { border-color: #3b82f6; outline: none; }
 
 .code-wrapper {
     flex: 1;
-    display: flex; /* Flex container to force child to fill */
-    flex-direction: column;
     position: relative;
     overflow: hidden;
-    background: #1e1e1e;
-    height: 100%; /* Explicitly tell wrapper to take full height */
 }
-
 .monaco-like-editor {
-    flex: 1; /* Grow to fill wrapper */
-    width: 100%;
-    height: 100%; /* Fallback */
-    background: #1e1e1e; 
-    color: #d4d4d4;
-    border: none; 
-    padding: 24px;
+    width: 100%; height: 100%;
+    background: #1e1e1e; color: #d4d4d4;
+    border: none; padding: 24px;
     font-family: 'Consolas', 'Monaco', monospace;
-    font-size: 14px; 
-    line-height: 1.6;
-    outline: none; 
-    resize: none;
-    display: block; /* Ensure block layout */
+    font-size: 14px; line-height: 1.6;
+    outline: none; resize: none;
 }
 
 /* Empty State */
