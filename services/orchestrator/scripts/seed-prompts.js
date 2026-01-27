@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '../.env') });
 
-const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/mful-chat';
+const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/mfulearnai-chat';
 
 const PromptSchema = new mongoose.Schema({
     key: { type: String, required: true, unique: true },
