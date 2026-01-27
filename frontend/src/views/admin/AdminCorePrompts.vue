@@ -386,12 +386,28 @@ onMounted(fetchPrompts);
 .text-sm { font-size: 13px; }
 
 /* MODAL STYLES */
-.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(2px); z-index: 1000; display: flex; align-items: center; justify-content: center; }
-.modal-card { width: 440px; background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: 12px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.2); overflow: hidden; }
+.modal-overlay { 
+    position: fixed; inset: 0; 
+    background: rgba(0,0,0,0.8); /* Darker overlay */
+    backdrop-filter: blur(4px); 
+    z-index: 9999; /* Ensure high z-index */
+    display: flex; align-items: center; justify-content: center; 
+}
+.modal-card { 
+    width: 440px; 
+    background: var(--color-bg-secondary); 
+    border: 1px solid var(--color-border); 
+    border-radius: 12px; 
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); 
+    overflow: hidden; 
+    position: relative;
+    z-index: 10000;
+}
 .modal-header { padding: 16px 20px; border-bottom: 1px solid var(--color-border); display: flex; justify-content: space-between; align-items: center; background: var(--color-bg-tertiary); }
-.modal-header h3 { margin: 0; font-size: 16px; color: var(--color-text-primary); }
-.btn-close { background: none; border: none; font-size: 20px; color: var(--color-text-muted); cursor: pointer; }
-.modal-body { padding: 24px 20px; display: flex; flex-direction: column; gap: 16px; }
+.modal-header h3 { margin: 0; font-size: 16px; color: var(--color-text-primary); font-weight: 600; }
+.btn-close { background: none; border: none; font-size: 20px; color: var(--color-text-muted); cursor: pointer; display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 4px; }
+.btn-close:hover { background: var(--color-bg-hover); color: var(--color-text-primary); }
+.modal-body { padding: 24px 20px; display: flex; flex-direction: column; gap: 16px; max-height: 80vh; overflow-y: auto; }
 .form-row label { display: block; font-size: 13px; font-weight: 500; margin-bottom: 6px; color: var(--color-text-secondary); }
 .input-std { width: 100%; background: var(--color-bg-primary); border: 1px solid var(--color-border); padding: 10px; border-radius: 6px; color: var(--color-text-primary); }
 .input-std:focus { outline: none; border-color: var(--color-accent); }
