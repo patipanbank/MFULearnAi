@@ -174,7 +174,78 @@ const changeLog = ref('');
 const showCreateModal = ref(false);
 const newItem = ref({ key: '', name: '', content: '', tag: '' });
 
-// ... existing code ...
+// Computed
+const hasChanges = computed(() => {
+    if (!selectedPrompt.value) return false;
+    return editBuffer.value !== getCurrentContent(selectedPrompt.value);
+});
+
+// Helpers
+const getCurrentContent = (prompt) => {
+    if (!prompt || !prompt.versions) return '';
+    const v = prompt.versions.find(ver => ver.version === prompt.activeVersion);
+    return v ? v.content : (prompt.versions[0]?.content || '');
+};
+
+// API Actions
+const fetchPrompts = async () => {
+    loading.value = true;
+    try {
+        const res = await api.get('/prompts?type=core');
+        prompts.value = res.data.prompts || [];
+    } catch (e) { console.error(e); } 
+    finally { loading.value = false; }
+};
+
+const selectPrompt = async (prompt) => {
+    if (hasChanges.value && !confirm('Discard unsaved changes?')) return;
+    
+    // Optimistic UI update
+    const previous = selectedPrompt.value; 
+    selectedPrompt.value = prompt; // Show shell immediately
+
+    try {
+        const res = await api.get(`/prompts/${prompt.key}`);
+        selectedPrompt.value = res.data.prompt;
+        editBuffer.value = getCurrentContent(selectedPrompt.value);
+        changeLog.value = '';
+    } catch (e) {
+        alert('Failed to load details');
+        selectedPrompt.value = previous; // Revert
+    }
+};
+
+const saveVersion = async () => {
+    if (!changeLog.value) return alert('Changelog required');
+    saving.value = true;
+    try {
+        await api.post(`/prompts/${selectedPrompt.value.key}/versions`, {
+            content: editBuffer.value,
+            changelog: changeLog.value
+        });
+        await selectPrompt(selectedPrompt.value); // Refresh
+        await fetchPrompts(); // Update list indicators
+        alert('Saved!');
+    } catch (e) { alert('Save failed'); }
+    finally { saving.value = false; }
+};
+
+const toggleActive = async () => {
+    const isActivating = !selectedPrompt.value.isActive;
+    const action = isActivating ? 'Activate' : 'Deactivate';
+    
+    if(!confirm(`Are you sure you want to ${action.toUpperCase()} this prompt?`)) return;
+    
+    activating.value = true;
+    try {
+        await api.post(`/prompts/${selectedPrompt.value.key}/toggle-active`, {
+            isActive: isActivating
+        });
+        selectedPrompt.value.isActive = isActivating;
+        await fetchPrompts();
+    } catch (e) { alert(`${action} Failed`); }
+    finally { activating.value = false; }
+};
 
 const createPrompt = async () => {
     creating.value = true;
@@ -386,29 +457,12 @@ onMounted(fetchPrompts);
 .text-sm { font-size: 13px; }
 
 /* MODAL STYLES */
-.modal-overlay { 
-    position: fixed; 
-    top: 0; left: 0; right: 0; bottom: 0;
-    background: rgba(0,0,0,0.8); /* Darker overlay */
-    backdrop-filter: blur(4px); 
-    z-index: 9999; /* Ensure high z-index */
-    display: flex; align-items: center; justify-content: center; 
-}
-.modal-card { 
-    width: 440px; 
-    background: var(--color-bg-secondary); 
-    border: 1px solid var(--color-border); 
-    border-radius: 12px; 
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); 
-    overflow: hidden; 
-    position: relative;
-    z-index: 10000;
-}
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(2px); z-index: 1000; display: flex; align-items: center; justify-content: center; }
+.modal-card { width: 440px; background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: 12px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.2); overflow: hidden; }
 .modal-header { padding: 16px 20px; border-bottom: 1px solid var(--color-border); display: flex; justify-content: space-between; align-items: center; background: var(--color-bg-tertiary); }
-.modal-header h3 { margin: 0; font-size: 16px; color: var(--color-text-primary); font-weight: 600; }
-.btn-close { background: none; border: none; font-size: 20px; color: var(--color-text-muted); cursor: pointer; display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 4px; }
-.btn-close:hover { background: var(--color-bg-hover); color: var(--color-text-primary); }
-.modal-body { padding: 24px 20px; display: flex; flex-direction: column; gap: 16px; max-height: 80vh; overflow-y: auto; }
+.modal-header h3 { margin: 0; font-size: 16px; color: var(--color-text-primary); }
+.btn-close { background: none; border: none; font-size: 20px; color: var(--color-text-muted); cursor: pointer; }
+.modal-body { padding: 24px 20px; display: flex; flex-direction: column; gap: 16px; }
 .form-row label { display: block; font-size: 13px; font-weight: 500; margin-bottom: 6px; color: var(--color-text-secondary); }
 .input-std { width: 100%; background: var(--color-bg-primary); border: 1px solid var(--color-border); padding: 10px; border-radius: 6px; color: var(--color-text-primary); }
 .input-std:focus { outline: none; border-color: var(--color-accent); }
