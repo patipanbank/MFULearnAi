@@ -689,19 +689,23 @@ app.post('/api/prompts/:key/versions', authenticateToken, async (req: any, res: 
 });
 
 // 5. Activate Prompt (Toggle isActive) - Mainly for Core Prompts
-app.post('/api/prompts/:key/activate', authenticateToken, async (req: any, res: Response) => {
+// 5. Toggle Prompt Activation (Activate/Deactivate)
+app.post('/api/prompts/:key/toggle-active', authenticateToken, async (req: any, res: Response) => {
     const { key } = req.params;
+    const { isActive } = req.body; // Explicitly set state if provided, otherwise toggle? Let's stick to explicit set.
 
     if (req.user.role !== 'superadmin') {
-        return res.status(403).json({ error: 'Only superadmins can activate prompts' });
+        return res.status(403).json({ error: 'Only superadmins can activate/deactivate prompts' });
     }
 
     try {
         const prompt = await Prompt.findOne({ key });
         if (!prompt) return res.status(404).json({ error: 'Prompt not found' });
 
-        // Logic: If Core, we want mutual exclusivity per environment tag (PROD vs TEST)
-        if (prompt.type === 'core') {
+        const newState = typeof isActive === 'boolean' ? isActive : !prompt.isActive;
+
+        // If activating a Core prompt, enforce mutual exclusivity per environment
+        if (newState === true && prompt.type === 'core') {
             const envTag = prompt.tags.find(t => ['PROD', 'TEST'].includes(t));
             if (envTag) {
                 // Deactivate all others with this tag
@@ -712,7 +716,7 @@ app.post('/api/prompts/:key/activate', authenticateToken, async (req: any, res: 
             }
         }
 
-        prompt.isActive = true;
+        prompt.isActive = newState;
         await prompt.save();
 
         // Invalidate Cache
@@ -721,7 +725,7 @@ app.post('/api/prompts/:key/activate', authenticateToken, async (req: any, res: 
 
         res.json({ success: true, prompt });
     } catch (error: any) {
-        res.status(500).json({ error: 'Activation failed' });
+        res.status(500).json({ error: 'Activation toggle failed' });
     }
 });
 

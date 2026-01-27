@@ -63,12 +63,13 @@
                 </div>
                 <div class="editor-actions">
                     <button 
-                        v-if="isSuperAdmin && !selectedPrompt.isActive"
-                        @click="activatePrompt"
+                        v-if="isSuperAdmin"
+                        @click="toggleActive"
                         :disabled="activating"
-                        class="btn-text-action text-success"
+                        class="btn-text-action"
+                        :class="selectedPrompt.isActive ? 'text-danger' : 'text-success'"
                     >
-                        {{ activating ? 'Activating...' : 'Set Active' }}
+                        {{ activating ? 'Processing...' : (selectedPrompt.isActive ? 'Deactivate' : 'Set Active') }}
                     </button>
                     <div class="divider-vertical"></div>
                     <button 
@@ -126,7 +127,15 @@
                     <label>Display Name</label>
                     <input v-model="newItem.name" placeholder="e.g. DinDin Version 3 (Test)" class="input-std" />
                 </div>
-                 <div class="form-row">
+                <div class="form-row">
+                    <label>Environment (Tag)</label>
+                    <select v-model="newItem.tag" class="input-std">
+                        <option value="">None (Private)</option>
+                        <option value="PROD">Production (PROD)</option>
+                        <option value="TEST">Test / Sandbox (TEST)</option>
+                    </select>
+                </div>
+                <div class="form-row">
                     <label>Initial Prompt</label>
                     <textarea v-model="newItem.content" class="input-std input-area"></textarea>
                 </div>
@@ -163,87 +172,27 @@ const changeLog = ref('');
 
 // Create Modal
 const showCreateModal = ref(false);
-const newItem = ref({ key: '', name: '', content: '' });
+const newItem = ref({ key: '', name: '', content: '', tag: '' });
 
-// Computed
-const hasChanges = computed(() => {
-    if (!selectedPrompt.value) return false;
-    return editBuffer.value !== getCurrentContent(selectedPrompt.value);
-});
-
-// Helpers
-const getCurrentContent = (prompt) => {
-    if (!prompt || !prompt.versions) return '';
-    const v = prompt.versions.find(ver => ver.version === prompt.activeVersion);
-    return v ? v.content : (prompt.versions[0]?.content || '');
-};
-
-// API Actions
-const fetchPrompts = async () => {
-    loading.value = true;
-    try {
-        const res = await api.get('/prompts?type=core');
-        prompts.value = res.data.prompts || [];
-    } catch (e) { console.error(e); } 
-    finally { loading.value = false; }
-};
-
-const selectPrompt = async (prompt) => {
-    if (hasChanges.value && !confirm('Discard unsaved changes?')) return;
-    
-    // Optimistic UI update
-    const previous = selectedPrompt.value; 
-    selectedPrompt.value = prompt; // Show shell immediately
-
-    try {
-        const res = await api.get(`/prompts/${prompt.key}`);
-        selectedPrompt.value = res.data.prompt;
-        editBuffer.value = getCurrentContent(selectedPrompt.value);
-        changeLog.value = '';
-    } catch (e) {
-        alert('Failed to load details');
-        selectedPrompt.value = previous; // Revert
-    }
-};
-
-const saveVersion = async () => {
-    if (!changeLog.value) return alert('Changelog required');
-    saving.value = true;
-    try {
-        await api.post(`/prompts/${selectedPrompt.value.key}/versions`, {
-            content: editBuffer.value,
-            changelog: changeLog.value
-        });
-        await selectPrompt(selectedPrompt.value); // Refresh
-        await fetchPrompts(); // Update list indicators
-        alert('Saved!');
-    } catch (e) { alert('Save failed'); }
-    finally { saving.value = false; }
-};
-
-const activatePrompt = async () => {
-    if(!confirm('Activate this prompt?')) return;
-    activating.value = true;
-    try {
-        await api.post(`/prompts/${selectedPrompt.value.key}/activate`);
-        selectedPrompt.value.isActive = true;
-        await fetchPrompts();
-    } catch (e) { alert('Failed'); }
-    finally { activating.value = false; }
-};
+// ... existing code ...
 
 const createPrompt = async () => {
     creating.value = true;
     try {
-        await api.post('/prompts', { ...newItem.value, type: 'core' });
+        const payload = { 
+            ...newItem.value, 
+            type: 'core',
+            tags: newItem.value.tag ? [newItem.value.tag] : [] 
+        };
+        await api.post('/prompts', payload);
         await fetchPrompts();
         closeCreateModal();
-    } catch (e) { alert('Failed'); }
+    } catch (e) { alert('Failed: ' + (e.response?.data?.error || e.message)); }
     finally { creating.value = false; }
 };
 
 // Modal Controls
-const openCreateModal = () => { newItem.value = { key:'', name:'', content:'' }; showCreateModal.value = true; };
+const openCreateModal = () => { newItem.value = { key:'', name:'', content:'', tag:'' }; showCreateModal.value = true; };
 const closeCreateModal = () => showCreateModal.value = false;
 
 onMounted(fetchPrompts);
@@ -379,6 +328,7 @@ onMounted(fetchPrompts);
 .editor-actions { display: flex; align-items: center; gap: 12px; }
 .btn-text-action { background: none; border: none; font-size: 13px; font-weight: 500; cursor: pointer; }
 .text-success { color: #34d399; } .text-success:hover { text-decoration: underline; }
+.text-danger { color: #f87171; } .text-danger:hover { text-decoration: underline; }
 .divider-vertical { width: 1px; height: 16px; background: #444; }
 
 .changelog-bar {
