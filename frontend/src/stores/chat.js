@@ -8,6 +8,7 @@ export const useChatStore = defineStore('chat', () => {
     const currentSessionId = ref(null)
     // Initialize from localStorage if available
     const currentCollectionId = ref(localStorage.getItem('active_collection_id') || null)
+    const currentScenarioId = ref(localStorage.getItem('active_scenario_id') || null)
 
     // Persist collection selection
     watch(currentCollectionId, (newVal) => {
@@ -15,6 +16,15 @@ export const useChatStore = defineStore('chat', () => {
             localStorage.setItem('active_collection_id', newVal)
         } else {
             localStorage.removeItem('active_collection_id')
+        }
+    })
+
+    // Persist scenario selection
+    watch(currentScenarioId, (newVal) => {
+        if (newVal) {
+            localStorage.setItem('active_scenario_id', newVal)
+        } else {
+            localStorage.removeItem('active_scenario_id')
         }
     })
     const isLoading = ref(false)
@@ -153,6 +163,7 @@ export const useChatStore = defineStore('chat', () => {
                     sessionId: currentSessionId.value,
                     modelId: selectedModel,
                     collectionId: currentCollectionId.value,
+                    scenarioId: currentScenarioId.value,
                     images: images,
                     files: files
                 })
@@ -215,6 +226,7 @@ export const useChatStore = defineStore('chat', () => {
         currentSessionId.value = null
         messages.value = []
         currentCollectionId.value = null
+        // Do NOT reset scenarioId automatically, user might want to keep using the same persona
     }
 
     // Clear current session (delete using current ID)
@@ -244,12 +256,18 @@ export const useChatStore = defineStore('chat', () => {
     // Initialize models when the store is created
     fetchModels()
 
+    // Set Active Scenario
+    function setScenario(id) {
+        currentScenarioId.value = id
+    }
+
     return {
         messages,
         sessions,
         availableModels,
         currentSessionId,
         currentCollectionId,
+        currentScenarioId,
         currentSession,
         isLoading,
         isStreaming,
@@ -260,6 +278,7 @@ export const useChatStore = defineStore('chat', () => {
         fetchModels,
         sendMessage,
         clearSession,
-        deleteSession
+        deleteSession,
+        setScenario
     }
 })

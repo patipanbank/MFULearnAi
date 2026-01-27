@@ -72,10 +72,12 @@ services:
       - FRONTEND_URL=https://mfulearnai.mfu.ac.th
       - API_GATEWAY_URL=${API_GATEWAY_URL:-https://mfulearnai.mfu.ac.th}
       - INTERNAL_API_KEY=${INTERNAL_API_KEY:-internal-secret-key}
-      # Google Config
-      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
-      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
-      - GOOGLE_CALLBACK_URL=https://mfulearnai.mfu.ac.th/api/auth/google/callback
+      # ADFS Config
+      - ADFS_CLIENT_ID=${ADFS_CLIENT_ID}
+      - ADFS_CLIENT_SECRET=${ADFS_CLIENT_SECRET}
+      - ADFS_AUTH_URL=${ADFS_AUTH_URL:-https://authsso.mfu.ac.th/adfs/oauth2/authorize}
+      - ADFS_TOKEN_URL=${ADFS_TOKEN_URL:-https://authsso.mfu.ac.th/adfs/oauth2/token}
+      - REDIRECT_URI=${REDIRECT_URI:-https://mfulearnai.mfu.ac.th/auth/callback}
     depends_on:
       - identity-service
     networks:
@@ -241,6 +243,7 @@ volumes:
   mfulearnai-redis-data:
   mfulearnai-mongo-data:
   mfulearnai-chroma-data:
+
 
 networks:
   mfulearnai-network:
