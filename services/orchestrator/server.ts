@@ -700,9 +700,19 @@ app.post('/api/prompts/:key/activate', authenticateToken, async (req: any, res: 
         const prompt = await Prompt.findOne({ key });
         if (!prompt) return res.status(404).json({ error: 'Prompt not found' });
 
+        // Logic: If Core, we want mutual exclusivity per environment tag (PROD vs TEST)
+        if (prompt.type === 'core') {
+            const envTag = prompt.tags.find(t => ['PROD', 'TEST'].includes(t));
+            if (envTag) {
+                // Deactivate all others with this tag
+                await Prompt.updateMany(
+                    { type: 'core', tags: envTag, _id: { $ne: prompt._id } },
+                    { isActive: false }
+                );
+            }
+        }
+
         prompt.isActive = true;
-        // Optionally deactivate others of same type/tag? 
-        // For now, just set true. Orchestrator logic will pick it up.
         await prompt.save();
 
         // Invalidate Cache

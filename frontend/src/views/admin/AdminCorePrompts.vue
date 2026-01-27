@@ -37,7 +37,10 @@
             >
               <div class="prompt-header">
                 <span class="prompt-name">{{ prompt.name }}</span>
-                <span v-if="prompt.isActive" class="badge badge-active">ACTIVE</span>
+                <div class="flex gap-1">
+                    <span v-for="tag in prompt.tags" :key="tag" class="badge badge-tag">{{ tag }}</span>
+                    <span v-if="prompt.isActive" class="badge badge-active">ACTIVE</span>
+                </div>
               </div>
               <div class="prompt-key">{{ prompt.key }}</div>
               <div class="prompt-meta">
@@ -388,6 +391,7 @@ onMounted(() => fetchPrompts());
     text-transform: uppercase;
 }
 .badge-active { background: rgba(16, 185, 129, 0.2); color: #34d399; }
+.badge-tag { background: rgba(96, 165, 250, 0.2); color: #60a5fa; margin-right: 4px; }
 
 .prompt-meta {
     display: flex;
