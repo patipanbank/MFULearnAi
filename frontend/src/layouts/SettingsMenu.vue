@@ -15,7 +15,6 @@ const userInitials = computed(() => authStore.displayName?.charAt(0)?.toUpperCas
 
 const mainNav = [
   { id: 'chat', label: 'AI Chat', path: '/chat', icon: 'message-square' },
-  { id: 'personas', label: 'My Personas', path: '/personas', icon: 'users' },
   { id: 'knowledge', label: 'Knowledge Base', path: '/knowledge', icon: 'book' }
 ]
 
