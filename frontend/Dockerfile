@@ -3,7 +3,10 @@ FROM node:20-alpine AS build-stage
 WORKDIR /app
 
 COPY package*.json ./
-RUN npm install
+# Increase timeout and use npm install (more robust than ci if lockfile missing/mismatch)
+RUN npm config set fetch-retry-maxtimeout 1200000 \
+    && npm config set fetch-retry-mintimeout 10000 \
+    && npm install
 
 COPY . .
 RUN npm run build
