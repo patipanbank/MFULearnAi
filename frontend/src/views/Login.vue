@@ -256,17 +256,18 @@ const handleAdminLogin = async () => {
   height: 20px;
 }
 
-/* Simplified MFU Button (High Contrast) */
+/* Simplified MFU Button (Staging Badge Style) */
 .btn-mfu {
-  /* blurple-50 approximation (Indigo-50) */
-  background: #EEF2FF; 
-  color: var(--color-primary); /* Keep text primary (blue/blurple) */
-  border-color: #E0E7FF;
+  background: rgba(59, 130, 246, 0.1); /* Blue tint like staging badge */
+  color: var(--color-accent);
+  border: 1px solid var(--color-accent);
+  border-radius: 50px; /* Round border */
 }
 
 .btn-mfu:hover {
-  background: #E0E7FF; /* slightly darker on hover (blurple-100) */
-  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.15); /* Indigo shadow */
+  background: rgba(59, 130, 246, 0.2);
+  box-shadow: 0 4px 15px rgba(59, 130, 246, 0.2);
+  transform: translateY(-2px);
 }
 
 /* Primary Action Button (Admin Login) */
