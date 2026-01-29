@@ -8,12 +8,43 @@ const router = useRouter()
 const authStore = useAuthStore()
 const { t } = useLanguage()
 
-onMounted(() => {
+onMounted(async () => {
   const urlParams = new URLSearchParams(window.location.search)
+  const code = urlParams.get('code')
   const token = urlParams.get('token')
   const userDataB64 = urlParams.get('user_data')
 
-  if (token && userDataB64) {
+  if (code) {
+    // Handle MFU SSO Code Exchange
+    try {
+      // We need to exchange this code for a token via our backend
+      // Using fetch instead of axios to avoid potential setup issues here, or stick to what's used in project
+      // Looking at imports, axios isn't imported. I'll use fetch.
+      const response = await fetch('/api/auth/mfu/exchange', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ code })
+      })
+
+      if (!response.ok) {
+        throw new Error('Token exchange failed')
+      }
+
+      const data = await response.json()
+      
+      authStore.setAuth(data.token, data.user)
+      localStorage.setItem('auth_provider', 'mfu')
+      
+      console.log('MFU SSO Auth successful:', data.user)
+      router.push('/chat')
+    } catch (e) {
+      console.error('MFU SSO Error:', e)
+      router.push('/login?error=mfu_auth_failed')
+    }
+  } else if (token && userDataB64) {
+    // Handle Google/Existing OAuth Callback
     try {
       // Decode base64 user data
       const userDataStr = atob(userDataB64)

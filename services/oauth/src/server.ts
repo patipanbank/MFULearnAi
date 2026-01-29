@@ -105,7 +105,91 @@ app.get('/api/auth/login/google', (req, res, next) => {
     })(req, res, next);
 });
 
-// Callback
+const MFU_CLIENT_ID = process.env.MFU_CLIENT_ID || '382dab5a-4844-407d-8f91-a0ae6d26e5d0';
+const MFU_CLIENT_SECRET = process.env.MFU_CLIENT_SECRET || 'Y97QMKvWqanojhOsQUzUrpDK37fUtrTzlPDw83Oo'; // Should be in env, but per request using provided
+const MFU_TOKEN_URL = 'https://authsso.mfu.ac.th/adfs/oauth2/token';
+const MFU_REDIRECT_URI = 'https://mfulearnai.mfu.ac.th/auth/callback';
+
+// MFU Exchange Endpoint
+app.post('/api/auth/mfu/exchange', async (req, res) => {
+    try {
+        const { code } = req.body;
+        if (!code) return res.status(400).json({ error: 'Authorization code required' });
+
+        console.log('[MFU SSO] Exchanging code:', code);
+
+        // 1. Exchange Code for Token
+        const tokenResponse = await axios.post(MFU_TOKEN_URL, new URLSearchParams({
+            client_id: MFU_CLIENT_ID,
+            client_secret: MFU_CLIENT_SECRET,
+            grant_type: 'authorization_code',
+            redirect_uri: MFU_REDIRECT_URI,
+            code: code
+        }), {
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+        });
+
+        // 2. Extract and Decode Token
+        // ADFS usually returns access_token and id_token. We prefer id_token for user info.
+        const { access_token, id_token } = tokenResponse.data;
+        const tokenToDecode = id_token || access_token;
+
+        if (!tokenToDecode) {
+            throw new Error('No token received from MFU ADFS');
+        }
+
+        // Simple decode (payload is the second part)
+        const payloadBase64 = tokenToDecode.split('.')[1];
+        const payloadJson = Buffer.from(payloadBase64, 'base64').toString('utf-8');
+        const userClaims = JSON.parse(payloadJson);
+
+        console.log('[MFU SSO] User Claims:', JSON.stringify(userClaims, null, 2));
+
+        // 3. Map to Internal User
+        // Claims based on provided format:
+        // sub, unique_name, upn, email, given_name, family_name, username, depart_name, depart_id, group
+
+        const email = userClaims.email || userClaims.upn;
+        if (!email) throw new Error('Email not found in claims');
+
+        // Role Mapping
+        let role = 'student';
+        if (userClaims.group?.toLowerCase() === 'staff' || email.includes('@mfu.ac.th')) {
+            role = 'staff';
+        }
+
+        const userData = {
+            googleId: userClaims.sub, // using sub as the unique ID, mimicking googleId field
+            email: email,
+            firstName: userClaims.given_name,
+            lastName: userClaims.family_name,
+            username: userClaims.username || userClaims.unique_name,
+            role: role,
+            picture: '', // No picture provided in claims usually
+            departmentId: userClaims.depart_id, // Custom fields
+            departmentName: userClaims.depart_name
+        };
+
+        // 4. Authenticate with Identity Service
+        const response = await axios.post(`${IDENTITY_SERVICE_URL}/internal/login`, userData, {
+            headers: { 'x-internal-key': INTERNAL_API_KEY }
+        });
+
+        const { token, user } = response.data;
+
+        // Return to frontend
+        return res.json({ token, user });
+
+    } catch (err: any) {
+        console.error('[MFU SSO] Exchange Error:', err.message);
+        if (err.response) {
+            console.error('[MFU SSO] Upstream Error:', JSON.stringify(err.response.data));
+        }
+        return res.status(500).json({ error: 'SSO Authentication Failed' });
+    }
+});
+
+// Callback (Google) - Kept for reference
 app.get('/api/auth/google/callback',
     passport.authenticate('google', { session: false, failureRedirect: '/login?error=google_auth_failed' }),
     (req: any, res) => {
