@@ -258,14 +258,15 @@ const handleAdminLogin = async () => {
 
 /* Simplified MFU Button (High Contrast) */
 .btn-mfu {
-  background: white; 
-  color: var(--color-primary);
-  border-color: var(--color-border);
+  /* blurple-50 approximation (Indigo-50) */
+  background: #EEF2FF; 
+  color: var(--color-primary); /* Keep text primary (blue/blurple) */
+  border-color: #E0E7FF;
 }
 
 .btn-mfu:hover {
-  background: #f8f9fa;
-  box-shadow: 0 4px 12px rgba(255, 255, 255, 0.1);
+  background: #E0E7FF; /* slightly darker on hover (blurple-100) */
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.15); /* Indigo shadow */
 }
 
 /* Primary Action Button (Admin Login) */
