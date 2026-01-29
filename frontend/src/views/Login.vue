@@ -73,7 +73,7 @@ const handleAdminLogin = async () => {
           
           <div v-if="errorMsg" class="error-msg">{{ errorMsg }}</div>
           
-          <button @click="handleAdminLogin" class="btn-login btn-primary" :disabled="isLoading">
+          <button @click="handleAdminLogin" class="btn-login btn-mfu" :disabled="isLoading">
               <span v-if="isLoading">...</span>
               <span v-else>{{ t('login') || 'Login' }}</span>
           </button>
@@ -257,16 +257,7 @@ const handleAdminLogin = async () => {
   box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3);
 }
 
-/* Primary Action Button (Admin Login) */
-.btn-primary {
-    background: var(--color-primary);
-    color: white;
-    margin-top: 8px;
-}
 
-.btn-primary:hover {
-    filter: brightness(1.1);
-}
 
 .login-footer {
   margin-top: 32px;
