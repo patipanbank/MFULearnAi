@@ -8,52 +8,37 @@ const router = useRouter()
 const authStore = useAuthStore()
 const { t } = useLanguage()
 
-onMounted(async () => {
+onMounted(() => {
   const urlParams = new URLSearchParams(window.location.search)
   const token = urlParams.get('token')
-  const error = urlParams.get('error')
+  const userDataB64 = urlParams.get('user_data')
 
-  if (error) {
-    console.error('Auth error:', error)
-    router.push(`/login?error=${error}`)
-    return
-  }
-
-  if (token) {
+  if (token && userDataB64) {
     try {
-      const provider = urlParams.get('provider') || 'sso'
-      const idToken = urlParams.get('id_token')
+      // Decode base64 user data
+      const userDataStr = atob(userDataB64)
+      const userData = JSON.parse(userDataStr)
+      const provider = urlParams.get('provider') || 'sso' // Default to sso if missing
       
-      // 1. Store Token (Temporary without user data)
-      // We manually set it here so api.js interceptor picks it up
-      authStore.token = token
-      localStorage.setItem('auth_token', token)
-      
-      if (idToken) {
-        localStorage.setItem('id_token', idToken)
-      }
+      // Store in Pinia and localStorage
+      authStore.setAuth(token, userData)
       localStorage.setItem('auth_provider', provider)
-
-      // 2. Fetch User Profile
-      console.log('Fetching user profile...')
-      await authStore.refreshUser()
-
-      // 3. Verify Success
-      if (authStore.user) {
-        console.log('Auth successful:', authStore.user)
-        router.push('/chat')
-      } else {
-         throw new Error('Failed to fetch user profile')
-      }
-
+      
+      console.log('Auth successful:', userData)
+      router.push('/chat')
     } catch (e) {
-      console.error('Auth flow failed:', e)
-      // Clean up
-      authStore.logout() 
-      router.push('/login?error=auth_flow_failed')
+      console.error('Failed to parse auth data:', e)
+      router.push('/login?error=parse_failed')
     }
   } else {
-    router.push('/login')
+    // Check for error
+    const error = urlParams.get('error')
+    if (error) {
+      console.error('Auth error:', error)
+      router.push(`/login?error=${error}`)
+    } else {
+      router.push('/login')
+    }
   }
 })
 </script>
