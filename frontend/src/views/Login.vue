@@ -25,13 +25,20 @@ const isTestEnv = computed(() => envType === 'TEST')
       <!-- Login Buttons -->
       <div class="login-buttons">
         <a href="/api/auth/login/sso" class="btn-login btn-mfu">
-          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
-            <polyline points="10 17 15 12 10 7" />
-            <line x1="15" y1="12" x2="3" y2="12" />
-          </svg>
-          {{ t('loginSSO') || 'Login with MFU SSO' }}
+          <div class="btn-content">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
+              <polyline points="10 17 15 12 10 7" />
+              <line x1="15" y1="12" x2="3" y2="12" />
+            </svg>
+            <span>{{ t('loginSSO') || 'Login with MFU SSO' }}</span>
+          </div>
+          <div class="btn-shine"></div>
         </a>
+        
+        <div class="admin-login-wrapper">
+            <a href="/login?mode=admin" class="btn-text-admin">{{ t('adminLogin') || 'Admin Login' }}</a>
+        </div>
       </div>
 
       <!-- Footer -->
@@ -122,7 +129,7 @@ const isTestEnv = computed(() => envType === 'TEST')
 .login-buttons {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
 }
 
 .btn-login {
@@ -136,7 +143,6 @@ const isTestEnv = computed(() => envType === 'TEST')
   font-size: 15px;
   text-decoration: none;
   transition: transform var(--transition-fast), box-shadow var(--transition-fast);
-  cursor: pointer;
 }
 
 .btn-login:hover {
@@ -150,29 +156,23 @@ const isTestEnv = computed(() => envType === 'TEST')
 
 .btn-mfu {
   background: linear-gradient(135deg, var(--color-primary), var(--color-accent));
-  color: white; /* Always white on gradient */
+  color: white;
   box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3);
-  border: none;
 }
 
 .btn-mfu:hover {
   box-shadow: 0 8px 25px rgba(59, 130, 246, 0.4);
 }
 
-.admin-login-wrapper {
-  text-align: center;
+.btn-google {
+  background: white;
+  color: #333;
+  border: 1px solid #ddd;
 }
 
-.link-admin {
-  font-size: 14px;
-  color: var(--color-text-muted);
-  text-decoration: none;
-  transition: color 0.2s;
-}
-
-.link-admin:hover {
-  color: var(--color-primary);
-  text-decoration: underline;
+.btn-google:hover {
+  background: #f8f8f8;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
 }
 
 .login-footer {
@@ -231,4 +231,68 @@ const isTestEnv = computed(() => envType === 'TEST')
   bottom: 20%;
   right: 10%;
 }
+
+/* Button & Link Styles */
+.btn-mfu {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(135deg, var(--color-primary), var(--color-accent));
+  color: white;
+  box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3);
+  border: none;
+}
+
+.btn-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  position: relative;
+  z-index: 2;
+}
+
+.btn-shine {
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.2),
+    transparent
+  );
+  transition: 0.5s;
+  z-index: 1;
+}
+
+.btn-mfu:hover .btn-shine {
+  left: 100%;
+}
+
+.btn-mfu:hover {
+  box-shadow: 0 8px 25px rgba(59, 130, 246, 0.4);
+  transform: translateY(-2px);
+}
+
+.admin-login-wrapper {
+    margin-top: 16px;
+    text-align: center;
+}
+
+.btn-text-admin {
+    font-size: 13px;
+    color: var(--color-text-muted);
+    text-decoration: none;
+    transition: color 0.2s;
+    cursor: pointer;
+}
+
+.btn-text-admin:hover {
+    color: var(--color-primary);
+    text-decoration: underline;
+}
+
+
 </style>
