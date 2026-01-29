@@ -24,17 +24,6 @@ const isTestEnv = computed(() => envType === 'TEST')
 
       <!-- Login Buttons -->
       <div class="login-buttons">
-        <!-- MFU Login Button -->
-        <a 
-          href="https://authsso.mfu.ac.th/adfs/oauth2/authorize?client_id=382dab5a-4844-407d-8f91-a0ae6d26e5d0&response_type=code&redirect_uri=https://mfulearnai.mfu.ac.th/auth/callback&scope=openid%20email%20profile"
-          class="btn-login btn-mfu"
-        >
-          <svg class="icon" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
-          </svg>
-          Login with MFU (ADFS)
-        </a>
-
         <a href="/api/auth/login/google" class="btn-login btn-google">
           <svg class="icon" viewBox="0 0 24 24">
             <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
