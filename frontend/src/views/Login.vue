@@ -29,7 +29,7 @@ const handleAdminLogin = async () => {
     
     try {
         // Call Identity Service directly via Gateway
-        const response = await axios.post('/api/auth/login', {
+        const response = await axios.post('/api/auth/admin/login', {
             username: adminUsername.value,
             password: adminPassword.value
         })
