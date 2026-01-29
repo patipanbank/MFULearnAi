@@ -91,7 +91,7 @@ const handleAdminLogin = async () => {
             <polyline points="10 17 15 12 10 7" />
             <line x1="15" y1="12" x2="3" y2="12" />
           </svg>
-          {{ t('loginSSO') || 'Login with MFU SSO' }}
+          <span class="btn-text">Login</span>
         </a>
         
         <div class="admin-login-wrapper">
@@ -118,6 +118,7 @@ const handleAdminLogin = async () => {
 </template>
 
 <style scoped>
+/* ... (Keep existing styles above) ... */
 .login-container {
   min-height: 100vh;
   display: flex;
@@ -237,7 +238,7 @@ const handleAdminLogin = async () => {
   font-size: 15px;
   text-decoration: none;
   cursor: pointer;
-  border: none;
+  border: 1px solid transparent;
   transition: transform var(--transition-fast), opacity 0.2s;
 }
 
@@ -255,14 +256,16 @@ const handleAdminLogin = async () => {
   height: 20px;
 }
 
-/* Simplified MFU Button (No complex shine) */
+/* Simplified MFU Button (High Contrast) */
 .btn-mfu {
-  background: var(--color-primary); /* Solid Primary */
-  color: white;
+  background: white; 
+  color: var(--color-primary);
+  border-color: var(--color-border);
 }
 
 .btn-mfu:hover {
-  filter: brightness(1.1); /* Simple hover effect */
+  background: #f8f9fa;
+  box-shadow: 0 4px 12px rgba(255, 255, 255, 0.1);
 }
 
 /* Primary Action Button (Admin Login) */
