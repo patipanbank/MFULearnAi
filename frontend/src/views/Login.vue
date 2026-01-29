@@ -1,12 +1,50 @@
 <script setup>
-import { computed } from 'vue'
+import { ref, computed } from 'vue'
 import { useLanguage } from '@/composables/useSettings'
+import { useRoute, useRouter } from 'vue-router'
+import { useAuthStore } from '@/stores/auth' // Assuming auth store exists
+import axios from 'axios'
 
 const { t } = useLanguage()
+const route = useRoute()
+const router = useRouter()
+const authStore = useAuthStore()
+
 const envName = import.meta.env.VITE_ENV_NAME || 'MFULearnAI'
 const envType = import.meta.env.VITE_ENV_TYPE || 'TEST'
-
 const isTestEnv = computed(() => envType === 'TEST')
+
+// Admin Login Logic
+const isAdminMode = computed(() => route.query.mode === 'admin')
+const adminUsername = ref('')
+const adminPassword = ref('')
+const isLoading = ref(false)
+const errorMsg = ref('')
+
+const handleAdminLogin = async () => {
+    if (!adminUsername.value || !adminPassword.value) return
+    
+    isLoading.value = true
+    errorMsg.value = ''
+    
+    try {
+        // Call Identity Service directly via Gateway
+        const response = await axios.post('/api/auth/login', {
+            username: adminUsername.value,
+            password: adminPassword.value
+        })
+        
+        const { token, user } = response.data
+        authStore.setAuth(token, user)
+        localStorage.setItem('auth_provider', 'admin')
+        router.push('/admin') // Redirect to admin dashboard
+    } catch (err) {
+        console.error('Admin Login Failed', err)
+        errorMsg.value = 'Invalid credentials'
+    } finally {
+        isLoading.value = false
+    }
+}
 </script>
 
 <template>
@@ -22,18 +60,38 @@ const isTestEnv = computed(() => envType === 'TEST')
         <span v-if="isTestEnv" class="env-badge">{{ t('stagingEnv') }}</span>
       </div>
 
-      <!-- Login Buttons -->
-      <div class="login-buttons">
-        <a href="/api/auth/login/sso" class="btn-login btn-mfu">
-          <div class="btn-content">
-            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
-              <polyline points="10 17 15 12 10 7" />
-              <line x1="15" y1="12" x2="3" y2="12" />
-            </svg>
-            <span>{{ t('loginSSO') || 'Login with MFU SSO' }}</span>
+      <!-- Admin Login Form -->
+      <div v-if="isAdminMode" class="admin-form fade-in">
+          <div class="form-group">
+              <label>{{ t('username') || 'Username' }}</label>
+              <input v-model="adminUsername" type="text" class="form-input" placeholder="admin" @keyup.enter="handleAdminLogin">
           </div>
-          <div class="btn-shine"></div>
+          <div class="form-group">
+              <label>{{ t('password') || 'Password' }}</label>
+              <input v-model="adminPassword" type="password" class="form-input" placeholder="••••••" @keyup.enter="handleAdminLogin">
+          </div>
+          
+          <div v-if="errorMsg" class="error-msg">{{ errorMsg }}</div>
+          
+          <button @click="handleAdminLogin" class="btn-login btn-primary" :disabled="isLoading">
+              <span v-if="isLoading">...</span>
+              <span v-else>{{ t('login') || 'Login' }}</span>
+          </button>
+          
+          <div class="admin-login-wrapper">
+            <a href="/login" class="btn-text-admin">← {{ t('backToSSO') || 'Back to SSO Login' }}</a>
+        </div>
+      </div>
+
+      <!-- SSO Login Buttons (Default) -->
+      <div v-else class="login-buttons">
+        <a href="/api/auth/login/sso" class="btn-login btn-mfu">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
+            <polyline points="10 17 15 12 10 7" />
+            <line x1="15" y1="12" x2="3" y2="12" />
+          </svg>
+          {{ t('loginSSO') || 'Login with MFU SSO' }}
         </a>
         
         <div class="admin-login-wrapper">
@@ -41,8 +99,8 @@ const isTestEnv = computed(() => envType === 'TEST')
         </div>
       </div>
 
-      <!-- Footer -->
-      <div class="login-footer">
+      <!-- Footer (Only on SSO view or stick to bottom) -->
+      <div v-if="!isAdminMode" class="login-footer">
         <p class="pdpa-notice">
           {{ t('agreeTo') }} 
           <a href="#">{{ t('terms') }}</a> {{ t('and') }} <a href="#">{{ t('pdpa') }}</a>.
@@ -126,10 +184,46 @@ const isTestEnv = computed(() => envType === 'TEST')
   color: var(--color-accent);
 }
 
-.login-buttons {
+.login-buttons, .admin-form {
   display: flex;
   flex-direction: column;
   gap: 12px;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 4px;
+}
+
+.form-group label {
+    font-size: 14px;
+    color: var(--color-text);
+    font-weight: 500;
+}
+
+.form-input {
+    padding: 12px;
+    border-radius: 10px;
+    border: 1px solid var(--color-border);
+    background: var(--color-bg-input, rgba(255, 255, 255, 0.05));
+    color: var(--color-text);
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+.form-input:focus {
+    border-color: var(--color-primary);
+}
+
+.error-msg {
+    color: #ef4444;
+    font-size: 13px;
+    text-align: center;
+    background: rgba(239, 68, 68, 0.1);
+    padding: 8px;
+    border-radius: 8px;
 }
 
 .btn-login {
@@ -142,10 +236,17 @@ const isTestEnv = computed(() => envType === 'TEST')
   font-weight: 600;
   font-size: 15px;
   text-decoration: none;
-  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+  cursor: pointer;
+  border: none;
+  transition: transform var(--transition-fast), opacity 0.2s;
 }
 
-.btn-login:hover {
+.btn-login:disabled {
+    opacity: 0.7;
+    cursor: wait;
+}
+
+.btn-login:hover:not(:disabled) {
   transform: translateY(-2px);
 }
 
@@ -154,25 +255,25 @@ const isTestEnv = computed(() => envType === 'TEST')
   height: 20px;
 }
 
+/* Simplified MFU Button (No complex shine) */
 .btn-mfu {
-  background: linear-gradient(135deg, var(--color-primary), var(--color-accent));
+  background: var(--color-primary); /* Solid Primary */
   color: white;
-  box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3);
 }
 
 .btn-mfu:hover {
-  box-shadow: 0 8px 25px rgba(59, 130, 246, 0.4);
+  filter: brightness(1.1); /* Simple hover effect */
 }
 
-.btn-google {
-  background: white;
-  color: #333;
-  border: 1px solid #ddd;
+/* Primary Action Button (Admin Login) */
+.btn-primary {
+    background: var(--color-primary);
+    color: white;
+    margin-top: 8px;
 }
 
-.btn-google:hover {
-  background: #f8f8f8;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+.btn-primary:hover {
+    filter: brightness(1.1);
 }
 
 .login-footer {
@@ -194,7 +295,7 @@ const isTestEnv = computed(() => envType === 'TEST')
   text-decoration: underline;
 }
 
-/* Background Decoration */
+/* Background Decoration (Simplified) */
 .bg-decoration {
   position: absolute;
   inset: 0;
@@ -232,50 +333,6 @@ const isTestEnv = computed(() => envType === 'TEST')
   right: 10%;
 }
 
-/* Button & Link Styles */
-.btn-mfu {
-  position: relative;
-  overflow: hidden;
-  background: linear-gradient(135deg, var(--color-primary), var(--color-accent));
-  color: white;
-  box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3);
-  border: none;
-}
-
-.btn-content {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  position: relative;
-  z-index: 2;
-}
-
-.btn-shine {
-  position: absolute;
-  top: 0;
-  left: -100%;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(
-    90deg,
-    transparent,
-    rgba(255, 255, 255, 0.2),
-    transparent
-  );
-  transition: 0.5s;
-  z-index: 1;
-}
-
-.btn-mfu:hover .btn-shine {
-  left: 100%;
-}
-
-.btn-mfu:hover {
-  box-shadow: 0 8px 25px rgba(59, 130, 246, 0.4);
-  transform: translateY(-2px);
-}
-
 .admin-login-wrapper {
     margin-top: 16px;
     text-align: center;
@@ -293,6 +350,5 @@ const isTestEnv = computed(() => envType === 'TEST')
     color: var(--color-primary);
     text-decoration: underline;
 }
-
 
 </style>
