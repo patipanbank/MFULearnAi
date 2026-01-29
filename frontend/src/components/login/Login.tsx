@@ -1,8 +1,8 @@
-import { useNavigate } from 'react-router-dom';
+// import React,{useState} from 'react';
+// import { useNavigate } from 'react-router-dom';
 import { config } from '../../config/config';
 // import axios from 'axios';
 const Login: React.FC = () => {
-  const navigate = useNavigate();
   // const [showLogin, setShowLogin] = useState(false);
   // const [name, setName] = useState('');
   const handleMFUSSOLogin = () => {
@@ -10,7 +10,7 @@ const Login: React.FC = () => {
   };
 
   const handleAdminLogin = () => {
-    navigate('/admin/login');
+    window.location.href = import.meta.env.VITE_ADMIN_LOGIN_URL;
   };
 
   // const navigator = useNavigate();
