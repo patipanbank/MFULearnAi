@@ -3,38 +3,60 @@ import { onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { useLanguage } from '@/composables/useSettings'
+import axios from 'axios' // Make sure axios is available or use fetch
 
 const router = useRouter()
 const authStore = useAuthStore()
 const { t } = useLanguage()
 
-onMounted(() => {
+onMounted(async () => {
   const urlParams = new URLSearchParams(window.location.search)
-  const token = urlParams.get('token')
-  const userDataB64 = urlParams.get('user_data')
-
-  if (token && userDataB64) {
+  const code = urlParams.get('code')
+  const token = urlParams.get('token') // Legacy/Fallback support
+  
+  if (code) {
     try {
-      // Decode base64 user data
-      const userDataStr = atob(userDataB64)
-      const userData = JSON.parse(userDataStr)
-      const provider = urlParams.get('provider') || 'sso' // Default to sso if missing
+      // Exchange code for token
+      const redirectUri = window.location.origin + '/auth/callback'
       
-      // Store in Pinia and localStorage
-      authStore.setAuth(token, userData)
-      localStorage.setItem('auth_provider', provider)
+      console.log('Exchanging code for token...')
+      const response = await axios.post('/api/auth/sso/callback', {
+        code,
+        redirect_uri: redirectUri
+      })
+
+      const { token: authToken, user } = response.data
       
-      console.log('Auth successful:', userData)
-      router.push('/chat')
+      if (authToken && user) {
+        authStore.setAuth(authToken, user)
+        localStorage.setItem('auth_provider', 'sso')
+        console.log('Auth successful:', user)
+        router.push('/chat')
+      } else {
+        throw new Error('Invalid response from server')
+      }
+
     } catch (e) {
-      console.error('Failed to parse auth data:', e)
-      router.push('/login?error=parse_failed')
+      console.error('SSO Exchange Failed:', e)
+      router.push('/login?error=auth_failed')
+    }
+  } else if (token) {
+    // Legacy support (if needed, or for testing)
+    const userDataB64 = urlParams.get('user_data')
+    if (userDataB64) {
+      try {
+        const userData = JSON.parse(atob(userDataB64))
+        authStore.setAuth(token, userData)
+        localStorage.setItem('auth_provider', 'legacy')
+        router.push('/chat')
+      } catch (e) {
+        router.push('/login?error=parse_failed')
+      }
     }
   } else {
-    // Check for error
+    // No code or token
     const error = urlParams.get('error')
     if (error) {
-      console.error('Auth error:', error)
       router.push(`/login?error=${error}`)
     } else {
       router.push('/login')
