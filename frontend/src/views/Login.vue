@@ -4,6 +4,7 @@ import { useLanguage } from '@/composables/useSettings'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth' // Assuming auth store exists
 import axios from 'axios'
+import dindinLogo from '@/assets/dindin-ai.png' // Import explicitly to ensure Vite handles it
 
 const { t } = useLanguage()
 const route = useRoute()
@@ -11,8 +12,7 @@ const router = useRouter()
 const authStore = useAuthStore()
 
 const envName = import.meta.env.VITE_ENV_NAME || 'MFULearnAI'
-const envType = import.meta.env.VITE_ENV_TYPE || 'TEST'
-const isTestEnv = computed(() => envType === 'TEST')
+// const envType = import.meta.env.VITE_ENV_TYPE || 'TEST' // Staging badge removed
 
 // Admin Login Logic
 const isAdminMode = computed(() => route.query.mode === 'admin')
@@ -53,11 +53,11 @@ const handleAdminLogin = async () => {
       <!-- Logo & Title -->
       <div class="login-header">
         <div class="logo-wrapper">
-          <div class="logo-icon">🤖</div>
+          <img :src="dindinLogo" alt="Logo" class="logo-image" />
         </div>
         <h1 class="app-title">{{ envName }}</h1>
         <p class="app-subtitle">{{ t('appSubtitle') }}</p>
-        <span v-if="isTestEnv" class="env-badge">{{ t('stagingEnv') }}</span>
+        <!-- Staging Badge Removed -->
       </div>
 
       <!-- Admin Login Form -->
@@ -118,7 +118,6 @@ const handleAdminLogin = async () => {
 </template>
 
 <style scoped>
-/* ... (Keep existing styles above) ... */
 .login-container {
   min-height: 100vh;
   display: flex;
@@ -147,19 +146,20 @@ const handleAdminLogin = async () => {
 }
 
 .logo-wrapper {
-  width: 80px;
-  height: 80px;
+  width: 120px; /* Adjusted size for image */
+  height: 120px;
   margin: 0 auto 16px;
-  background: linear-gradient(135deg, var(--color-primary), var(--color-accent));
-  border-radius: 20px;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 10px 30px rgba(59, 130, 246, 0.3);
+  /* Removed gradient background box since we have a PNG logo now, or keep it if desired? Usually clean logo is better. 
+     User didn't specify, but often logos have their own background or transparency. I'll remove the colored box to let the logo shine. */
 }
 
-.logo-icon {
-  font-size: 40px;
+.logo-image {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
 }
 
 .app-title {
@@ -172,17 +172,6 @@ const handleAdminLogin = async () => {
 .app-subtitle {
   color: var(--color-text-muted);
   font-size: 14px;
-}
-
-.env-badge {
-  display: inline-block;
-  margin-top: 12px;
-  padding: 4px 12px;
-  background: rgba(139, 92, 246, 0.2);
-  border: 1px solid var(--color-accent);
-  border-radius: 12px;
-  font-size: 12px;
-  color: var(--color-accent);
 }
 
 .login-buttons, .admin-form {
@@ -233,13 +222,13 @@ const handleAdminLogin = async () => {
   justify-content: center;
   gap: 12px;
   padding: 14px 24px;
-  border-radius: 12px;
+  border-radius: 50px; /* Pill shape */
   font-weight: 600;
   font-size: 15px;
   text-decoration: none;
   cursor: pointer;
-  border: 1px solid transparent;
-  transition: transform var(--transition-fast), opacity 0.2s;
+  border: none;
+  transition: transform var(--transition-fast), opacity 0.2s, background-color 0.2s;
 }
 
 .btn-login:disabled {
@@ -256,18 +245,16 @@ const handleAdminLogin = async () => {
   height: 20px;
 }
 
-/* Simplified MFU Button (Staging Badge Style) */
+/* Solid Blue MFU Button (Requested Style) */
 .btn-mfu {
-  background: rgba(59, 130, 246, 0.1); /* Blue tint like staging badge */
-  color: var(--color-accent);
-  border: 1px solid var(--color-accent);
-  border-radius: 50px; /* Round border */
+  background: var(--color-accent); /* Solid Blue */
+  color: white; /* White Text */
+  border: none; /* No Border */
 }
 
 .btn-mfu:hover {
-  background: rgba(59, 130, 246, 0.2);
-  box-shadow: 0 4px 15px rgba(59, 130, 246, 0.2);
-  transform: translateY(-2px);
+  background: var(--color-accent-hover);
+  box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3);
 }
 
 /* Primary Action Button (Admin Login) */
@@ -300,7 +287,7 @@ const handleAdminLogin = async () => {
   text-decoration: underline;
 }
 
-/* Background Decoration (Simplified) */
+/* Background Decoration */
 .bg-decoration {
   position: absolute;
   inset: 0;
@@ -355,5 +342,4 @@ const handleAdminLogin = async () => {
     color: var(--color-primary);
     text-decoration: underline;
 }
-
 </style>
