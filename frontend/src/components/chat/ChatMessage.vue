@@ -109,7 +109,7 @@ const formatTime = (timestamp) => {
             <span class="name">{{ t('aiAssistant') }}</span>
           </div>
           
-          <div class="prose-content" v-if="message.content" v-html="render(message.content)"></div>
+          <div class="prose-content prose" v-if="message.content" v-html="render(message.content)"></div>
           
           <!-- Typing Indicator (Embedded) -->
           <div v-else class="typing-indicator">
