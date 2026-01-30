@@ -225,7 +225,7 @@ services:
     command: redis-server --appendonly yes
 
   mongo:
-    image: mongo:6
+    image: mongo:7.0
     container_name: mfulearnai-mongo
     ports:
       - "27017:27017"
