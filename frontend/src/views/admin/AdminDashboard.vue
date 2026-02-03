@@ -2,7 +2,7 @@
   <div class="h-full flex flex-col bg-gray-900 text-white p-6 overflow-y-auto">
     <div class="flex justify-between items-center mb-6">
       <div>
-        <h1 class="text-2xl font-bold mb-1">System Dashboard</h1>
+        <h1 class="text-2xl font-bold mb-1">Admin Dashboard</h1>
         <p class="text-gray-400 text-sm">System usage statistics and performance metrics.</p>
       </div>
       <button 

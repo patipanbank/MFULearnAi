@@ -397,7 +397,7 @@ app.post('/api/chat', authenticateToken, rateLimiter, async (req: any, res: Resp
                     { upsert: true }
                 );
 
-                logActivity('info', 'chat_request_completed', {
+                logActivity('info', 'chat_completion', {
                     sessionId: actualSessionId,
                     responseLength: fullResponseText.length,
                     tokens: tokenUsage
