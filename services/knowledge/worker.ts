@@ -97,15 +97,12 @@ export const processKnowledgeJob = async (job: Job) => {
                 console.log(`[Worker] PDF appears scanned (or empty). Sending to OCR Service...`);
                 await Knowledge.findByIdAndUpdate(knowledgeId, { processingStage: 'extracting (OCR)' });
 
-                // Send to OCR Service
-                // Axios in Node needs 'form-data' lib for streams or Buffers, 
-                // but here we are in Node. standard FormData might not work as expected with axios + buffer.
-                // Better to use axios with specific headers.
-                const response = await axios.post(`${OCR_SERVICE_URL}/ocr`, buffer, {
-                    headers: {
-                        'Content-Type': mimetype,
-                        'Content-Disposition': `attachment; filename="${encodeURIComponent(originalName)}"`
-                    },
+                // Send to OCR Service (Multipart/Form-Data)
+                // Use axios.postForm to handle multipart encoding automatically
+                const fileObj = new File([buffer], originalName, { type: mimetype });
+                const response = await axios.postForm(`${OCR_SERVICE_URL}/ocr`, {
+                    file: fileObj
+                }, {
                     maxBodyLength: Infinity,
                     maxContentLength: Infinity
                 });
@@ -123,8 +120,11 @@ export const processKnowledgeJob = async (job: Job) => {
         } else if (mimetype === 'image/png' || mimetype === 'image/jpeg' || mimetype === 'image/tiff') {
             // Direct OCR for images
             console.log(`[Worker] Image detected. Sending to OCR...`);
-            const response = await axios.post(`${OCR_SERVICE_URL}/ocr`, buffer, {
-                headers: { 'Content-Type': mimetype, 'Content-Disposition': `attachment; filename="${originalName}"` }
+            // Direct OCR for images
+            console.log(`[Worker] Image detected. Sending to OCR...`);
+            const fileObj = new File([buffer], originalName, { type: mimetype });
+            const response = await axios.postForm(`${OCR_SERVICE_URL}/ocr`, {
+                file: fileObj
             });
             fullText = response.data.text;
             pages = [{ text: fullText, pageNumber: 1 }];
