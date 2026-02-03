@@ -118,13 +118,9 @@ export const processKnowledgeJob = async (job: Job) => {
         } else if (mimetype === 'image/png' || mimetype === 'image/jpeg' || mimetype === 'image/tiff') {
             // Direct OCR for images
             console.log(`[Worker] Image detected. Sending to OCR...`);
-            const form = new FormData();
-            form.append('file', buffer, {
-                filename: originalName,
-                contentType: mimetype
-            });
-            const response = await axios.post(`${OCR_SERVICE_URL}/ocr`, form, {
-                headers: { ...form.getHeaders() }
+            const response = await axios.post(`${OCR_SERVICE_URL}/ocr-bucket`, {
+                bucket: MINIO_BUCKET,
+                key: s3Key
             });
             fullText = response.data.text;
             pages = [{ text: fullText, pageNumber: 1 }];
