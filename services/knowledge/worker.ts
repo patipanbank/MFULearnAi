@@ -99,7 +99,7 @@ export const processKnowledgeJob = async (job: Job) => {
 
                 // Send to OCR Service (Multipart/Form-Data)
                 // Use axios.postForm to handle multipart encoding automatically
-                const fileObj = new File([buffer], originalName, { type: mimetype });
+                const fileObj = new File([buffer as any], originalName, { type: mimetype });
                 const response = await axios.postForm(`${OCR_SERVICE_URL}/ocr`, {
                     file: fileObj
                 }, {
@@ -122,7 +122,7 @@ export const processKnowledgeJob = async (job: Job) => {
             console.log(`[Worker] Image detected. Sending to OCR...`);
             // Direct OCR for images
             console.log(`[Worker] Image detected. Sending to OCR...`);
-            const fileObj = new File([buffer], originalName, { type: mimetype });
+            const fileObj = new File([buffer as any], originalName, { type: mimetype });
             const response = await axios.postForm(`${OCR_SERVICE_URL}/ocr`, {
                 file: fileObj
             });
