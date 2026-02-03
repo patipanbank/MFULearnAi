@@ -40,8 +40,6 @@
         "@types/node": "^20.11.16",
         "@types/pdf-parse": "^1.1.5",
         "ts-node-dev": "^2.0.0",
-        "typescript": "^5.3.3",
-        "@types/bullmq": "^5.0.0",
-        "@types/ioredis": "^5.0.0"
+        "typescript": "^5.3.3"
     }
 }

@@ -9,7 +9,6 @@ import { getEmbedding, chunkText } from './processingUtils';
 import crypto from 'crypto';
 import dotenv from 'dotenv';
 import axios from 'axios';
-import { Job } from 'bullmq';
 
 // PDF.js Setup
 const pdfjsLib = require('pdfjs-dist/legacy/build/pdf.js');
@@ -188,7 +187,7 @@ export const processKnowledgeJob = async (job: Job) => {
 
         await Knowledge.findByIdAndUpdate(knowledgeId, { processingStage: 'indexing' });
 
-        const col = await chroma.getCollection({ name: GLOBAL_CHROMA_COLLECTION, embeddingFunction: undefined });
+        const col = await chroma.getCollection({ name: GLOBAL_CHROMA_COLLECTION, embeddingFunction: null as any });
         await col.add({ ids, embeddings, metadatas, documents });
 
         // 6. Complete

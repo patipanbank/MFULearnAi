@@ -319,7 +319,7 @@ import * as XLSX from 'xlsx';
 // ... imports
 
 // 1.01 EXTRACT TEXT (No Save)
-app.post('/api/knowledge/extract', upload.single('file'), async (req: any, res: Response) => {
+app.post('/api/knowledge/extract', async (req: any, res: Response) => {
     // Basic Auth Check (Any authenticated user can extract)
     const user = extractUser(req);
     if (!user) return res.status(401).json({ error: 'Unauthorized' });
