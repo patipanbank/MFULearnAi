@@ -116,8 +116,9 @@ app.post('/api/auth/sso/callback', async (req, res) => {
             lastName: profile.family_name,
             username: profile.username || (profile.email ? profile.email.split('@')[0] : 'unknown'),
             role: 'student', // Default
-            departId: profile.depart_id,
-            departName: profile.depart_name,
+            department: profile.depart_name, // Map MFU 'depart_name' to 'department'
+            departmentId: profile.depart_id, // New field from MFU SSO
+            departName: profile.depart_name, // Keep for backward compat if needed
             provider: 'sso'
         };
 

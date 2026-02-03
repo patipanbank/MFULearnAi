@@ -43,6 +43,7 @@ const generateToken = (user: UserDocument) => {
         role: user.role,
         email: user.email,
         department: user.department,
+        departmentId: user.departmentId,
         permissions: user.permissions,
         environment: process.env.ENV_TYPE
     }, JWT_SECRET, { expiresIn: JWT_EXPIRY });
@@ -76,7 +77,7 @@ const authenticateUser = (req: any, res: Response, next: any) => {
 // Receives standardized user profile, returns JWT
 app.post('/internal/login', authenticateInternal, async (req: Request, res: Response) => {
     const {
-        nameID, username, email, firstName, lastName, department, role, groups, googleId, picture
+        nameID, username, email, firstName, lastName, department, departmentId, role, groups, googleId, picture
     } = req.body;
 
     // console.log(`[Identity] Processing internal login for ${email}`);
@@ -106,6 +107,7 @@ app.post('/internal/login', authenticateInternal, async (req: Request, res: Resp
         };
 
         if (department) updateData.department = department;
+        if (departmentId) updateData.departmentId = departmentId;
         if (groups) updateData.groups = groups;
         if (googleId) updateData.googleId = googleId;
         if (nameID) updateData.nameID = nameID;
@@ -119,8 +121,8 @@ app.post('/internal/login', authenticateInternal, async (req: Request, res: Resp
 
         // Auto-Create Department if provided
         if (department) {
-            console.log(`[Identity] ensuring department exists: ${department}`);
-            const deptCode = department.trim().toUpperCase().replace(/\s+/g, '_');
+            // console.log(`[Identity] ensuring department exists: ${department}`);
+            const deptCode = departmentId || department.trim().toUpperCase().replace(/\s+/g, '_');
             await Department.findOneAndUpdate(
                 { code: deptCode },
                 { code: deptCode, name: department },
@@ -145,6 +147,7 @@ app.post('/internal/login', authenticateInternal, async (req: Request, res: Resp
                 username: user.username,
                 role: user.role,
                 department: user.department,
+                departmentId: user.departmentId,
                 firstName: user.firstName,
                 lastName: user.lastName,
                 picture: user.picture
