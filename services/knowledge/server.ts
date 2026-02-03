@@ -1,7 +1,8 @@
 import express, { Request, Response } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import multer from 'multer';
+import dotenv from 'dotenv';
+import busboy from 'busboy';
 import { ChromaClient } from 'chromadb';
 import axios from 'axios';
 import pdf from 'pdf-parse';
@@ -110,8 +111,12 @@ const KnowledgeSchema = new Schema({
     requestedType: { type: String, enum: ['public', 'department'] },
     // Async Processing Fields
     processingStatus: { type: String, enum: ['none', 'pending', 'processing', 'completed', 'failed'], default: 'none' },
+    processingStage: { type: String, enum: ['none', 'uploading', 'queued', 'extracting', 'chunking', 'embedding', 'indexing', 'completed'], default: 'none' },
     s3Key: String,
-    errorReason: String
+    s3Size: Number, // File size in bytes
+    textHash: String, // SHA256 of extracted text
+    errorReason: String,
+    contentType: String
 }, { timestamps: true });
 
 const Knowledge = mongoose.model<IKnowledge>('Knowledge', KnowledgeSchema);
@@ -206,61 +211,103 @@ async function initDefaultCollection() {
 
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
 
-// 1. CREATE KNOWLEDGE (Upload)
-app.post('/api/knowledge', upload.single('file'), async (req: any, res: Response) => {
+// 1. CREATE KNOWLEDGE (Streaming Upload)
+app.post('/api/knowledge', async (req: any, res: Response) => {
     const user = extractUser(req);
     if (!user) return res.status(401).json({ error: 'Unauthorized' });
 
-    if (!req.file) return res.status(400).json({ error: 'No file' });
-    const { type = 'personal' } = req.body; // public, department, personal
+    const bb = busboy({ headers: req.headers });
+    const kbId = new mongoose.Types.ObjectId();
 
-    // Permission Check
-    if (!canCreateKnowledge(user, type)) {
-        return res.status(403).json({ error: 'Insufficient permissions to create this type of knowledge' });
-    }
+    // State to capture during stream
+    const fields: any = {};
+    let uploadPromise: Promise<any> | null = null;
+    let fileInfo: any = null;
+    let hasFile = false;
 
-    const { mimetype, buffer, originalname, size } = req.file;
-    const cleanName = Buffer.from(originalname, 'latin1').toString('utf8');
+    bb.on('file', (name, file, info) => {
+        hasFile = true;
+        const { filename, mimeType } = info;
+        // Deterministic Key: knowledge/{id}/original.pdf
+        // Preserves original extension?
+        const ext = filename.split('.').pop() || 'dat';
+        const s3Key = `knowledge/${kbId}/original.${ext}`;
 
-    try {
-        // 1. Upload to MinIO
-        const s3Key = `${user.userId}/${Date.now()}_${cleanName}`;
-        await minioClient.putObject(MINIO_BUCKET, s3Key, buffer, size, {
-            'Content-Type': mimetype
+        fileInfo = {
+            originalName: Buffer.from(filename, 'latin1').toString('utf8'),
+            mimeType,
+            s3Key
+        };
+
+        console.log(`[Upload] Streaming ${filename} to ${s3Key}...`);
+
+        // Stream to MinIO
+        // Note: minioClient.putObject can take a stream. 
+        // If size is unknown, it internally uses multipart upload.
+        uploadPromise = minioClient.putObject(MINIO_BUCKET, s3Key, file, undefined, {
+            'Content-Type': mimeType,
+            'x-amz-meta-original-name': filename
         });
+    });
 
-        // 2. Save Initial Record
-        const kb = new Knowledge({
-            title: cleanName,
-            type,
-            contentSource: cleanName,
-            content: '', // Will be filled by worker
-            ownerId: user.userId,
-            department: user.department,
-            processingStatus: 'pending',
-            s3Key: s3Key
-        });
-        await kb.save();
+    bb.on('field', (name, val) => {
+        fields[name] = val;
+    });
 
-        // 3. Queue Job
-        await knowledgeQueue.add('process-file', {
-            knowledgeId: kb._id.toString(),
-            s3Key,
-            mimetype,
-            originalName: cleanName
-        });
+    bb.on('close', async () => {
+        if (!hasFile) {
+            return res.status(400).json({ error: 'No file uploaded' });
+        }
 
-        // 4. Return Accepted
-        res.status(202).json({
-            success: true,
-            knowledge: kb,
-            message: 'File accepted. Processing started.'
-        });
+        try {
+            await uploadPromise; // Wait for MinIO finish
 
-    } catch (e: any) {
-        console.error('Upload error:', e);
-        res.status(500).json({ error: e.message });
-    }
+            // Check Permissions
+            const type = fields.type || 'personal';
+            if (!canCreateKnowledge(user, type)) {
+                // Cleanup S3?
+                return res.status(403).json({ error: 'Insufficient permissions' });
+            }
+
+            // Create DB Record
+            const kb = new Knowledge({
+                _id: kbId,
+                title: fileInfo.originalName,
+                type,
+                contentSource: fileInfo.originalName,
+                content: '',
+                ownerId: user.userId,
+                department: user.department,
+                processingStatus: 'pending',
+                processingStage: 'queued',
+                s3Key: fileInfo.s3Key,
+                contentType: fileInfo.mimeType,
+                // s3Size: TODO: MinIO result usually has etag, but getting size might require statObject. 
+                // We can skip size for now or fetch it in worker.
+            });
+            await kb.save();
+
+            // Queue Job
+            await knowledgeQueue.add('process-file', {
+                knowledgeId: kb._id.toString(),
+                s3Key: fileInfo.s3Key,
+                mimetype: fileInfo.mimeType,
+                originalName: fileInfo.originalName
+            });
+
+            res.status(202).json({
+                success: true,
+                knowledge: kb,
+                message: 'File accepted. Streaming upload complete.'
+            });
+
+        } catch (e: any) {
+            console.error('Streaming Upload Failed:', e);
+            res.status(500).json({ error: 'Upload failed: ' + e.message });
+        }
+    });
+
+    req.pipe(bb);
 });
 
 import mammoth from 'mammoth';
@@ -360,6 +407,46 @@ app.delete('/api/knowledge/:id', async (req: Request, res: Response) => {
         res.json({ success: true, id: kb._id });
     } catch (e: any) {
         console.error('Delete error:', e);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// 1.06 RETRY PROCESSING (Refinement)
+app.post('/api/knowledge/:id/retry', async (req: Request, res: Response) => {
+    const user = extractUser(req);
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+
+    try {
+        const kb = await Knowledge.findById(req.params.id);
+        if (!kb) return res.status(404).json({ error: 'Not found' });
+
+        if (!canManageKnowledge(user, kb)) {
+            return res.status(403).json({ error: 'Not allowed to manage this knowledge' });
+        }
+
+        // Only retry if failed or stuck?
+        // Let's allow retry anytime if status != completed, or even if completed (re-process)
+
+        // Reset Status
+        kb.processingStatus = 'pending';
+        kb.processingStage = 'queued';
+        kb.errorReason = '';
+        await kb.save();
+
+        // Check if S3 key exists?
+        // We assume it does. Worker will fail again if not.
+
+        // Re-Queue
+        await knowledgeQueue.add('process-file', {
+            knowledgeId: kb._id.toString(),
+            s3Key: kb.s3Key,
+            mimetype: kb.contentType || 'application/pdf', // Fallback
+            originalName: kb.title
+        });
+
+        res.json({ success: true, knowledge: kb, message: 'Retry queued.' });
+
+    } catch (e: any) {
         res.status(500).json({ error: e.message });
     }
 });

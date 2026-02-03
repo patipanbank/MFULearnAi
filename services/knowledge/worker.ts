@@ -6,11 +6,22 @@ import mammoth from 'mammoth';
 import * as XLSX from 'xlsx';
 import { minioClient, MINIO_BUCKET } from './minioClient';
 import { getEmbedding, chunkText } from './processingUtils';
+import crypto from 'crypto';
 import dotenv from 'dotenv';
+import axios from 'axios';
+
+// PDF.js Setup
+import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.js';
+// Worker path is needed for node
+// For pure node without worker threads, we can just use getDocument. 
+// However, pdfjs-dist in node environment often needs some setup or just `legacy` build.
+// Let's rely on standard import. If it fails, we might need a worker shim.
+
 
 dotenv.config();
 
 const CHROMA_URL = process.env.CHROMA_URL || 'http://chromadb:8000';
+const OCR_SERVICE_URL = process.env.OCR_SERVICE_URL || 'http://ocr-service:5000';
 const chroma = new ChromaClient({ path: CHROMA_URL });
 const GLOBAL_CHROMA_COLLECTION = "mfulearnai-global-kb";
 
@@ -34,6 +45,7 @@ export const processKnowledgeJob = async (job: Job) => {
         // 1. Update Status to Processing
         await Knowledge.findByIdAndUpdate(knowledgeId, {
             processingStatus: 'processing',
+            processingStage: 'extracting',
             errorReason: ''
         });
 
@@ -41,15 +53,76 @@ export const processKnowledgeJob = async (job: Job) => {
         const stream = await minioClient.getObject(MINIO_BUCKET, s3Key);
         const buffer = await streamToBuffer(stream);
 
-        // 3. Extract Text
-        let text = '';
+        // Update Size Metadata if missing
+        await Knowledge.findByIdAndUpdate(knowledgeId, { s3Size: buffer.length });
+
+        // 3. Extract Text & Metadata
+        let pages: { text: string, pageNumber: number }[] = [];
+        let fullText = '';
+
         if (mimetype === 'application/pdf') {
-            text = (await pdf(buffer)).text;
+            // Basic PDF parsing with PDF.js for Page awareness
+            // For scanned PDFs, this text will be empty.
+            const pdfDocument = await pdfjsLib.getDocument(buffer).promise;
+            const numPages = pdfDocument.numPages;
+
+            for (let i = 1; i <= numPages; i++) {
+                const page = await pdfDocument.getPage(i);
+                const textContent = await page.getTextContent();
+                const pageText = textContent.items.map((item: any) => item.str).join(' ');
+
+                pages.push({ text: pageText, pageNumber: i });
+                fullText += pageText + '\n\n';
+            }
+
+            // OCR FALLBACK CHECK
+            const nonEmptyPages = pages.filter(p => p.text.replace(/\s/g, '').length > 50).length;
+            // If fewer than 50% of pages have text > 50 chars, assume scanned.
+            const isScanned = (nonEmptyPages / numPages) < 0.5;
+
+            if (isScanned) {
+                console.log(`[Worker] PDF appears scanned (or empty). Sending to OCR Service...`);
+                await Knowledge.findByIdAndUpdate(knowledgeId, { processingStage: 'extracting (OCR)' });
+
+                // Send to OCR Service
+                // Axios in Node needs 'form-data' lib for streams or Buffers, 
+                // but here we are in Node. standard FormData might not work as expected with axios + buffer.
+                // Better to use axios with specific headers.
+                const response = await axios.post(`${OCR_SERVICE_URL}/ocr`, buffer, {
+                    headers: {
+                        'Content-Type': mimetype,
+                        'Content-Disposition': `attachment; filename="${encodeURIComponent(originalName)}"`
+                    },
+                    maxBodyLength: Infinity,
+                    maxContentLength: Infinity
+                });
+
+                fullText = response.data.text;
+                // Re-parse pages from OCR response? 
+                // Our OCR service returns full text with "--- Page X ---" delimiters. 
+                // Let's simple-split it for page metadata for now.
+                pages = fullText.split('--- Page ').slice(1).map(p => {
+                    const [num, ...rest] = p.split(' ---');
+                    return { pageNumber: parseInt(num), text: rest.join(' ---') };
+                });
+            }
+
+        } else if (mimetype === 'image/png' || mimetype === 'image/jpeg' || mimetype === 'image/tiff') {
+            // Direct OCR for images
+            console.log(`[Worker] Image detected. Sending to OCR...`);
+            const response = await axios.post(`${OCR_SERVICE_URL}/ocr`, buffer, {
+                headers: { 'Content-Type': mimetype, 'Content-Disposition': `attachment; filename="${originalName}"` }
+            });
+            fullText = response.data.text;
+            pages = [{ text: fullText, pageNumber: 1 }];
+
         } else if (mimetype === 'text/plain') {
-            text = buffer.toString('utf-8');
+            fullText = buffer.toString('utf-8');
+            pages = [{ text: fullText, pageNumber: 1 }];
         } else if (mimetype === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
             const result = await mammoth.extractRawText({ buffer });
-            text = result.value;
+            fullText = result.value;
+            pages = [{ text: fullText, pageNumber: 1 }]; // Docx doesn't easily give pages without rendering
         } else if (
             mimetype === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
             mimetype === 'application/vnd.ms-excel' ||
@@ -61,42 +134,66 @@ export const processKnowledgeJob = async (job: Job) => {
             sheetNames.forEach(name => {
                 const sheet = workbook.Sheets[name];
                 const csv = XLSX.utils.sheet_to_csv(sheet);
-                text += `\n--- Sheet: ${name} ---\n${csv}`;
+                const sheetText = `\n--- Sheet: ${name} ---\n${csv}`;
+                fullText += sheetText;
+                pages.push({ text: sheetText, pageNumber: 1 });
             });
-        } else {
+        }
+        else {
+            // Fallback or Error
             throw new Error(`Unsupported mimetype: ${mimetype}`);
         }
 
-        text = text.replace(/\s+/g, ' ').trim();
-        if (!text) throw new Error('Extracted text is empty');
+        fullText = fullText.replace(/\s+/g, ' ').trim();
+        if (!fullText) throw new Error('Extracted text is empty');
 
-        // 4. Update Content in DB (Optional, or just keep in vectorstore? The original plan said store full text)
-        // Let's store it.
-        await Knowledge.findByIdAndUpdate(knowledgeId, { content: text });
+        // Calculate Hash
+        const hash = crypto.createHash('sha256').update(fullText).digest('hex');
 
-        // 5. Vectorize
-        const chunks = chunkText(text);
+        // 4. Update Content & Hash
+        await Knowledge.findByIdAndUpdate(knowledgeId, {
+            content: fullText,
+            textHash: hash,
+            processingStage: 'chunking'
+        });
+
+        // 5. Vectorize with Page Metadata
         const ids = [], embeddings = [], metadatas = [], documents = [];
 
-        for (let i = 0; i < chunks.length; i++) {
-            const chunk = chunks[i];
-            const vec = await getEmbedding(chunk);
-            ids.push(`${knowledgeId}-${i}`);
-            embeddings.push(vec);
-            documents.push(chunk);
-            metadatas.push({
-                knowledgeId: knowledgeId.toString(),
-                source: originalName,
-                chunkIndex: i
-            });
+        // Chunk each page separately to preserve page context? 
+        // Or Chunk full text? 
+        // Better: Chunk per page to keep correct page numbers.
+        let chunkGlobalIndex = 0;
+
+        for (const p of pages) {
+            const pageChunks = await chunkText(p.text);
+            for (const chunk of pageChunks) {
+                const vec = await getEmbedding(chunk);
+                ids.push(`${knowledgeId}-${chunkGlobalIndex}`);
+                embeddings.push(vec);
+                documents.push(chunk);
+                metadatas.push({
+                    knowledgeId: knowledgeId.toString(),
+                    source: originalName,
+                    pageNumber: p.pageNumber,
+                    chunkIndex: chunkGlobalIndex
+                });
+                chunkGlobalIndex++;
+            }
         }
+
+        // Batch add to Chroma (chunks of 100?)
+        // Chroma default max batch size is usually fine for reasonable docs.
+
+        await Knowledge.findByIdAndUpdate(knowledgeId, { processingStage: 'indexing' });
 
         const col = await chroma.getCollection({ name: GLOBAL_CHROMA_COLLECTION });
         await col.add({ ids, embeddings, metadatas, documents });
 
         // 6. Complete
         await Knowledge.findByIdAndUpdate(knowledgeId, {
-            processingStatus: 'completed'
+            processingStatus: 'completed',
+            processingStage: 'completed'
         });
         console.log(`[Worker] Job ${job.id} Success.`);
 

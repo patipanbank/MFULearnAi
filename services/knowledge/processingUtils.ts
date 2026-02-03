@@ -1,5 +1,6 @@
 import axios from 'axios';
 import dotenv from 'dotenv';
+import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
 
 dotenv.config();
 
@@ -16,14 +17,11 @@ export async function getEmbedding(text: string): Promise<number[]> {
     }
 }
 
-export function chunkText(text: string): string[] {
-    const chunkSize = 1000, overlap = 200;
-    const chunks = [];
-    let start = 0;
-    while (start < text.length) {
-        const end = Math.min(start + chunkSize, text.length);
-        chunks.push(text.slice(start, end));
-        start += (chunkSize - overlap);
-    }
-    return chunks;
+export async function chunkText(text: string): Promise<string[]> {
+    const splitter = new RecursiveCharacterTextSplitter({
+        chunkSize: 1000,
+        chunkOverlap: 200,
+        separators: ["\n\n", "\n", ".", " ", ""], // Paragraph > Line > Sentence > Word > Char
+    });
+    return await splitter.splitText(text);
 }

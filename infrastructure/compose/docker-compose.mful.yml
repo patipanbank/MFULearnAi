@@ -141,6 +141,15 @@ services:
       - mfulearnai-network
     restart: unless-stopped
 
+  ocr-service:
+    build: ./services/ocr
+    container_name: mfulearnai-ocr
+    ports:
+      - "5000:5000"
+    networks:
+      - mfulearnai-network
+    restart: always
+
   bedrock-embedding:
     build:
       context: ../../services/bedrock-embedding
@@ -268,12 +277,7 @@ services:
     depends_on:
       - minio
     entrypoint: >
-      /bin/sh -c "
-      /usr/bin/mc config host add myminio http://minio:9000 minioadmin minioadmin;
-      /usr/bin/mc mb myminio/mfulearnai-knowledge;
-      /usr/bin/mc anonymous set download myminio/mfulearnai-knowledge;
-      exit 0;
-      "
+      /bin/sh -c " /usr/bin/mc config host add myminio http://minio:9000 minioadmin minioadmin; /usr/bin/mc mb myminio/mfulearnai-knowledge; /usr/bin/mc anonymous set download myminio/mfulearnai-knowledge; exit 0; "
     networks:
       - mfulearnai-network
 
@@ -282,6 +286,7 @@ volumes:
   mfulearnai-mongo-data:
   mfulearnai-chroma-data:
   mfulearnai-minio-data:
+
 
 networks:
   mfulearnai-network:
