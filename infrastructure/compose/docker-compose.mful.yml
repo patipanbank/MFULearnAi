@@ -142,7 +142,9 @@ services:
     restart: unless-stopped
 
   ocr-service:
-    build: ./services/ocr
+    build:
+      context: ../../services/ocr
+      dockerfile: Dockerfile
     container_name: mfulearnai-ocr
     ports:
       - "5000:5000"
