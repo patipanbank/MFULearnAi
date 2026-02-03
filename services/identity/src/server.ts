@@ -370,23 +370,35 @@ app.post('/api/users', authenticateUser, async (req: any, res: Response) => {
 
         const hashedPassword = await bcrypt.hash(password, 10);
 
+        let departmentId = '';
+        if (department) {
+            // 1. Try to find existing department to reuse its ID (code)
+            const existingDept = await Department.findOne({ name: department });
+            if (existingDept) {
+                departmentId = existingDept.code;
+            } else {
+                // 2. Fallback: Generate new ID if not found
+                departmentId = department.trim().toUpperCase().replace(/\s+/g, '_');
+            }
+        }
+
         const newUser = await User.create({
             username,
             password: hashedPassword,
             role: role || 'student',
             department: department || '',
+            departmentId: departmentId, // Use found or generated ID
             firstName: firstName || username,
             lastName: lastName || '',
             isActive: isActive !== undefined ? isActive : true,
             email: req.body.email || `${username}@local.domain`
         });
 
-        // Auto-Create Department if provided
+        // Auto-Create Department if provided and didn't exist
         if (department) {
-            const deptCode = department.trim().toUpperCase().replace(/\s+/g, '_');
             await Department.findOneAndUpdate(
-                { code: deptCode },
-                { code: deptCode, name: department },
+                { code: departmentId },
+                { code: departmentId, name: department },
                 { upsert: true, setDefaultsOnInsert: true }
             ).catch(err => console.error(`[Identity] Department sync error: ${err.message}`));
         }
@@ -406,7 +418,26 @@ app.put('/api/users/:id', authenticateUser, async (req: any, res: Response) => {
 
         const updateData: any = {};
         if (role) updateData.role = role;
-        if (department) updateData.department = department;
+
+        if (department) {
+            updateData.department = department;
+
+            // Lookup existing code
+            const existingDept = await Department.findOne({ name: department });
+            if (existingDept) {
+                updateData.departmentId = existingDept.code;
+            } else {
+                updateData.departmentId = department.trim().toUpperCase().replace(/\s+/g, '_');
+            }
+
+            // Ensure department exists
+            await Department.findOneAndUpdate(
+                { code: updateData.departmentId },
+                { code: updateData.departmentId, name: department },
+                { upsert: true, setDefaultsOnInsert: true }
+            ).catch(err => console.error(`[Identity] Department sync error: ${err.message}`));
+        }
+
         if (typeof isActive === 'boolean') updateData.isActive = isActive;
         if (firstName) updateData.firstName = firstName;
         if (lastName) updateData.lastName = lastName;
