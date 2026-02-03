@@ -1,5 +1,6 @@
 import { Job } from 'bullmq';
 import mongoose from 'mongoose';
+import { Knowledge } from './models';
 import { ChromaClient } from 'chromadb';
 import pdf from 'pdf-parse';
 import mammoth from 'mammoth';
@@ -32,7 +33,7 @@ const GLOBAL_CHROMA_COLLECTION = "mfulearnai-global-kb";
 // If separate process, we must connect DB here.
 
 // For "Same Process" Architecture:
-const Knowledge = mongoose.model('Knowledge');
+// const Knowledge = mongoose.model('Knowledge'); // Removed manual fetch
 
 export const processKnowledgeJob = async (job: Job) => {
     const { knowledgeId, s3Key, mimetype, originalName } = job.data;
