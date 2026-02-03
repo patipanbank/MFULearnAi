@@ -62,7 +62,12 @@ export const processKnowledgeJob = async (job: Job) => {
             // Basic PDF parsing with PDF.js for Page awareness
             // Dynamic Import for ESM Module in CJS environment
             const importDynamic = new Function('modulePath', 'return import(modulePath)');
-            const pdfjs = await importDynamic('pdfjs-dist');
+            // Use LEGACY build for Node.js environment (v5.x)
+            const pdfjs = await importDynamic('pdfjs-dist/legacy/build/pdf.mjs');
+
+            // for nodejs we need to set standard font data?
+            // Some recent versions require this.
+            // If it fails again, we might need a canvas polyfill, but legacy build usually avoids this for text.
 
             // For scanned PDFs, this text will be empty.
             const loadingTask = pdfjs.getDocument({
