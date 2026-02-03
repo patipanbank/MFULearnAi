@@ -146,6 +146,10 @@ services:
       context: ../../services/ocr
       dockerfile: Dockerfile
     container_name: mfulearnai-ocr
+    environment:
+      - MINIO_ENDPOINT=minio:9000
+      - MINIO_ACCESS_KEY=minioadmin
+      - MINIO_SECRET_KEY=minioadmin
     ports:
       - "5000:5000"
     networks:

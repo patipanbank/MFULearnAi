@@ -10,6 +10,7 @@ import { getEmbedding, chunkText } from './processingUtils';
 import crypto from 'crypto';
 import dotenv from 'dotenv';
 import axios from 'axios';
+import FormData from 'form-data';
 
 // PDF.js Setup (ESM Dynamic Import in function)
 // Version 5.x is ESM only. We will import it dynamically.
@@ -97,14 +98,11 @@ export const processKnowledgeJob = async (job: Job) => {
                 console.log(`[Worker] PDF appears scanned (or empty). Sending to OCR Service...`);
                 await Knowledge.findByIdAndUpdate(knowledgeId, { processingStage: 'extracting (OCR)' });
 
-                // Send to OCR Service (Multipart/Form-Data)
-                // Use axios.postForm to handle multipart encoding automatically
-                const fileObj = new File([buffer as any], originalName, { type: mimetype });
-                const response = await axios.postForm(`${OCR_SERVICE_URL}/ocr`, {
-                    file: fileObj
-                }, {
-                    maxBodyLength: Infinity,
-                    maxContentLength: Infinity
+                // Send to OCR Service (Direct MinIO Access)
+                // Much more efficient: Pass the key, let OCR service fetch it.
+                const response = await axios.post(`${OCR_SERVICE_URL}/ocr-bucket`, {
+                    bucket: MINIO_BUCKET,
+                    key: s3Key
                 });
 
                 fullText = response.data.text;
@@ -120,11 +118,13 @@ export const processKnowledgeJob = async (job: Job) => {
         } else if (mimetype === 'image/png' || mimetype === 'image/jpeg' || mimetype === 'image/tiff') {
             // Direct OCR for images
             console.log(`[Worker] Image detected. Sending to OCR...`);
-            // Direct OCR for images
-            console.log(`[Worker] Image detected. Sending to OCR...`);
-            const fileObj = new File([buffer as any], originalName, { type: mimetype });
-            const response = await axios.postForm(`${OCR_SERVICE_URL}/ocr`, {
-                file: fileObj
+            const form = new FormData();
+            form.append('file', buffer, {
+                filename: originalName,
+                contentType: mimetype
+            });
+            const response = await axios.post(`${OCR_SERVICE_URL}/ocr`, form, {
+                headers: { ...form.getHeaders() }
             });
             fullText = response.data.text;
             pages = [{ text: fullText, pageNumber: 1 }];
