@@ -104,8 +104,12 @@ app.post('/api/bedrock/chat', async (req: Request, res: Response) => {
                     const parsed = JSON.parse(decoded);
 
                     // 1. Capture Input Tokens (message_start)
-                    if (parsed.type === 'message_start' && parsed.message?.usage) {
-                        inputTokens = parsed.message.usage.input_tokens || 0;
+                    if (parsed.type === 'message_start') {
+                        console.log('[Bedrock Text] message_start:', JSON.stringify(parsed));
+                        if (parsed.message?.usage) {
+                            inputTokens = parsed.message.usage.input_tokens || 0;
+                            console.log('[Bedrock Text] Captured Input Tokens:', inputTokens);
+                        }
                     }
 
                     // 2. Stream Content
@@ -114,8 +118,12 @@ app.post('/api/bedrock/chat', async (req: Request, res: Response) => {
                     }
 
                     // 3. Capture Output Tokens (message_delta)
-                    if (parsed.type === 'message_delta' && parsed.usage) {
-                        outputTokens = parsed.usage.output_tokens || 0;
+                    if (parsed.type === 'message_delta') {
+                        console.log('[Bedrock Text] message_delta:', JSON.stringify(parsed));
+                        if (parsed.usage) {
+                            outputTokens = parsed.usage.output_tokens || 0;
+                            console.log('[Bedrock Text] Captured Output Tokens:', outputTokens);
+                        }
                     }
 
                     // 4. Handle Stop (Optional: check cleanup)
@@ -128,6 +136,8 @@ app.post('/api/bedrock/chat', async (req: Request, res: Response) => {
 
         // Send Usage Event
         const totalTokens = inputTokens + outputTokens;
+        console.log('[Bedrock Text] Final Usage:', { input: inputTokens, output: outputTokens, total: totalTokens });
+
         res.write(`data: ${JSON.stringify({
             type: 'usage',
             usage: {

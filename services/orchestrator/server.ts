@@ -397,6 +397,8 @@ app.post('/api/chat', authenticateToken, rateLimiter, async (req: any, res: Resp
                     { upsert: true }
                 );
 
+                console.log('[Orchestrator] Saving Chat Completion Log. Usage:', tokenUsage);
+
                 logActivity('info', 'chat_completion', {
                     sessionId: actualSessionId,
                     responseLength: fullResponseText.length,
