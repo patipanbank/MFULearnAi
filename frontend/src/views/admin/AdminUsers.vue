@@ -72,9 +72,9 @@
           <div class="knowledge-modal">
              <h2>{{ isEditing ? 'Edit User' : 'Create User' }}</h2>
              
-             <div v-if="isEditing" class="user-summary mb-4 p-3 bg-gray-800 rounded">
+             <div v-if="isEditing" class="user-summary mb-4 p-3 rounded" style="background: var(--color-bg-tertiary);">
                  <div class="font-bold">{{ form.firstName }} {{ form.lastName }}</div>
-                 <div class="text-xs text-gray-400">{{ form.username }}</div>
+                 <div class="text-xs" style="color: var(--color-text-muted);">{{ form.username }}</div>
              </div>
 
              <div v-if="!isEditing" class="form-group-row">
@@ -294,8 +294,8 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   padding: 24px;
-  background: var(--color-bg-primary, #121212);
-  color: var(--color-text-primary, #ffffff);
+  background: var(--color-bg-primary);
+  color: var(--color-text-primary);
 }
 
 .page-header {
