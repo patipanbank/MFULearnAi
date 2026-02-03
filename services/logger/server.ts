@@ -347,6 +347,46 @@ app.get('/api/logs/usage', async (req: Request, res: Response) => {
     }
 });
 
+// --- User Personal Usage Stats ---
+app.get('/api/logs/usage/me', async (req: Request, res: Response) => {
+    try {
+        const { userId } = req.query;
+        if (!userId) return res.status(400).json({ error: 'User ID required' });
+
+        const now = new Date();
+        const startOfDay = new Date(now);
+        startOfDay.setHours(0, 0, 0, 0);
+
+        // Aggregate User Stats
+        const [userTotal, userToday] = await Promise.all([
+            // All Time for User
+            LogEntry.aggregate([
+                { $match: { action: 'chat_completion', environment: ENV_TYPE, userId: userId } },
+                { $group: { _id: null, tokens: { $sum: "$details.tokens.total" }, requests: { $sum: 1 } } }
+            ]),
+            // Today for User
+            LogEntry.aggregate([
+                { $match: { action: 'chat_completion', environment: ENV_TYPE, userId: userId, timestamp: { $gte: startOfDay } } },
+                { $group: { _id: null, tokens: { $sum: "$details.tokens.total" }, requests: { $sum: 1 } } }
+            ])
+        ]);
+
+        res.json({
+            total: {
+                tokens: userTotal[0]?.tokens || 0,
+                requests: userTotal[0]?.requests || 0
+            },
+            today: {
+                tokens: userToday[0]?.tokens || 0,
+                requests: userToday[0]?.requests || 0
+            }
+        });
+
+    } catch (error: any) {
+        res.status(500).json({ error: 'Failed to fetch user usage' });
+    }
+});
+
 // --- Health Check ---
 app.get('/health', (req: Request, res: Response) => res.json({
     status: 'ok',

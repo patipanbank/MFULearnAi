@@ -2,7 +2,9 @@
 import { onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useKnowledgeStore } from '@/stores/knowledge'
+import { useAuthStore } from '@/stores/auth'
 import KnowledgeSelector from '@/components/chat/KnowledgeSelector.vue'
+import TokenUsageBar from '@/components/common/TokenUsageBar.vue'
 import { useLanguage } from '@/composables/useSettings'
 
 const { t } = useLanguage()
@@ -19,6 +21,7 @@ const emit = defineEmits(['toggle-sidebar'])
 
 const route = useRoute()
 const knowledgeStore = useKnowledgeStore()
+const authStore = useAuthStore()
 
 onMounted(() => {
     knowledgeStore.fetchCollections()
@@ -44,8 +47,10 @@ onMounted(() => {
       </div>
       
         <!-- Premium Knowledge Selector -->
-        <div v-if="route.path.includes('/chat') && knowledgeStore.collections.length > 0" class="ml-6">
+        <div v-if="route.path.includes('/chat') && knowledgeStore.collections.length > 0" class="ml-6 flex items-center gap-4">
             <KnowledgeSelector />
+            <!-- Token Usage Bar -->
+            <TokenUsageBar v-if="authStore.user" />
         </div>
     </div>
     
