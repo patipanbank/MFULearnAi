@@ -10,12 +10,9 @@ import crypto from 'crypto';
 import dotenv from 'dotenv';
 import axios from 'axios';
 
-// PDF.js Setup
-const pdfjsLib = require('pdfjs-dist/legacy/build/pdf.js');
-// Worker path is needed for node
-// For pure node without worker threads, we can just use getDocument. 
-// However, pdfjs-dist in node environment often needs some setup or just `legacy` build.
-// Let's rely on standard import. If it fails, we might need a worker shim.
+// PDF.js Setup (ESM Dynamic Import in function)
+// Version 5.x is ESM only. We will import it dynamically.
+// const pdfjsLib = ... (loaded inside)
 
 
 dotenv.config();
@@ -62,8 +59,18 @@ export const processKnowledgeJob = async (job: Job) => {
 
         if (mimetype === 'application/pdf') {
             // Basic PDF parsing with PDF.js for Page awareness
+            // Dynamic Import for ESM Module in CJS environment
+            const importDynamic = new Function('modulePath', 'return import(modulePath)');
+            const pdfjs = await importDynamic('pdfjs-dist');
+
             // For scanned PDFs, this text will be empty.
-            const pdfDocument = await pdfjsLib.getDocument(buffer).promise;
+            const loadingTask = pdfjs.getDocument({
+                data: new Uint8Array(buffer), // Ensure Uint8Array
+                useSystemFonts: true, // Use system fonts to avoid font download errors if possible 
+                disableFontFace: true // Disable font face if causing issues in Node
+            });
+
+            const pdfDocument = await loadingTask.promise;
             const numPages = pdfDocument.numPages;
 
             for (let i = 1; i <= numPages; i++) {
