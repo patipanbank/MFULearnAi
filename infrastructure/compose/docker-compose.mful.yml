@@ -182,9 +182,18 @@ services:
       - ENV_TYPE=TEST
       - CHROMA_URL=http://chroma:8000
       - BEDROCK_EMBEDDING_URL=http://bedrock-embedding:5003/api/bedrock
+      - REDIS_URL=redis://redis:6379
+      - MINIO_ENDPOINT=minio
+      - MINIO_PORT=9000
+      - MINIO_ACCESS_KEY=minioadmin
+      - MINIO_SECRET_KEY=minioadmin
+      - MINIO_BUCKET=mfulearnai-knowledge
+      - MINIO_USE_SSL=false
     depends_on:
       - chroma
       - bedrock-embedding
+      - redis
+      - minio
     networks:
       - mfulearnai-network
     restart: unless-stopped
@@ -237,10 +246,42 @@ services:
       - mfulearnai-network
     restart: unless-stopped
 
+  minio:
+    image: minio/minio
+    container_name: mfulearnai-minio
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - mfulearnai-minio-data:/data
+    environment:
+      - MINIO_ROOT_USER=minioadmin
+      - MINIO_ROOT_PASSWORD=minioadmin
+    command: server /data --console-address ":9001"
+    networks:
+      - mfulearnai-network
+    restart: unless-stopped
+
+  create-buckets:
+    image: minio/mc
+    container_name: mfulearnai-create-buckets
+    depends_on:
+      - minio
+    entrypoint: >
+      /bin/sh -c "
+      /usr/bin/mc config host add myminio http://minio:9000 minioadmin minioadmin;
+      /usr/bin/mc mb myminio/mfulearnai-knowledge;
+      /usr/bin/mc anonymous set download myminio/mfulearnai-knowledge;
+      exit 0;
+      "
+    networks:
+      - mfulearnai-network
+
 volumes:
   mfulearnai-redis-data:
   mfulearnai-mongo-data:
   mfulearnai-chroma-data:
+  mfulearnai-minio-data:
 
 networks:
   mfulearnai-network:

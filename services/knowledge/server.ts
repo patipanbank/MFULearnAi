@@ -26,6 +26,9 @@ mongoose.connect(MONGO_URI)
     .then(() => console.log('[Knowledge] Connected to MongoDB'))
     .catch(err => console.error('[Knowledge] MongoDB error:', err));
 
+import { initMinio, minioClient, MINIO_BUCKET } from './minioClient';
+import { initWorker, knowledgeQueue } from './queue';
+
 const chroma = new ChromaClient({ path: CHROMA_URL });
 const GLOBAL_CHROMA_COLLECTION = "mfulearnai-global-kb";
 
@@ -104,7 +107,11 @@ const KnowledgeSchema = new Schema({
     department: { type: String, required: true },
     visibility: { type: String, default: 'active' },
     requestStatus: { type: String, enum: ['none', 'pending', 'approved', 'rejected'], default: 'none' },
-    requestedType: { type: String, enum: ['public', 'department'] }
+    requestedType: { type: String, enum: ['public', 'department'] },
+    // Async Processing Fields
+    processingStatus: { type: String, enum: ['none', 'pending', 'processing', 'completed', 'failed'], default: 'none' },
+    s3Key: String,
+    errorReason: String
 }, { timestamps: true });
 
 const Knowledge = mongoose.model<IKnowledge>('Knowledge', KnowledgeSchema);
@@ -164,28 +171,7 @@ const canManageCollection = (user: UserContext, col: ICollection): boolean => {
 
 // --- CORE LOGIC ---
 
-async function getEmbedding(text: string): Promise<number[]> {
-    try {
-        const response = await axios.post(`${BEDROCK_EMBEDDING_URL}/embeddings`, { text });
-        if (response.data && response.data.embedding) return response.data.embedding;
-        throw new Error('Invalid Bedrock response');
-    } catch (e: any) {
-        console.error('Embedding failed:', e.message);
-        throw e;
-    }
-}
-
-function chunkText(text: string): string[] {
-    const chunkSize = 1000, overlap = 200;
-    const chunks = [];
-    let start = 0;
-    while (start < text.length) {
-        const end = Math.min(start + chunkSize, text.length);
-        chunks.push(text.slice(start, end));
-        start += (chunkSize - overlap);
-    }
-    return chunks;
-}
+// --- PERMISSION HELPERS ---
 
 // Init Global Chroma Collection
 async function initChroma() {
@@ -233,51 +219,43 @@ app.post('/api/knowledge', upload.single('file'), async (req: any, res: Response
         return res.status(403).json({ error: 'Insufficient permissions to create this type of knowledge' });
     }
 
-    const { mimetype, buffer, originalname } = req.file;
+    const { mimetype, buffer, originalname, size } = req.file;
     const cleanName = Buffer.from(originalname, 'latin1').toString('utf8');
 
     try {
-        // Extract
-        let text = '';
-        if (mimetype === 'application/pdf') text = (await pdf(buffer)).text;
-        else if (mimetype === 'text/plain') text = buffer.toString('utf-8');
-        else return res.status(400).json({ error: 'Unsupported file' });
+        // 1. Upload to MinIO
+        const s3Key = `${user.userId}/${Date.now()}_${cleanName}`;
+        await minioClient.putObject(MINIO_BUCKET, s3Key, buffer, size, {
+            'Content-Type': mimetype
+        });
 
-        text = text.replace(/\s+/g, ' ').trim();
-        if (!text) return res.status(400).json({ error: 'Empty text' });
-
-        // Save Metadata
+        // 2. Save Initial Record
         const kb = new Knowledge({
             title: cleanName,
             type,
             contentSource: cleanName,
-            content: text, // Save the extracted text
+            content: '', // Will be filled by worker
             ownerId: user.userId,
-            department: user.department
+            department: user.department,
+            processingStatus: 'pending',
+            s3Key: s3Key
         });
         await kb.save();
 
-        // Process Vectors
-        const chunks = chunkText(text);
-        const ids = [], embeddings = [], metadatas = [], documents = [];
+        // 3. Queue Job
+        await knowledgeQueue.add('process-file', {
+            knowledgeId: kb._id.toString(),
+            s3Key,
+            mimetype,
+            originalName: cleanName
+        });
 
-        for (let i = 0; i < chunks.length; i++) {
-            const chunk = chunks[i];
-            const vec = await getEmbedding(chunk);
-            ids.push(`${kb._id}-${i}`);
-            embeddings.push(vec);
-            documents.push(chunk);
-            metadatas.push({
-                knowledgeId: kb._id.toString(),
-                source: cleanName,
-                chunkIndex: i
-            });
-        }
-
-        const col = await chroma.getCollection({ name: GLOBAL_CHROMA_COLLECTION } as any);
-        await col.add({ ids, embeddings, metadatas, documents });
-
-        res.json({ success: true, knowledge: kb });
+        // 4. Return Accepted
+        res.status(202).json({
+            success: true,
+            knowledge: kb,
+            message: 'File accepted. Processing started.'
+        });
 
     } catch (e: any) {
         console.error('Upload error:', e);
@@ -748,11 +726,15 @@ app.listen(PORT, async () => {
     console.log(`[Knowledge Service] Port ${PORT} [Env: ${ENV_TYPE}]`);
     if (mongoose.connection.readyState === 1) {
         await initChroma();
+        await initMinio();
         await initDefaultCollection();
+        initWorker();
     } else {
         mongoose.connection.once('connected', async () => {
             await initChroma();
+            await initMinio();
             await initDefaultCollection();
+            initWorker();
         });
     }
 });

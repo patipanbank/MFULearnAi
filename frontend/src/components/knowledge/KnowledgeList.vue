@@ -35,6 +35,15 @@ const getStatusBadge = (status) => {
     }
 }
 
+const getProcessingBadgeClass = (status) => {
+    switch (status) {
+        case 'processing': return 'status-processing'
+        case 'pending': return 'status-pending'
+        case 'failed': return 'status-failed'
+        default: return ''
+    }
+}
+
 // Translations for filters (can be moved to useSettings)
 const filterOptions = [
     { value: 'all', label: 'All' },
@@ -104,7 +113,16 @@ const handleDelete = async (id) => {
             </td>
             <td>{{ item.department }}</td>
             <td>
-               <span v-if="item.requestStatus !== 'none'" class="status-badge" :class="getStatusBadge(item.requestStatus)">
+               <!-- Processing Status -->
+               <div v-if="item.processingStatus && item.processingStatus !== 'completed' && item.processingStatus !== 'none'" 
+                    class="status-badge" 
+                    :class="getProcessingBadgeClass(item.processingStatus)">
+                 {{ item.processingStatus === 'processing' ? 'Processing...' : item.processingStatus }}
+                 <span v-if="item.processingStatus === 'failed'" :title="item.errorReason">⚠️</span>
+               </div>
+
+               <!-- Publish Status -->
+               <span v-else-if="item.requestStatus !== 'none'" class="status-badge" :class="getStatusBadge(item.requestStatus)">
                  {{ item.requestStatus }}
                  <span v-if="item.requestStatus === 'pending' && item.requestedType">
                     ({{ item.requestedType }})
@@ -312,6 +330,8 @@ const handleDelete = async (id) => {
 .status-pending { color: #f59e0b; }
 .status-approved { color: #10b981; }
 .status-rejected { color: #ef4444; }
+.status-processing { color: #3b82f6; display: inline-flex; align-items: center; gap: 4px; }
+.status-failed { color: #ef4444; }
 
 .actions-cell {
     display: flex;
