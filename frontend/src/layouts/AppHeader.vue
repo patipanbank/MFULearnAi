@@ -47,7 +47,7 @@ onMounted(() => {
       </div>
       
         <!-- Premium Knowledge Selector -->
-        <div v-if="route.path.includes('/chat') && knowledgeStore.collections.length > 0" class="ml-6 flex items-center gap-4">
+        <div v-if="route.path.includes('/chat') && knowledgeStore.collections.length > 0" class="ml-6 flex items-center gap-4" style="display: flex; align-items: center; gap: 16px;">
             <KnowledgeSelector />
             <!-- Token Usage Bar -->
             <TokenUsageBar v-if="authStore.user" />

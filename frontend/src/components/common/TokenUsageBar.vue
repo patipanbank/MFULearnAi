@@ -48,12 +48,17 @@ const formatNumber = (num) => {
 </script>
 
 <template>
-  <div class="token-usage-container" :title="`Used ${usage.today.tokens} tokens today (Soft Limit: ${formatNumber(DAILY_LIMIT)})`">
-    <div class="token-info">
-        <span class="icon">🪙</span>
-        <span class="count">{{ formatNumber(usage.today.tokens) }}</span>
-        <span class="label">Today</span>
+  <div class="token-usage-container" :title="`Used ${formatNumber(usage.today.tokens)} tokens today (Soft Limit: ${formatNumber(DAILY_LIMIT)})`">
+    <!-- Icon & Count -->
+    <div class="token-content">
+        <span class="icon">⚡</span>
+        <div class="text-group">
+            <span class="count">{{ formatNumber(usage.today.tokens) }}</span>
+            <span class="label">Tokens</span>
+        </div>
     </div>
+    
+    <!-- Mini Progress Bar -->
     <div class="progress-bg">
         <div class="progress-fill" :style="{ width: percentage() + '%' }"></div>
     </div>
@@ -63,50 +68,59 @@ const formatNumber = (num) => {
 <style scoped>
 .token-usage-container {
     display: flex;
-    flex-direction: column;
-    justify-content: center;
-    gap: 4px;
+    align-items: center;
+    gap: 10px;
     padding: 6px 12px;
-    background: var(--color-bg-secondary);
-    border-radius: 8px;
+    background: var(--color-bg-tertiary); /* Match selector bg */
+    border-radius: 9999px; /* Pill shape match selector */
     border: 1px solid var(--color-border);
-    min-width: 100px;
     cursor: help;
+    height: 36px; /* Match selector height */
 }
 
-.token-info {
+.token-content {
     display: flex;
     align-items: center;
     gap: 6px;
-    font-size: 12px;
+}
+
+.icon { 
+    font-size: 14px; 
+    color: var(--color-accent);
+}
+
+.text-group {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
     line-height: 1;
 }
 
-.icon { font-size: 14px; }
-
 .count {
-    font-weight: 700;
+    font-weight: 600;
+    font-size: 13px;
     color: var(--color-text-primary);
 }
 
 .label {
-    color: var(--color-text-muted);
-    font-size: 10px;
+    font-size: 9px;
     text-transform: uppercase;
+    color: var(--color-text-muted);
 }
 
 .progress-bg {
-    width: 100%;
-    height: 4px;
-    background: var(--color-bg-tertiary);
-    border-radius: 2px;
+    width: 40px; /* Small fixed width */
+    height: 6px;
+    background: var(--color-bg-primary);
+    border-radius: 3px;
     overflow: hidden;
+    border: 1px solid var(--color-border-light);
 }
 
 .progress-fill {
     height: 100%;
     background: linear-gradient(90deg, #3b82f6, #8b5cf6);
-    border-radius: 2px;
+    border-radius: 3px;
     transition: width 0.5s ease;
 }
 </style>
