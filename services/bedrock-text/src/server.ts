@@ -94,22 +94,48 @@ app.post('/api/bedrock/chat', async (req: Request, res: Response) => {
 
         const response = await client.send(command);
 
+        let inputTokens = 0;
+        let outputTokens = 0;
+
         if (response.body) {
             for await (const chunk of response.body) {
                 if (chunk.chunk?.bytes) {
                     const decoded = new TextDecoder().decode(chunk.chunk.bytes);
                     const parsed = JSON.parse(decoded);
 
+                    // 1. Capture Input Tokens (message_start)
+                    if (parsed.type === 'message_start' && parsed.message?.usage) {
+                        inputTokens = parsed.message.usage.input_tokens || 0;
+                    }
+
+                    // 2. Stream Content
                     if (parsed.type === 'content_block_delta' && parsed.delta?.text) {
                         res.write(`data: ${JSON.stringify({ text: parsed.delta.text })}\n\n`);
                     }
 
+                    // 3. Capture Output Tokens (message_delta)
+                    if (parsed.type === 'message_delta' && parsed.usage) {
+                        outputTokens = parsed.usage.output_tokens || 0;
+                    }
+
+                    // 4. Handle Stop (Optional: check cleanup)
                     if (parsed.type === 'message_stop') {
-                        // Usage metrics could be extracted here if needed
+                        // Sometimes additional metrics are here
                     }
                 }
             }
         }
+
+        // Send Usage Event
+        const totalTokens = inputTokens + outputTokens;
+        res.write(`data: ${JSON.stringify({
+            type: 'usage',
+            usage: {
+                input: inputTokens,
+                output: outputTokens,
+                total: totalTokens
+            }
+        })}\n\n`);
 
         res.write('data: [DONE]\n\n');
         res.end();
