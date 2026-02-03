@@ -18,11 +18,11 @@ export const initWorker = () => {
         concurrency: 2 // Process 2 files at a time
     });
 
-    worker.on('completed', job => {
+    worker.on('completed', (job: any) => {
         console.log(`[Worker] Job ${job.id} completed!`);
     });
 
-    worker.on('failed', (job, err) => {
+    worker.on('failed', (job: any, err: any) => {
         console.error(`[Worker] Job ${job?.id} failed:`, err);
     });
 

@@ -9,9 +9,10 @@ import { getEmbedding, chunkText } from './processingUtils';
 import crypto from 'crypto';
 import dotenv from 'dotenv';
 import axios from 'axios';
+import { Job } from 'bullmq';
 
 // PDF.js Setup
-import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.js';
+const pdfjsLib = require('pdfjs-dist/legacy/build/pdf.js');
 // Worker path is needed for node
 // For pure node without worker threads, we can just use getDocument. 
 // However, pdfjs-dist in node environment often needs some setup or just `legacy` build.
@@ -187,7 +188,7 @@ export const processKnowledgeJob = async (job: Job) => {
 
         await Knowledge.findByIdAndUpdate(knowledgeId, { processingStage: 'indexing' });
 
-        const col = await chroma.getCollection({ name: GLOBAL_CHROMA_COLLECTION });
+        const col = await chroma.getCollection({ name: GLOBAL_CHROMA_COLLECTION, embeddingFunction: undefined });
         await col.add({ ids, embeddings, metadatas, documents });
 
         // 6. Complete

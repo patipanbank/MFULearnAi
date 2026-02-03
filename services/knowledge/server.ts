@@ -1,7 +1,6 @@
 import express, { Request, Response } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import dotenv from 'dotenv';
 import busboy from 'busboy';
 import { ChromaClient } from 'chromadb';
 import axios from 'axios';
@@ -29,16 +28,13 @@ mongoose.connect(MONGO_URI)
 
 import { initMinio, minioClient, MINIO_BUCKET } from './minioClient';
 import { initWorker, knowledgeQueue } from './queue';
+import { getEmbedding } from './processingUtils';
 
 const chroma = new ChromaClient({ path: CHROMA_URL });
 const GLOBAL_CHROMA_COLLECTION = "mfulearnai-global-kb";
 
 // File Upload
-const storage = multer.memoryStorage();
-const upload = multer({
-    storage,
-    limits: { fileSize: 50 * 1024 * 1024 } // 50MB 
-});
+// File Upload - Using Busboy (Streaming)
 
 // --- Auth Middleware ---
 // Mock or Extract from Gateway Headers if available. 
@@ -96,6 +92,13 @@ interface IKnowledge extends Document {
     requestedType?: 'public' | 'department';
     content?: string; // Store full text content
     createdAt: Date;
+    processingStatus: 'none' | 'pending' | 'processing' | 'completed' | 'failed';
+    processingStage: 'none' | 'uploading' | 'queued' | 'extracting' | 'extracting (OCR)' | 'chunking' | 'embedding' | 'indexing' | 'completed';
+    errorReason?: string;
+    s3Key?: string;
+    s3Size?: number;
+    textHash?: string;
+    contentType?: string;
 }
 
 const KnowledgeSchema = new Schema({
