@@ -34,24 +34,28 @@ const router = createRouter({
                     component: () => import('../views/knowledge/KnowledgeDashboard.vue')
                 },
                 {
-                    path: 'admin',
-                    name: 'Admin',
-                    component: () => import('../views/admin/AdminDashboard.vue')
+                    path: 'dashboard',
+                    name: 'Dashboard',
+                    component: () => import('../views/admin/AdminDashboard.vue'),
+                    meta: { requiresRole: 'superadmin' }
                 },
                 {
-                    path: 'admin/prompts',
+                    path: 'dashboard/prompts',
                     name: 'AdminPrompts',
-                    component: () => import('../views/admin/AdminCorePrompts.vue')
+                    component: () => import('../views/admin/AdminCorePrompts.vue'),
+                    meta: { requiresRole: 'superadmin' }
                 },
                 {
-                    path: 'admin/departments',
+                    path: 'dashboard/departments',
                     name: 'AdminDepartments',
-                    component: () => import('../views/admin/AdminDepartments.vue')
+                    component: () => import('../views/admin/AdminDepartments.vue'),
+                    meta: { requiresRole: 'superadmin' }
                 },
                 {
-                    path: 'admin/users',
+                    path: 'dashboard/users',
                     name: 'AdminUsers',
-                    component: () => import('../views/admin/AdminUsers.vue')
+                    component: () => import('../views/admin/AdminUsers.vue'),
+                    meta: { requiresRole: 'superadmin' }
                 }
             ]
         },
@@ -67,9 +71,23 @@ router.beforeEach((to, from, next) => {
     const token = localStorage.getItem('auth_token')
     const isAuthenticated = !!token
 
+    // Retrieve user role from localStorage
+    let userRole = 'guest'
+    try {
+        const storedUser = localStorage.getItem('user_info')
+        if (storedUser) {
+            const user = JSON.parse(storedUser)
+            userRole = user.role || 'guest'
+        }
+    } catch (e) {
+        console.error('Error parsing user info', e)
+    }
+
     if (to.meta.requiresAuth && !isAuthenticated) {
         next('/login')
     } else if (to.meta.requiresGuest && isAuthenticated) {
+        next('/chat')
+    } else if (to.meta.requiresRole && to.meta.requiresRole !== userRole) {
         next('/chat')
     } else {
         next()

@@ -75,28 +75,28 @@ const navigateTo = (path) => {
         <nav v-if="authStore.user?.role === 'superadmin'" class="nav-links mt-4">
           <div class="section-label">Admin Tools</div>
           
-          <button class="nav-btn" :class="{ 'active': route.path === '/admin' }" @click="navigateTo('/admin')">
+          <button class="nav-btn" :class="{ 'active': route.path === '/dashboard' }" @click="navigateTo('/dashboard')">
               <div class="icon-box">
                   <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="9" y1="21" x2="9" y2="9"></line></svg>
               </div>
               <span class="btn-label">Dashboard</span>
           </button>
 
-          <button class="nav-btn" :class="{ 'active': route.path === '/admin/users' }" @click="navigateTo('/admin/users')">
+          <button class="nav-btn" :class="{ 'active': route.path === '/dashboard/users' }" @click="navigateTo('/dashboard/users')">
               <div class="icon-box">
                   <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
               </div>
               <span class="btn-label">Users & Admins</span>
           </button>
 
-          <button class="nav-btn" :class="{ 'active': route.path === '/admin/departments' }" @click="navigateTo('/admin/departments')">
+          <button class="nav-btn" :class="{ 'active': route.path === '/dashboard/departments' }" @click="navigateTo('/dashboard/departments')">
               <div class="icon-box">
                   <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path></svg>
               </div>
               <span class="btn-label">Departments</span>
           </button>
 
-          <button class="nav-btn" :class="{ 'active': route.path === '/admin/prompts' }" @click="navigateTo('/admin/prompts')">
+          <button class="nav-btn" :class="{ 'active': route.path === '/dashboard/prompts' }" @click="navigateTo('/dashboard/prompts')">
               <div class="icon-box">
                   <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 7 4 4 20 4 20 7"></polyline><line x1="9" y1="20" x2="15" y2="20"></line><line x1="12" y1="4" x2="12" y2="20"></line></svg>
               </div>
