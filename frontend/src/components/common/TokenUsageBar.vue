@@ -49,16 +49,10 @@ const formatNumber = (num) => {
 
 <template>
   <div class="token-usage-container" :title="`Used ${formatNumber(usage.today.tokens)} tokens today (Soft Limit: ${formatNumber(DAILY_LIMIT)})`">
-    <!-- Icon & Count -->
-    <div class="token-content">
-        <span class="icon">⚡</span>
-        <div class="text-group">
-            <span class="count">{{ formatNumber(usage.today.tokens) }}</span>
-            <span class="label">Tokens</span>
-        </div>
+    <div class="token-text">
+        TOKEN {{ formatNumber(usage.today.tokens) }}/{{ formatNumber(DAILY_LIMIT) }}
     </div>
     
-    <!-- Mini Progress Bar -->
     <div class="progress-bg">
         <div class="progress-fill" :style="{ width: percentage() + '%' }"></div>
     </div>
@@ -69,58 +63,34 @@ const formatNumber = (num) => {
 .token-usage-container {
     display: flex;
     align-items: center;
-    gap: 10px;
-    padding: 6px 12px;
-    background: var(--color-bg-tertiary); /* Match selector bg */
-    border-radius: 9999px; /* Pill shape match selector */
-    border: 1px solid var(--color-border);
+    gap: 8px;
+    padding: 0 8px;
+    background: transparent;
+    border: none;
     cursor: help;
-    height: 36px; /* Match selector height */
+    height: 36px;
 }
 
-.token-content {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-}
-
-.icon { 
-    font-size: 14px; 
-    color: var(--color-accent);
-}
-
-.text-group {
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    line-height: 1;
-}
-
-.count {
+.token-text {
+    font-size: 11px;
     font-weight: 600;
-    font-size: 13px;
-    color: var(--color-text-primary);
-}
-
-.label {
-    font-size: 9px;
-    text-transform: uppercase;
-    color: var(--color-text-muted);
+    color: var(--color-text-secondary); /* Muted text */
+    white-space: nowrap;
+    letter-spacing: 0.05em;
 }
 
 .progress-bg {
-    width: 40px; /* Small fixed width */
-    height: 6px;
-    background: var(--color-bg-primary);
-    border-radius: 3px;
+    width: 50px;
+    height: 4px;
+    background: var(--color-bg-tertiary);
+    border-radius: 2px;
     overflow: hidden;
-    border: 1px solid var(--color-border-light);
 }
 
 .progress-fill {
     height: 100%;
-    background: linear-gradient(90deg, #3b82f6, #8b5cf6);
-    border-radius: 3px;
+    background: var(--color-accent);
+    border-radius: 2px;
     transition: width 0.5s ease;
 }
 </style>
