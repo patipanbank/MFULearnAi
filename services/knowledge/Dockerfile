@@ -8,6 +8,7 @@ COPY shared ./shared
 
 # Install dependencies
 WORKDIR /usr/src/app/services/knowledge
+RUN apk add --no-cache git
 RUN npm install
 
 # Copy source code (AFTER npm install to cache layers)
