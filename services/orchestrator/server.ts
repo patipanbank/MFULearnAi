@@ -4,8 +4,10 @@ import dotenv from 'dotenv';
 import axios from 'axios';
 import jwt from 'jsonwebtoken';
 import Redis from 'ioredis';
+import busboy from 'busboy';
+import FormData from 'form-data';
 import mongoose from 'mongoose';
-import { ChatMessage, ServiceResponse } from '../../shared/types';
+import { ChatMessage, ServiceResponse, CanonicalIR, IRBlock } from '../../shared/types';
 import { getSystemPrompt, CONTEXT_PROMPTS } from './systemPrompts';
 import Prompt from './models/Prompt';
 
@@ -220,117 +222,148 @@ const getScenarioPrompt = async (scenarioId: string, userId: string): Promise<st
     return content;
 };
 
-// --- Chat Endpoint ---
+// --- Chat Endpoint (Updated for Multipart & IR) ---
 app.post('/api/chat', authenticateToken, rateLimiter, async (req: any, res: Response) => {
-    const { message, sessionId, modelId, context, collectionId, images, files } = req.body;
+    // Check Content-Type for Multipart
+    const isMultipart = req.headers['content-type']?.includes('multipart/form-data');
+
+    // Variables to be populated
+    let message = '';
+    let sessionId = '';
+    let modelId = '';
+    let collectionId = '';
+    let context = '';
+    let images: any[] = [];
+    let files: any[] = []; // Raw files for logging/history
+    let fileParses: CanonicalIR[] = []; // Parsed IRs
+    let scenarioId = '';
+
     const userId = req.user.userId;
 
-    if (!message && (!images || images.length === 0) && (!files || files.length === 0)) {
-        return res.status(400).json({ error: 'Message or attachment is required' });
-    }
-
-    const actualSessionId = sessionId || `session-${Date.now()}`;
-
-    try {
-        logActivity('info', 'chat_request_received', {
-            sessionId: actualSessionId,
-            messageLength: message?.length || 0,
-            modelId,
-            collectionId,
-            fileCount: files?.length || 0
-        }, userId);
-
-        // 1. Get conversation history from Redis
-        const historyKey = `chat:${userId}:${actualSessionId}`;
-        const rawHistory = await redis.lrange(historyKey, 0, -1);
-        const history: ChatMessage[] = rawHistory
-            .map(item => JSON.parse(item))
-            .filter(msg =>
-                (msg.content && msg.content.trim().length > 0) ||
-                (msg.images && msg.images.length > 0) ||
-                (msg.files && msg.files.length > 0)
-            );
-
-        // 2. RAG: Retrieve Context (kept same)
-        const userContext = {
-            userId: req.user.userId,
-            role: req.user.role,
-            department: req.user.department
-        };
-        const ragContext = await searchKnowledgeBase(message || '', userContext, collectionId);
-
-        let ragSystemPrompt = '';
-        if (ragContext) {
-            ragSystemPrompt = `\n\nHere is some relevant context from the Knowledge Base:\n<context>\n${ragContext}\n</context>\nUse this context to answer the user's question if relevant.`;
-            logActivity('debug', 'rag_context_retrieved', { length: ragContext.length }, userId);
+    const processRequest = async () => {
+        if (!message && (!images || images.length === 0) && (!files || files.length === 0)) {
+            return res.status(400).json({ error: 'Message or attachment is required' });
         }
 
-        // 3. Prepare messages
-        const corePrompt = await getCoreSystemPrompt(ENV_TYPE);
-        let scenarioPrompt = '';
-
-        if (req.body.scenarioId) {
-            scenarioPrompt = await getScenarioPrompt(req.body.scenarioId, req.user.userId);
-            if (scenarioPrompt) {
-                scenarioPrompt = `\n\n=== ACT AS FOLLOWS ===\n${scenarioPrompt}`;
-            }
-        }
-
-        const additionalContext = context && CONTEXT_PROMPTS[context as keyof typeof CONTEXT_PROMPTS]
-            ? `\n\n${CONTEXT_PROMPTS[context as keyof typeof CONTEXT_PROMPTS]}`
-            : '';
-
-        const finalSystemContent = corePrompt + additionalContext + ragSystemPrompt + scenarioPrompt;
-
-        const systemMessage: ChatMessage = {
-            role: 'system',
-            content: finalSystemContent,
-            timestamp: new Date()
-        };
-
-        const currentMessage: ChatMessage = {
-            role: 'user',
-            content: message || '',
-            images: images || [],
-            files: files || [],
-            timestamp: new Date()
-        };
-
-        // Construct Bedrock Messages (Inject File Content into Message Text for the model)
-        const formatMessageForAI = (msg: ChatMessage) => {
-            let content = msg.content || '';
-            if (msg.files && msg.files.length > 0) {
-                msg.files.forEach(f => {
-                    content += `\n\n<file_context name="${f.name}">\n${f.content}\n</file_context>`;
-                });
-            }
-            return {
-                role: msg.role,
-                content: content, // Combined content
-                images: msg.images // Keep images separate (multimodal)
-            };
-        };
-
-        // Inject system message (new syntax always puts it first)
-        const messagesToSend = [
-            systemMessage,
-            ...history.map(formatMessageForAI), // Transform history
-            formatMessageForAI(currentMessage)  // Transform current
-        ];
-
-        // 4. Set up SSE headers
-        res.setHeader('Content-Type', 'text/event-stream');
-        res.setHeader('Cache-Control', 'no-cache');
-        res.setHeader('Connection', 'keep-alive');
-        res.setHeader('X-Accel-Buffering', 'no');
+        const actualSessionId = sessionId || `session-${Date.now()}`;
 
         try {
+            logActivity('info', 'chat_request_received', {
+                sessionId: actualSessionId,
+                messageLength: message?.length || 0,
+                modelId,
+                fileCount: files?.length || 0
+            }, userId);
+
+            // 1. Get History
+            const historyKey = `chat:${userId}:${actualSessionId}`;
+            const rawHistory = await redis.lrange(historyKey, 0, -1);
+            const history: ChatMessage[] = rawHistory
+                .map(item => JSON.parse(item))
+                .filter(msg => msg.content || msg.images?.length || msg.files?.length);
+
+            // 2. RAG Context (Optional)
+            const userContext = { userId: req.user.userId, role: req.user.role, department: req.user.department };
+            const ragContext = await searchKnowledgeBase(message || '', userContext, collectionId);
+            let ragSystemPrompt = ragContext ? `\n\nHere is some relevant context from the Knowledge Base:\n<context>\n${ragContext}\n</context>\nUse this context to answer the user's question if relevant.` : '';
+
+            // 3. Prepare System Prompt
+            const corePrompt = await getCoreSystemPrompt(ENV_TYPE);
+            let scenarioPrompt = '';
+            if (scenarioId) {
+                scenarioPrompt = await getScenarioPrompt(scenarioId, req.user.userId);
+                if (scenarioPrompt) scenarioPrompt = `\n\n=== ACT AS FOLLOWS ===\n${scenarioPrompt}`;
+            }
+            const additionalContext = context && CONTEXT_PROMPTS[context as keyof typeof CONTEXT_PROMPTS] ? `\n\n${CONTEXT_PROMPTS[context as keyof typeof CONTEXT_PROMPTS]}` : '';
+
+            // IR Context Builder
+            let fileContextPrompt = '';
+            if (fileParses.length > 0) {
+                fileContextPrompt += `\n\n=== ATTACHED FILE CONTEXT ===\n`;
+                // Iterate IRs
+                fileParses.forEach((ir, idx) => {
+                    const originalName = files[idx]?.name || `File ${idx + 1}`;
+                    fileContextPrompt += `\n[File: ${originalName}]\n`;
+
+                    if (ir.metadata?.warnings?.length) {
+                        const warningMsg = ir.metadata.warnings.map(w => w.message).join('; ');
+                        fileContextPrompt += `[WARNING: ${warningMsg}]\n`;
+                    }
+
+                    if (ir.metadata?.layout === 'multi-column') {
+                        fileContextPrompt += `[Hint: Multi-column layout detected. Read blocks accordingly.]\n`;
+                    }
+
+                    // Add Blocks (Simple concatenation for now, smart selection later if needed)
+                    // HEURISTIC: Limit total tokens? For now, allow up to ~20k chars per file
+                    let charCount = 0;
+                    const MAX_CHARS = 50000;
+
+                    for (const block of ir.blocks) {
+                        if (charCount > MAX_CHARS) {
+                            fileContextPrompt += `\n... [Remaining content truncated due to length] ... \n`;
+                            break;
+                        }
+
+                        let blockText = `\n`;
+                        if (block.metadata.page) blockText += `[Page ${block.metadata.page}] `;
+                        if (block.metadata.sheet) blockText += `[Sheet: ${block.metadata.sheet}] `;
+                        if (block.metadata.title) blockText += `[Section: ${block.metadata.title}] `;
+
+                        // Table handling
+                        if (block.type === 'table' && block.table_data) {
+                            blockText += `\n${block.content}`;
+                        } else {
+                            blockText += `\n${block.content}`;
+                        }
+
+                        if (block.metadata.confidence && block.metadata.confidence < 0.6) {
+                            blockText += ` [Low Confidence]`;
+                        }
+
+                        fileContextPrompt += blockText;
+                        charCount += blockText.length;
+                    }
+                });
+                fileContextPrompt += `\n\n=== END ATTACHED FILES ===\nIf information is missing or unclear from the files, state that explicitly.`;
+            }
+
+            const finalSystemContent = corePrompt + additionalContext + ragSystemPrompt + fileContextPrompt + scenarioPrompt;
+            const systemMessage: ChatMessage = { role: 'system', content: finalSystemContent, timestamp: new Date() };
+
+            const currentMessage: ChatMessage = {
+                role: 'user',
+                content: message || '',
+                images: images || [],
+                files: files || [],
+                timestamp: new Date()
+            };
+
+            // Format Bedrock Messages
+            const formatMessageForAI = (msg: ChatMessage) => ({
+                role: msg.role,
+                content: msg.content, // Context is now in SYSTEM prompt, so user content is clean
+                images: msg.images
+            });
+
+            const messagesToSend = [
+                systemMessage,
+                ...history.map(formatMessageForAI),
+                formatMessageForAI(currentMessage)
+            ];
+
+            // 4. SSE Stream
+            res.setHeader('Content-Type', 'text/event-stream');
+            res.setHeader('Cache-Control', 'no-cache');
+            res.setHeader('Connection', 'keep-alive');
+            res.setHeader('X-Accel-Buffering', 'no');
+
             const response = await axios({
                 method: 'post',
                 url: `${BEDROCK_TEXT_URL}/chat`,
                 data: { messages: messagesToSend, modelId },
                 responseType: 'stream',
-                timeout: 120000 // 2 minute timeout
+                timeout: 120000
             });
 
             let fullResponseText = '';
@@ -342,16 +375,11 @@ app.post('/api/chat', authenticateToken, rateLimiter, async (req: any, res: Resp
                     if (line.startsWith('data: ')) {
                         const dataStr = line.replace('data: ', '').trim();
                         if (dataStr === '[DONE]') continue;
-
                         try {
                             const data = JSON.parse(dataStr);
-                            if (data.text) {
-                                fullResponseText += data.text;
-                            }
-                            if (data.type === 'usage' && data.usage) {
-                                tokenUsage = data.usage;
-                            }
-                        } catch (e) { /* ignore parse errors */ }
+                            if (data.text) fullText += data.text;
+                            if (data.type === 'usage' && data.usage) tokenUsage = data.usage;
+                        } catch (e) { }
                     }
                 }
                 res.write(chunk);
@@ -359,84 +387,117 @@ app.post('/api/chat', authenticateToken, rateLimiter, async (req: any, res: Resp
 
             response.data.on('end', async () => {
                 res.end();
-
-                // 5. Save to Redis
-                const assistantMessage: ChatMessage = {
-                    role: 'assistant',
-                    content: fullResponseText,
-                    timestamp: new Date()
-                };
-
-                await redis.rpush(historyKey,
-                    JSON.stringify(currentMessage),
-                    JSON.stringify(assistantMessage)
-                );
-
+                // Save History
+                const assistantMessage: ChatMessage = { role: 'assistant', content: fullResponseText, timestamp: new Date() };
+                await redis.rpush(historyKey, JSON.stringify(currentMessage), JSON.stringify(assistantMessage));
                 await redis.ltrim(historyKey, -50, -1);
                 await redis.expire(historyKey, 86400);
 
-                // 6. Persist to MongoDB
                 await Conversation.findOneAndUpdate(
                     { userId, sessionId: actualSessionId },
                     {
-                        $push: {
-                            messages: {
-                                $each: [currentMessage, assistantMessage]
-                            }
-                        },
-                        $inc: {
-                            'metadata.totalTokens': tokenUsage.total,
-                            'metadata.messageCount': 2
-                        },
-                        $set: {
-                            modelId,
-                            environment: ENV_TYPE,
-                            updatedAt: new Date()
-                        }
+                        $push: { messages: { $each: [currentMessage, assistantMessage] } },
+                        $inc: { 'metadata.totalTokens': tokenUsage.total, 'metadata.messageCount': 2 },
+                        $set: { modelId, environment: ENV_TYPE, updatedAt: new Date() }
                     },
                     { upsert: true }
                 );
-
-                console.log('[Orchestrator] Saving Chat Completion Log. Usage:', tokenUsage);
-
-                logActivity('info', 'chat_completion', {
-                    sessionId: actualSessionId,
-                    responseLength: fullResponseText.length,
-                    tokens: tokenUsage
-                }, userId);
+                logActivity('info', 'chat_completion', { sessionId: actualSessionId, tokens: tokenUsage }, userId);
             });
 
             response.data.on('error', async (err: Error) => {
                 console.error('[Orchestrator] Stream error:', err);
-                res.write(`event: error\ndata: ${JSON.stringify({ error: 'Stream error' })}\n\n`);
+                if (!res.headersSent) res.status(500).json({ error: 'Stream error' }); // Probably too late for status
+                else res.write(`event: error\ndata: ${JSON.stringify({ error: err.message })}\n\n`);
                 res.end();
-                logActivity('error', 'chat_stream_error', { error: err.message }, userId);
             });
 
-        } catch (bedrockError: any) {
-            console.error('[Orchestrator] Bedrock Error:', bedrockError.message);
-            if (bedrockError.code === 'ECONNREFUSED' || bedrockError.code === 'ETIMEDOUT') {
-                res.write(`event: error\ndata: ${JSON.stringify({
-                    error: 'AI service temporarily unavailable. Please try again.',
-                    retryable: true
-                })}\n\n`);
-            } else {
-                res.write(`event: error\ndata: ${JSON.stringify({
-                    error: 'Failed to generate response'
-                })}\n\n`);
-            }
-            res.end();
-
-            logActivity('error', 'bedrock_error', {
-                error: bedrockError.message,
-                code: bedrockError.code
-            }, userId);
+        } catch (error: any) {
+            console.error('[Orchestrator] Process Error:', error.message);
+            if (!res.headersSent) res.status(500).json({ error: 'Internal Server Error: ' + error.message });
         }
+    };
 
-    } catch (error: any) {
-        console.error('[Orchestrator] Error:', error);
-        res.status(500).json({ error: 'Internal Server Error' });
-        logActivity('error', 'orchestrator_error', { error: error.message }, userId);
+    if (isMultipart) {
+        const bb = busboy({ headers: req.headers });
+
+        bb.on('field', (name, val) => {
+            if (name === 'message') message = val;
+            if (name === 'sessionId') sessionId = val;
+            if (name === 'modelId') modelId = val;
+            if (name === 'collectionId') collectionId = val;
+            if (name === 'context') context = val;
+            if (name === 'scenarioId') scenarioId = val;
+            if (name === 'images') { try { images = JSON.parse(val); } catch (e) { } } // If images passed as JSON field?
+            // Usually images/files not passed as field in multipart if strictly binary, but frontend might send JSON for images?
+            // Let's assume frontend sends binary for new files, and JSON for existing images?
+        });
+
+        const filePromises: Promise<void>[] = [];
+
+        bb.on('file', (name, file, info) => {
+            const promise = new Promise<void>(async (resolve) => {
+                const chunks: any[] = [];
+                file.on('data', d => chunks.push(d));
+                file.on('end', async () => {
+                    const buf = Buffer.concat(chunks);
+                    files.push({
+                        name: info.filename,
+                        mediaType: info.mimeType,
+                        size: buf.length,
+                        // Content: Don't store full content in history strictly? Or maybe just summary?
+                        // For history replay, we might need text.
+                        // Let's rely on IR extraction for content.
+                    });
+
+                    // Call Knowledge Service to Parse
+                    try {
+                        const formData = new FormData();
+                        formData.append('file', buf, { filename: info.filename, contentType: info.mimeType });
+
+                        const parseRes = await axios.post(`${KNOWLEDGE_URL}/parse`, formData, {
+                            headers: formData.getHeaders(),
+                            maxBodyLength: Infinity,
+                            maxContentLength: Infinity
+                        });
+
+                        if (parseRes.data.success) {
+                            fileParses.push(parseRes.data.ir);
+                            // Also attach extracted text to the file object for history if we want
+                            // files[files.length-1].content = ... join blocks ...
+                        }
+                    } catch (e) {
+                        console.error(`[Orchestrator] Failed to parse file ${info.filename}`, e);
+                    }
+                    resolve();
+                });
+            });
+            filePromises.push(promise);
+        });
+
+        bb.on('close', async () => {
+            await Promise.all(filePromises);
+            processRequest();
+        });
+
+        req.pipe(bb);
+    } else {
+        // Fallback for JSON body (Old way, or text-only)
+        message = req.body.message;
+        sessionId = req.body.sessionId;
+        modelId = req.body.modelId;
+        collectionId = req.body.collectionId;
+        context = req.body.context;
+        images = req.body.images;
+        files = req.body.files;
+        scenarioId = req.body.scenarioId;
+
+        // If files are present in JSON (Legacy or Text extraction done in Frontend)
+        // We should format them using legacy way OR try to adapt?
+        // Let's keep logic compatible:
+        // If files have 'content', use it.
+        // But for new robust system, we prefer Multipart.
+        processRequest();
     }
 });
 

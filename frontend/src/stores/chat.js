@@ -142,20 +142,48 @@ export const useChatStore = defineStore('chat', () => {
             const token = localStorage.getItem('auth_token')
             console.log(`[ChatStore] Sending request to /api/chat with model: ${selectedModel}...`)
 
+            // Construct FormData for multipart/form-data
+            const formData = new FormData()
+            formData.append('message', content)
+            if (currentSessionId.value) formData.append('sessionId', currentSessionId.value)
+            if (selectedModel) formData.append('modelId', selectedModel)
+            if (currentCollectionId.value) formData.append('collectionId', currentCollectionId.value)
+
+            // Append Images (If any - handling legacy base64 logic or new File logic?)
+            // If images are base64 strings (existing logic), pass as JSON string? 
+            // Or assume specific handling.
+            // Existing logic: images is array of { data: base64, mediaType: ... }
+            if (images && images.length > 0) {
+                formData.append('images', JSON.stringify(images))
+            }
+
+            // Append Files (Real File objects)
+            if (files && files.length > 0) {
+                files.forEach((file) => {
+                    // Start of Selection
+                    // Check if 'file' is a native File object or our wrapper?
+                    // ChatInput.vue seems to push native File objects if we adhere to new logic, 
+                    // BUT previous view of Chat.vue (line 96) showed wrapper object push: 
+                    // { type: 'doc', name: file.name, content: text, ... }
+                    // Wait, we want to change this to send RAW FILE.
+                    // Implementation Plan said: "Update Chat.vue to send Multipart request"
+                    // So we must update Chat.vue handleFileUpload as well. 
+                    // Assuming Chat.vue will now pass raw File objects in 'files' array to this store action.
+                    if (file instanceof File) {
+                        formData.append('files', file)
+                    } else if (file.rawFile instanceof File) {
+                        formData.append('files', file.rawFile)
+                    }
+                })
+            }
+
             const response = await fetch('/api/chat', {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
+                    // 'Content-Type': 'multipart/form-data', // Browser sets boundary automatically
                     'Authorization': `Bearer ${token}`
                 },
-                body: JSON.stringify({
-                    message: content,
-                    sessionId: currentSessionId.value,
-                    modelId: selectedModel,
-                    collectionId: currentCollectionId.value,
-                    images: images,
-                    files: files
-                })
+                body: formData
             })
 
             if (!response.ok) {
