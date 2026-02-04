@@ -24,6 +24,20 @@ const client = new BedrockRuntimeClient({
 
 const TITAN_EMBED_MODEL = "amazon.titan-embed-text-v1";
 
+// --- Middleware ---
+const authenticateInternal = (req: Request, res: Response, next: any) => {
+    const key = req.headers['x-internal-key'];
+    const INTERNAL_API_KEY = process.env.INTERNAL_API_KEY || 'internal-secret-key';
+
+    if (key !== INTERNAL_API_KEY) {
+        console.warn(`[Bedrock Embedding] Unauthorized access attempt from ${req.ip}`);
+        return res.status(401).json({ error: 'Unauthorized: Internal Access Only' });
+    }
+    next();
+};
+
+app.use(authenticateInternal);
+
 app.post('/api/bedrock/embeddings', async (req: Request, res: Response) => {
     const { text } = req.body;
 

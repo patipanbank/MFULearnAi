@@ -145,10 +145,11 @@ async function searchKnowledgeBase(query: string, userContext: any, collectionId
         if (collectionId) payload.collectionId = collectionId;
 
         // Pass User Context Headers so Knowledge Service can enforce visibility
-        const headers = {
+        const headers: any = {
             'x-user-id': userContext.userId,
             'x-role': userContext.role,
-            'x-department': userContext.department || 'General'
+            'x-department': userContext.department || 'General',
+            'x-internal-key': process.env.INTERNAL_API_KEY || 'internal-secret-key'
         };
 
         const response = await axios.post(`${KNOWLEDGE_URL}/search`, payload, { headers });
@@ -362,6 +363,7 @@ app.post('/api/chat', authenticateToken, rateLimiter, async (req: any, res: Resp
                 method: 'post',
                 url: `${BEDROCK_TEXT_URL}/chat`,
                 data: { messages: messagesToSend, modelId },
+                headers: { 'x-internal-key': process.env.INTERNAL_API_KEY || 'internal-secret-key' },
                 responseType: 'stream',
                 timeout: 120000
             });
@@ -505,7 +507,9 @@ app.post('/api/chat', authenticateToken, rateLimiter, async (req: any, res: Resp
 // --- Get Available Models ---
 app.get('/api/chat/models', authenticateToken, async (req: any, res: Response) => {
     try {
-        const response = await axios.get(`${BEDROCK_TEXT_URL}/models`);
+        const response = await axios.get(`${BEDROCK_TEXT_URL}/models`, {
+            headers: { 'x-internal-key': process.env.INTERNAL_API_KEY || 'internal-secret-key' }
+        });
         res.json(response.data);
     } catch (error: any) {
         console.error('[Orchestrator] Failed to fetch models:', error.message);

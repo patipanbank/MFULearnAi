@@ -24,6 +24,20 @@ const client = new BedrockRuntimeClient({
 
 const TITAN_IMAGE_MODEL = "amazon.titan-image-generator-v1";
 
+// --- Middleware ---
+const authenticateInternal = (req: Request, res: Response, next: any) => {
+    const key = req.headers['x-internal-key'];
+    const INTERNAL_API_KEY = process.env.INTERNAL_API_KEY || 'internal-secret-key';
+
+    if (key !== INTERNAL_API_KEY) {
+        console.warn(`[Bedrock Image] Unauthorized access attempt from ${req.ip}`);
+        return res.status(401).json({ error: 'Unauthorized: Internal Access Only' });
+    }
+    next();
+};
+
+app.use(authenticateInternal);
+
 app.post('/api/bedrock/image', async (req: Request, res: Response) => {
     const { prompt } = req.body;
 

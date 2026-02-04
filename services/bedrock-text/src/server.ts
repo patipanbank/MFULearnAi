@@ -40,6 +40,21 @@ const validateModel = (modelId: string): string => {
     return modelId || MODELS.claude35;
 };
 
+// --- Middleware ---
+const authenticateInternal = (req: Request, res: Response, next: any) => {
+    const key = req.headers['x-internal-key'];
+    const INTERNAL_API_KEY = process.env.INTERNAL_API_KEY || 'internal-secret-key';
+
+    // In PROD, we should probably crash if default, but for now let's strict check
+    if (key !== INTERNAL_API_KEY) {
+        console.warn(`[Bedrock Text] Unauthorized access attempt from ${req.ip}`);
+        return res.status(401).json({ error: 'Unauthorized: Internal Access Only' });
+    }
+    next();
+};
+
+app.use(authenticateInternal);
+
 // --- Routes ---
 
 app.post('/api/bedrock/chat', async (req: Request, res: Response) => {
