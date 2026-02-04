@@ -1,5 +1,5 @@
 import { BaseAdapter } from './BaseAdapter';
-import { CanonicalIR } from '../../../shared/types';
+import { CanonicalIR } from '../shared/types';
 import * as chardet from 'chardet';
 
 export class TextAdapter implements BaseAdapter {

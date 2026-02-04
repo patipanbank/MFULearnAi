@@ -1,5 +1,5 @@
 import { BaseAdapter } from './BaseAdapter';
-import { CanonicalIR, IRBlock, Warning } from '../../../shared/types';
+import { CanonicalIR, IRBlock, Warning } from '../shared/types';
 import axios from 'axios';
 import FormData from 'form-data';
 

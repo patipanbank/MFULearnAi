@@ -1,5 +1,5 @@
 import { BaseAdapter } from './BaseAdapter';
-import { CanonicalIR } from '../../../shared/types';
+import { CanonicalIR } from '../shared/types';
 import { PdfAdapter } from './PdfAdapter';
 import { OfficeAdapter } from './OfficeAdapter';
 import { TextAdapter } from './TextAdapter';

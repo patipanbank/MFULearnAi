@@ -1,15 +1,16 @@
 FROM node:20-alpine
 
-WORKDIR /usr/src/app
+WORKDIR /usr/src/app/services/knowledge
 
-# Copy package files ensuring directory structure
-COPY services/knowledge/package*.json ./services/knowledge/
-COPY shared ./shared
+# Copy package files
+COPY services/knowledge/package*.json ./
 
 # Install dependencies
-WORKDIR /usr/src/app/services/knowledge
 RUN apk add --no-cache git
 RUN npm install
+
+# Copy shared types into a local shared directory
+COPY shared ./shared
 
 # Copy source code (AFTER npm install to cache layers)
 COPY services/knowledge .

@@ -1,4 +1,4 @@
-import { CanonicalIR } from '../../../shared/types'; // Relative import assuming workspace structure
+import { CanonicalIR } from '../shared/types';
 
 export interface BaseAdapter {
     canHandle(mimeType: string, extension: string, buffer: Buffer): boolean;

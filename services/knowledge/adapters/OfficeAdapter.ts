@@ -1,5 +1,5 @@
 import { BaseAdapter } from './BaseAdapter';
-import { CanonicalIR, IRBlock } from '../../../shared/types';
+import { CanonicalIR, IRBlock } from '../shared/types';
 import mammoth from 'mammoth';
 import * as XLSX from 'xlsx';
 
