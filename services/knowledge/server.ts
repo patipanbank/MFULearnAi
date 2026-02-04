@@ -316,504 +316,506 @@ app.post('/api/knowledge/extract', async (req: any, res: Response) => {
         console.error('Extract error:', e);
         res.status(500).json({ error: e.message });
     }
-    // 1.01 PARSE FILE TO IR (Transient Context)
-    app.post('/api/knowledge/parse', async (req: any, res: Response) => {
-        const user = extractUser(req);
-        if (!user) return res.status(401).json({ error: 'Unauthorized' });
+});
 
-        // Use Busboy for stream or Multer (express middleware handled already for req.file?)
-        // Note: The previous /extract endpoint used req.file which implies multer was used?
-        // Looking at line 153 `busboy({ headers: req.headers })` suggesting manual handling?
-        // Wait, line 262 checks `if (!req.file)`. This implies a middleware (like multer) WAS used in /extract context?
-        // But looking at top of file, only `busboy` is imported. `express.urlencoded` / `json` is used.
-        // Line 153 is manual busboy. Line 257 /extract endpoint expects `req.file`.
-        // Where is `req.file` coming from?
-        // Ah, I might have missed `multer` usage in previous view or it's missing in code.
-        // Let's assume we need to handle streaming with Busboy OR use Multer.
-        // Since /knowledge (line 153) uses busboy, let's use busboy for consistency and robustness with large files.
+// 1.01 PARSE FILE TO IR (Transient Context)
+app.post('/api/knowledge/parse', async (req: any, res: Response) => {
+    const user = extractUser(req);
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
 
-        const bb = busboy({ headers: req.headers });
-        let fileBuffer: Buffer | null = null;
-        let fileName = '';
-        let mimeType = '';
-        let fileFound = false;
+    // Use Busboy for stream or Multer (express middleware handled already for req.file?)
+    // Note: The previous /extract endpoint used req.file which implies multer was used?
+    // Looking at line 153 `busboy({ headers: req.headers })` suggesting manual handling?
+    // Wait, line 262 checks `if (!req.file)`. This implies a middleware (like multer) WAS used in /extract context?
+    // But looking at top of file, only `busboy` is imported. `express.urlencoded` / `json` is used.
+    // Line 153 is manual busboy. Line 257 /extract endpoint expects `req.file`.
+    // Where is `req.file` coming from?
+    // Ah, I might have missed `multer` usage in previous view or it's missing in code.
+    // Let's assume we need to handle streaming with Busboy OR use Multer.
+    // Since /knowledge (line 153) uses busboy, let's use busboy for consistency and robustness with large files.
 
-        bb.on('file', (name, file, info) => {
-            fileFound = true;
-            fileName = Buffer.from(info.filename, 'latin1').toString('utf8');
-            mimeType = info.mimeType;
+    const bb = busboy({ headers: req.headers });
+    let fileBuffer: Buffer | null = null;
+    let fileName = '';
+    let mimeType = '';
+    let fileFound = false;
 
-            const chunks: any[] = [];
-            file.on('data', (data) => chunks.push(data));
-            file.on('end', () => {
-                fileBuffer = Buffer.concat(chunks);
-            });
+    bb.on('file', (name, file, info) => {
+        fileFound = true;
+        fileName = Buffer.from(info.filename, 'latin1').toString('utf8');
+        mimeType = info.mimeType;
+
+        const chunks: any[] = [];
+        file.on('data', (data) => chunks.push(data));
+        file.on('end', () => {
+            fileBuffer = Buffer.concat(chunks);
+        });
+    });
+
+    bb.on('close', async () => {
+        if (!fileFound || !fileBuffer) {
+            return res.status(400).json({ error: 'No file uploaded' });
+        }
+
+        try {
+            const adapter = await adapterFactory.getAdapter(fileBuffer, fileName, mimeType);
+            const ir = await adapter.parse(fileBuffer, fileName);
+            res.json({ success: true, ir });
+        } catch (e: any) {
+            console.error('[Knowledge] Parse error:', e);
+            res.status(500).json({ error: e.message });
+        }
+    });
+
+    req.pipe(bb);
+});
+
+
+// 1.05 DELETE KNOWLEDGE
+app.delete('/api/knowledge/:id', async (req: Request, res: Response) => {
+    const user = extractUser(req);
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+
+    try {
+        const kb = await Knowledge.findById(req.params.id);
+        if (!kb) return res.status(404).json({ error: 'Not found' });
+
+        // Permission Check
+        if (!canManageKnowledge(user, kb)) {
+            return res.status(403).json({ error: 'Not allowed to delete this knowledge' });
+        }
+
+        // 1. Delete from Chroma
+        const col = await chroma.getCollection({ name: GLOBAL_CHROMA_COLLECTION } as any);
+        await col.delete({ where: { knowledgeId: kb._id.toString() } });
+
+        // 2. Delete from Mongo
+        await Knowledge.findByIdAndDelete(kb._id);
+
+        // 3. Remove from any collections (Cleanup)
+        await Collection.updateMany(
+            { knowledgeIds: kb._id },
+            { $pull: { knowledgeIds: kb._id } }
+        );
+
+        res.json({ success: true, id: kb._id });
+    } catch (e: any) {
+        console.error('Delete error:', e);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// 1.06 RETRY PROCESSING (Refinement)
+app.post('/api/knowledge/:id/retry', async (req: Request, res: Response) => {
+    const user = extractUser(req);
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+
+    try {
+        const kb = await Knowledge.findById(req.params.id);
+        if (!kb) return res.status(404).json({ error: 'Not found' });
+
+        if (!canManageKnowledge(user, kb)) {
+            return res.status(403).json({ error: 'Not allowed to manage this knowledge' });
+        }
+
+        // Only retry if failed or stuck?
+        // Let's allow retry anytime if status != completed, or even if completed (re-process)
+
+        // Reset Status
+        kb.processingStatus = 'pending';
+        kb.processingStage = 'queued';
+        kb.errorReason = '';
+        await kb.save();
+
+        // Check if S3 key exists?
+        // We assume it does. Worker will fail again if not.
+
+        // Re-Queue
+        await knowledgeQueue.add('process-file', {
+            knowledgeId: kb._id.toString(),
+            s3Key: kb.s3Key,
+            mimetype: kb.contentType || 'application/pdf', // Fallback
+            originalName: kb.title
         });
 
-        bb.on('close', async () => {
-            if (!fileFound || !fileBuffer) {
-                return res.status(400).json({ error: 'No file uploaded' });
-            }
+        res.json({ success: true, knowledge: kb, message: 'Retry queued.' });
 
-            try {
-                const adapter = await adapterFactory.getAdapter(fileBuffer, fileName, mimeType);
-                const ir = await adapter.parse(fileBuffer, fileName);
-                res.json({ success: true, ir });
-            } catch (e: any) {
-                console.error('[Knowledge] Parse error:', e);
-                res.status(500).json({ error: e.message });
+    } catch (e: any) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// 1.1 REQUEST PUBLISH
+app.post('/api/knowledge/:id/request-publish', async (req: Request, res: Response) => {
+    const user = extractUser(req);
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+
+    const { targetType } = req.body; // 'department' or 'public'
+
+    try {
+        const kb = await Knowledge.findById(req.params.id);
+        if (!kb) return res.status(404).json({ error: 'Not found' });
+
+        // Only owner can request
+        if (kb.ownerId !== user.userId) return res.status(403).json({ error: 'Only owner can request publish' });
+
+        // Only Personal can be promoted? Or Department to Public?
+        // User rule: "student/staff ... have to create personal knowledge before request it"
+        if (kb.type !== 'personal') return res.status(400).json({ error: 'Only personal knowledge can be requested for publishing' });
+
+        kb.requestStatus = 'pending';
+        kb.requestedType = targetType;
+        await kb.save();
+
+        res.json({ success: true, knowledge: kb });
+    } catch (e: any) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// 1.2 APPROVE PUBLISH (Admin)
+app.post('/api/knowledge/:id/approve-publish', async (req: Request, res: Response) => {
+    const user = extractUser(req);
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+
+    const { action } = req.body; // 'approve' | 'reject'
+
+    try {
+        const kb = await Knowledge.findById(req.params.id);
+        if (!kb) return res.status(404).json({ error: 'Not found' });
+
+        // Check Admin of SAME department
+        // "student/staff may REQUEST their department admin"
+        if (user.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
+        if (user.department !== kb.department) return res.status(403).json({ error: 'Must be admin of owner department' });
+
+        if (action === 'approve') {
+            // Logic: "Knowledge created once". We change the type.
+            if (kb.requestedType) {
+                kb.type = kb.requestedType;
             }
+            kb.requestStatus = 'approved';
+        } else {
+            kb.requestStatus = 'rejected';
+        }
+
+        // Reset request fields if needed, or keep history? 
+        // Keeping status helps UI show "Approved".
+
+        await kb.save();
+        res.json({ success: true, knowledge: kb });
+    } catch (e: any) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// 2. CREATE COLLECTION
+app.post('/api/knowledge/collections', async (req: Request, res: Response) => {
+    const user = extractUser(req);
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+
+    const { name, description, type } = req.body;
+    // type: department, personal (default is system only usually, but maybe admin can create another default-like?)
+    // Let's restrict: Admin -> Dept/Default. User -> Personal.
+
+    // Validate creation permission logic
+    // User requested: "Department Collection: Creatable only by admin of that department"
+    // "Personal Collection: Creatable only by owner"
+
+    let allowed = false;
+    if (type === 'personal') allowed = true;
+    else if (type === 'department' && user.role === 'admin') allowed = true;
+
+    if (!allowed) return res.status(403).json({ error: 'Not allowed to create this collection type' });
+
+    try {
+        const newCol = await Collection.create({
+            name,
+            description,
+            type,
+            ownerId: user.userId,
+            department: user.department,
+            knowledgeIds: []
+        });
+        res.json({ success: true, collection: newCol });
+    } catch (e: any) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// 2.1 UPDATE COLLECTION
+app.put('/api/knowledge/collections/:id', async (req: Request, res: Response) => {
+    const user = extractUser(req);
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+
+    const { name, description } = req.body;
+
+    try {
+        const col = await Collection.findById(req.params.id);
+        if (!col) return res.status(404).json({ error: 'Not found' });
+
+        if (!canManageCollection(user, col)) {
+            return res.status(403).json({ error: 'Not allowed to update this collection' });
+        }
+
+        col.name = name || col.name;
+        col.description = description !== undefined ? description : col.description;
+        await col.save();
+
+        res.json({ success: true, collection: col });
+    } catch (e: any) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// 2.2 DELETE COLLECTION
+app.delete('/api/knowledge/collections/:id', async (req: Request, res: Response) => {
+    const user = extractUser(req);
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+
+    try {
+        const col = await Collection.findById(req.params.id);
+        if (!col) return res.status(404).json({ error: 'Not found' });
+
+        if (!canManageCollection(user, col)) {
+            return res.status(403).json({ error: 'Not allowed to delete this collection' });
+        }
+
+        await Collection.findByIdAndDelete(req.params.id);
+        res.json({ success: true, id: req.params.id });
+    } catch (e: any) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// 3. MAP KNOWLEDGE TO COLLECTION
+app.post('/api/knowledge/collections/:id/map', async (req: Request, res: Response) => {
+    const user = extractUser(req);
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+
+    const { id } = req.params;
+    const { knowledgeId, action } = req.body; // action: 'add' | 'remove'
+
+    try {
+        const col = await Collection.findById(id);
+        const kb = await Knowledge.findById(knowledgeId);
+
+        if (!col || !kb) return res.status(404).json({ error: 'Not found' });
+
+        // Check if user manages the COLLECTION
+        if (!canManageCollection(user, col)) {
+            return res.status(403).json({ error: 'Cannot modify this collection' });
+        }
+
+        // Validate Visibility Rule:
+        // "Admin can manage any knowledge inside THEIR department collection"
+        // "Default Collection: Only admin of every department can map knowledge into it"
+        // Implicitly, you must be able to READ the knowledge to map it?
+        // Or strictly: You own the knowledge?
+        // User said: "Admin of other departments CANNOT delete or edit [Public Knowledge]"
+        // But "Everyone can reference this knowledge in collections"
+
+        // So checking if user can READ the knowledge is a good baseline for mapping.
+        if (!canReadKnowledge(user, kb)) {
+            return res.status(403).json({ error: 'Cannot access this knowledge to map it' });
+        }
+
+        if (action === 'add') {
+            // Avoid duplicates using string comparison
+            const exists = col.knowledgeIds.some((existingId: any) => existingId.toString() === kb._id.toString());
+            if (!exists) {
+                col.knowledgeIds.push(kb._id as any);
+            }
+        } else if (action === 'remove') {
+            col.knowledgeIds = col.knowledgeIds.filter((k: any) => k.toString() !== knowledgeId);
+        }
+
+        await col.save();
+        res.json({ success: true, collection: col });
+
+    } catch (e: any) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// 4. LIST COLLECTIONS (For User)
+app.get('/api/knowledge/collections', async (req: Request, res: Response) => {
+    const user = extractUser(req);
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+
+    try {
+        // Return:
+        // 1. Default Collection (Always)
+        // 2. My Department Collection
+        // 3. My Personal Collections
+        // 4. (Optional) Public Collections? User didn't specify Public Collections, only Public Knowledge.
+
+        const query = {
+            $or: [
+                { type: 'default' },
+                { type: 'department', department: user.department },
+                { type: 'personal', ownerId: user.userId }
+            ]
+        };
+
+        const collections = await Collection.find(query).sort({ type: 1, createdAt: -1 });
+        res.json({ collections });
+    } catch (e: any) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// 5. GET COLLECTION DETAILS (List Knowledge inside)
+app.get('/api/knowledge/collections/:id', async (req: Request, res: Response) => {
+    const user = extractUser(req);
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+
+    try {
+        const col = await Collection.findById(req.params.id).populate('knowledgeIds');
+        if (!col) return res.status(404).json({ error: 'Not found' });
+
+        // Access Check
+        // Dept Col: Visible only to same dept
+        // Personal Col: Visible only to owner
+        // Default: Visible to everyone
+        let canView = false;
+        if (col.type === 'default') canView = true;
+        else if (col.type === 'department' && col.department === user.department) canView = true;
+        else if (col.type === 'personal' && col.ownerId === user.userId) canView = true;
+
+        if (!canView) return res.status(403).json({ error: 'Access denied' });
+
+        res.json({ collection: col });
+    } catch (e: any) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// 6. SEARCH (RAG)
+app.post('/api/knowledge/search', async (req: Request, res: Response) => {
+    const { query, collectionId, limit = 3 } = req.body;
+
+    // We don't necessarily have user context here if called from Orchestrator backend-to-backend without passing headers
+    // BUT the Orchestrator should ideally pass the user context headers.
+    // For now, let's assume if collectionId is provided, we check logic.
+    // However, Orchestrator might call this. 
+    // If collectionId is missing -> SEARCH DEFAULT.
+
+    try {
+        let targetKnowledgeIds: string[] = [];
+
+        if (collectionId) {
+            const col = await Collection.findById(collectionId);
+            if (col && col.knowledgeIds.length > 0) {
+                targetKnowledgeIds = col.knowledgeIds.map(id => id.toString());
+            }
+        } else {
+            // Fallback to Default
+            const def = await Collection.findOne({ isDefault: true });
+            if (def && def.knowledgeIds.length > 0) {
+                targetKnowledgeIds = def.knowledgeIds.map(id => id.toString());
+            }
+        }
+
+        if (targetKnowledgeIds.length === 0) {
+            return res.json({ results: [] });
+        }
+
+        // Chroma Query
+        const embedding = await getEmbedding(query);
+        const col = await chroma.getCollection({ name: GLOBAL_CHROMA_COLLECTION } as any);
+
+        // Filter by logical OR of knowledgeIds. 
+        // Chroma $in syntax: { knowledgeId: { $in: [id1, id2] } }
+        const results = await col.query({
+            queryEmbeddings: [embedding],
+            nResults: limit,
+            where: { knowledgeId: { "$in": targetKnowledgeIds } }
         });
 
-        req.pipe(bb);
-    });
+        // Format
+        const hits = results.documents[0].map((doc, i) => ({
+            content: doc,
+            metadata: results.metadatas[0][i],
+            score: results.distances?.[0][i]
+        }));
 
+        res.json({ results: hits });
 
-    // 1.05 DELETE KNOWLEDGE
-    app.delete('/api/knowledge/:id', async (req: Request, res: Response) => {
-        const user = extractUser(req);
-        if (!user) return res.status(401).json({ error: 'Unauthorized' });
+    } catch (e: any) {
+        console.error('Search error:', e);
+        res.status(500).json({ error: 'Search failed' });
+    }
+});
 
-        try {
-            const kb = await Knowledge.findById(req.params.id);
-            if (!kb) return res.status(404).json({ error: 'Not found' });
+// 7. LIST KNOWLEDGE (Inventory for mapping)
+app.get('/api/knowledge', async (req: Request, res: Response) => {
+    const user = extractUser(req);
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
 
-            // Permission Check
-            if (!canManageKnowledge(user, kb)) {
-                return res.status(403).json({ error: 'Not allowed to delete this knowledge' });
-            }
+    const { type } = req.query;
 
-            // 1. Delete from Chroma
-            const col = await chroma.getCollection({ name: GLOBAL_CHROMA_COLLECTION } as any);
-            await col.delete({ where: { knowledgeId: kb._id.toString() } });
-
-            // 2. Delete from Mongo
-            await Knowledge.findByIdAndDelete(kb._id);
-
-            // 3. Remove from any collections (Cleanup)
-            await Collection.updateMany(
-                { knowledgeIds: kb._id },
-                { $pull: { knowledgeIds: kb._id } }
-            );
-
-            res.json({ success: true, id: kb._id });
-        } catch (e: any) {
-            console.error('Delete error:', e);
-            res.status(500).json({ error: e.message });
+    try {
+        const filter: any = {};
+        if (type === 'public') filter.type = 'public';
+        else if (type === 'department') {
+            filter.type = 'department';
+            filter.department = user.department;
+        } else if (type === 'personal') {
+            filter.type = 'personal';
+            filter.ownerId = user.userId;
+        } else {
+            // Return all visible?
+            // Or handle specific lists for UI tabs?
+            // Let's support complex OR if no type specified
+            filter.$or = [
+                { type: 'public' },
+                { type: 'department', department: user.department },
+                { type: 'personal', ownerId: user.userId }
+            ];
         }
-    });
 
-    // 1.06 RETRY PROCESSING (Refinement)
-    app.post('/api/knowledge/:id/retry', async (req: Request, res: Response) => {
-        const user = extractUser(req);
-        if (!user) return res.status(401).json({ error: 'Unauthorized' });
-
-        try {
-            const kb = await Knowledge.findById(req.params.id);
-            if (!kb) return res.status(404).json({ error: 'Not found' });
-
-            if (!canManageKnowledge(user, kb)) {
-                return res.status(403).json({ error: 'Not allowed to manage this knowledge' });
-            }
-
-            // Only retry if failed or stuck?
-            // Let's allow retry anytime if status != completed, or even if completed (re-process)
-
-            // Reset Status
-            kb.processingStatus = 'pending';
-            kb.processingStage = 'queued';
-            kb.errorReason = '';
-            await kb.save();
-
-            // Check if S3 key exists?
-            // We assume it does. Worker will fail again if not.
-
-            // Re-Queue
-            await knowledgeQueue.add('process-file', {
-                knowledgeId: kb._id.toString(),
-                s3Key: kb.s3Key,
-                mimetype: kb.contentType || 'application/pdf', // Fallback
-                originalName: kb.title
-            });
-
-            res.json({ success: true, knowledge: kb, message: 'Retry queued.' });
-
-        } catch (e: any) {
-            res.status(500).json({ error: e.message });
-        }
-    });
-
-    // 1.1 REQUEST PUBLISH
-    app.post('/api/knowledge/:id/request-publish', async (req: Request, res: Response) => {
-        const user = extractUser(req);
-        if (!user) return res.status(401).json({ error: 'Unauthorized' });
-
-        const { targetType } = req.body; // 'department' or 'public'
-
-        try {
-            const kb = await Knowledge.findById(req.params.id);
-            if (!kb) return res.status(404).json({ error: 'Not found' });
-
-            // Only owner can request
-            if (kb.ownerId !== user.userId) return res.status(403).json({ error: 'Only owner can request publish' });
-
-            // Only Personal can be promoted? Or Department to Public?
-            // User rule: "student/staff ... have to create personal knowledge before request it"
-            if (kb.type !== 'personal') return res.status(400).json({ error: 'Only personal knowledge can be requested for publishing' });
-
-            kb.requestStatus = 'pending';
-            kb.requestedType = targetType;
-            await kb.save();
-
-            res.json({ success: true, knowledge: kb });
-        } catch (e: any) {
-            res.status(500).json({ error: e.message });
-        }
-    });
-
-    // 1.2 APPROVE PUBLISH (Admin)
-    app.post('/api/knowledge/:id/approve-publish', async (req: Request, res: Response) => {
-        const user = extractUser(req);
-        if (!user) return res.status(401).json({ error: 'Unauthorized' });
-
-        const { action } = req.body; // 'approve' | 'reject'
-
-        try {
-            const kb = await Knowledge.findById(req.params.id);
-            if (!kb) return res.status(404).json({ error: 'Not found' });
-
-            // Check Admin of SAME department
-            // "student/staff may REQUEST their department admin"
-            if (user.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
-            if (user.department !== kb.department) return res.status(403).json({ error: 'Must be admin of owner department' });
-
-            if (action === 'approve') {
-                // Logic: "Knowledge created once". We change the type.
-                if (kb.requestedType) {
-                    kb.type = kb.requestedType;
-                }
-                kb.requestStatus = 'approved';
-            } else {
-                kb.requestStatus = 'rejected';
-            }
-
-            // Reset request fields if needed, or keep history? 
-            // Keeping status helps UI show "Approved".
-
-            await kb.save();
-            res.json({ success: true, knowledge: kb });
-        } catch (e: any) {
-            res.status(500).json({ error: e.message });
-        }
-    });
-
-    // 2. CREATE COLLECTION
-    app.post('/api/knowledge/collections', async (req: Request, res: Response) => {
-        const user = extractUser(req);
-        if (!user) return res.status(401).json({ error: 'Unauthorized' });
-
-        const { name, description, type } = req.body;
-        // type: department, personal (default is system only usually, but maybe admin can create another default-like?)
-        // Let's restrict: Admin -> Dept/Default. User -> Personal.
-
-        // Validate creation permission logic
-        // User requested: "Department Collection: Creatable only by admin of that department"
-        // "Personal Collection: Creatable only by owner"
-
-        let allowed = false;
-        if (type === 'personal') allowed = true;
-        else if (type === 'department' && user.role === 'admin') allowed = true;
-
-        if (!allowed) return res.status(403).json({ error: 'Not allowed to create this collection type' });
-
-        try {
-            const newCol = await Collection.create({
-                name,
-                description,
-                type,
-                ownerId: user.userId,
-                department: user.department,
-                knowledgeIds: []
-            });
-            res.json({ success: true, collection: newCol });
-        } catch (e: any) {
-            res.status(500).json({ error: e.message });
-        }
-    });
-
-    // 2.1 UPDATE COLLECTION
-    app.put('/api/knowledge/collections/:id', async (req: Request, res: Response) => {
-        const user = extractUser(req);
-        if (!user) return res.status(401).json({ error: 'Unauthorized' });
-
-        const { name, description } = req.body;
-
-        try {
-            const col = await Collection.findById(req.params.id);
-            if (!col) return res.status(404).json({ error: 'Not found' });
-
-            if (!canManageCollection(user, col)) {
-                return res.status(403).json({ error: 'Not allowed to update this collection' });
-            }
-
-            col.name = name || col.name;
-            col.description = description !== undefined ? description : col.description;
-            await col.save();
-
-            res.json({ success: true, collection: col });
-        } catch (e: any) {
-            res.status(500).json({ error: e.message });
-        }
-    });
-
-    // 2.2 DELETE COLLECTION
-    app.delete('/api/knowledge/collections/:id', async (req: Request, res: Response) => {
-        const user = extractUser(req);
-        if (!user) return res.status(401).json({ error: 'Unauthorized' });
-
-        try {
-            const col = await Collection.findById(req.params.id);
-            if (!col) return res.status(404).json({ error: 'Not found' });
-
-            if (!canManageCollection(user, col)) {
-                return res.status(403).json({ error: 'Not allowed to delete this collection' });
-            }
-
-            await Collection.findByIdAndDelete(req.params.id);
-            res.json({ success: true, id: req.params.id });
-        } catch (e: any) {
-            res.status(500).json({ error: e.message });
-        }
-    });
-
-    // 3. MAP KNOWLEDGE TO COLLECTION
-    app.post('/api/knowledge/collections/:id/map', async (req: Request, res: Response) => {
-        const user = extractUser(req);
-        if (!user) return res.status(401).json({ error: 'Unauthorized' });
-
-        const { id } = req.params;
-        const { knowledgeId, action } = req.body; // action: 'add' | 'remove'
-
-        try {
-            const col = await Collection.findById(id);
-            const kb = await Knowledge.findById(knowledgeId);
-
-            if (!col || !kb) return res.status(404).json({ error: 'Not found' });
-
-            // Check if user manages the COLLECTION
-            if (!canManageCollection(user, col)) {
-                return res.status(403).json({ error: 'Cannot modify this collection' });
-            }
-
-            // Validate Visibility Rule:
-            // "Admin can manage any knowledge inside THEIR department collection"
-            // "Default Collection: Only admin of every department can map knowledge into it"
-            // Implicitly, you must be able to READ the knowledge to map it?
-            // Or strictly: You own the knowledge?
-            // User said: "Admin of other departments CANNOT delete or edit [Public Knowledge]"
-            // But "Everyone can reference this knowledge in collections"
-
-            // So checking if user can READ the knowledge is a good baseline for mapping.
-            if (!canReadKnowledge(user, kb)) {
-                return res.status(403).json({ error: 'Cannot access this knowledge to map it' });
-            }
-
-            if (action === 'add') {
-                // Avoid duplicates using string comparison
-                const exists = col.knowledgeIds.some((existingId: any) => existingId.toString() === kb._id.toString());
-                if (!exists) {
-                    col.knowledgeIds.push(kb._id as any);
-                }
-            } else if (action === 'remove') {
-                col.knowledgeIds = col.knowledgeIds.filter((k: any) => k.toString() !== knowledgeId);
-            }
-
-            await col.save();
-            res.json({ success: true, collection: col });
-
-        } catch (e: any) {
-            res.status(500).json({ error: e.message });
-        }
-    });
-
-    // 4. LIST COLLECTIONS (For User)
-    app.get('/api/knowledge/collections', async (req: Request, res: Response) => {
-        const user = extractUser(req);
-        if (!user) return res.status(401).json({ error: 'Unauthorized' });
-
-        try {
-            // Return:
-            // 1. Default Collection (Always)
-            // 2. My Department Collection
-            // 3. My Personal Collections
-            // 4. (Optional) Public Collections? User didn't specify Public Collections, only Public Knowledge.
-
-            const query = {
-                $or: [
-                    { type: 'default' },
-                    { type: 'department', department: user.department },
-                    { type: 'personal', ownerId: user.userId }
-                ]
-            };
-
-            const collections = await Collection.find(query).sort({ type: 1, createdAt: -1 });
-            res.json({ collections });
-        } catch (e: any) {
-            res.status(500).json({ error: e.message });
-        }
-    });
-
-    // 5. GET COLLECTION DETAILS (List Knowledge inside)
-    app.get('/api/knowledge/collections/:id', async (req: Request, res: Response) => {
-        const user = extractUser(req);
-        if (!user) return res.status(401).json({ error: 'Unauthorized' });
-
-        try {
-            const col = await Collection.findById(req.params.id).populate('knowledgeIds');
-            if (!col) return res.status(404).json({ error: 'Not found' });
-
-            // Access Check
-            // Dept Col: Visible only to same dept
-            // Personal Col: Visible only to owner
-            // Default: Visible to everyone
-            let canView = false;
-            if (col.type === 'default') canView = true;
-            else if (col.type === 'department' && col.department === user.department) canView = true;
-            else if (col.type === 'personal' && col.ownerId === user.userId) canView = true;
-
-            if (!canView) return res.status(403).json({ error: 'Access denied' });
-
-            res.json({ collection: col });
-        } catch (e: any) {
-            res.status(500).json({ error: e.message });
-        }
-    });
-
-    // 6. SEARCH (RAG)
-    app.post('/api/knowledge/search', async (req: Request, res: Response) => {
-        const { query, collectionId, limit = 3 } = req.body;
-
-        // We don't necessarily have user context here if called from Orchestrator backend-to-backend without passing headers
-        // BUT the Orchestrator should ideally pass the user context headers.
-        // For now, let's assume if collectionId is provided, we check logic.
-        // However, Orchestrator might call this. 
-        // If collectionId is missing -> SEARCH DEFAULT.
-
-        try {
-            let targetKnowledgeIds: string[] = [];
-
-            if (collectionId) {
-                const col = await Collection.findById(collectionId);
-                if (col && col.knowledgeIds.length > 0) {
-                    targetKnowledgeIds = col.knowledgeIds.map(id => id.toString());
-                }
-            } else {
-                // Fallback to Default
-                const def = await Collection.findOne({ isDefault: true });
-                if (def && def.knowledgeIds.length > 0) {
-                    targetKnowledgeIds = def.knowledgeIds.map(id => id.toString());
-                }
-            }
-
-            if (targetKnowledgeIds.length === 0) {
-                return res.json({ results: [] });
-            }
-
-            // Chroma Query
-            const embedding = await getEmbedding(query);
-            const col = await chroma.getCollection({ name: GLOBAL_CHROMA_COLLECTION } as any);
-
-            // Filter by logical OR of knowledgeIds. 
-            // Chroma $in syntax: { knowledgeId: { $in: [id1, id2] } }
-            const results = await col.query({
-                queryEmbeddings: [embedding],
-                nResults: limit,
-                where: { knowledgeId: { "$in": targetKnowledgeIds } }
-            });
-
-            // Format
-            const hits = results.documents[0].map((doc, i) => ({
-                content: doc,
-                metadata: results.metadatas[0][i],
-                score: results.distances?.[0][i]
-            }));
-
-            res.json({ results: hits });
-
-        } catch (e: any) {
-            console.error('Search error:', e);
-            res.status(500).json({ error: 'Search failed' });
-        }
-    });
-
-    // 7. LIST KNOWLEDGE (Inventory for mapping)
-    app.get('/api/knowledge', async (req: Request, res: Response) => {
-        const user = extractUser(req);
-        if (!user) return res.status(401).json({ error: 'Unauthorized' });
-
-        const { type } = req.query;
-
-        try {
-            const filter: any = {};
-            if (type === 'public') filter.type = 'public';
-            else if (type === 'department') {
-                filter.type = 'department';
+        // Add Request Status Filter (for Admin)
+        if (req.query.requestStatus) {
+            filter.requestStatus = req.query.requestStatus;
+            // Admin can see requests from their dept
+            if (user.role === 'admin') {
                 filter.department = user.department;
-            } else if (type === 'personal') {
-                filter.type = 'personal';
-                filter.ownerId = user.userId;
-            } else {
-                // Return all visible?
-                // Or handle specific lists for UI tabs?
-                // Let's support complex OR if no type specified
-                filter.$or = [
-                    { type: 'public' },
-                    { type: 'department', department: user.department },
-                    { type: 'personal', ownerId: user.userId }
-                ];
-            }
+                // If type was restricted in previous logic, make sure we don't accidentally strict it too much
+                // But usually Admin Request view is specific. 
+                // Let's ensure if requestStatus is pending, we allow seeing items even if they are 'personal' (but they are personally owned by others?)
+                // Wait, personal items are owned by students. Admin needs to see them to approve.
+                // My previous $or logic restricts to "ownerId: user.userId" for personal.
+                // So an Admin CANNOT see student's personal items by default.
 
-            // Add Request Status Filter (for Admin)
-            if (req.query.requestStatus) {
+                // FIX: If fetching pending requests, override the visibility logic for Admin
+                delete filter.$or; // Remove the standard visibility restriction
                 filter.requestStatus = req.query.requestStatus;
-                // Admin can see requests from their dept
-                if (user.role === 'admin') {
-                    filter.department = user.department;
-                    // If type was restricted in previous logic, make sure we don't accidentally strict it too much
-                    // But usually Admin Request view is specific. 
-                    // Let's ensure if requestStatus is pending, we allow seeing items even if they are 'personal' (but they are personally owned by others?)
-                    // Wait, personal items are owned by students. Admin needs to see them to approve.
-                    // My previous $or logic restricts to "ownerId: user.userId" for personal.
-                    // So an Admin CANNOT see student's personal items by default.
-
-                    // FIX: If fetching pending requests, override the visibility logic for Admin
-                    delete filter.$or; // Remove the standard visibility restriction
-                    filter.requestStatus = req.query.requestStatus;
-                    filter.department = user.department; // Admin only manages their dept
-                }
+                filter.department = user.department; // Admin only manages their dept
             }
-
-            const items = await Knowledge.find(filter).sort({ createdAt: -1 });
-            res.json({ knowledge: items });
-        } catch (e: any) {
-            res.status(500).json({ error: e.message });
         }
-    });
 
-    // Start
-    app.listen(PORT, async () => {
-        console.log(`[Knowledge Service] Port ${PORT} [Env: ${ENV_TYPE}]`);
-        if (mongoose.connection.readyState === 1) {
+        const items = await Knowledge.find(filter).sort({ createdAt: -1 });
+        res.json({ knowledge: items });
+    } catch (e: any) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// Start
+app.listen(PORT, async () => {
+    console.log(`[Knowledge Service] Port ${PORT} [Env: ${ENV_TYPE}]`);
+    if (mongoose.connection.readyState === 1) {
+        await initChroma();
+        await initMinio();
+        await initDefaultCollection();
+        initWorker();
+    } else {
+        mongoose.connection.once('connected', async () => {
             await initChroma();
             await initMinio();
             await initDefaultCollection();
             initWorker();
-        } else {
-            mongoose.connection.once('connected', async () => {
-                await initChroma();
-                await initMinio();
-                await initDefaultCollection();
-                initWorker();
-            });
-        }
-    });
+        });
+    }
+});
