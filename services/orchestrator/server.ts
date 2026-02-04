@@ -377,7 +377,7 @@ app.post('/api/chat', authenticateToken, rateLimiter, async (req: any, res: Resp
                         if (dataStr === '[DONE]') continue;
                         try {
                             const data = JSON.parse(dataStr);
-                            if (data.text) fullText += data.text;
+                            if (data.text) fullResponseText += data.text;
                             if (data.type === 'usage' && data.usage) tokenUsage = data.usage;
                         } catch (e) { }
                     }
@@ -421,7 +421,7 @@ app.post('/api/chat', authenticateToken, rateLimiter, async (req: any, res: Resp
     if (isMultipart) {
         const bb = busboy({ headers: req.headers });
 
-        bb.on('field', (name, val) => {
+        bb.on('field', (name: string, val: string) => {
             if (name === 'message') message = val;
             if (name === 'sessionId') sessionId = val;
             if (name === 'modelId') modelId = val;
@@ -435,10 +435,11 @@ app.post('/api/chat', authenticateToken, rateLimiter, async (req: any, res: Resp
 
         const filePromises: Promise<void>[] = [];
 
-        bb.on('file', (name, file, info) => {
+        // @ts-ignore
+        bb.on('file', (name: string, file: any, info: any) => {
             const promise = new Promise<void>(async (resolve) => {
                 const chunks: any[] = [];
-                file.on('data', d => chunks.push(d));
+                file.on('data', (d: any) => chunks.push(d));
                 file.on('end', async () => {
                     const buf = Buffer.concat(chunks);
                     files.push({
