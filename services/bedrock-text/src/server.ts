@@ -41,6 +41,49 @@ const validateModel = (modelId: string): string => {
     return modelId || MODELS.claude35;
 };
 
+const normalizeMessages = (messages: any[]) => {
+    if (!messages || messages.length === 0) return [];
+
+    const normalized: any[] = [];
+
+    // 1. Ensure it starts with 'user'
+    let startIndex = messages.findIndex(m => m.role === 'user');
+    if (startIndex === -1) {
+        // No user message found, add a dummy one or fail? Let's add a dummy if needed
+        normalized.push({ role: 'user', content: [{ type: 'text', text: '...' }] });
+        startIndex = 0;
+    }
+
+    for (let i = startIndex; i < messages.length; i++) {
+        const msg = messages[i];
+        if (!msg) continue;
+
+        const role = msg.role === 'user' ? 'user' : 'assistant';
+        const content: any[] = [];
+
+        if (msg.content) content.push({ type: 'text', text: msg.content });
+        if (msg.images) {
+            msg.images.forEach((img: any) => {
+                content.push({
+                    type: 'image',
+                    source: { type: 'base64', media_type: img.mediaType, data: img.data }
+                });
+            });
+        }
+
+        if (content.length === 0) continue; // Skip empty messages
+
+        if (normalized.length > 0 && normalized[normalized.length - 1].role === role) {
+            // MERGE consecutive same-role messages
+            normalized[normalized.length - 1].content.push(...content);
+        } else {
+            normalized.push({ role, content });
+        }
+    }
+
+    return normalized;
+};
+
 // --- Middleware ---
 // Phase 3: Observability
 const logCorrelation = (req: Request, res: Response, next: any) => {
@@ -94,31 +137,16 @@ app.post('/api/bedrock/chat', async (req: Request, res: Response) => {
     }
 
     const finalModelId = validateModel(modelId);
+    const systemMessage = messages.find(msg => msg.role === 'system')?.content || '';
+    const formattedMessages = normalizeMessages(messages.filter(msg => msg.role !== 'system'));
+
+    if (formattedMessages.length === 0) {
+        return res.status(400).json({ error: 'No valid user/assistant messages found after normalization' });
+    }
+
+    const stream = req.body.stream !== false;
 
     try {
-        // Format for Claude 3
-        const formattedMessages = messages
-            .filter(msg => msg.role !== 'system')
-            .map(msg => {
-                const content: any[] = [];
-                if (msg.content) content.push({ type: 'text', text: msg.content });
-                if (msg.images) {
-                    msg.images.forEach((img: any) => {
-                        content.push({
-                            type: 'image',
-                            source: { type: 'base64', media_type: img.mediaType, data: img.data }
-                        });
-                    });
-                }
-                if (content.length === 0) return null;
-                return { role: msg.role === 'user' ? 'user' : 'assistant', content };
-            })
-            .filter(Boolean);
-
-        const systemMessage = messages.find(msg => msg.role === 'system')?.content || '';
-
-        const stream = req.body.stream !== false;
-
         if (stream) {
             // SSE Headers
             res.setHeader('Content-Type', 'text/event-stream');
@@ -150,44 +178,25 @@ app.post('/api/bedrock/chat', async (req: Request, res: Response) => {
                         const decoded = new TextDecoder().decode(chunk.chunk.bytes);
                         const parsed = JSON.parse(decoded);
 
-                        // 1. Capture Input Tokens (message_start)
-                        if (parsed.type === 'message_start') {
-                            if (parsed.message?.usage) {
-                                inputTokens = parsed.message.usage.input_tokens || 0;
-                            }
+                        if (parsed.type === 'message_start' && parsed.message?.usage) {
+                            inputTokens = parsed.message.usage.input_tokens || 0;
                         }
 
-                        // 2. Stream Content
                         if (parsed.type === 'content_block_delta' && parsed.delta?.text) {
                             res.write(`data: ${JSON.stringify({ text: parsed.delta.text })}\n\n`);
                         }
 
-                        // 3. Capture Output Tokens (message_delta)
-                        if (parsed.type === 'message_delta') {
-                            if (parsed.usage) {
-                                outputTokens = parsed.usage.output_tokens || 0;
-                            }
-                        }
-
-                        // 4. Handle Stop (Optional: check cleanup)
-                        if (parsed.type === 'message_stop') {
-                            // Sometimes additional metrics are here
+                        if (parsed.type === 'message_delta' && parsed.usage) {
+                            outputTokens = parsed.usage.output_tokens || 0;
                         }
                     }
                 }
             }
 
-            // Send Usage Event
             const totalTokens = inputTokens + outputTokens;
-            console.log('[Bedrock Text] Final Usage:', { input: inputTokens, output: outputTokens, total: totalTokens });
-
             res.write(`data: ${JSON.stringify({
                 type: 'usage',
-                usage: {
-                    input: inputTokens,
-                    output: outputTokens,
-                    total: totalTokens
-                }
+                usage: { input: inputTokens, output: outputTokens, total: totalTokens }
             })}\n\n`);
 
             res.write('data: [DONE]\n\n');
@@ -211,14 +220,23 @@ app.post('/api/bedrock/chat', async (req: Request, res: Response) => {
             const decoded = new TextDecoder().decode(response.body);
             const data = JSON.parse(decoded);
 
-            const content = data.content?.[0]?.text || '';
-            const usage = data.usage || { input_tokens: 0, output_tokens: 0 };
+            // Robust Parsing: Claude 3 returns content as an array of blocks
+            let contentText = '';
+            if (Array.isArray(data.content)) {
+                contentText = data.content
+                    .filter((block: any) => block.type === 'text')
+                    .map((block: any) => block.text)
+                    .join('');
+            } else if (typeof data.content === 'string') {
+                contentText = data.content;
+            }
 
-            console.log('[Bedrock Text] Final Usage (non-stream):', { input: usage.input_tokens, output: usage.output_tokens, total: usage.input_tokens + usage.output_tokens });
+            const usage = data.usage || { input_tokens: 0, output_tokens: 0 };
+            console.log(`[Bedrock Text] Sync Success [${finalModelId}] Tokens: ${usage.input_tokens + usage.output_tokens}`);
 
             res.json({
                 success: true,
-                content,
+                content: contentText,
                 usage: {
                     input: usage.input_tokens,
                     output: usage.output_tokens,
@@ -226,13 +244,14 @@ app.post('/api/bedrock/chat', async (req: Request, res: Response) => {
                 }
             });
         }
-
     } catch (e: any) {
-        console.error('[Bedrock Text] Chat error:', e);
-        if (!res.headersSent) {
-            res.write(`event: error\ndata: ${JSON.stringify({ error: e.message })}\n\n`);
+        console.error('[Bedrock Text] Chat error:', e.message);
+        if (stream) {
+            if (!res.headersSent) res.write(`event: error\ndata: ${JSON.stringify({ error: e.message })}\n\n`);
+            res.end();
+        } else {
+            res.status(500).json({ success: false, error: e.message });
         }
-        res.end();
     }
 });
 

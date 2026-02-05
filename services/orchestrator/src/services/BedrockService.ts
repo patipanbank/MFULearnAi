@@ -102,24 +102,33 @@ export class BedrockService {
                 timeout: 60000
             });
 
-            // If downstream supports stream: false, it returns { content: "..." }
-            if (response.data && response.data.content) {
-                return response.data.content;
+            // Robust content extraction
+            let content = '';
+            if (response.data && response.data.content !== undefined) {
+                content = typeof response.data.content === 'string' ? response.data.content : JSON.stringify(response.data.content);
+            } else if (response.data && response.data.text !== undefined) {
+                content = response.data.text;
             }
 
-            // Fallback for older or different implementations
-            if (response.data && response.data.text) {
-                return response.data.text;
+            if (!content && response.data.success === false) {
+                console.error('[BedrockService] Model Error Response:', response.data.error || 'Unknown error');
+                throw new Error(response.data.error || 'Upstream Model Error');
             }
 
-            return JSON.stringify(response.data);
+            if (!content) {
+                console.warn('[BedrockService] Warning: Received empty content from model', {
+                    status: response.status,
+                    hasData: !!response.data,
+                    dataKeys: response.data ? Object.keys(response.data) : []
+                });
+            }
 
+            return content;
         } catch (error: any) {
-            // If we failed because it forced stream, we'd need to handle stream consumption.
-            // For now assume bedrock-text supports non-streaming if requested or simple JSON.
-            // If bedrock-text ONLY streams, we must consume stream here.
-            // Let's implement stream consumption fallback if needed, but for MVP let's assume JSON.
-            console.error('[BedrockService] SendChat Error:', error.message);
+            console.error('[BedrockService] SendChat Error:', error.message, {
+                stack: error.stack,
+                responseData: error.response?.data
+            });
             throw error;
         }
     }
