@@ -2,6 +2,7 @@ import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import axios from 'axios';
+import axiosRetry from 'axios-retry';
 import jwt from 'jsonwebtoken';
 import Redis from 'ioredis';
 import busboy from 'busboy';
@@ -90,23 +91,29 @@ const logActivity = async (
     }
 };
 
-// --- Middleware ---
-const authenticateToken = (req: any, res: Response, next: NextFunction) => {
-    const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1];
+import axiosRetry from 'axios-retry';
+import { authenticateToken } from '../../shared/middleware/auth';
 
-    if (!token) {
-        return res.status(401).json({ error: 'No token provided' });
+// --- Axios Retry Policy (Phase 2: Reliability) ---
+// Retries only on Network Errors or 5xx (Server Errors).
+// Does NOT retry 4xx (Client Errors) or non-idempotent unsafe methods (though we mostly use POST for read-heavy RAG, be careful).
+axiosRetry(axios, {
+    retries: 2,
+    retryDelay: axiosRetry.exponentialDelay,
+    retryCondition: (error) => {
+        // Retry networking errors or 5xx status codes
+        return axiosRetry.isNetworkOrIdempotentRequestError(error) || (error.response?.status ? error.response.status >= 500 : false);
+    },
+    onRetry: (retryCount, error, requestConfig) => {
+        console.warn(`[Orchestrator] Retrying request to ${requestConfig.url} (Attempt ${retryCount}) due to: ${error.message}`);
     }
+});
 
-    jwt.verify(token, JWT_SECRET, (err: any, user: any) => {
-        if (err) {
-            return res.status(403).json({ error: 'Invalid or expired token' });
-        }
-        req.user = user;
-        next();
-    });
-};
+// --- Middleware ---
+// Use shared auth middleware
+const checkAuth = authenticateToken(JWT_SECRET);
+// We use the alias 'checkAuth' to match the signature required by Express
+
 
 // Rate limiting
 const rateLimits = new Map<string, { count: number; resetTime: number }>();

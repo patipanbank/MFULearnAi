@@ -41,6 +41,14 @@ const validateModel = (modelId: string): string => {
 };
 
 // --- Middleware ---
+// Phase 3: Observability
+const logCorrelation = (req: Request, res: Response, next: any) => {
+    const correlationId = req.headers['x-correlation-id'] || 'unknown';
+    console.log(`[Bedrock Text] Request ${req.method} ${req.path} [${correlationId}]`);
+    next();
+};
+app.use(logCorrelation);
+
 const authenticateInternal = (req: Request, res: Response, next: any) => {
     const key = req.headers['x-internal-key'];
     const INTERNAL_API_KEY = process.env.INTERNAL_API_KEY || 'internal-secret-key';
