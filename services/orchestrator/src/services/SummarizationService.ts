@@ -1,6 +1,8 @@
 import axios from '../config/axios';
 import { ChatMessage } from '../../../../shared/types';
 import { LoggerService } from './LoggerService';
+import { TokenService } from './TokenService';
+import { ContextService } from './ContextService';
 
 const BEDROCK_TEXT_URL = process.env.BEDROCK_TEXT_URL || 'http://localhost:5001/api/bedrock';
 const INTERNAL_API_KEY = process.env.INTERNAL_API_KEY || 'internal-secret-key';
@@ -37,7 +39,10 @@ INSTRUCTIONS:
                 temperature: 0.3,
                 maxTokens: 1000
             }, {
-                headers: { 'x-internal-key': INTERNAL_API_KEY }
+                headers: {
+                    'Authorization': `Bearer ${TokenService.mint('bedrock', 'write')}`,
+                    'x-correlation-id': ContextService.getCorrelationId()
+                }
             });
 
             let newSummary = '';

@@ -154,12 +154,17 @@ export class ChatWorkflow {
             // Trigger every 5 turns (metadata.messageCount % 10 === 0)?
             // Or if history length > 10?
             if (history.length > 5) { // Simple trigger
+                const correlationId = require('../services/ContextService').ContextService.getCorrelationId(); // Capture current ID
+
                 import('../services/SummarizationService').then(async ({ SummarizationService }) => {
-                    const newSummary = await SummarizationService.summarize([...history, currentMessage, assistantMessage], summary);
-                    if (newSummary && newSummary !== summary) {
-                        await HistoryService.updateSummary(userId, sessionId, newSummary);
-                        LoggerService.log('info', 'summary_updated', { sessionId }, userId);
-                    }
+                    // Restore context for background task
+                    require('../services/ContextService').ContextService.run({ correlationId }, async () => {
+                        const newSummary = await SummarizationService.summarize([...history, currentMessage, assistantMessage], summary);
+                        if (newSummary && newSummary !== summary) {
+                            await HistoryService.updateSummary(userId, sessionId, newSummary);
+                            LoggerService.log('info', 'summary_updated', { sessionId }, userId);
+                        }
+                    });
                 }).catch(err => console.error(err));
             }
         });
