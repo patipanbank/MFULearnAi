@@ -119,8 +119,9 @@ If you need to use a tool to answer, use it. If you have the answer, reply direc
                 await new Promise<void>(resolve => {
                     const mockRes: any = {
                         write: (chunk: any) => {
-                            if (chunk.startsWith('data: ')) {
-                                const d = chunk.replace('data: ', '').trim();
+                            const str = typeof chunk === 'string' ? chunk : chunk.toString();
+                            if (str.startsWith('data: ')) {
+                                const d = str.replace('data: ', '').trim();
                                 if (d === '[DONE]') return;
                                 try {
                                     const j = JSON.parse(d);
