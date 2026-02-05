@@ -230,7 +230,7 @@ const getScenarioPrompt = async (scenarioId: string, userId: string): Promise<st
 };
 
 // --- Chat Endpoint (Updated for Multipart & IR) ---
-app.post('/api/chat', authenticateToken, rateLimiter, async (req: any, res: Response) => {
+app.post('/api/chat', checkAuth, rateLimiter, async (req: any, res: Response) => {
     // Check Content-Type for Multipart
     const isMultipart = req.headers['content-type']?.includes('multipart/form-data');
 
@@ -511,7 +511,7 @@ app.post('/api/chat', authenticateToken, rateLimiter, async (req: any, res: Resp
 });
 
 // --- Get Available Models ---
-app.get('/api/chat/models', authenticateToken, async (req: any, res: Response) => {
+app.get('/api/chat/models', checkAuth, async (req: any, res: Response) => {
     try {
         const response = await axios.get(`${BEDROCK_TEXT_URL}/models`, {
             headers: { 'x-internal-key': process.env.INTERNAL_API_KEY || 'internal-secret-key' }
@@ -524,7 +524,7 @@ app.get('/api/chat/models', authenticateToken, async (req: any, res: Response) =
 });
 
 // --- Get Chat History ---
-app.get('/api/chat/:sessionId', authenticateToken, async (req: any, res: Response) => {
+app.get('/api/chat/:sessionId', checkAuth, async (req: any, res: Response) => {
     const { sessionId } = req.params;
     const userId = req.user.userId;
 
@@ -559,7 +559,7 @@ app.get('/api/chat/:sessionId', authenticateToken, async (req: any, res: Respons
 });
 
 // --- List User Sessions ---
-app.get('/api/chat', authenticateToken, async (req: any, res: Response) => {
+app.get('/api/chat', checkAuth, async (req: any, res: Response) => {
     const userId = req.user.userId;
     const limit = parseInt(req.query.limit as string) || 20;
 
@@ -576,7 +576,7 @@ app.get('/api/chat', authenticateToken, async (req: any, res: Response) => {
 });
 
 // --- Clear Session ---
-app.delete('/api/chat/:sessionId', authenticateToken, async (req: any, res: Response) => {
+app.delete('/api/chat/:sessionId', checkAuth, async (req: any, res: Response) => {
     const { sessionId } = req.params;
     const userId = req.user.userId;
 
@@ -608,7 +608,7 @@ app.get('/health', (req, res) => res.json({
 // --- Prompt Management API ---
 
 // 1. List Prompts (searchable/filterable)
-app.get('/api/prompts', authenticateToken, async (req: any, res: Response) => {
+app.get('/api/prompts', checkAuth, async (req: any, res: Response) => {
     const { type, isPublic, ownerId } = req.query;
     const userId = req.user.userId;
 
@@ -657,7 +657,7 @@ app.get('/api/prompts', authenticateToken, async (req: any, res: Response) => {
 });
 
 // 2. Get Single Prompt
-app.get('/api/prompts/:key', authenticateToken, async (req: any, res: Response) => {
+app.get('/api/prompts/:key', checkAuth, async (req: any, res: Response) => {
     const { key } = req.params;
     const userId = req.user.userId;
 
@@ -677,7 +677,7 @@ app.get('/api/prompts/:key', authenticateToken, async (req: any, res: Response) 
 });
 
 // 3. Create Prompt
-app.post('/api/prompts', authenticateToken, async (req: any, res: Response) => {
+app.post('/api/prompts', checkAuth, async (req: any, res: Response) => {
     const { type, key, name, description, content, isPublic, tags } = req.body;
     const userId = req.user.userId;
 
@@ -716,7 +716,7 @@ app.post('/api/prompts', authenticateToken, async (req: any, res: Response) => {
 });
 
 // 4. Add Version (Update Content)
-app.post('/api/prompts/:key/versions', authenticateToken, async (req: any, res: Response) => {
+app.post('/api/prompts/:key/versions', checkAuth, async (req: any, res: Response) => {
     const { key } = req.params;
     const { content, changelog } = req.body;
     const userId = req.user.userId;
@@ -764,7 +764,7 @@ app.post('/api/prompts/:key/versions', authenticateToken, async (req: any, res: 
 
 // 5. Activate Prompt (Toggle isActive) - Mainly for Core Prompts
 // 5. Toggle Prompt Activation (Activate/Deactivate)
-app.post('/api/prompts/:key/toggle-active', authenticateToken, async (req: any, res: Response) => {
+app.post('/api/prompts/:key/toggle-active', checkAuth, async (req: any, res: Response) => {
     const { key } = req.params;
     const { isActive } = req.body; // Explicitly set state if provided, otherwise toggle? Let's stick to explicit set.
 
