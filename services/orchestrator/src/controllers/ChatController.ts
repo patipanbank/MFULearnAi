@@ -22,11 +22,10 @@ export class ChatController {
         let images: any[] = [];
         let files: any[] = [];
         let fileParses: CanonicalIR[] = [];
+        let mode: 'chat' | 'agent' = 'chat';
 
         const executeWorkflow = () => {
-            // Fallback for empty sessionId
             const actualSessionId = sessionId || `session-${Date.now()}`;
-
             if (!message && (!images || images.length === 0) && (!files || files.length === 0)) {
                 return res.status(400).json({ error: 'Message or attachment is required' });
             }
@@ -49,6 +48,17 @@ export class ChatController {
             });
         };
 
+        const executeAgent = () => {
+            const actualSessionId = sessionId || `session-${Date.now()}`;
+            import('../workflows/AgentWorkflow').then(({ AgentWorkflow }) => {
+                AgentWorkflow.execute(userId, actualSessionId, message, req.user.role, res)
+                    .catch(err => {
+                        console.error('[ChatController] Agent Error:', err);
+                        if (!res.headersSent) res.status(500).json({ error: 'Agent Error' });
+                    });
+            });
+        };
+
         if (isMultipart) {
             const bb = busboy({ headers: req.headers });
             const filePromises: Promise<void>[] = [];
@@ -60,15 +70,13 @@ export class ChatController {
                 if (name === 'collectionId') collectionId = val;
                 if (name === 'context') context = val;
                 if (name === 'scenarioId') scenarioId = val;
+                if (name === 'mode') mode = val as any;
                 if (name === 'images') { try { images = JSON.parse(val); } catch (e) { } }
             });
 
             // @ts-ignore
             bb.on('file', (name: string, file: any, info: any) => {
-                // Determine mimeType - busboy info object has it.
-                // Depending on newer busboy versions, it might be info.mimeType or info.mime
                 const mimeType = info.mimeType || info.mime;
-
                 const promise = new Promise<void>(async (resolve) => {
                     const chunks: any[] = [];
                     file.on('data', (d: any) => chunks.push(d));
@@ -79,10 +87,8 @@ export class ChatController {
                             mediaType: mimeType,
                             size: buf.length
                         });
-
                         const ir = await KnowledgeService.parseFile(buf, info.filename, mimeType);
                         if (ir) fileParses.push(ir);
-
                         resolve();
                     });
                 });
@@ -91,7 +97,8 @@ export class ChatController {
 
             bb.on('close', async () => {
                 await Promise.all(filePromises);
-                executeWorkflow();
+                if (mode === 'agent') executeAgent();
+                else executeWorkflow();
             });
 
             req.pipe(bb);
@@ -104,7 +111,10 @@ export class ChatController {
             images = req.body.images;
             files = req.body.files;
             scenarioId = req.body.scenarioId;
-            executeWorkflow();
+            mode = req.body.mode || 'chat';
+
+            if (mode === 'agent') executeAgent();
+            else executeWorkflow();
         }
     }
 

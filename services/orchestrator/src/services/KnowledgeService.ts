@@ -1,6 +1,7 @@
 import axios from '../config/axios';
 import FormData from 'form-data';
 import { CanonicalIR } from '../../../../shared/types';
+import { TokenService } from './TokenService';
 
 const KNOWLEDGE_URL = process.env.KNOWLEDGE_URL || 'http://localhost:7000/api/knowledge';
 
@@ -14,7 +15,7 @@ export class KnowledgeService {
                 'x-user-id': userContext.userId,
                 'x-role': userContext.role,
                 'x-department': userContext.department || 'General',
-                'x-internal-key': process.env.INTERNAL_API_KEY || 'internal-secret-key'
+                'Authorization': `Bearer ${TokenService.mint('knowledge', 'read')}`
             };
 
             const response = await axios.post(`${KNOWLEDGE_URL}/search`, payload, { headers });

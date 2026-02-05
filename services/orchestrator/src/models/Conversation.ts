@@ -25,6 +25,7 @@ const ConversationSchema = new mongoose.Schema({
         estimatedCost: { type: Number, default: 0 },
         messageCount: { type: Number, default: 0 }
     },
+    summary: { type: String, default: '' }, // Long-term conversation summary
     createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date, default: Date.now }
 });

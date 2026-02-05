@@ -32,13 +32,19 @@ export class ChatWorkflow {
             fileCount: files?.length || 0
         }, userId);
 
-        // 1. Get History
-        const history = await HistoryService.getHistory(userId, sessionId);
+        // 1. Get Context (Summary + History)
+        const { messages: history, summary } = await HistoryService.getContext(userId, sessionId);
 
         // 2. RAG Context (Optional)
         const userContext = { userId, role: userRole, department: userDepartment };
         const ragContext = await KnowledgeService.search(message || '', userContext, collectionId);
         const ragSystemPrompt = ragContext ? `\n\nHere is some relevant context from the Knowledge Base:\n<context>\n${ragContext}\n</context>\nUse this context to answer the user's question if relevant.` : '';
+
+        // 2.5 Smart Context Injection
+        let summaryContext = '';
+        if (summary) {
+            summaryContext = `\n\n<previous_conversation_summary>\n${summary}\n</previous_conversation_summary>\n(Use this summary to understand previous context, but prioritize the raw messages below)`;
+        }
 
         // 3. Prepare System Prompt
         const corePrompt = await PromptService.getCoreSystemPrompt(envType);
@@ -94,7 +100,7 @@ export class ChatWorkflow {
             fileContextPrompt += `\n\n=== END ATTACHED FILES ===\nIf information is missing or unclear from the files, state that explicitly.`;
         }
 
-        const finalSystemContent = corePrompt + additionalContext + ragSystemPrompt + fileContextPrompt + scenarioPrompt;
+        const finalSystemContent = corePrompt + additionalContext + summaryContext + ragSystemPrompt + fileContextPrompt + scenarioPrompt;
         const systemMessage: ChatMessage = { role: 'system', content: finalSystemContent, timestamp: new Date() };
 
         const currentMessage: ChatMessage = {
@@ -141,6 +147,19 @@ export class ChatWorkflow {
             );
 
             LoggerService.log('info', 'chat_completion', { sessionId, tokens: tokenUsage }, userId);
+
+            // 5. Background Summarization (Fire-and-forget)
+            // Trigger every 5 turns (metadata.messageCount % 10 === 0)?
+            // Or if history length > 10?
+            if (history.length > 5) { // Simple trigger
+                import('../services/SummarizationService').then(async ({ SummarizationService }) => {
+                    const newSummary = await SummarizationService.summarize([...history, currentMessage, assistantMessage], summary);
+                    if (newSummary && newSummary !== summary) {
+                        await HistoryService.updateSummary(userId, sessionId, newSummary);
+                        LoggerService.log('info', 'summary_updated', { sessionId }, userId);
+                    }
+                }).catch(err => console.error(err));
+            }
         });
     }
 }

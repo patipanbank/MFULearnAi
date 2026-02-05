@@ -49,16 +49,36 @@ const logCorrelation = (req: Request, res: Response, next: any) => {
 };
 app.use(logCorrelation);
 
-const authenticateInternal = (req: Request, res: Response, next: any) => {
-    const key = req.headers['x-internal-key'];
-    const INTERNAL_API_KEY = process.env.INTERNAL_API_KEY || 'internal-secret-key';
+import jwt from 'jsonwebtoken';
 
-    // In PROD, we should probably crash if default, but for now let's strict check
-    if (key !== INTERNAL_API_KEY) {
-        console.warn(`[Bedrock Text] Unauthorized access attempt from ${req.ip}`);
-        return res.status(401).json({ error: 'Unauthorized: Internal Access Only' });
+import fs from 'fs';
+
+const PUBLIC_KEY_PATH = process.env.JWT_PUBLIC_KEY_PATH || '/run/secrets/jwt_public_key';
+
+const authenticateInternal = (req: Request, res: Response, next: any) => {
+    const authHeader = req.headers.authorization;
+
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        console.warn(`[Bedrock Text] Missing or invalid Authorization header from ${req.ip}`);
+        return res.status(401).json({ error: 'Unauthorized: Missing Token' });
     }
-    next();
+
+    const token = authHeader.split(' ')[1];
+
+    try {
+        const publicKey = fs.readFileSync(PUBLIC_KEY_PATH); // Cache this in prod?
+        const decoded: any = jwt.verify(token, publicKey, { algorithms: ['RS256'] });
+
+        // Scope & Audience Check
+        if (decoded.aud !== 'bedrock') throw new Error('Invalid Audience');
+        if (!decoded.scope || !decoded.scope.includes('internal:')) throw new Error('Invalid Scope');
+
+        (req as any).user = decoded; // Attach for logging
+        next();
+    } catch (error: any) {
+        console.warn(`[Bedrock Text] Token verification failed: ${error.message}`);
+        return res.status(403).json({ error: 'Forbidden: Invalid Token' });
+    }
 };
 
 app.use(authenticateInternal);

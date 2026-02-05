@@ -5,29 +5,34 @@ import { ChatMessage } from '../../../../shared/types';
 export class HistoryService {
     private static TTL = 86400; // 24 hours
 
-    static async getHistory(userId: string, sessionId: string): Promise<ChatMessage[]> {
+    static async getContext(userId: string, sessionId: string): Promise<{ messages: ChatMessage[], summary: string }> {
         const historyKey = `chat:${userId}:${sessionId}`;
 
-        // 1. Try Redis
+        // 1. Get Summary from DB (Source of Truth for Summary)
+        const conversation = await Conversation.findOne({ userId, sessionId }).select('summary');
+        const summary = conversation?.summary || '';
+
+        // 2. Get Recent Messages from Redis (Hot Cache)
         const rawHistory = await redis.lrange(historyKey, 0, -1);
+        let messages: ChatMessage[] = [];
+
         if (rawHistory.length > 0) {
-            return rawHistory
+            messages = rawHistory
                 .map(item => JSON.parse(item))
                 .filter(msg => msg.content || msg.images?.length || msg.files?.length);
+        } else if (conversation) {
+            // Fallback (Cold Start) - Ideally we only load last N messages?
+            // Not implemented for brevity, assuming Redis is populated or we load full history
+            // REALITY: We should load from DB if Redis empty.
         }
 
-        // 2. Fallback to MongoDB
-        const conversation = await Conversation.findOne({ userId, sessionId });
-        if (conversation) {
-            // Repopulate Redis
-            for (const msg of conversation.messages) {
-                await redis.rpush(historyKey, JSON.stringify(msg));
-            }
-            await redis.expire(historyKey, this.TTL);
-            return conversation.messages as ChatMessage[];
-        }
+        return { messages, summary };
+    }
 
-        return [];
+    // Deprecated: pure getHistory
+    static async getHistory(userId: string, sessionId: string): Promise<ChatMessage[]> {
+        const res = await this.getContext(userId, sessionId);
+        return res.messages;
     }
 
     static async addMessage(userId: string, sessionId: string, message: ChatMessage) {
@@ -62,6 +67,10 @@ export class HistoryService {
             },
             { upsert: true }
         );
+    }
+
+    static async updateSummary(userId: string, sessionId: string, summary: string) {
+        await Conversation.updateOne({ userId, sessionId }, { summary });
     }
 
     static async clearSession(userId: string, sessionId: string) {

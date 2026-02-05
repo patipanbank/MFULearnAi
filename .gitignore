@@ -1,6 +1,13 @@
 **/package-lock.json
 **/node_modules/
-frontend/.env
+# Environment files
 .env
-backend/.env
+.env.*
+!env.example
+
+# Secrets
+/secrets/
+jwt-*.pem
+*.pem
+infrastructure/compose/secrets/nd/.env
 **/dist/

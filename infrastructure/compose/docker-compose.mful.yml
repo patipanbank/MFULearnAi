@@ -96,6 +96,13 @@ services:
       - REDIS_URL=redis://redis:6379
       - JWT_SECRET=${JWT_SECRET:-test-jwt-secret-change-me}
       - KNOWLEDGE_URL=http://knowledge-service:7000/api/knowledge
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
+      - OTEL_SERVICE_NAME=orchestrator
+      - JWT_PRIVATE_KEY_PATH=/run/secrets/jwt_private_key
+      - JWT_PUBLIC_KEY_PATH=/run/secrets/jwt_public_key
+    secrets:
+      - jwt_private_key
+      - jwt_public_key
 
     depends_on:
       - redis
@@ -119,6 +126,9 @@ services:
       - AWS_REGION=${AWS_REGION:-ap-southeast-1}
       - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
       - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - JWT_PUBLIC_KEY_PATH=/run/secrets/jwt_public_key
+    secrets:
+      - jwt_public_key
     ports:
       - "5001:5001"
     networks:
@@ -204,6 +214,9 @@ services:
       - MINIO_SECRET_KEY=minioadmin
       - MINIO_BUCKET=mfulearnai-knowledge
       - MINIO_USE_SSL=false
+      - JWT_PUBLIC_KEY_PATH=/run/secrets/jwt_public_key
+    secrets:
+      - jwt_public_key
     depends_on:
       - chroma
       - bedrock-embedding
@@ -286,6 +299,46 @@ services:
       /bin/sh -c " /usr/bin/mc config host add myminio http://minio:9000 minioadmin minioadmin; /usr/bin/mc mb myminio/mfulearnai-knowledge; /usr/bin/mc anonymous set download myminio/mfulearnai-knowledge; exit 0; "
     networks:
       - mfulearnai-network
+
+  # --- Observability Stack ---
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:latest
+    container_name: mfulearnai-otel
+    command: [ "--config=/etc/otel-collector-config.yaml" ]
+    volumes:
+      - ./otel-collector-config.yaml:/etc/otel-collector-config.yaml
+    ports:
+      - "4317:4317" # OTLP gRPC
+      - "4318:4318" # OTLP HTTP
+      - "8888:8888" # Metrics
+    networks:
+      - mfulearnai-network
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: mfulearnai-prometheus
+    volumes:
+      - ./prometheus.yaml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+    networks:
+      - mfulearnai-network
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: mfulearnai-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    networks:
+      - mfulearnai-network
+
+secrets:
+  jwt_private_key:
+    file: ./secrets/jwt/jwt-private.pem
+  jwt_public_key:
+    file: ./secrets/jwt/jwt-public.pem
 
 volumes:
   mfulearnai-redis-data:

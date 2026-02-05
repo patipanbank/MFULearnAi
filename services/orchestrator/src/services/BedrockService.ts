@@ -1,6 +1,7 @@
 import axios from 'axios'; // Use raw axios for stream, or configured one? stream is special.
 import { ChatMessage } from '../../../../shared/types';
 import { Response } from 'express';
+import { TokenService } from './TokenService';
 
 const BEDROCK_TEXT_URL = process.env.BEDROCK_TEXT_URL || 'http://localhost:5001/api/bedrock';
 
@@ -16,7 +17,9 @@ export class BedrockService {
                 method: 'post',
                 url: `${BEDROCK_TEXT_URL}/chat`,
                 data: { messages, modelId },
-                headers: { 'x-internal-key': process.env.INTERNAL_API_KEY || 'internal-secret-key' },
+                headers: {
+                    'Authorization': `Bearer ${TokenService.mint('bedrock', 'write')}`
+                },
                 responseType: 'stream',
                 timeout: 120000
             });
@@ -59,7 +62,9 @@ export class BedrockService {
 
     static async getModels() {
         const response = await axios.get(`${BEDROCK_TEXT_URL}/models`, {
-            headers: { 'x-internal-key': process.env.INTERNAL_API_KEY || 'internal-secret-key' }
+            headers: {
+                'Authorization': `Bearer ${TokenService.mint('bedrock', 'read')}`
+            }
         });
         return response.data;
     }

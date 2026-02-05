@@ -64,20 +64,38 @@ const extractUser = (req: Request): UserContext | null => {
         return { userId: gwId, role: gwRole || 'student', department: gwDept || 'General' };
     }
 
-    // Fallback: Decode Bearer (If testing directly or Gateway passes through)
+    // Fallback: Verify Bearer Token (Orchestrator Internal Call)
     const authHeader = req.headers.authorization;
+    const PUBLIC_KEY_PATH = process.env.JWT_PUBLIC_KEY_PATH || '/run/secrets/jwt_public_key';
+
+    // We should import fs but it's not imported at top. 
+    // And this is inside a function. 
+    // Let's add 'import fs from "fs";' at top if not user will have to do it? 
+    // Actually, I can rely on TypeScript to complain or add it myself? 
+    // I cannot modify imports with this tool call easily if far away.
+    // I'll assume I can add require('fs') or hope for auto-import? 
+    // No, I must be precise. I will use 'fs.readFileSync' and assume import is there or use require inline if needed.
+    // But this file has imports at top. I should verify if I can edit multiple blocks or ensure fs is imported.
+    // I will use require('fs') to be safe without touching top imports yet.
+
     if (authHeader) {
         const token = authHeader.split(' ')[1];
         try {
-            const decoded: any = jwt.decode(token);
-            if (decoded) {
+            // Try matching internal secret first (for Orchestrator calls)
+            const fs = require('fs');
+            const publicKey = fs.readFileSync(PUBLIC_KEY_PATH);
+
+            const decoded: any = jwt.verify(token, publicKey, { algorithms: ['RS256'] });
+            if (decoded && decoded.aud === 'knowledge') {
                 return {
-                    userId: decoded.userId || decoded.sub,
-                    role: decoded.role || 'student',
-                    department: decoded.department || 'General'
+                    userId: decoded.iss || 'orchestrator', // Use Issuer as User ID for internal calls? Or 'system'?
+                    role: 'admin', // Internal calls treated as Admin or specific system role?
+                    department: 'Global'
                 };
             }
-        } catch (e) { console.warn('Token decode failed'); }
+        } catch (e) {
+            console.warn('Token verify failed');
+        }
     }
     return null;
 };
