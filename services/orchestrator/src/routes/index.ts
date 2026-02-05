@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { ChatController } from '../controllers/ChatController';
 import { PromptController } from '../controllers/PromptController';
+import { KnowledgeController } from '../controllers/KnowledgeController';
 import { authenticateToken } from '../../../../shared/middleware/auth';
 import { RateLimiter } from '../middleware/rateLimiter';
 
@@ -21,5 +22,8 @@ router.post('/prompts', checkAuth, PromptController.createPrompt);
 router.get('/prompts/:key', checkAuth, PromptController.getPrompt);
 router.post('/prompts/:key/versions', checkAuth, PromptController.addVersion);
 router.post('/prompts/:key/toggle-active', checkAuth, PromptController.toggleActive);
+
+// Knowledge Routes (Proxy)
+router.get('/knowledge/:id/view', checkAuth, KnowledgeController.view);
 
 export default router;

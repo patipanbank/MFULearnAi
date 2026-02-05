@@ -76,7 +76,7 @@ export class AgentWorkflow {
                 (collectionId && currentIntent !== 'CHITCHAT') ||
                 (RAG_INTENTS.includes(currentIntent) && (queryComplexity || hasDomainKeywords));
             let ragContext = '';
-            let ragSources: string[] = [];
+            let ragSources: Array<{ id: string, name: string }> = [];
             if (shouldUseRAG) {
                 res.write(`data: ${JSON.stringify({ type: 'intent', intent: currentIntent })}\n\n`);
                 res.write(`data: ${JSON.stringify({ type: 'status', message: 'Searching Knowledge Base...' })}\n\n`);

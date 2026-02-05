@@ -32,6 +32,33 @@ const formatTime = (timestamp) => {
   if (!timestamp) return ''
   return new Date(timestamp).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })
 }
+
+const openSource = async (sourceId) => {
+    if (!sourceId) return
+    try {
+        const token = localStorage.getItem('auth_token')
+        const response = await fetch(`/api/knowledge/${sourceId}/view`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        })
+        if (response.ok) {
+            const data = await response.json()
+            if (data.url) {
+                window.open(data.url, '_blank')
+            }
+        }
+    } catch (e) {
+        console.error('Failed to open source:', e)
+    }
+}
+
+const getFileIcon = (name) => {
+    const ext = name.split('.').pop().toLowerCase()
+    if (['pdf'].includes(ext)) return { icon: '📄', color: '#ef4444', label: 'PDF' }
+    if (['doc', 'docx'].includes(ext)) return { icon: '📝', color: '#3b82f6', label: 'Word' }
+    if (['xls', 'xlsx', 'csv'].includes(ext)) return { icon: '📊', color: '#10b981', label: 'Sheet' }
+    if (['ppt', 'pptx'].includes(ext)) return { icon: '🎬', color: '#f59e0b', label: 'Slide' }
+    return { icon: '📎', color: '#6b7280', label: 'File' }
+}
 </script>
 
 <template>
@@ -127,12 +154,31 @@ const formatTime = (timestamp) => {
             <span class="text animate-flicker">{{ message.status || t('thinking') }}</span>
           </div>
           
-          <!-- RAG Source Badge -->
-          <div v-if="message.meta?.usedRAG" class="source-badge">
-             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
-                <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path>
-             </svg>
-             <span>{{ message.meta?.sources?.length ? 'Sources: ' + message.meta.sources.join(', ') : (t('answeredFromKnowledgeBase') || 'Knowledge Base') }}</span>
+          <!-- RAG Source Container -->
+          <div v-if="message.meta?.usedRAG" class="sources-container">
+            <span class="sources-label">{{ t('sources') || 'Sources:' }}</span>
+            <div class="sources-list">
+              <div 
+                v-for="source in message.meta.sources" 
+                :key="typeof source === 'object' ? source.id : source"
+                class="source-pill"
+                @click="typeof source === 'object' ? openSource(source.id) : null"
+                :class="{ 'clickable': typeof source === 'object' }"
+                :style="typeof source === 'object' ? { borderColor: getFileIcon(source.name).color + '40' } : {}"
+              >
+                <span class="source-icon" :style="typeof source === 'object' ? { color: getFileIcon(source.name).color } : {}">
+                    {{ getFileIcon(typeof source === 'object' ? source.name : source).icon }}
+                </span>
+                <span class="source-name">{{ typeof source === 'object' ? source.name : source }}</span>
+              </div>
+              <!-- Fallback if sources list is empty but usedRAG is true -->
+              <div v-if="!message.meta.sources?.length" class="source-pill plain">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                  <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path>
+                </svg>
+                <span>{{ t('answeredFromKnowledgeBase') || 'Knowledge Base' }}</span>
+              </div>
+            </div>
           </div>
           <!-- AI Actions (Copy Button icon only) -->
           <div class="actions" v-if="message.content">
@@ -339,6 +385,70 @@ const formatTime = (timestamp) => {
 .intent-badge-mini.fact_lookup { border-color: #3b82f6; color: #3b82f6; background: rgba(59, 130, 246, 0.05); }
 .intent-badge-mini.debugging { border-color: #ef4444; color: #ef4444; background: rgba(239, 68, 68, 0.05); }
 .intent-badge-mini.research { border-color: #8b5cf6; color: #8b5cf6; background: rgba(139, 92, 246, 0.05); }
+
+.sources-container {
+    margin-top: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.sources-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.sources-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.source-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 12px;
+    background: var(--color-bg-secondary);
+    border: 1px solid var(--color-border);
+    border-radius: 20px; /* Fully rounded */
+    font-size: 12px;
+    color: var(--color-text-primary);
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    max-width: 240px;
+    cursor: default;
+}
+
+.source-pill.clickable {
+    cursor: pointer;
+}
+
+.source-pill.clickable:hover {
+    border-color: var(--color-primary);
+    background: var(--color-bg-tertiary);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-sm);
+}
+
+.source-pill.plain {
+    color: var(--color-text-muted);
+    font-style: italic;
+}
+
+.source-icon {
+    font-size: 14px;
+    line-height: 1;
+}
+
+.source-name {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex: 1;
+}
 
 .source-badge {
     display: inline-flex;

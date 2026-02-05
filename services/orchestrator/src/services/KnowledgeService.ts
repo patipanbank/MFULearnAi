@@ -7,7 +7,7 @@ import { LoggerService } from './LoggerService';
 const KNOWLEDGE_URL = process.env.KNOWLEDGE_URL || 'http://localhost:7000/api/knowledge';
 
 export class KnowledgeService {
-    static async search(query: string, userContext: any, collectionId?: string, intent: string = 'QUERY'): Promise<{ text: string, sources: string[] }> {
+    static async search(query: string, userContext: any, collectionId?: string, intent: string = 'QUERY'): Promise<{ text: string, sources: Array<{ id: string, name: string }> }> {
         try {
             const payload: any = { query, limit: 3, intent };
             if (collectionId) payload.collectionId = collectionId;
@@ -28,7 +28,15 @@ export class KnowledgeService {
                     query
                 });
 
-                const sources = Array.from(new Set(response.data.results.map((hit: any) => hit.metadata.source))) as string[];
+                // Track unique sources with ID and Name
+                const sourceMap = new Map<string, string>();
+                response.data.results.forEach((hit: any) => {
+                    if (hit.metadata.knowledgeId) {
+                        sourceMap.set(hit.metadata.knowledgeId, hit.metadata.source);
+                    }
+                });
+
+                const sources = Array.from(sourceMap.entries()).map(([id, name]) => ({ id, name }));
                 const text = response.data.results
                     .map((hit: any) => `[Source: ${hit.metadata.source}]\n${hit.content}`)
                     .join('\n\n');
@@ -61,5 +69,22 @@ export class KnowledgeService {
             console.error(`[KnowledgeService] Failed to parse file ${filename}`, e.message);
         }
         return null;
+    }
+
+    static async view(id: string, userContext: any): Promise<any> {
+        try {
+            const headers: any = {
+                'x-user-id': userContext.userId || 'system',
+                'x-role': userContext.role || 'admin',
+                'x-department': userContext.department || 'Global',
+                'Authorization': `Bearer ${TokenService.mint('knowledge', 'read')}`
+            };
+
+            const response = await axios.get(`${KNOWLEDGE_URL}/${id}/view`, { headers });
+            return response.data;
+        } catch (error: any) {
+            console.warn(`[KnowledgeService] View failed for ${id}:`, error.response?.data?.error || error.message);
+            throw error;
+        }
     }
 }

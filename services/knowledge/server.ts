@@ -786,7 +786,10 @@ app.post('/api/knowledge/search', async (req: Request, res: Response) => {
 
             return {
                 content: doc,
-                metadata: results.metadatas[0][i],
+                metadata: {
+                    ...(results.metadatas?.[0]?.[i] || {}),
+                    knowledgeId: results.metadatas?.[0]?.[i]?.knowledgeId // Ensure knowledgeId is explicitly passed
+                },
                 scores: { semantic: semanticScore, keyword: keywordScore, final: finalScore },
                 score: finalScore // for sorting
             };
@@ -816,6 +819,30 @@ app.post('/api/knowledge/search', async (req: Request, res: Response) => {
     } catch (e: any) {
         console.error('Search error:', e);
         res.status(500).json({ error: 'Search failed' });
+    }
+});
+
+// 6.5 VIEW KNOWLEDGE FILE (Original)
+app.get('/api/knowledge/:id/view', async (req: Request, res: Response) => {
+    const user = extractUser(req);
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+
+    try {
+        const kb = await Knowledge.findById(req.params.id);
+        if (!kb) return res.status(404).json({ error: 'Not found' });
+
+        if (!canReadKnowledge(user, kb)) {
+            return res.status(403).json({ error: 'Access denied' });
+        }
+
+        if (!kb.s3Key) return res.status(400).json({ error: 'No original file available for this item' });
+
+        // Generate Presigned URL (Valid for 15 minutes)
+        const url = await minioClient.presignedGetObject(MINIO_BUCKET, kb.s3Key, 15 * 60);
+
+        res.json({ success: true, url, title: kb.title, contentType: kb.contentType });
+    } catch (e: any) {
+        res.status(500).json({ error: e.message });
     }
 });
 
