@@ -77,8 +77,13 @@ export class AgentWorkflow {
                 (RAG_INTENTS.includes(currentIntent) && (queryComplexity || hasDomainKeywords));
             let ragContext = '';
             if (shouldUseRAG) {
+                res.write(`data: ${JSON.stringify({ type: 'intent', intent: currentIntent })}\n\n`);
+                res.write(`data: ${JSON.stringify({ type: 'status', message: 'Searching Knowledge Base...' })}\n\n`);
                 ragContext = await KnowledgeService.search(query, userContext, collectionId, currentIntent);
                 LoggerService.info('agent_rag_result', { found: !!ragContext, intent: currentIntent, traceId, queryComplexity }, userId);
+            } else {
+                res.write(`data: ${JSON.stringify({ type: 'intent', intent: currentIntent })}\n\n`);
+                res.write(`data: ${JSON.stringify({ type: 'status', message: 'Analyzing request...' })}\n\n`);
             }
             const ragSystemPrompt = ragContext
                 ? `\n\n=== KNOWLEDGE BASE CONTEXT ===\n${ragContext}\n==============================\nUse this context to answer the user's question if relevant.`
@@ -207,6 +212,15 @@ If you need to use a tool to answer, use it. If you have the answer, reply direc
             if (finalAnswer) {
                 const cleanedAnswer = finalAnswer.replace(/<tool_use>[\s\S]*?<\/tool_use>/g, '').trim();
                 res.write(`data: ${JSON.stringify({ text: cleanedAnswer, traceId })}\n\n`);
+                res.write(`data: ${JSON.stringify({
+                    type: 'metadata',
+                    metadata: {
+                        intent: currentIntent,
+                        usedRAG: !!ragContext,
+                        stepsUsed: steps,
+                        tokenPressure: messages.length
+                    }
+                })}\n\n`);
                 res.write('data: [DONE]\n\n');
                 res.end();
 

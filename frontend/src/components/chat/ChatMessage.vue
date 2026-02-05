@@ -107,20 +107,34 @@ const formatTime = (timestamp) => {
         <div class="content-col">
           <div class="assistant-header">
             <span class="name">{{ t('aiAssistant') }}</span>
+            <div v-if="message.intent" class="intent-badge-mini" :class="message.intent.toLowerCase()">
+                {{ message.intent === 'CHITCHAT' ? '💬 Chat' : 
+                   message.intent === 'FACT_LOOKUP' ? '🔍 Lookup' : 
+                   message.intent === 'RESEARCH' ? '🔬 Research' : 
+                   message.intent === 'DEBUGGING' ? '🛠 Debug' : 
+                   message.intent === 'DESIGN' ? '📐 Design' : message.intent }}
+            </div>
           </div>
           
           <div class="prose-content prose" v-if="message.content" v-html="render(message.content)"></div>
           
-          <!-- Typing Indicator (Embedded) -->
-          <div v-else class="typing-indicator">
-            <div class="dots">
+          <!-- Typing Indicator / Status (Dynamic) -->
+          <div v-if="!message.content || (message.status && !message.content.endsWith(message.status))" class="typing-indicator">
+            <div class="dots" v-if="!message.content">
               <span></span>
               <span></span>
               <span></span>
             </div>
-            <span class="text">{{ t('thinking') }}</span>
+            <span class="text animate-flicker">{{ message.status || t('thinking') }}</span>
           </div>
           
+          <!-- RAG Source Badge -->
+          <div v-if="message.meta?.usedRAG" class="source-badge">
+             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path>
+             </svg>
+             <span>{{ t('answeredFromKnowledgeBase') || 'Answered via Knowledge Base' }}</span>
+          </div>
           <!-- AI Actions (Copy Button icon only) -->
           <div class="actions" v-if="message.content">
             <button class="btn-icon-copy" @click="handleCopy" :class="{ copied }" :title="t('copy')">
@@ -300,6 +314,54 @@ const formatTime = (timestamp) => {
 .typing-indicator .text {
   font-size: 13px;
   color: var(--color-text-muted);
+  font-weight: 500;
+}
+
+.animate-flicker {
+    animation: flicker 2s infinite ease-in-out;
+}
+
+@keyframes flicker {
+    0%, 100% { opacity: 0.6; }
+    50% { opacity: 1; }
+}
+
+.intent-badge-mini {
+    font-size: 11px;
+    padding: 1px 8px;
+    border-radius: 10px;
+    background: var(--color-bg-tertiary);
+    color: var(--color-text-secondary);
+    border: 1px solid var(--color-border);
+    font-weight: 500;
+    letter-spacing: 0.2px;
+}
+
+.intent-badge-mini.fact_lookup { border-color: #3b82f6; color: #3b82f6; background: rgba(59, 130, 246, 0.05); }
+.intent-badge-mini.debugging { border-color: #ef4444; color: #ef4444; background: rgba(239, 68, 68, 0.05); }
+.intent-badge-mini.research { border-color: #8b5cf6; color: #8b5cf6; background: rgba(139, 92, 246, 0.05); }
+
+.source-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 12px;
+    padding: 4px 10px;
+    background: var(--color-bg-secondary);
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    font-size: 11px;
+    color: var(--color-text-muted);
+    transition: all 0.2s;
+}
+
+.source-badge:hover {
+    border-color: var(--color-primary);
+    color: var(--color-text-secondary);
+}
+
+.source-badge svg {
+    color: var(--color-primary);
 }
 
 .actions {

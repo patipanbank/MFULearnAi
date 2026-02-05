@@ -1,5 +1,8 @@
 <script setup>
-import { ref, watch } from 'vue'
+import { ref, watch, computed } from 'vue'
+import { useChatStore } from '@/stores/chat'
+
+const chatStore = useChatStore()
 
 const props = defineProps({
   modelValue: { type: String, default: '' },
@@ -41,6 +44,20 @@ const handleFileChange = (e) => {
     e.target.value = ''
   }
 }
+
+const healthStatus = computed(() => {
+    const len = chatStore.messages.length
+    if (len < 8) return 'safe'
+    if (len < 12) return 'medium'
+    return 'heavy'
+})
+
+const healthLabel = computed(() => {
+    const len = chatStore.messages.length
+    if (len < 8) return 'Perfect context'
+    if (len < 12) return 'Moderate context'
+    return 'Context pruning active'
+})
 
 defineExpose({
   focus: () => document.querySelector('.chat-input')?.focus()
@@ -121,7 +138,13 @@ defineExpose({
           </div>
       </div>
       
-      <p class="disclaimer">{{ t('disclaimer') }}</p>
+      <div class="input-footer">
+        <div class="context-health" v-if="chatStore.messages.length > 0">
+            <span class="dot" :class="healthStatus"></span>
+            <span class="health-text">{{ healthLabel }}</span>
+        </div>
+        <p class="disclaimer">{{ t('disclaimer') }}</p>
+      </div>
     </div>
   </div>
 </template>
@@ -326,11 +349,42 @@ defineExpose({
   to { transform: rotate(360deg); }
 }
 
+.input-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 10px;
+}
+
 .disclaimer {
-  text-align: center;
+  text-align: right;
   font-size: 11px;
   color: var(--color-text-muted);
-  margin-top: 10px;
+  margin: 0;
+  flex: 1;
+}
+
+.context-health {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.context-health .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    transition: background 0.3s;
+}
+
+.context-health .dot.safe { background: #10b981; box-shadow: 0 0 6px rgba(16, 185, 129, 0.4); }
+.context-health .dot.medium { background: #f59e0b; box-shadow: 0 0 6px rgba(245, 158, 11, 0.4); }
+.context-health .dot.heavy { background: #ef4444; box-shadow: 0 0 6px rgba(239, 68, 68, 0.4); }
+
+.health-text {
+    font-size: 10px;
+    color: var(--color-text-muted);
+    font-weight: 500;
 }
 
 /* Responsive */

@@ -228,7 +228,22 @@ export const useChatStore = defineStore('chat', () => {
                                 messages.value[assistantIndex].content += data.text
                             }
 
-                            // 2. Error from backend (e.g. Bedrock failure)
+                            // 2. Status Updates (e.g. "Executing tool...")
+                            if (data.type === 'status') {
+                                messages.value[assistantIndex].status = data.message
+                            }
+
+                            // 3. Intent Detection
+                            if (data.type === 'intent') {
+                                messages.value[assistantIndex].intent = data.intent
+                            }
+
+                            // 4. Final Metadata (e.g. usedRAG, tokenPressure)
+                            if (data.type === 'metadata') {
+                                messages.value[assistantIndex].meta = data.metadata
+                            }
+
+                            // 5. Error from backend (e.g. Bedrock failure)
                             if (data.error) {
                                 console.error('[ChatStore] Backend reported error:', data.error)
                                 const errorMsg = `\n\n**Error**: ${data.error}`
