@@ -35,10 +35,13 @@ export class AgentWorkflow {
 
         // 1.2 RAG Search (Merged from ChatWorkflow)
         const userContext = { userId, role: userRole, department: userDepartment };
+
+        console.log(`[AgentWorkflow] Starting RAG Search for query: "${query}"`);
         LoggerService.log('info', 'agent_rag_start', { query, collectionId }, userId);
 
         const ragContext = await KnowledgeService.search(query, userContext, collectionId);
 
+        console.log(`[AgentWorkflow] RAG Result: ${!!ragContext} (Length: ${ragContext?.length || 0})`);
         LoggerService.log('info', 'agent_rag_result', {
             found: !!ragContext,
             length: ragContext?.length || 0
