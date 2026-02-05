@@ -243,7 +243,7 @@ ${newMessages.map(m => `${m.role}: ${m.content}`).join('\n')}
 
         try {
             const response = await BedrockService.sendChat(
-                'anthropic.claude-3-haiku-20240307-v1:0',
+                'anthropic.claude-3-5-sonnet-20240620-v1:0',
                 [{ role: 'user', content: prompt }],
                 SummarizationService.ROLLING_PROMPT,
                 0.1
@@ -290,7 +290,7 @@ ${JSON.stringify(rollingContext, null, 2)}
 
         try {
             const response = await BedrockService.sendChat(
-                'anthropic.claude-3-sonnet-20240229-v1:0',
+                'anthropic.claude-3-5-sonnet-20240620-v1:0',
                 [{ role: 'user', content: prompt }],
                 SummarizationService.CANONIZATION_PROMPT,
                 0.1

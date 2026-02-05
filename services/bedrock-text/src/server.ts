@@ -70,7 +70,8 @@ const authenticateInternal = (req: Request, res: Response, next: any) => {
         const decoded: any = jwt.verify(token, publicKey, { algorithms: ['RS256'] });
 
         // Scope & Audience Check
-        if (decoded.aud !== 'bedrock') throw new Error('Invalid Audience');
+        const validAudiences = ['bedrock', 'mfu-bedrock-service'];
+        if (!validAudiences.includes(decoded.aud)) throw new Error(`Invalid Audience: ${decoded.aud}`);
         if (!decoded.scope || !decoded.scope.includes('internal:')) throw new Error('Invalid Scope');
 
         (req as any).user = decoded; // Attach for logging

@@ -213,7 +213,7 @@ Context:
             Note: If query is ambiguous (e.g. "Why is it broken?"), rely on Last Intent.
             Output ONLY the enum value in <intent></intent> tags.`;
 
-            const response = await BedrockService.sendChat('anthropic.claude-3-haiku-20240307-v1:0', [{ role: 'user', content: prompt }], '', 0.1);
+            const response = await BedrockService.sendChat('anthropic.claude-3-5-sonnet-20240620-v1:0', [{ role: 'user', content: prompt }], '', 0.1);
             const match = response.match(/<intent>(.*?)<\/intent>/);
             return match ? match[1].trim() : 'QUERY';
         } catch {

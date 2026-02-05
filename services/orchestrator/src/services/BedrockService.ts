@@ -58,7 +58,13 @@ export class BedrockService {
 
         } catch (error: any) {
             console.error('[BedrockService] Request Error:', error.message);
-            if (!res.headersSent) res.status(500).json({ error: 'Upstream Model Error' });
+            if (!res.headersSent && typeof res.status === 'function') {
+                res.status(500).json({ error: 'Upstream Model Error' });
+            } else if (!res.headersSent) {
+                // Background/Mock response handling
+                res.write(`data: ${JSON.stringify({ error: 'Upstream Model Error', message: error.message })}\n\n`);
+                res.end();
+            }
         }
     }
 
