@@ -255,7 +255,6 @@ export const useChatStore = defineStore('chat', () => {
     function resetSession() {
         currentSessionId.value = null
         messages.value = []
-        currentCollectionId.value = null
     }
 
     // Clear current session (delete using current ID)
