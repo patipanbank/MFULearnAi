@@ -7,7 +7,7 @@ import { LoggerService } from './LoggerService';
 const KNOWLEDGE_URL = process.env.KNOWLEDGE_URL || 'http://localhost:7000/api/knowledge';
 
 export class KnowledgeService {
-    static async search(query: string, userContext: any, collectionId?: string, intent: string = 'QUERY'): Promise<string> {
+    static async search(query: string, userContext: any, collectionId?: string, intent: string = 'QUERY'): Promise<{ text: string, sources: string[] }> {
         try {
             const payload: any = { query, limit: 3, intent };
             if (collectionId) payload.collectionId = collectionId;
@@ -27,16 +27,20 @@ export class KnowledgeService {
                     intent,
                     query
                 });
-                return response.data.results
+
+                const sources = Array.from(new Set(response.data.results.map((hit: any) => hit.metadata.source))) as string[];
+                const text = response.data.results
                     .map((hit: any) => `[Source: ${hit.metadata.source}]\n${hit.content}`)
                     .join('\n\n');
+
+                return { text, sources };
             } else {
                 LoggerService.warn('rag_search_no_results', { intent, query });
             }
         } catch (error: any) {
             console.warn('[KnowledgeService] Search failed:', error.message);
         }
-        return '';
+        return { text: '', sources: [] };
     }
 
     static async parseFile(buffer: Buffer, filename: string, mimeType: string): Promise<CanonicalIR | null> {

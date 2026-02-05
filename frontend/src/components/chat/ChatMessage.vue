@@ -107,10 +107,9 @@ const formatTime = (timestamp) => {
         <div class="content-col">
           <div class="assistant-header">
             <span class="name">{{ t('aiAssistant') }}</span>
-            <div v-if="message.intent" class="intent-badge-mini" :class="message.intent.toLowerCase()">
+            <div v-if="message.intent && message.intent !== 'RESEARCH'" class="intent-badge-mini" :class="message.intent.toLowerCase()">
                 {{ message.intent === 'CHITCHAT' ? '💬 Chat' : 
                    message.intent === 'FACT_LOOKUP' ? '🔍 Lookup' : 
-                   message.intent === 'RESEARCH' ? '🔬 Research' : 
                    message.intent === 'DEBUGGING' ? '🛠 Debug' : 
                    message.intent === 'DESIGN' ? '📐 Design' : message.intent }}
             </div>
@@ -119,7 +118,7 @@ const formatTime = (timestamp) => {
           <div class="prose-content prose" v-if="message.content" v-html="render(message.content)"></div>
           
           <!-- Typing Indicator / Status (Dynamic) -->
-          <div v-if="!message.content || (message.status && !message.content.endsWith(message.status))" class="typing-indicator">
+          <div v-if="!message.content || (message.status && message.status !== '')" class="typing-indicator">
             <div class="dots" v-if="!message.content">
               <span></span>
               <span></span>
@@ -133,7 +132,7 @@ const formatTime = (timestamp) => {
              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
                 <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path>
              </svg>
-             <span>{{ t('answeredFromKnowledgeBase') || 'Answered via Knowledge Base' }}</span>
+             <span>{{ message.meta?.sources?.length ? 'Sources: ' + message.meta.sources.join(', ') : (t('answeredFromKnowledgeBase') || 'Knowledge Base') }}</span>
           </div>
           <!-- AI Actions (Copy Button icon only) -->
           <div class="actions" v-if="message.content">

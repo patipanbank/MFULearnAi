@@ -29,12 +29,12 @@ export class SearchTool extends AgentTool {
                 department: context.department || 'General'
             };
 
-            const result = await KnowledgeService.search(query, userContext, context.collectionId);
-            if (!result) {
+            const { text } = await KnowledgeService.search(query, userContext, context.collectionId);
+            if (!text) {
                 return { success: true, result: "No relevant information found in the knowledge base." };
             }
 
-            return { success: true, result };
+            return { success: true, result: text };
         } catch (error: any) {
             return { success: false, result: null, error: error.message };
         }

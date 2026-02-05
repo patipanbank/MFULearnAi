@@ -66,7 +66,8 @@ export class ChatWorkflow {
 
         let ragContext = '';
         if (shouldUseRAG) {
-            ragContext = await KnowledgeService.search(message, userContext, collectionId, currentIntent);
+            const { text } = await KnowledgeService.search(message, userContext, collectionId, currentIntent);
+            ragContext = text;
             LoggerService.info('chat_rag_result', { found: !!ragContext, intent: currentIntent, queryComplexity }, userId);
         }
 

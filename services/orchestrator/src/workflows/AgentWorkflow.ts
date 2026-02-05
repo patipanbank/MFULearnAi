@@ -76,10 +76,13 @@ export class AgentWorkflow {
                 (collectionId && currentIntent !== 'CHITCHAT') ||
                 (RAG_INTENTS.includes(currentIntent) && (queryComplexity || hasDomainKeywords));
             let ragContext = '';
+            let ragSources: string[] = [];
             if (shouldUseRAG) {
                 res.write(`data: ${JSON.stringify({ type: 'intent', intent: currentIntent })}\n\n`);
                 res.write(`data: ${JSON.stringify({ type: 'status', message: 'Searching Knowledge Base...' })}\n\n`);
-                ragContext = await KnowledgeService.search(query, userContext, collectionId, currentIntent);
+                const searchResult = await KnowledgeService.search(query, userContext, collectionId, currentIntent);
+                ragContext = searchResult.text;
+                ragSources = searchResult.sources;
                 LoggerService.info('agent_rag_result', { found: !!ragContext, intent: currentIntent, traceId, queryComplexity }, userId);
             } else {
                 res.write(`data: ${JSON.stringify({ type: 'intent', intent: currentIntent })}\n\n`);
@@ -179,7 +182,9 @@ If you need to use a tool to answer, use it. If you have the answer, reply direc
 
                 const toolRoll = { tool: toolCall.tool, parameters: toolCall.parameters };
                 LoggerService.info('tool_execution', toolRoll, userId);
-                res.write(`data: ${JSON.stringify({ type: 'status', message: `Executing tool: ${toolCall.tool}` })}\n\n`);
+                if (toolCall.tool !== 'search') {
+                    res.write(`data: ${JSON.stringify({ type: 'status', message: `Using ${toolCall.tool}...` })}\n\n`);
+                }
 
                 const executionResult = await tool.execute(toolCall.parameters, {
                     userId,
@@ -217,10 +222,12 @@ If you need to use a tool to answer, use it. If you have the answer, reply direc
                     metadata: {
                         intent: currentIntent,
                         usedRAG: !!ragContext,
+                        sources: ragSources,
                         stepsUsed: steps,
                         tokenPressure: messages.length
                     }
                 })}\n\n`);
+                res.write(`data: ${JSON.stringify({ type: 'status', message: '' })}\n\n`); // Clear status
                 res.write('data: [DONE]\n\n');
                 res.end();
 
