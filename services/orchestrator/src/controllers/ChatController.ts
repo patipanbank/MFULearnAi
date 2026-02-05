@@ -48,7 +48,7 @@ export class ChatController {
                     files,
                     userRole: req.user.role,
                     userDepartment: req.user.department
-                }, res, fileParses).catch(err => {
+                }, res, fileParses).catch((err: any) => {
                     console.error('[ChatController] Workflow Error:', err);
                     if (!res.headersSent) res.status(500).json({ error: 'Internal Server Error' });
                 });
@@ -68,7 +68,7 @@ export class ChatController {
                         req.user.department, // Pass Dept
                         collectionId,        // Pass Collection
                         res
-                    ).catch(err => {
+                    ).catch((err: any) => {
                         console.error('[ChatController] Agent Error:', err);
                         if (!res.headersSent) res.status(500).json({ error: 'Agent Error' });
                     });

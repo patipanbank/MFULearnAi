@@ -38,28 +38,36 @@ export class ChatWorkflow {
         // 1. Get Context (Smart Context + History)
         const { messages: history, smartContext } = await HistoryService.getContext(userId, sessionId);
 
-        // 2. RAG Context (Optional) - GATED BY INTENT + FAST RE-CHECK
+        // 2. RAG Search (Gated by Intent + Heuristic Complexity)
         const userContext = { userId, role: userRole, department: userDepartment };
         const rollingIntent = smartContext?.rolling?.intent;
         let currentIntent = typeof rollingIntent === 'string' ? rollingIntent : (rollingIntent?.primary || 'QUERY');
 
-        // Fast Intent Re-check to mitigate "Lag Risk"
+        // Fast Intent Re-check (Haiku) with Context
         if (currentIntent === 'CHITCHAT' || currentIntent === 'QUERY') {
-            const fastIntent = await this.quickIntentCheck(message || '');
+            const intentContext = {
+                last_intent: smartContext?.rolling?.intent?.primary || 'QUERY',
+                last_decisions: smartContext?.rolling?.decisions || [],
+                constraints: smartContext?.rolling?.constraints || []
+            };
+            const fastIntent = await this.quickIntentCheck(message, intentContext);
             if (fastIntent !== currentIntent) {
-                LoggerService.info('chat_intent_corrected', { old: currentIntent, new: fastIntent }, userId);
+                LoggerService.info('chat_intent_corrected', { old: currentIntent, new: fastIntent, sessionId }, userId);
                 currentIntent = fastIntent;
             }
         }
 
         const RAG_INTENTS = ['FACT_LOOKUP', 'RESEARCH', 'DEBUGGING', 'DESIGN'];
-        const shouldUseRAG = RAG_INTENTS.includes(currentIntent);
 
-        LoggerService.info('chat_rag_check', { intent: currentIntent, shouldUseRAG }, userId);
+        // Heuristic RAG Gating: Intent + Complexity Check
+        const queryComplexity = message.split(/\s+/).length > 3 || /[\?\.!]/.test(message);
+        const hasDomainKeywords = /MFU|system|architecture|security|JWT|canonical|rolling|memory|promotion|auth/i.test(message);
+        const shouldUseRAG = RAG_INTENTS.includes(currentIntent) && (queryComplexity || hasDomainKeywords);
 
         let ragContext = '';
         if (shouldUseRAG) {
-            ragContext = await KnowledgeService.search(message || '', userContext, collectionId, currentIntent);
+            ragContext = await KnowledgeService.search(message, userContext, collectionId, currentIntent);
+            LoggerService.info('chat_rag_result', { found: !!ragContext, intent: currentIntent, queryComplexity }, userId);
         }
 
         const ragSystemPrompt = ragContext ? `\n\nHere is some relevant context from the Knowledge Base:\n<context>\n${ragContext}\n</context>\nUse this context to answer the user's question if relevant.` : '';
@@ -186,14 +194,23 @@ ${JSON.stringify(smartContext.rolling || {}, null, 2)}
 
             // 5. Background Summarization (Fire-and-forget)
             SummarizationService.runUpdate(userId, sessionId, [currentMessage, assistantMessage], smartContext)
-                .catch(e => LoggerService.error('Background Summary Failed', e));
+                .catch((e: any) => LoggerService.error('Background Summary Failed', e));
         });
     }
 
-    private static async quickIntentCheck(query: string): Promise<string> {
+    private static async quickIntentCheck(query: string, context?: any): Promise<string> {
         try {
+            const contextStr = context ? `
+Context:
+- Last Intent: ${context.last_intent}
+- Decisions: ${context.last_decisions?.join(', ')}
+- Constraints: ${context.constraints?.join(', ')}
+` : '';
+
             const prompt = `Classify user intent for: "${query}"
             Options: FACT_LOOKUP, RESEARCH, DEBUGGING, DESIGN, CHITCHAT, QUERY.
+            ${contextStr}
+            Note: If query is ambiguous (e.g. "Why is it broken?"), rely on Last Intent.
             Output ONLY the enum value in <intent></intent> tags.`;
 
             const response = await BedrockService.sendChat('anthropic.claude-3-haiku-20240307-v1:0', [{ role: 'user', content: prompt }], '', 0.1);

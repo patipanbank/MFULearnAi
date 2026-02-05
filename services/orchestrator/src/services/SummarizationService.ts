@@ -21,6 +21,10 @@ interface SmartContext {
     version: number;
     hashes: { canonical: string; rolling: string; raw: string };
     lastCanonizedAt: Date;
+    metadata?: {
+        intent_history?: string[];
+        volatility_score?: number;
+    };
 }
 
 export class SummarizationService {
@@ -127,7 +131,7 @@ Output: Updated Canonical Memory (Text only).
             // 2. Check Canonization Trigger
             let newCanonical = currentContext.canonical;
             const targetVersion = currentContext.version + 1;
-            const shouldCanonize = targetVersion % this.CANONIZATION_INTERVAL === 0 && newRolling.confidence_score >= 0.7;
+            let shouldCanonize = targetVersion % this.CANONIZATION_INTERVAL === 0 && newRolling.confidence_score >= 0.7;
 
             // Idempotency: Use core fields (facts + decisions + constraints) for hash
             const coreState = {
@@ -137,6 +141,22 @@ Output: Updated Canonical Memory (Text only).
             };
             const rollingHash = crypto.createHash('sha256').update(JSON.stringify(coreState)).digest('hex');
             const isDuplicate = currentContext.hashes.rolling === rollingHash;
+
+            // 2.2 Intent Volatility Check (Memory Poisoning Guard)
+            const intentHistory = currentContext.metadata?.intent_history || [];
+            intentHistory.push(newRolling.intent.primary);
+            if (intentHistory.length > 5) intentHistory.shift(); // Keep last 5
+
+            // Calculate distinct intent flips in last 3 turns
+            const last3 = intentHistory.slice(-3);
+            const flips = new Set(last3).size;
+            let volatilityScore = flips > 2 ? 0.9 : 0.1; // flips > 2 in 3 turns is high volatility
+
+            if (volatilityScore > 0.5) {
+                LoggerService.warn('intent_poisoning_detected', { sessionId, last3, flips });
+                newRolling.confidence_score = Math.min(newRolling.confidence_score, 0.4); // Force downgrade
+                shouldCanonize = false; // Block canonization
+            }
 
             if (shouldCanonize) {
                 if (isDuplicate) {
@@ -161,7 +181,11 @@ Output: Updated Canonical Memory (Text only).
                     rolling: rollingHash,
                     raw: crypto.createHash('sha256').update(messagesStr).digest('hex')
                 },
-                lastCanonizedAt: (shouldCanonize && !isDuplicate) ? new Date() : currentContext.lastCanonizedAt
+                lastCanonizedAt: (shouldCanonize && !isDuplicate) ? new Date() : currentContext.lastCanonizedAt,
+                metadata: {
+                    intent_history: intentHistory,
+                    volatility_score: volatilityScore
+                }
             };
 
             await HistoryService.updateSmartContext(userId, sessionId, nextContext);

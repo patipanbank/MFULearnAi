@@ -16,8 +16,20 @@ const AVAILABLE_TOOLS = [
 export class AgentWorkflow {
     static async run(req: Request, res: Response) {
         const { userId, message, sessionId, collectionId, userRole, userDepartment } = (req as any).userContext;
+        return this.execute(userId, sessionId, message, userRole, userDepartment, collectionId, res);
+    }
+
+    static async execute(
+        userId: string,
+        sessionId: string,
+        message: string,
+        userRole: string,
+        userDepartment: string,
+        collectionId: string | undefined,
+        res: Response
+    ) {
         const query = message;
-        const traceId = crypto.randomUUID();
+        const traceId = (global as any).crypto ? (global as any).crypto.randomUUID() : require('crypto').randomUUID();
 
         res.setHeader('Content-Type', 'text/event-stream');
         res.setHeader('Cache-Control', 'no-cache');
@@ -34,9 +46,14 @@ export class AgentWorkflow {
             const rollingIntent = smartContext?.rolling?.intent;
             let currentIntent = typeof rollingIntent === 'string' ? rollingIntent : (rollingIntent?.primary || 'QUERY');
 
-            // Fast Intent Re-check (Haiku) to mitigate "Lag Risk"
+            // Fast Intent Re-check (Haiku) with Context
             if (currentIntent === 'CHITCHAT' || currentIntent === 'QUERY') {
-                const fastIntent = await this.quickIntentCheck(query);
+                const intentContext = {
+                    last_intent: smartContext?.rolling?.intent?.primary || 'QUERY',
+                    last_decisions: smartContext?.rolling?.decisions || [],
+                    constraints: smartContext?.rolling?.constraints || []
+                };
+                const fastIntent = await this.quickIntentCheck(query, intentContext);
                 if (fastIntent !== currentIntent) {
                     LoggerService.info('agent_intent_corrected', { old: currentIntent, new: fastIntent, traceId }, userId);
                     currentIntent = fastIntent;
@@ -44,14 +61,17 @@ export class AgentWorkflow {
             }
 
             const RAG_INTENTS = ['FACT_LOOKUP', 'RESEARCH', 'DEBUGGING', 'DESIGN'];
-            const shouldUseRAG = RAG_INTENTS.includes(currentIntent);
+
+            // Heuristic RAG Gating: Intent + Complexity Check
+            const queryComplexity = query.split(/\s+/).length > 3 || /[\?\.!]/.test(query);
+            const hasDomainKeywords = /MFU|system|architecture|security|JWT|canonical|rolling|memory|promotion|auth/i.test(query);
+            const shouldUseRAG = RAG_INTENTS.includes(currentIntent) && (queryComplexity || hasDomainKeywords);
 
             let ragContext = '';
             if (shouldUseRAG) {
                 ragContext = await KnowledgeService.search(query, userContext, collectionId, currentIntent);
-                LoggerService.info('agent_rag_result', { found: !!ragContext, intent: currentIntent, traceId }, userId);
+                LoggerService.info('agent_rag_result', { found: !!ragContext, intent: currentIntent, traceId, queryComplexity }, userId);
             }
-
             const ragSystemPrompt = ragContext
                 ? `\n\n=== KNOWLEDGE BASE CONTEXT ===\n${ragContext}\n==============================\nUse this context to answer the user's question if relevant.`
                 : '';
@@ -87,6 +107,8 @@ If you need to use a tool to answer, use it. If you have the answer, reply direc
             let steps = 0;
             let finalAnswer = '';
             let lastToolCall = '';
+            let repeatCount = 0;
+            const startTime = Date.now();
 
             while (steps < MAX_STEPS) {
                 steps++;
@@ -137,15 +159,20 @@ If you need to use a tool to answer, use it. If you have the answer, reply direc
                     continue;
                 }
 
-                // Loop Kill-Switch: If agent calls the SAME tool with SAME params twice, break.
-                const currentCall = `${toolCall.tool}:${JSON.stringify(toolCall.parameters)}`;
-                if (currentCall === lastToolCall) {
-                    LoggerService.warn('agent_loop_detected', { currentCall, traceId }, userId);
-                    finalAnswer = "I've detected a repetitive tool loop. Here is the last known output prior to the loop: " + fullResponse.replace(/<tool_use>[\s\S]*?<\/tool_use>/g, '').trim();
+                // Loop Kill-Switch: Resilient Loop Detection (Allow 2 repeats)
+                const currentCallPrefix = `${toolCall.tool}:${JSON.stringify(toolCall.parameters)}`;
+                if (lastToolCall && currentCallPrefix === lastToolCall.split(':step')[0]) {
+                    repeatCount++;
+                } else {
+                    repeatCount = 0;
+                }
+
+                if (repeatCount > 1) {
+                    LoggerService.warn('agent_loop_detected', { currentCall: currentCallPrefix, repeatCount, traceId }, userId);
+                    finalAnswer = "I've detected an iterative loop. Based on previous attempts, here is the best available answer: " + fullResponse.replace(/<tool_use>[\s\S]*?<\/tool_use>/g, '').trim();
                     break;
                 }
-                lastToolCall = currentCall;
-
+                lastToolCall = `${currentCallPrefix}:step${steps}`;
                 const tool = allowedTools.find(t => t.name === toolCall.tool);
                 if (!tool) {
                     messages.push({ role: 'assistant', content: fullResponse });
@@ -166,12 +193,13 @@ If you need to use a tool to answer, use it. If you have the answer, reply direc
                 messages.push({ role: 'assistant' as const, content: fullResponse });
                 messages.push({ role: 'user' as const, content: resultBlock });
 
-                // 5. History Pruning (Keep memory light during loop)
-                if (messages.length > 10) {
+                // 5. History Pinning (Protect tool results from pruning)
+                if (messages.length > 12) {
                     const systemMsg = messages[0];
-                    const recentMsgs = messages.slice(-4);
-                    messages = [systemMsg, ...recentMsgs];
-                    LoggerService.info('agent_history_pruned', { size: messages.length }, userId);
+                    const toolResults = messages.filter(m => m.content?.includes('</tool_result>')).slice(-2);
+                    const lastTurns = messages.filter(m => !m.content?.includes('</tool_result>') && m.role !== 'system').slice(-4);
+                    messages = [systemMsg, ...toolResults, ...lastTurns];
+                    LoggerService.info('agent_history_pinned_prune', { size: messages.length, pinnedTools: toolResults.length }, userId);
                 }
             }
 
@@ -182,7 +210,20 @@ If you need to use a tool to answer, use it. If you have the answer, reply direc
                 res.write('data: [DONE]\n\n');
                 res.end();
 
-                // 7. Background Summarization
+                // 7. Reliability Signals (Telemetry)
+                const duration = Date.now() - startTime;
+                LoggerService.info('agent_reliability_telemetry', {
+                    traceId,
+                    userId,
+                    durationMs: duration,
+                    stepsUsed: steps,
+                    usedRAG: shouldUseRAG,
+                    intent: currentIntent,
+                    loopDetected: repeatCount > 1,
+                    tokenPressure: messages.length
+                });
+
+                // 8. Background Summarization
                 SummarizationService.runUpdate(userId, sessionId, [{ role: 'user', content: query }, { role: 'assistant', content: cleanedAnswer }], smartContext);
             }
 
@@ -193,10 +234,19 @@ If you need to use a tool to answer, use it. If you have the answer, reply direc
         }
     }
 
-    private static async quickIntentCheck(query: string): Promise<string> {
+    private static async quickIntentCheck(query: string, context?: any): Promise<string> {
         try {
+            const contextStr = context ? `
+Context:
+- Last Intent: ${context.last_intent}
+- Decisions: ${context.last_decisions?.join(', ')}
+- Constraints: ${context.constraints?.join(', ')}
+` : '';
+
             const prompt = `Classify user intent for: "${query}"
             Options: FACT_LOOKUP, RESEARCH, DEBUGGING, DESIGN, CHITCHAT, QUERY.
+            ${contextStr}
+            Note: If query is ambiguous (e.g. "Why is it broken?"), rely on Last Intent.
             Output ONLY the enum value in <intent></intent> tags.`;
 
             const response = await BedrockService.sendChat('anthropic.claude-3-haiku-20240307-v1:0', [{ role: 'user', content: prompt }], '', 0.1);
