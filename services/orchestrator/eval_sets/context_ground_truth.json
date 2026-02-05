@@ -1,0 +1,43 @@
+[
+    {
+        "id": "sum_001",
+        "input_messages": [
+            {
+                "role": "user",
+                "content": "Let's use Claude 3 Haiku for rolling summaries to save cost."
+            },
+            {
+                "role": "assistant",
+                "content": "Agreed. Haiku is perfect for that. I've updated the config."
+            }
+        ],
+        "expected": {
+            "facts": [
+                "Claude 3 Haiku used for rolling summaries"
+            ],
+            "decisions": [
+                "Model optimization for cost"
+            ],
+            "confidence_min": 0.8
+        }
+    },
+    {
+        "id": "sum_002",
+        "input_messages": [
+            {
+                "role": "user",
+                "content": "I am working on a Windows machine."
+            },
+            {
+                "role": "assistant",
+                "content": "Understood. I'll provide PowerShell commands."
+            }
+        ],
+        "expected": {
+            "constraints": [
+                "OS: Windows"
+            ],
+            "intent": "GENERAL_SETUP"
+        }
+    }
+]

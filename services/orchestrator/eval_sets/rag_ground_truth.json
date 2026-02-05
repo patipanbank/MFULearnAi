@@ -1,0 +1,44 @@
+[
+    {
+        "id": "rag_001",
+        "query": "How to handle JWT rotation?",
+        "intent": "FACT_LOOKUP",
+        "expected_doc_ids": [
+            "auth-jwt-rotation-guide"
+        ],
+        "must_include": [
+            "kid",
+            "TokenService",
+            "singleton"
+        ],
+        "difficulty": "easy"
+    },
+    {
+        "id": "rag_002",
+        "query": "How does human context help in agent workflow?",
+        "intent": "RESEARCH",
+        "expected_doc_ids": [
+            "smart-context-v2-architecture"
+        ],
+        "must_include": [
+            "canonical",
+            "rolling",
+            "recurrence"
+        ],
+        "difficulty": "medium"
+    },
+    {
+        "id": "rag_003",
+        "query": "Explain the retrieval policy for RESEARCH intent.",
+        "intent": "ARCHITECTURE_EXPLANATION",
+        "expected_doc_ids": [
+            "knowledge-service-policy-engine"
+        ],
+        "must_include": [
+            "Top-K: 10",
+            "strategy: high_recall",
+            "alpha: 0.7"
+        ],
+        "difficulty": "medium"
+    }
+]

@@ -138,15 +138,18 @@ Output: Updated Canonical Memory (Text only).
             const rollingHash = crypto.createHash('sha256').update(JSON.stringify(coreState)).digest('hex');
             const isDuplicate = currentContext.hashes.rolling === rollingHash;
 
-            if (shouldCanonize && !isDuplicate) {
-                newCanonical = await this.canonize(currentContext.canonical, newRolling);
-                LoggerService.info(`[SmartContext] Canonization successful for ${sessionId} at version ${targetVersion}`);
+            if (shouldCanonize) {
+                if (isDuplicate) {
+                    LoggerService.info(`[SmartContext] Canonization skipped: Idempotent (Hash: ${rollingHash.substring(0, 8)})`);
+                } else {
+                    newCanonical = await this.canonize(currentContext.canonical, newRolling);
+                    LoggerService.info(`[SmartContext] Canonization successful for ${sessionId}`);
+                }
             } else if (targetVersion % this.CANONIZATION_INTERVAL === 0) {
                 LoggerService.warn(`[SmartContext] Canonization skipped for ${sessionId}. Confidence: ${newRolling.confidence_score}, Duplicate: ${isDuplicate}`);
             }
 
             // 3. Generate Hashes for Integrity Tracking
-            const rollingStr = JSON.stringify(newRolling);
             const messagesStr = JSON.stringify(newMessages);
 
             const nextContext: SmartContext = {
@@ -154,8 +157,8 @@ Output: Updated Canonical Memory (Text only).
                 rolling: newRolling,
                 version: targetVersion,
                 hashes: {
-                    canonical: crypto.createHash('sha256').update(newCanonical).digest('hex'),
-                    rolling: rollingHash, // Store hash of core facts for idempotency
+                    canonical: shouldCanonize && !isDuplicate ? crypto.createHash('sha256').update(newCanonical).digest('hex') : currentContext.hashes.canonical,
+                    rolling: rollingHash,
                     raw: crypto.createHash('sha256').update(messagesStr).digest('hex')
                 },
                 lastCanonizedAt: (shouldCanonize && !isDuplicate) ? new Date() : currentContext.lastCanonizedAt
@@ -172,6 +175,33 @@ Output: Updated Canonical Memory (Text only).
         } catch (e) {
             LoggerService.error('Summarization Pipeline Failed', e instanceof Error ? { message: e.message, stack: e.stack } : e);
             // Signal failure to monitoring (LoggerService already handles basic error logging)
+        }
+    }
+
+    static async handleManualCorrection(userId: string, sessionId: string, type: 'fact' | 'intent', correction: any) {
+        try {
+            const { smartContext } = await HistoryService.getContext(userId, sessionId);
+            if (!smartContext) return;
+
+            if (type === 'fact') {
+                // If user corrects a fact, it goes straight to tentative but tagged as "Verified"
+                // We'll prefix it or use a separate verification flag if we had one.
+                // For now, let's just push it to rolling facts but force a low-latency canonization if needed.
+                const newFact = typeof correction === 'string' ? correction : correction.text;
+                smartContext.rolling.facts = [...(smartContext.rolling.facts || []), `[Verified] ${newFact}`];
+                LoggerService.info('fact_manually_corrected', { userId, sessionId, fact: newFact });
+            } else if (type === 'intent') {
+                smartContext.rolling.intent = {
+                    primary: correction.primary,
+                    secondary: correction.secondary || [],
+                    confidence: 1.0 // Manual correction is always 100% confident
+                };
+                LoggerService.info('intent_manually_corrected', { userId, sessionId, intent: correction.primary });
+            }
+
+            await HistoryService.updateSmartContext(userId, sessionId, smartContext);
+        } catch (e) {
+            LoggerService.error('Manual Correction Failed', e);
         }
     }
 
