@@ -76,15 +76,15 @@ export class AgentWorkflow {
             const allowedTools = AVAILABLE_TOOLS.filter(t => t.isAllowed(userRole));
 
             // Heuristic RAG Gating: Intent + Complexity Check (Improved for Thai)
-            const queryComplexity = query.split(/\s+/).length >= 3 || query.length > 15 || /[\?\.!]/.test(query);
-            const hasDomainKeywords = /MFU|system|architecture|security|JWT|canonical|rolling|memory|promotion|auth|Phitsanuruk|พิษณุรักษ์|คู่มือ|สิทธิ์|วิจัย|ค้นหา/i.test(query);
+            const queryComplexity = query.split(/\s+/).length >= 3 || query.length > 20 || /[\?\.!]/.test(query);
+            const hasDomainKeywords = /MFU|system|architecture|security|JWT|canonical|rolling|memory|promotion|auth|Phitsanulok|พิษณุรักษ์|คู่มือ|สิทธิ์|วิจัย|ค้นหา|ระเบียบ|ประกาศ|แนวทาง|ใคร|คือ|ที่ไหน|เมื่อไหร่|อย่างไร|กำหนดการ/i.test(query);
 
             // Relaxed Rule: Trigger RAG if:
             // 1. Intent is explicitly factual (FACT_LOOKUP, RESEARCH)
-            // 2. A specific collection is selected AND intent is not social (CHITCHAT)
+            // 2. A specific collection is selected AND (it's complex OR has keywords) AND intent is not social (CHITCHAT)
             // 3. Query matches RAG intents AND (is complex OR has keywords)
             const shouldUseRAG = (currentIntent === 'FACT_LOOKUP' || currentIntent === 'RESEARCH') ||
-                (collectionId && currentIntent !== 'CHITCHAT') ||
+                (collectionId && currentIntent !== 'CHITCHAT' && (queryComplexity || hasDomainKeywords)) ||
                 (RAG_INTENTS.includes(currentIntent) && (queryComplexity || hasDomainKeywords));
             let ragContext = '';
             let ragSources: Array<{ id: string, name: string }> = [];
