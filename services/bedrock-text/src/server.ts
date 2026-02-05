@@ -220,6 +220,12 @@ app.post('/api/bedrock/chat', async (req: Request, res: Response) => {
             const decoded = new TextDecoder().decode(response.body);
             const data = JSON.parse(decoded);
 
+            // Debug Logging: What is the model actually returning?
+            console.log(`[Bedrock Text] Raw Response Type: ${data.type}, Stop Reason: ${data.stop_reason}`);
+            if (data.content && Array.isArray(data.content)) {
+                console.log(`[Bedrock Text] Block Types: ${data.content.map((b: any) => b.type).join(', ')}`);
+            }
+
             // Robust Parsing: Claude 3 returns content as an array of blocks
             let contentText = '';
             if (Array.isArray(data.content)) {
@@ -227,16 +233,23 @@ app.post('/api/bedrock/chat', async (req: Request, res: Response) => {
                     .filter((block: any) => block.type === 'text')
                     .map((block: any) => block.text)
                     .join('');
+
+                // If it's empty but we have non-text blocks, let's log them specifically
+                if (!contentText && data.content.length > 0) {
+                    console.warn(`[Bedrock Text] Warning: No text blocks, but found blocks of type:`, data.content.map((b: any) => b.type));
+                    console.warn(`[Bedrock Text] Full Raw Data:`, JSON.stringify(data, null, 2));
+                }
             } else if (typeof data.content === 'string') {
                 contentText = data.content;
             }
 
             const usage = data.usage || { input_tokens: 0, output_tokens: 0 };
-            console.log(`[Bedrock Text] Sync Success [${finalModelId}] Tokens: ${usage.input_tokens + usage.output_tokens}`);
+            console.log(`[Bedrock Text] Sync Success [${finalModelId}] OutTokens: ${usage.output_tokens}, Reason: ${data.stop_reason}`);
 
             res.json({
                 success: true,
                 content: contentText,
+                stopReason: data.stop_reason,
                 usage: {
                     input: usage.input_tokens,
                     output: usage.output_tokens,

@@ -118,15 +118,15 @@ export class BedrockService {
             if (!content) {
                 console.warn('[BedrockService] Warning: Received empty content from model', {
                     status: response.status,
-                    hasData: !!response.data,
-                    dataKeys: response.data ? Object.keys(response.data) : []
+                    stopReason: response.data.stopReason,
+                    dataKeys: response.data ? Object.keys(response.data) : [],
+                    usage: response.data.usage
                 });
             }
 
             return content;
         } catch (error: any) {
             console.error('[BedrockService] SendChat Error:', error.message, {
-                stack: error.stack,
                 responseData: error.response?.data
             });
             throw error;
