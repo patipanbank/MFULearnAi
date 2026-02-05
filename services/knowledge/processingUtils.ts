@@ -6,11 +6,18 @@ dotenv.config();
 
 const BEDROCK_EMBEDDING_URL = process.env.BEDROCK_EMBEDDING_URL || 'http://localhost:5003/api/bedrock';
 
+import { TokenUtil } from './tokenUtils';
+
 export async function getEmbedding(text: string): Promise<number[]> {
     try {
-        const INTERNAL_API_KEY = process.env.INTERNAL_API_KEY || 'internal-secret-key';
+        // MINT SHORT-LIVED TOKEN
+        const token = TokenUtil.mint('mfu-bedrock-service');
+
         const response = await axios.post(`${BEDROCK_EMBEDDING_URL}/embeddings`, { text }, {
-            headers: { 'x-internal-key': INTERNAL_API_KEY }
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
         });
         if (response.data && response.data.embedding) return response.data.embedding;
         throw new Error('Invalid Bedrock response');

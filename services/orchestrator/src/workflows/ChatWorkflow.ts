@@ -4,6 +4,7 @@ import { KnowledgeService } from '../services/KnowledgeService';
 import { PromptService } from '../services/PromptService';
 import { BedrockService } from '../services/BedrockService';
 import { LoggerService } from '../services/LoggerService';
+import { SummarizationService } from '../services/SummarizationService'; // Added
 import { Response } from 'express';
 
 interface ChatRequest {
@@ -27,25 +28,47 @@ export class ChatWorkflow {
 
         console.log(`[ChatWorkflow] Executing. Context ID: ${require('../services/ContextService').ContextService.getCorrelationId()}`);
 
-        LoggerService.log('info', 'chat_request_received', {
+        LoggerService.info('chat_request_received', {
             sessionId,
             messageLength: message?.length || 0,
             modelId,
             fileCount: files?.length || 0
         }, userId);
 
-        // 1. Get Context (Summary + History)
-        const { messages: history, summary } = await HistoryService.getContext(userId, sessionId);
+        // 1. Get Context (Smart Context + History)
+        const { messages: history, smartContext } = await HistoryService.getContext(userId, sessionId);
 
-        // 2. RAG Context (Optional)
+        // 2. RAG Context (Optional) - GATED BY INTENT
         const userContext = { userId, role: userRole, department: userDepartment };
-        const ragContext = await KnowledgeService.search(message || '', userContext, collectionId);
+        const intent = smartContext?.rolling?.intent || 'QUERY';
+        const RAG_INTENTS = ['FACT_LOOKUP', 'RESEARCH', 'DEBUGGING', 'DESIGN'];
+        const shouldUseRAG = RAG_INTENTS.includes(intent);
+
+        LoggerService.info('chat_rag_check', { intent, shouldUseRAG }, userId);
+
+        let ragContext = '';
+        if (shouldUseRAG) {
+            ragContext = await KnowledgeService.search(message || '', userContext, collectionId, intent);
+        }
+
         const ragSystemPrompt = ragContext ? `\n\nHere is some relevant context from the Knowledge Base:\n<context>\n${ragContext}\n</context>\nUse this context to answer the user's question if relevant.` : '';
 
         // 2.5 Smart Context Injection
         let summaryContext = '';
-        if (summary) {
-            summaryContext = `\n\n<previous_conversation_summary>\n${summary}\n</previous_conversation_summary>\n(Use this summary to understand previous context, but prioritize the raw messages below)`;
+        if (smartContext) {
+            summaryContext = `
+\n\n=== SMART CONTEXT ===
+<canonical_memory>
+${smartContext.canonical || 'No established history.'}
+</canonical_memory>
+
+<rolling_context>
+${JSON.stringify(smartContext.rolling || {}, null, 2)}
+</rolling_context>
+=====================
+`;
+        } else if (history.length === 0) {
+            // Fallback or Cold Start
         }
 
         // 3. Prepare System Prompt
@@ -148,25 +171,11 @@ export class ChatWorkflow {
                 modelId
             );
 
-            LoggerService.log('info', 'chat_completion', { sessionId, tokens: tokenUsage }, userId);
+            LoggerService.info('chat_completion', { sessionId, tokens: tokenUsage }, userId);
 
             // 5. Background Summarization (Fire-and-forget)
-            // Trigger every 5 turns (metadata.messageCount % 10 === 0)?
-            // Or if history length > 10?
-            if (history.length > 5) { // Simple trigger
-                const correlationId = require('../services/ContextService').ContextService.getCorrelationId(); // Capture current ID
-
-                import('../services/SummarizationService').then(async ({ SummarizationService }) => {
-                    // Restore context for background task
-                    require('../services/ContextService').ContextService.run({ correlationId }, async () => {
-                        const newSummary = await SummarizationService.summarize([...history, currentMessage, assistantMessage], summary);
-                        if (newSummary && newSummary !== summary) {
-                            await HistoryService.updateSummary(userId, sessionId, newSummary);
-                            LoggerService.log('info', 'summary_updated', { sessionId }, userId);
-                        }
-                    });
-                }).catch(err => console.error(err));
-            }
+            SummarizationService.runUpdate(userId, sessionId, [currentMessage, assistantMessage], smartContext)
+                .catch(e => LoggerService.error('Background Summary Failed', e));
         });
     }
 }

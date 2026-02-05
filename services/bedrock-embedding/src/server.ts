@@ -1,6 +1,8 @@
 import express, { Request, Response } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import jwt from 'jsonwebtoken';
+import fs from 'fs';
 import {
     BedrockRuntimeClient,
     InvokeModelCommand
@@ -26,16 +28,39 @@ const TITAN_EMBED_MODEL = "amazon.titan-embed-text-v1";
 
 // --- Middleware ---
 const authenticateInternal = (req: Request, res: Response, next: any) => {
-    const key = req.headers['x-internal-key'];
-    const INTERNAL_API_KEY = process.env.INTERNAL_API_KEY || 'internal-secret-key';
-
-    if (key !== INTERNAL_API_KEY) {
-        console.warn(`[Bedrock Embedding] Unauthorized access attempt from ${req.ip}`);
-        return res.status(401).json({ error: 'Unauthorized: Internal Access Only' });
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return res.status(401).json({ error: 'Missing Bearer Token' });
     }
-    next();
+
+    const token = authHeader.split(' ')[1];
+    const fs = require('fs');
+    const PUBLIC_KEY_PATH = process.env.JWT_PUBLIC_KEY_PATH || '/run/secrets/jwt_public_key';
+
+    try {
+        if (!fs.existsSync(PUBLIC_KEY_PATH)) {
+            console.error('[Bedrock] Missing Public Key File');
+            return res.status(500).json({ error: 'Server Configuration Error' });
+        }
+        const publicKey = fs.readFileSync(PUBLIC_KEY_PATH);
+        const decoded: any = jwt.verify(token, publicKey, { algorithms: ['RS256'] });
+
+        // STRICT VERIFICATION
+        if (decoded.aud !== 'mfu-bedrock-service') throw new Error('Invalid Audience');
+        if (decoded.typ !== 'internal-jwt') throw new Error('Invalid Token Type');
+        // if (!decoded.scope.includes('internal:read')) ... (Optional granularity)
+
+        // Pass
+        next();
+    } catch (e: any) {
+        console.warn(`[Bedrock] Auth Failed: ${e.message}`);
+        return res.status(403).json({ error: 'Forbidden' });
+    }
 };
 
+app.get('/health', (req, res) => res.json({ status: 'ok', service: 'bedrock-embedding' }));
+
+// Protect API
 app.use(authenticateInternal);
 
 app.post('/api/bedrock/embeddings', async (req: Request, res: Response) => {
@@ -66,7 +91,5 @@ app.post('/api/bedrock/embeddings', async (req: Request, res: Response) => {
         res.status(500).json({ error: e.message });
     }
 });
-
-app.get('/health', (req, res) => res.json({ status: 'ok', service: 'bedrock-embedding' }));
 
 app.listen(PORT, () => console.log(`[Bedrock Embedding] Running on ${PORT}`));

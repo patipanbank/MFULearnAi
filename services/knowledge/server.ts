@@ -52,17 +52,9 @@ interface UserContext {
 }
 
 const extractUser = (req: Request): UserContext | null => {
-    // 1. Try headers from Gateway (Preferred if Gateway does Auth)
-    const gwId = req.headers['x-user-id'] as string;
-    if (gwId) {
-        return {
-            userId: gwId,
-            role: (req.headers['x-role'] as string) || 'student',
-            department: (req.headers['x-department'] as string) || 'General'
-        };
-    }
+    // ZERO TRUST: Do NOT trust x-user-id headers. Always verify token.
 
-    // 2. Validate Bearer Token
+    // Validate Bearer Token
     const authHeader = req.headers.authorization;
     if (authHeader && authHeader.startsWith('Bearer ')) {
         const token = authHeader.split(' ')[1];
@@ -86,13 +78,24 @@ const extractUser = (req: Request): UserContext | null => {
                 const publicKey = fs.readFileSync(PUBLIC_KEY_PATH);
                 const decodedInternal: any = jwt.verify(token, publicKey, { algorithms: ['RS256'] });
 
-                if (decodedInternal && decodedInternal.aud === 'knowledge') {
-                    return {
-                        userId: decodedInternal.iss || 'orchestrator',
-                        role: 'admin', // Internal calls are privileged
-                        department: 'Global'
-                    };
+                // STRICT VERIFICATION
+                // 1. Check Audience (Use Service ID)
+                if (decodedInternal.aud !== 'mfu-knowledge-service') {
+                    console.warn('[Knowledge] Invalid audience:', decodedInternal.aud);
+                    return null;
                 }
+
+                // 2. Check Type
+                if (decodedInternal.typ !== 'internal-jwt') {
+                    console.warn('[Knowledge] Invalid token type:', decodedInternal.typ);
+                    return null;
+                }
+
+                return {
+                    userId: decodedInternal.sub || 'service:orchestrator', // Use 'sub' as userId
+                    role: 'admin', // Internal calls are privileged (Mapped from scope?)
+                    department: 'Global'
+                };
             }
         } catch (e) {
             console.warn(`[Knowledge] Token verification failed: ${e instanceof Error ? e.message : 'Unknown'}`);
@@ -710,15 +713,28 @@ app.get('/api/knowledge/collections/:id', async (req: Request, res: Response) =>
     }
 });
 
-// 6. SEARCH (RAG)
-app.post('/api/knowledge/search', async (req: Request, res: Response) => {
-    const { query, collectionId, limit = 3 } = req.body;
+// 6. SEARCH (RAG) - PHASE 5: INTENT-AWARE
+import { ReRankerService } from './ReRankerService';
 
-    // We don't necessarily have user context here if called from Orchestrator backend-to-backend without passing headers
-    // BUT the Orchestrator should ideally pass the user context headers.
-    // For now, let's assume if collectionId is provided, we check logic.
-    // However, Orchestrator might call this. 
-    // If collectionId is missing -> SEARCH DEFAULT.
+app.post('/api/knowledge/search', async (req: Request, res: Response) => {
+    const { query, collectionId, limit = 3, intent = 'QUERY' } = req.body;
+
+    // Phase 5.2: Retrieval Policy Engine
+    const POLICY: any = {
+        'CHITCHAT': { k: 0, strategy: 'none' },
+        'FACT_LOOKUP': { k: 3, strategy: 'high_precision', alpha: 0.3 },
+        'RESEARCH': { k: 10, strategy: 'high_recall', alpha: 0.7 },
+        'DESIGN': { k: 10, strategy: 'high_recall', alpha: 0.7 },
+        'DEBUGGING': { k: 15, strategy: 'broad', alpha: 0.8 },
+        'QUERY': { k: 5, strategy: 'balanced', alpha: 0.5 }
+    };
+
+    const policy = POLICY[intent] || POLICY['QUERY'];
+    const dynamicLimit = policy.k;
+
+    if (dynamicLimit === 0) {
+        return res.json({ results: [] });
+    }
 
     try {
         let targetKnowledgeIds: string[] = [];
@@ -729,7 +745,6 @@ app.post('/api/knowledge/search', async (req: Request, res: Response) => {
                 targetKnowledgeIds = col.knowledgeIds.map(id => id.toString());
             }
         } else {
-            // Fallback to Default
             const def = await Collection.findOne({ isDefault: true });
             if (def && def.knowledgeIds.length > 0) {
                 targetKnowledgeIds = def.knowledgeIds.map(id => id.toString());
@@ -740,26 +755,63 @@ app.post('/api/knowledge/search', async (req: Request, res: Response) => {
             return res.json({ results: [] });
         }
 
-        // Chroma Query
+        // 1. CHROMA QUERY (Phase 5 - Fetch more for re-ranking)
         const embedding = await getEmbedding(query);
         const col = await chroma.getCollection({ name: GLOBAL_CHROMA_COLLECTION } as any);
 
-        // Filter by logical OR of knowledgeIds. 
-        // Chroma $in syntax: { knowledgeId: { $in: [id1, id2] } }
         const results = await col.query({
             queryEmbeddings: [embedding],
-            nResults: limit,
+            nResults: dynamicLimit * 3, // Fetch window for re-ranking
             where: { knowledgeId: { "$in": targetKnowledgeIds } }
         });
 
-        // Format
-        const hits = results.documents[0].map((doc, i) => ({
-            content: doc,
-            metadata: results.metadatas[0][i],
-            score: results.distances?.[0][i]
-        }));
+        // 2. HYBRID SCORING & CLAMPING
+        const tokens: string[] = query.toLowerCase().split(/\s+/).filter((t: string) => t.length > 3);
 
-        res.json({ results: hits });
+        let hits = (results.documents[0] as string[]).map((doc: string, i: number) => {
+            const safeDoc = doc || '';
+            const semanticDist = results.distances?.[0][i] || 1;
+            // Cosine distance to similarity: similarity = 1 - distance
+            const semanticScore = Math.max(0, Math.min(1, 1 - semanticDist));
+
+            // Simulating Keyword match (Fuzzy Keyword booster)
+            let keywordMatches = 0;
+            const docLower = doc?.toLowerCase() || '';
+            tokens.forEach((t: string) => { if (docLower.includes(t)) keywordMatches++; });
+            const keywordScore = tokens.length > 0 ? keywordMatches / tokens.length : 0;
+
+            // WEIGHTED FUSION (RRF placeholder logic)
+            const alpha = policy.alpha;
+            const finalScore = (alpha * semanticScore) + ((1 - alpha) * keywordScore);
+
+            return {
+                content: doc,
+                metadata: results.metadatas[0][i],
+                scores: { semantic: semanticScore, keyword: keywordScore, final: finalScore },
+                score: finalScore // for sorting
+            };
+        });
+
+        // Sort by final score
+        hits.sort((a, b) => b.score - a.score);
+
+        // 3. RE-RANKING (Sonnet/Haiku Stage)
+        const validatedHits = await ReRankerService.reRank(query, intent, hits.slice(0, 15));
+
+        // 4. LOGGING (Breakdown)
+        console.info(`[RAG Search] Query: "${query}" | Intent: ${intent} | Strategy: ${policy.strategy}`);
+        validatedHits.slice(0, 3).forEach((h, i) => {
+            console.info(`  Rank ${i + 1}: S=${h.scores.semantic.toFixed(3)} K=${h.scores.keyword.toFixed(3)} F=${h.scores.final.toFixed(3)}`);
+        });
+
+        res.json({
+            results: validatedHits.slice(0, dynamicLimit),
+            metadata: {
+                intent,
+                strategy: policy.strategy,
+                limit: dynamicLimit
+            }
+        });
 
     } catch (e: any) {
         console.error('Search error:', e);

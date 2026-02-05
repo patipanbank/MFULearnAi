@@ -71,4 +71,47 @@ export class BedrockService {
         });
         return response.data;
     }
+    static async sendChat(
+        modelId: string,
+        messages: ChatMessage[],
+        system?: string,
+        temperature: number = 0.5
+    ): Promise<string> {
+        try {
+            const response = await axios({
+                method: 'post',
+                url: `${BEDROCK_TEXT_URL}/chat`,
+                data: {
+                    messages,
+                    modelId,
+                    system,      // Pass system prompt if supported by downstream
+                    temperature,  // Pass params
+                    stream: false // Hint downstream to not stream (if supported)
+                },
+                headers: {
+                    'Authorization': `Bearer ${TokenService.mint('bedrock', 'write')}`,
+                    'x-correlation-id': ContextService.getCorrelationId()
+                },
+                responseType: 'json', // Expect JSON if stream=false supported
+                timeout: 60000
+            });
+
+            // If downstream supports stream: false, it returns { text: "..." }
+            if (response.data && response.data.text) {
+                return response.data.text;
+            }
+
+            // Fallback: If it returns stream despite request? (Unlikely with axios json default)
+            // But let's assume it might return ndjson if it ignores stream: false
+            return JSON.stringify(response.data);
+
+        } catch (error: any) {
+            // If we failed because it forced stream, we'd need to handle stream consumption.
+            // For now assume bedrock-text supports non-streaming if requested or simple JSON.
+            // If bedrock-text ONLY streams, we must consume stream here.
+            // Let's implement stream consumption fallback if needed, but for MVP let's assume JSON.
+            console.error('[BedrockService] SendChat Error:', error.message);
+            throw error;
+        }
+    }
 }

@@ -6,9 +6,9 @@ import { TokenService } from './TokenService';
 const KNOWLEDGE_URL = process.env.KNOWLEDGE_URL || 'http://localhost:7000/api/knowledge';
 
 export class KnowledgeService {
-    static async search(query: string, userContext: any, collectionId?: string): Promise<string> {
+    static async search(query: string, userContext: any, collectionId?: string, intent: string = 'QUERY'): Promise<string> {
         try {
-            const payload: any = { query, limit: 3 };
+            const payload: any = { query, limit: 3, intent };
             if (collectionId) payload.collectionId = collectionId;
 
             const headers: any = {

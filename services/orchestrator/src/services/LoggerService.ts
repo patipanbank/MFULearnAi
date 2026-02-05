@@ -24,4 +24,15 @@ export class LoggerService {
             console.error('[LoggerService] Failed to log:', err);
         }
     }
+    static async info(action: string, context?: any, userId?: string) {
+        return this.log('info', action, context, userId);
+    }
+
+    static async warn(action: string, context?: any, userId?: string) {
+        return this.log('warn', action, context, userId);
+    }
+
+    static async error(action: string, context?: any, userId?: string) {
+        return this.log('error', action, context, userId);
+    }
 }

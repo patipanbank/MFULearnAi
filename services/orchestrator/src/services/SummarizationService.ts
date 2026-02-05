@@ -1,107 +1,235 @@
-import axios from '../config/axios';
-import { ChatMessage } from '../../../../shared/types';
+import { BedrockService } from './BedrockService';
+import { HistoryService } from './HistoryService';
 import { LoggerService } from './LoggerService';
-import { TokenService } from './TokenService';
-import { ContextService } from './ContextService';
+import crypto from 'crypto';
 
-const BEDROCK_TEXT_URL = process.env.BEDROCK_TEXT_URL || 'http://localhost:5001/api/bedrock';
-const INTERNAL_API_KEY = process.env.INTERNAL_API_KEY || 'internal-secret-key';
-const HAIKU_MODEL_ID = 'anthropic.claude-3-5-sonnet-20240620-v1:0';
+interface SmartContext {
+    canonical: string;
+    rolling: {
+        facts: string[];
+        tentative_facts?: string[];
+        intent: string;
+        constraints: string[];
+        decisions: string[];
+        open_questions: string[];
+        confidence_score: number;
+    };
+    version: number;
+    hashes: { canonical: string; rolling: string; raw: string };
+    lastCanonizedAt: Date;
+}
 
 export class SummarizationService {
-    static async summarize(newMessages: ChatMessage[], existingSummary: string): Promise<string> {
-        try {
-            // 1. Construct Prompt
-            const messagesText = newMessages.map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n');
-            const prompt = `
-You are an expert summarizer. Your task is to update the conversation summary with new information.
+    private static ROLLING_INTERVAL = 1;
+    private static CANONIZATION_INTERVAL = 5;
 
-<current_summary>
-${existingSummary || '(No previous summary)'}
-</current_summary>
+    private static ROLLING_PROMPT = `
+You are a Memory Manager AI. Your goal is to update the "Rolling Context" based on the latest conversation.
+Output strictly in JSON within <json> sentinel tags.
 
-<new_messages>
-${messagesText}
-</new_messages>
+Input:
+- Current Rolling Context (JSON)
+- New Messages
 
-INSTRUCTIONS:
-1. Incorporate key facts, user intents, and decisions from <new_messages> into the <current_summary>.
-2. Maintain a coherent narrative.
-3. Keep it concise but do not lose important details (names, dates, specific requirements).
-4. If the new messages are just chit-chat, keep the summary mostly unchanged.
-5. Output ONLY the new summary text. Do not output tags.
+Task:
+1. Update 'facts' with new critical information.
+2. Update 'tentative_facts' for items that seem uncertain or need verification.
+3. Update 'intent' to reflect the user's CURRENT goal.
+4. Update 'constraints'.
+5. Update 'decisions'.
+6. Update 'open_questions'.
+
+Output Format:
+<json>
+{
+  "facts": ["string"],
+  "tentative_facts": ["string"],
+  "intent": "string",
+  "constraints": ["string"],
+  "decisions": ["string"],
+  "open_questions": ["string"],
+  "confidence_score": 0.0 to 1.0
+}
+</json>
 `;
 
-            // 2. Call Bedrock (Haiku)
-            const response = await axios.post(`${BEDROCK_TEXT_URL}/chat`, {
-                modelId: HAIKU_MODEL_ID,
-                messages: [{ role: 'user', content: prompt }],
-                temperature: 0.3,
-                maxTokens: 1000
-            }, {
-                headers: {
-                    'Authorization': `Bearer ${TokenService.mint('bedrock', 'write')}`,
-                    'x-correlation-id': ContextService.getCorrelationId()
+    private static CANONIZATION_PROMPT = `
+You are a Historian AI. Your goal is to merge the temporary "Rolling Context" into the permanent "Canonical Memory".
+Canonical Memory is a concise, timeline-based summary of the entire project/conversation.
+
+Input:
+- Current Canonical Memory (Text)
+- Rolling Context (JSON)
+
+Task:
+1. Append validated facts and decisions from Rolling Context into the Canonical layout.
+2. Keep it concise but lossless for technical details.
+3. Do NOT include temporary chit-chat.
+
+Output: Updated Canonical Memory (Text only).
+`;
+
+    static async runUpdate(
+        userId: string,
+        sessionId: string,
+        newMessages: any[],
+        currentContext: SmartContext
+    ) {
+        try {
+            // 1. Generate New Rolling Summary
+            const newRolling = await this.generateRollingSummary(currentContext.rolling, newMessages);
+
+            // 1.1 TENTATIVE PROMOTION: If a tentative fact appears again, promote it to facts
+            const previousTentative = new Set(currentContext.rolling.tentative_facts || []);
+            const promotedFacts: string[] = [];
+            const remainingTentative: string[] = [];
+
+            if (newRolling.tentative_facts) {
+                for (const fact of newRolling.tentative_facts) {
+                    // Simple string matching for promotion
+                    if (previousTentative.has(fact)) {
+                        promotedFacts.push(fact);
+                    } else {
+                        remainingTentative.push(fact);
+                    }
                 }
-            });
-
-            let newSummary = '';
-            // Handle Stream or Non-Stream? BedrockService uses stream. let's assume /chat can handle non-stream if we implemented it, 
-            // BUT BedrockService/server.ts implementation of /chat endpoint in Bedrock Service might start a stream. 
-            // We need to check if the Bedrock Service supports non-streaming json response.
-            // Assumption: The Bedrock service we are calling likely streams by default or we need to consume the stream.
-            // Let's implement a quick stream consumer helper here or check BedrockService.
-
-            // To be safe, let's assume we consume the stream.
-            if (response.headers['content-type'] === 'text/event-stream') {
-                newSummary = await this.consumeStream(response.data);
-            } else if (response.data.text) {
-                newSummary = response.data.text;
             }
 
-            // 3. Verification (Self-Correction)
-            const verified = await this.verifySummary(newSummary, existingSummary, messagesText);
-            if (!verified) {
-                LoggerService.log('warn', 'summary_verification_failed', { old: existingSummary.length, new: newSummary.length });
-                return existingSummary; // Safe rollback
+            newRolling.facts = [...(newRolling.facts || []), ...promotedFacts];
+            newRolling.tentative_facts = remainingTentative;
+
+            // 1.2 HEURISTIC REFINEMENT
+            const currentTotal = (currentContext.rolling.facts?.length || 0) +
+                (currentContext.rolling.tentative_facts?.length || 0) +
+                (currentContext.rolling.decisions?.length || 0);
+            const newTotal = (newRolling.facts?.length || 0) +
+                (newRolling.tentative_facts?.length || 0) +
+                (newRolling.decisions?.length || 0);
+
+            const factDelta = Math.abs(newTotal - currentTotal);
+
+            if (newMessages.length > 2 && factDelta === 0 && newRolling.confidence_score > 0.8) {
+                newRolling.confidence_score *= 0.8;
+                LoggerService.info(`[SmartContext] Damping confidence due to zero state change in ${sessionId}`);
             }
 
-            return newSummary.trim();
+            // 2. Check Canonization Trigger
+            let newCanonical = currentContext.canonical;
+            const targetVersion = currentContext.version + 1;
+            const shouldCanonize = targetVersion % this.CANONIZATION_INTERVAL === 0 && newRolling.confidence_score >= 0.7;
 
-        } catch (error: any) {
-            LoggerService.log('error', 'summarization_failed', { error: error.message });
-            return existingSummary; // Fail open (return old summary)
+            // Idempotency: Use core fields (facts + decisions + constraints) for hash
+            const coreState = {
+                f: newRolling.facts,
+                d: newRolling.decisions,
+                c: newRolling.constraints
+            };
+            const rollingHash = crypto.createHash('sha256').update(JSON.stringify(coreState)).digest('hex');
+            const isDuplicate = currentContext.hashes.rolling === rollingHash;
+
+            if (shouldCanonize && !isDuplicate) {
+                newCanonical = await this.canonize(currentContext.canonical, newRolling);
+                LoggerService.info(`[SmartContext] Canonization successful for ${sessionId} at version ${targetVersion}`);
+            } else if (targetVersion % this.CANONIZATION_INTERVAL === 0) {
+                LoggerService.warn(`[SmartContext] Canonization skipped for ${sessionId}. Confidence: ${newRolling.confidence_score}, Duplicate: ${isDuplicate}`);
+            }
+
+            // 3. Generate Hashes for Integrity Tracking
+            const rollingStr = JSON.stringify(newRolling);
+            const messagesStr = JSON.stringify(newMessages);
+
+            const nextContext: SmartContext = {
+                canonical: newCanonical,
+                rolling: newRolling,
+                version: targetVersion,
+                hashes: {
+                    canonical: crypto.createHash('sha256').update(newCanonical).digest('hex'),
+                    rolling: rollingHash, // Store hash of core facts for idempotency
+                    raw: crypto.createHash('sha256').update(messagesStr).digest('hex')
+                },
+                lastCanonizedAt: (shouldCanonize && !isDuplicate) ? new Date() : currentContext.lastCanonizedAt
+            };
+
+            await HistoryService.updateSmartContext(userId, sessionId, nextContext);
+            LoggerService.info(`[SmartContext] Version ${nextContext.version} saved. State Hash: ${rollingHash.substring(0, 8)}`);
+
+            // Guard: Canonical Length (Soft Warning)
+            if (newCanonical.length > 5000) {
+                LoggerService.warn(`[SmartContext] Canonical memory for ${sessionId} is getting large (${newCanonical.length} chars). Consider auto-summarization.`);
+            }
+
+        } catch (e) {
+            LoggerService.error('Summarization Pipeline Failed', e instanceof Error ? { message: e.message, stack: e.stack } : e);
+            // Signal failure to monitoring (LoggerService already handles basic error logging)
         }
     }
 
-    private static async verifySummary(newSummary: string, oldSummary: string, newMessages: string): Promise<boolean> {
-        // Simple heuristic check: Is it too short? Did it hallucinate?
-        // Ideally we call LLM again to verify. "Does Summary B accurately reflect Summary A + Messages?"
-        // For cost, we might skip LLM check for now or use very explicitly.
-        // Let's do a basic length check.
-        if (newSummary.length < 10 && (oldSummary.length + newMessages.length) > 50) return false;
+    static async generateRollingSummary(
+        currentRolling: any,
+        newMessages: any[]
+    ): Promise<any> {
+        const prompt = `
+Current Rolling:
+${JSON.stringify(currentRolling, null, 2)}
 
-        return true;
+New Messages:
+${newMessages.map(m => `${m.role}: ${m.content}`).join('\n')}
+`;
+
+        try {
+            const response = await BedrockService.sendChat(
+                'anthropic.claude-3-haiku-20240307-v1:0',
+                [{ role: 'user', content: prompt }],
+                SummarizationService.ROLLING_PROMPT,
+                0.1
+            );
+
+            // Robust SENTINEL Parsing
+            const jsonMatch = response.match(/<json>([\s\S]*?)<\/json>/);
+            const rawJson = jsonMatch ? jsonMatch[1].trim() : response.trim();
+
+            const parsed = JSON.parse(rawJson);
+
+            // Schema Validation & Clamping
+            return {
+                facts: Array.isArray(parsed.facts) ? parsed.facts : (currentRolling.facts || []),
+                tentative_facts: Array.isArray(parsed.tentative_facts) ? parsed.tentative_facts : [],
+                intent: typeof parsed.intent === 'string' ? parsed.intent : (currentRolling.intent || 'Unknown'),
+                constraints: Array.isArray(parsed.constraints) ? parsed.constraints : (currentRolling.constraints || []),
+                decisions: Array.isArray(parsed.decisions) ? parsed.decisions : (currentRolling.decisions || []),
+                open_questions: Array.isArray(parsed.open_questions) ? parsed.open_questions : (currentRolling.open_questions || []),
+                confidence_score: Math.max(0, Math.min(1, typeof parsed.confidence_score === 'number' ? parsed.confidence_score : 1.0))
+            };
+
+        } catch (e: any) {
+            LoggerService.warn('Rolling Summary Parse Failed - Falling back to current context', { error: e.message });
+            return currentRolling;
+        }
     }
 
-    private static async consumeStream(stream: any): Promise<string> {
-        return new Promise((resolve, reject) => {
-            let fullText = '';
-            stream.on('data', (chunk: Buffer) => {
-                const lines = chunk.toString().split('\n');
-                for (const line of lines) {
-                    if (line.startsWith('data: ')) {
-                        const dataStr = line.replace('data: ', '').trim();
-                        if (dataStr === '[DONE]') continue;
-                        try {
-                            const data = JSON.parse(dataStr);
-                            if (data.text) fullText += data.text;
-                        } catch (e) { }
-                    }
-                }
-            });
-            stream.on('end', () => resolve(fullText));
-            stream.on('error', (err: any) => reject(err));
-        });
+    static async canonize(
+        currentCanonical: string,
+        rollingContext: any
+    ): Promise<string> {
+        const prompt = `
+Current Canonical:
+${currentCanonical}
+
+Rolling Context to Merge:
+${JSON.stringify(rollingContext, null, 2)}
+`;
+
+        try {
+            const response = await BedrockService.sendChat(
+                'anthropic.claude-3-sonnet-20240229-v1:0',
+                [{ role: 'user', content: prompt }],
+                SummarizationService.CANONIZATION_PROMPT,
+                0.1
+            );
+            return response.trim();
+        } catch (e) {
+            LoggerService.error('Canonization LLM call failed', e);
+            return currentCanonical;
+        }
     }
 }

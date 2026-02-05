@@ -25,7 +25,26 @@ const ConversationSchema = new mongoose.Schema({
         estimatedCost: { type: Number, default: 0 },
         messageCount: { type: Number, default: 0 }
     },
-    summary: { type: String, default: '' }, // Long-term conversation summary
+    summary: { type: String, default: '' }, // Legacy Summary (Deprecated)
+
+    // Smart Context V2
+    smartContext: {
+        canonical: { type: String, default: '' }, // Long-term stable truth (Append-only conceptually)
+        rolling: {
+            facts: [String],
+            intent: String,
+            constraints: [String],
+            decisions: [String],
+            open_questions: [String]
+        },
+        version: { type: Number, default: 0 },
+        hashes: {
+            canonical: String,
+            rolling: String,
+            raw: String // Hash of raw messages at time of summarization
+        },
+        lastCanonizedAt: { type: Date, default: Date.now }
+    },
     createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date, default: Date.now }
 });
