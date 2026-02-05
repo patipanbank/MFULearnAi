@@ -25,6 +25,8 @@ export class ChatWorkflow {
         const { userId, sessionId, message, modelId, collectionId, context, scenarioId, images, files, userRole, userDepartment } = req;
         const envType = (process.env.ENV_TYPE || 'TEST') as 'TEST' | 'PROD';
 
+        console.log(`[ChatWorkflow] Executing. Context ID: ${require('../services/ContextService').ContextService.getCorrelationId()}`);
+
         LoggerService.log('info', 'chat_request_received', {
             sessionId,
             messageLength: message?.length || 0,
