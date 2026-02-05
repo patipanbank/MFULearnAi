@@ -1,6 +1,8 @@
 import { ChatMessage } from '../../../../shared/types';
 import { BedrockService } from '../services/BedrockService';
 import { LoggerService } from '../services/LoggerService';
+import { HistoryService } from '../services/HistoryService';
+import { ContextService } from '../services/ContextService';
 import { Response } from 'express';
 import { AgentTool } from '../tools/AgentTool';
 import { CalculatorTool } from '../tools/CalculatorTool';
@@ -25,6 +27,9 @@ export class AgentWorkflow {
         const allowedTools = AVAILABLE_TOOLS.filter(t => t.isAllowed(userRole));
         const toolSchemas = allowedTools.map(t => t.schema).join('\n');
 
+        // 1.1 Load History (Agent Memory)
+        const { messages: history } = await HistoryService.getContext(userId, sessionId);
+
         const systemPrompt = `
 You are an intelligent agent capable of using tools to solve problems.
 
@@ -46,8 +51,12 @@ INSTRUCTIONS:
 Current User Role: ${userRole}
 `;
 
+        // Incorporate History
+        // Convert history to format if needed, but here we just append.
+        // For the Agent Loop, we usually want specific System -> History -> User flow.
         const messages: ChatMessage[] = [
             { role: 'system', content: systemPrompt, timestamp: new Date() },
+            ...history,
             { role: 'user', content: query, timestamp: new Date() }
         ];
 
@@ -159,13 +168,44 @@ Current User Role: ${userRole}
                 res.write(`data: ${JSON.stringify({ text: reply })}\n\n`);
                 res.write('data: [DONE]\n\n');
                 res.end();
+
+                // SAVE HISTORY
+                const userMsg: ChatMessage = { role: 'user', content: query, timestamp: new Date() };
+                const assistantMsg: ChatMessage = { role: 'assistant', content: reply, timestamp: new Date() };
+
+                await HistoryService.addMessage(userId, sessionId, userMsg);
+                await HistoryService.addMessage(userId, sessionId, assistantMsg);
+                await HistoryService.saveToPersistentStorage(
+                    userId,
+                    sessionId,
+                    [userMsg, assistantMsg],
+                    { totalTokens: 0 }, // TODO: TRACK TOKENS
+                    (process.env.ENV_TYPE || 'TEST') as any,
+                    'agent-claude-3.5-sonnet'
+                );
+
                 return;
             }
         }
 
         // Timeout / Max Steps Reached
-        res.write(`data: ${JSON.stringify({ text: "I'm sorry, I couldn't complete the task within the step limit." })}\n\n`);
+        const timeoutMsg = "I'm sorry, I couldn't complete the task within the step limit.";
+        res.write(`data: ${JSON.stringify({ text: timeoutMsg })}\n\n`);
         res.write('data: [DONE]\n\n');
         res.end();
+
+        // Save Failure
+        const userMsg: ChatMessage = { role: 'user', content: query, timestamp: new Date() };
+        const assistantMsg: ChatMessage = { role: 'assistant', content: timeoutMsg, timestamp: new Date() };
+        await HistoryService.addMessage(userId, sessionId, userMsg);
+        await HistoryService.addMessage(userId, sessionId, assistantMsg);
+        await HistoryService.saveToPersistentStorage(
+            userId,
+            sessionId,
+            [userMsg, assistantMsg],
+            { totalTokens: 0 },
+            (process.env.ENV_TYPE || 'TEST') as any,
+            'agent-claude-3.5-sonnet'
+        );
     }
 }
