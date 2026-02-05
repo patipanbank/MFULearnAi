@@ -37,15 +37,9 @@ const openSource = async (sourceId) => {
     if (!sourceId) return
     try {
         const token = localStorage.getItem('auth_token')
-        const response = await fetch(`/api/knowledge/${sourceId}/view`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-        })
-        if (response.ok) {
-            const data = await response.json()
-            if (data.url) {
-                window.open(data.url, '_blank')
-            }
-        }
+        // Directly open the streaming URL in a new tab
+        const url = `/api/knowledge/${sourceId}/view?token=${token}`
+        window.open(url, '_blank')
     } catch (e) {
         console.error('Failed to open source:', e)
     }

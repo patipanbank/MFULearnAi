@@ -87,4 +87,24 @@ export class KnowledgeService {
             throw error;
         }
     }
+
+    static async stream(id: string, userContext: any): Promise<any> {
+        try {
+            const headers: any = {
+                'x-user-id': userContext.userId || 'system',
+                'x-role': userContext.role || 'admin',
+                'x-department': userContext.department || 'Global',
+                'Authorization': `Bearer ${TokenService.mint('knowledge', 'read')}`
+            };
+
+            const response = await axios.get(`${KNOWLEDGE_URL}/${id}/stream`, {
+                headers,
+                responseType: 'stream'
+            });
+            return response;
+        } catch (error: any) {
+            console.warn(`[KnowledgeService] Stream failed for ${id}:`, error.response?.data?.error || error.message);
+            throw error;
+        }
+    }
 }

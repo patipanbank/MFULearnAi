@@ -24,6 +24,6 @@ router.post('/prompts/:key/versions', checkAuth, PromptController.addVersion);
 router.post('/prompts/:key/toggle-active', checkAuth, PromptController.toggleActive);
 
 // Knowledge Routes (Proxy)
-router.get('/knowledge/:id/view', checkAuth, KnowledgeController.view);
+router.get('/knowledge/:id/view', KnowledgeController.view);
 
 export default router;

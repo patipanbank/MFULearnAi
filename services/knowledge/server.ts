@@ -851,6 +851,31 @@ app.get('/api/knowledge/:id/view', async (req: Request, res: Response) => {
     }
 });
 
+// Binary Stream Proxy (For Secure View)
+app.get('/api/knowledge/:id/stream', async (req: Request, res: Response) => {
+    const user = extractUser(req);
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+
+    const { id } = req.params;
+
+    try {
+        const kb = await Knowledge.findById(id);
+        if (!kb) return res.status(404).json({ error: 'Item not found' });
+        if (!canReadKnowledge(user, kb)) return res.status(403).json({ error: 'Insufficient permissions' });
+        if (!kb.s3Key) return res.status(400).json({ error: 'No original file available' });
+
+        const stream = await minioClient.getObject(MINIO_BUCKET, kb.s3Key);
+
+        res.setHeader('Content-Type', kb.contentType || 'application/octet-stream');
+        res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(kb.title)}"`);
+
+        stream.pipe(res);
+    } catch (e: any) {
+        console.error('[Knowledge] Stream Error:', e.message);
+        if (!res.headersSent) res.status(500).json({ error: e.message });
+    }
+});
+
 // 7. LIST KNOWLEDGE (Inventory for mapping)
 app.get('/api/knowledge', async (req: Request, res: Response) => {
     const user = extractUser(req);
