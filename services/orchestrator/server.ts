@@ -91,7 +91,6 @@ const logActivity = async (
     }
 };
 
-import axiosRetry from 'axios-retry';
 import { authenticateToken } from '../../shared/middleware/auth';
 
 // --- Axios Retry Policy (Phase 2: Reliability) ---
