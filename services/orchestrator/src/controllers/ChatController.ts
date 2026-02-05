@@ -59,11 +59,19 @@ export class ChatController {
             ContextService.run({ correlationId }, () => {
                 const actualSessionId = sessionId || `session-${Date.now()}`;
                 import('../workflows/AgentWorkflow').then(({ AgentWorkflow }) => {
-                    AgentWorkflow.execute(userId, actualSessionId, message, req.user.role, res)
-                        .catch(err => {
-                            console.error('[ChatController] Agent Error:', err);
-                            if (!res.headersSent) res.status(500).json({ error: 'Agent Error' });
-                        });
+                    // UNIFIED MODE: Always use AgentWorkflow (now supports RAG)
+                    AgentWorkflow.execute(
+                        userId,
+                        actualSessionId,
+                        message,
+                        req.user.role,
+                        req.user.department, // Pass Dept
+                        collectionId,        // Pass Collection
+                        res
+                    ).catch(err => {
+                        console.error('[ChatController] Agent Error:', err);
+                        if (!res.headersSent) res.status(500).json({ error: 'Agent Error' });
+                    });
                 });
             });
         };
@@ -106,8 +114,8 @@ export class ChatController {
 
             bb.on('close', async () => {
                 await Promise.all(filePromises);
-                if (mode === 'agent') executeAgent();
-                else executeWorkflow();
+                await Promise.all(filePromises);
+                executeAgent(); // Always use Agent
             });
 
             req.pipe(bb);
@@ -122,8 +130,7 @@ export class ChatController {
             scenarioId = req.body.scenarioId;
             mode = req.body.mode || 'chat';
 
-            if (mode === 'agent') executeAgent();
-            else executeWorkflow();
+            executeAgent(); // Always use Agent
         }
     }
 

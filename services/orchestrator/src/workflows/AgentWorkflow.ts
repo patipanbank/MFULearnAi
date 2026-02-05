@@ -3,6 +3,7 @@ import { BedrockService } from '../services/BedrockService';
 import { LoggerService } from '../services/LoggerService';
 import { HistoryService } from '../services/HistoryService';
 import { ContextService } from '../services/ContextService';
+import { KnowledgeService } from '../services/KnowledgeService';
 import { Response } from 'express';
 import { AgentTool } from '../tools/AgentTool';
 import { CalculatorTool } from '../tools/CalculatorTool';
@@ -18,6 +19,8 @@ export class AgentWorkflow {
         sessionId: string,
         query: string,
         userRole: string,
+        userDepartment: string | undefined, // Added department for RAG
+        collectionId: string | undefined,   // Added collectionId for RAG
         res: Response
     ) {
         const MAX_STEPS = 5;
@@ -30,11 +33,20 @@ export class AgentWorkflow {
         // 1.1 Load History (Agent Memory)
         const { messages: history } = await HistoryService.getContext(userId, sessionId);
 
+        // 1.2 RAG Search (Merged from ChatWorkflow)
+        const userContext = { userId, role: userRole, department: userDepartment };
+        const ragContext = await KnowledgeService.search(query, userContext, collectionId);
+        const ragSystemPrompt = ragContext
+            ? `\n\n=== KNOWLEDGE BASE CONTEXT ===\n${ragContext}\n==============================\nUse this context to answer the user's question if relevant.`
+            : '';
+
         const systemPrompt = `
 You are an intelligent agent capable of using tools to solve problems.
 
 AVAILABLE TOOLS:
 ${toolSchemas}
+
+${ragSystemPrompt}
 
 INSTRUCTIONS:
 1. To use a tool, output a XML block like:

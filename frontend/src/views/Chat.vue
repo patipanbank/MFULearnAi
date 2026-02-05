@@ -114,7 +114,7 @@ const handleSendMessage = async (message) => {
   attachments.value = []
 
   // Send to store (update store action to accept files)
-  await chatStore.sendMessage(finalMessage, null, imagesToSend, filesToSend, chatStore.currentMode)
+  await chatStore.sendMessage(finalMessage, null, imagesToSend, filesToSend)
   inputRef.value?.focus()
 }
 
@@ -200,25 +200,7 @@ const handleCopyMessage = (content) => {
         </div>
       </div>
       
-      <!-- Mode Toggle -->
-      <div class="mode-toggle-container">
-        <div class="mode-toggle">
-          <button 
-            class="mode-btn" 
-            :class="{ active: chatStore.currentMode === 'chat' }"
-            @click="chatStore.currentMode = 'chat'"
-          >
-            Chat
-          </button>
-          <button 
-            class="mode-btn" 
-            :class="{ active: chatStore.currentMode === 'agent' }"
-            @click="chatStore.currentMode = 'agent'"
-          >
-            Agent
-          </button>
-        </div>
-      </div>
+      <!-- Mode Toggle REMOVED -->
 
       <!-- Input Area -->
       <ChatInput
