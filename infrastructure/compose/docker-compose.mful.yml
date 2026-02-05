@@ -215,6 +215,7 @@ services:
       - MINIO_BUCKET=mfulearnai-knowledge
       - MINIO_USE_SSL=false
       - JWT_PUBLIC_KEY_PATH=/run/secrets/jwt_public_key
+      - JWT_SECRET=${JWT_SECRET:-test-jwt-secret-change-me}
     secrets:
       - jwt_public_key
     depends_on:
