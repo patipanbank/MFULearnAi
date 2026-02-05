@@ -6,7 +6,7 @@ import { ContextService } from './ContextService';
 
 const BEDROCK_TEXT_URL = process.env.BEDROCK_TEXT_URL || 'http://localhost:5001/api/bedrock';
 const INTERNAL_API_KEY = process.env.INTERNAL_API_KEY || 'internal-secret-key';
-const HAIKU_MODEL_ID = 'anthropic.claude-3-haiku-20240307-v1:0';
+const HAIKU_MODEL_ID = 'anthropic.claude-3-5-sonnet-20240620-v1:0';
 
 export class SummarizationService {
     static async summarize(newMessages: ChatMessage[], existingSummary: string): Promise<string> {
