@@ -3,3 +3,4 @@
 frontend/.env
 .env
 backend/.env
+**/dist/
