@@ -13,8 +13,11 @@ RUN npm install
 # Copy source code
 COPY services/orchestrator .
 
+# Verify Source is New (Fail build if old)
+RUN grep "x-correlation-id" src/services/BedrockService.ts || (echo "Old Code Detected!" && exit 1)
+
 # Build
-RUN npm run build
+RUN rm -rf dist && npm run build
 
 EXPOSE 8080
 CMD ["npm", "start"]
