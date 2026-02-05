@@ -6,7 +6,7 @@
  * - Context Bar: Select Knowledge Base
  */
 import { ref, computed, watch, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import axios from 'axios'
 import { useAuthStore } from '@/stores/auth'
 import { useChatStore } from '@/stores/chat'
