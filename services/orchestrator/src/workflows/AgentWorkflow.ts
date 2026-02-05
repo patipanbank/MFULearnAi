@@ -31,7 +31,8 @@ export class AgentWorkflow {
 
             // 1.2 RAG Search (Gated by Intent + Fast Re-check)
             const userContext = { userId, role: userRole, department: userDepartment };
-            let currentIntent = smartContext?.rolling?.intent || 'QUERY';
+            const rollingIntent = smartContext?.rolling?.intent;
+            let currentIntent = typeof rollingIntent === 'string' ? rollingIntent : (rollingIntent?.primary || 'QUERY');
 
             // Fast Intent Re-check (Haiku) to mitigate "Lag Risk"
             if (currentIntent === 'CHITCHAT' || currentIntent === 'QUERY') {

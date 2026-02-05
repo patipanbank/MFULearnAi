@@ -40,7 +40,8 @@ export class ChatWorkflow {
 
         // 2. RAG Context (Optional) - GATED BY INTENT + FAST RE-CHECK
         const userContext = { userId, role: userRole, department: userDepartment };
-        let currentIntent = smartContext?.rolling?.intent || 'QUERY';
+        const rollingIntent = smartContext?.rolling?.intent;
+        let currentIntent = typeof rollingIntent === 'string' ? rollingIntent : (rollingIntent?.primary || 'QUERY');
 
         // Fast Intent Re-check to mitigate "Lag Risk"
         if (currentIntent === 'CHITCHAT' || currentIntent === 'QUERY') {

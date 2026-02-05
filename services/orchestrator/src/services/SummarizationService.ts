@@ -8,7 +8,11 @@ interface SmartContext {
     rolling: {
         facts: string[];
         tentative_facts?: string[];
-        intent: string;
+        intent: {
+            primary: string;
+            secondary?: string[];
+            confidence: number;
+        };
         constraints: string[];
         decisions: string[];
         open_questions: string[];
@@ -34,7 +38,7 @@ Input:
 Task:
 1. Update 'facts' with new critical information.
 2. Update 'tentative_facts' for items that seem uncertain or need verification.
-3. Update 'intent' to reflect the user's CURRENT goal.
+3. Update 'intent' with primary/secondary goals and confidence.
 4. Update 'constraints'.
 5. Update 'decisions'.
 6. Update 'open_questions'.
@@ -44,7 +48,11 @@ Output Format:
 {
   "facts": ["string"],
   "tentative_facts": ["string"],
-  "intent": "string",
+  "intent": {
+    "primary": "string",
+    "secondary": ["string"],
+    "confidence": 0.0 to 1.0
+  },
   "constraints": ["string"],
   "decisions": ["string"],
   "open_questions": ["string"],
@@ -79,16 +87,19 @@ Output: Updated Canonical Memory (Text only).
             // 1. Generate New Rolling Summary
             const newRolling = await this.generateRollingSummary(currentContext.rolling, newMessages);
 
-            // 1.1 TENTATIVE PROMOTION: If a tentative fact appears again, promote it to facts
-            const previousTentative = new Set(currentContext.rolling.tentative_facts || []);
+            // 1.1 TENTATIVE PROMOTION (Semantic Normalization)
+            // Improved: Use normalized keys to prevent "Paraphrase Skew"
+            const normalize = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
+            const previousTentativeMap = new Map((currentContext.rolling.tentative_facts || []).map(f => [normalize(f), f]));
+
             const promotedFacts: string[] = [];
             const remainingTentative: string[] = [];
 
             if (newRolling.tentative_facts) {
                 for (const fact of newRolling.tentative_facts) {
-                    // Simple string matching for promotion
-                    if (previousTentative.has(fact)) {
-                        promotedFacts.push(fact);
+                    const norm = normalize(fact);
+                    if (previousTentativeMap.has(norm)) {
+                        promotedFacts.push(fact); // Promoted!
                     } else {
                         remainingTentative.push(fact);
                     }
@@ -194,7 +205,11 @@ ${newMessages.map(m => `${m.role}: ${m.content}`).join('\n')}
             return {
                 facts: Array.isArray(parsed.facts) ? parsed.facts : (currentRolling.facts || []),
                 tentative_facts: Array.isArray(parsed.tentative_facts) ? parsed.tentative_facts : [],
-                intent: typeof parsed.intent === 'string' ? parsed.intent : (currentRolling.intent || 'Unknown'),
+                intent: {
+                    primary: parsed.intent?.primary || (currentRolling.intent?.primary || 'Unknown'),
+                    secondary: Array.isArray(parsed.intent?.secondary) ? parsed.intent.secondary : (currentRolling.intent?.secondary || []),
+                    confidence: Math.max(0, Math.min(1, typeof parsed.intent?.confidence === 'number' ? parsed.intent.confidence : 1.0))
+                },
                 constraints: Array.isArray(parsed.constraints) ? parsed.constraints : (currentRolling.constraints || []),
                 decisions: Array.isArray(parsed.decisions) ? parsed.decisions : (currentRolling.decisions || []),
                 open_questions: Array.isArray(parsed.open_questions) ? parsed.open_questions : (currentRolling.open_questions || []),
