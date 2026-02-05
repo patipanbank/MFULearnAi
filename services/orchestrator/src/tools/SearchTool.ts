@@ -26,11 +26,10 @@ export class SearchTool extends AgentTool {
             const userContext = {
                 userId: context.userId,
                 role: context.role || 'student',
-                department: (context as any).department || 'General'
+                department: context.department || 'General'
             };
 
-            const result = await KnowledgeService.search(query, userContext);
-
+            const result = await KnowledgeService.search(query, userContext, context.collectionId);
             if (!result) {
                 return { success: true, result: "No relevant information found in the knowledge base." };
             }

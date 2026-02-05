@@ -9,7 +9,7 @@
 // I'll implement a simple sendChat counterpart in Knowledge service for re-ranking.
 
 import axios from 'axios';
-const BEDROCK_ENDPOINT = process.env.BEDROCK_EMBEDDING_URL || 'http://localhost:5003/api/bedrock';
+const BEDROCK_ENDPOINT = process.env.BEDROCK_TEXT_URL || 'http://localhost:5001/api/bedrock';
 import { TokenUtil } from './tokenUtils';
 
 export class ReRankerService {
@@ -33,18 +33,21 @@ Task:
 `;
 
             const response = await axios.post(`${BEDROCK_ENDPOINT}/chat`, {
-                modelId: 'anthropic.claude-3-haiku-20240307-v1:0',
+                modelId: 'anthropic.claude-3-5-sonnet-20240620-v1:0',
                 messages: [{ role: 'user', content: prompt }],
+                stream: false,
                 options: { temperature: 0.1 }
             }, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
 
-            const content = response.data.content;
-            const match = content.match(/\[.*\]/);
-            if (match) {
-                const indices = JSON.parse(match[0]);
-                return indices.map((idx: number) => candidates[idx]).filter(Boolean);
+            if (response.data && response.data.content) {
+                const content = response.data.content;
+                const match = content.match(/\[.*\]/);
+                if (match) {
+                    const indices = JSON.parse(match[0]);
+                    return indices.map((idx: number) => candidates[idx]).filter(Boolean);
+                }
             }
         } catch (e) {
             console.warn('[ReRanker] Re-ranking failed, falling back to original order.', e);

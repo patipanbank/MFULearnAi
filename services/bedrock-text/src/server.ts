@@ -3,7 +3,8 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import {
     BedrockRuntimeClient,
-    InvokeModelWithResponseStreamCommand
+    InvokeModelWithResponseStreamCommand,
+    InvokeModelCommand
 } from "@aws-sdk/client-bedrock-runtime";
 
 dotenv.config();
@@ -50,7 +51,6 @@ const logCorrelation = (req: Request, res: Response, next: any) => {
 app.use(logCorrelation);
 
 import jwt from 'jsonwebtoken';
-
 import fs from 'fs';
 
 const PUBLIC_KEY_PATH = process.env.JWT_PUBLIC_KEY_PATH || '/run/secrets/jwt_public_key';
@@ -95,12 +95,6 @@ app.post('/api/bedrock/chat', async (req: Request, res: Response) => {
 
     const finalModelId = validateModel(modelId);
 
-    // SSE Headers
-    res.setHeader('Content-Type', 'text/event-stream');
-    res.setHeader('Cache-Control', 'no-cache');
-    res.setHeader('Connection', 'keep-alive');
-    res.setHeader('X-Accel-Buffering', 'no');
-
     try {
         // Format for Claude 3
         const formattedMessages = messages
@@ -123,76 +117,115 @@ app.post('/api/bedrock/chat', async (req: Request, res: Response) => {
 
         const systemMessage = messages.find(msg => msg.role === 'system')?.content || '';
 
-        const command = new InvokeModelWithResponseStreamCommand({
-            modelId: finalModelId,
-            contentType: "application/json",
-            accept: "application/json",
-            body: JSON.stringify({
-                anthropic_version: "bedrock-2023-05-31",
-                max_tokens: 4096,
-                temperature: 0.7,
-                system: systemMessage,
-                messages: formattedMessages
-            })
-        });
+        const stream = req.body.stream !== false;
 
-        const response = await client.send(command);
+        if (stream) {
+            // SSE Headers
+            res.setHeader('Content-Type', 'text/event-stream');
+            res.setHeader('Cache-Control', 'no-cache');
+            res.setHeader('Connection', 'keep-alive');
+            res.setHeader('X-Accel-Buffering', 'no');
 
-        let inputTokens = 0;
-        let outputTokens = 0;
+            const command = new InvokeModelWithResponseStreamCommand({
+                modelId: finalModelId,
+                contentType: "application/json",
+                accept: "application/json",
+                body: JSON.stringify({
+                    anthropic_version: "bedrock-2023-05-31",
+                    max_tokens: 4096,
+                    temperature: 0.7,
+                    system: systemMessage,
+                    messages: formattedMessages
+                })
+            });
 
-        if (response.body) {
-            for await (const chunk of response.body) {
-                if (chunk.chunk?.bytes) {
-                    const decoded = new TextDecoder().decode(chunk.chunk.bytes);
-                    const parsed = JSON.parse(decoded);
+            const response = await (client as any).send(command);
 
-                    // 1. Capture Input Tokens (message_start)
-                    if (parsed.type === 'message_start') {
-                        console.log('[Bedrock Text] message_start:', JSON.stringify(parsed));
-                        if (parsed.message?.usage) {
-                            inputTokens = parsed.message.usage.input_tokens || 0;
-                            console.log('[Bedrock Text] Captured Input Tokens:', inputTokens);
+            let inputTokens = 0;
+            let outputTokens = 0;
+
+            if (response.body) {
+                for await (const chunk of response.body) {
+                    if (chunk.chunk?.bytes) {
+                        const decoded = new TextDecoder().decode(chunk.chunk.bytes);
+                        const parsed = JSON.parse(decoded);
+
+                        // 1. Capture Input Tokens (message_start)
+                        if (parsed.type === 'message_start') {
+                            if (parsed.message?.usage) {
+                                inputTokens = parsed.message.usage.input_tokens || 0;
+                            }
                         }
-                    }
 
-                    // 2. Stream Content
-                    if (parsed.type === 'content_block_delta' && parsed.delta?.text) {
-                        res.write(`data: ${JSON.stringify({ text: parsed.delta.text })}\n\n`);
-                    }
-
-                    // 3. Capture Output Tokens (message_delta)
-                    if (parsed.type === 'message_delta') {
-                        console.log('[Bedrock Text] message_delta:', JSON.stringify(parsed));
-                        if (parsed.usage) {
-                            outputTokens = parsed.usage.output_tokens || 0;
-                            console.log('[Bedrock Text] Captured Output Tokens:', outputTokens);
+                        // 2. Stream Content
+                        if (parsed.type === 'content_block_delta' && parsed.delta?.text) {
+                            res.write(`data: ${JSON.stringify({ text: parsed.delta.text })}\n\n`);
                         }
-                    }
 
-                    // 4. Handle Stop (Optional: check cleanup)
-                    if (parsed.type === 'message_stop') {
-                        // Sometimes additional metrics are here
+                        // 3. Capture Output Tokens (message_delta)
+                        if (parsed.type === 'message_delta') {
+                            if (parsed.usage) {
+                                outputTokens = parsed.usage.output_tokens || 0;
+                            }
+                        }
+
+                        // 4. Handle Stop (Optional: check cleanup)
+                        if (parsed.type === 'message_stop') {
+                            // Sometimes additional metrics are here
+                        }
                     }
                 }
             }
+
+            // Send Usage Event
+            const totalTokens = inputTokens + outputTokens;
+            console.log('[Bedrock Text] Final Usage:', { input: inputTokens, output: outputTokens, total: totalTokens });
+
+            res.write(`data: ${JSON.stringify({
+                type: 'usage',
+                usage: {
+                    input: inputTokens,
+                    output: outputTokens,
+                    total: totalTokens
+                }
+            })}\n\n`);
+
+            res.write('data: [DONE]\n\n');
+            res.end();
+        } else {
+            // Synchronous (Non-streaming)
+            const command = new InvokeModelCommand({
+                modelId: finalModelId,
+                contentType: "application/json",
+                accept: "application/json",
+                body: JSON.stringify({
+                    anthropic_version: "bedrock-2023-05-31",
+                    max_tokens: 4096,
+                    temperature: 0.7,
+                    system: systemMessage,
+                    messages: formattedMessages
+                })
+            });
+
+            const response = await (client as any).send(command);
+            const decoded = new TextDecoder().decode(response.body);
+            const data = JSON.parse(decoded);
+
+            const content = data.content?.[0]?.text || '';
+            const usage = data.usage || { input_tokens: 0, output_tokens: 0 };
+
+            console.log('[Bedrock Text] Final Usage (non-stream):', { input: usage.input_tokens, output: usage.output_tokens, total: usage.input_tokens + usage.output_tokens });
+
+            res.json({
+                success: true,
+                content,
+                usage: {
+                    input: usage.input_tokens,
+                    output: usage.output_tokens,
+                    total: usage.input_tokens + usage.output_tokens
+                }
+            });
         }
-
-        // Send Usage Event
-        const totalTokens = inputTokens + outputTokens;
-        console.log('[Bedrock Text] Final Usage:', { input: inputTokens, output: outputTokens, total: totalTokens });
-
-        res.write(`data: ${JSON.stringify({
-            type: 'usage',
-            usage: {
-                input: inputTokens,
-                output: outputTokens,
-                total: totalTokens
-            }
-        })}\n\n`);
-
-        res.write('data: [DONE]\n\n');
-        res.end();
 
     } catch (e: any) {
         console.error('[Bedrock Text] Chat error:', e);

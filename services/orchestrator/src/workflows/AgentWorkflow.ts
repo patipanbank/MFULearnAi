@@ -62,14 +62,18 @@ export class AgentWorkflow {
                 }
             }
 
-            const RAG_INTENTS = ['FACT_LOOKUP', 'RESEARCH', 'DEBUGGING', 'DESIGN'];
+            const RAG_INTENTS = ['FACT_LOOKUP', 'RESEARCH', 'DEBUGGING', 'DESIGN', 'QUERY'];
 
             // Heuristic RAG Gating: Intent + Complexity Check (Improved for Thai)
             const queryComplexity = query.split(/\s+/).length >= 3 || query.length > 15 || /[\?\.!]/.test(query);
             const hasDomainKeywords = /MFU|system|architecture|security|JWT|canonical|rolling|memory|promotion|auth|Phitsanuruk|พิษณุรักษ์|คู่มือ|สิทธิ์|วิจัย|ค้นหา/i.test(query);
 
-            // Relaxed Rule: Trigger RAG if Intent is factual OR (Query is complex AND intent matches RAG list)
+            // Relaxed Rule: Trigger RAG if:
+            // 1. Intent is explicitly factual (FACT_LOOKUP, RESEARCH)
+            // 2. A specific collection is selected AND intent is not social (CHITCHAT)
+            // 3. Query matches RAG intents AND (is complex OR has keywords)
             const shouldUseRAG = (currentIntent === 'FACT_LOOKUP' || currentIntent === 'RESEARCH') ||
+                (collectionId && currentIntent !== 'CHITCHAT') ||
                 (RAG_INTENTS.includes(currentIntent) && (queryComplexity || hasDomainKeywords));
             let ragContext = '';
             if (shouldUseRAG) {
@@ -83,7 +87,7 @@ export class AgentWorkflow {
             // 1.3 Tools Preparation
             const allowedTools = AVAILABLE_TOOLS.filter(t => t.isAllowed(userRole));
             const toolsPrompt = allowedTools.length > 0
-                ? `\n\nYou have access to the following tools:\n${allowedTools.map(t => `${t.name}: ${t.description}`).join('\n')}\n\nTo use a tool, wrap the JSON call in <tool_use> tags. Example: <tool_use>{"tool": "search", "parameters": {"q": "AI"}}</tool_use>`
+                ? `\n\nYou have access to the following tools:\n${allowedTools.map(t => `${t.name}: ${t.description}`).join('\n')}\n\nTo use a tool, wrap the JSON call in <tool_use> tags. Example: <tool_use>{"tool": "search", "parameters": {"query": "knowledge base search query"}}</tool_use>`
                 : '';
 
             // 1.4 Construct Initial Prompt
@@ -193,7 +197,12 @@ If you need to use a tool to answer, use it. If you have the answer, reply direc
                 LoggerService.info('tool_execution', toolRoll, userId);
                 res.write(`data: ${JSON.stringify({ type: 'status', message: `Executing tool: ${toolCall.tool}` })}\n\n`);
 
-                const executionResult = await tool.execute(toolCall.parameters, { userId, role: userRole });
+                const executionResult = await tool.execute(toolCall.parameters, {
+                    userId,
+                    role: userRole,
+                    department: userDepartment,
+                    collectionId
+                });
 
                 // 4. Build Result (Sanitized)
                 const safeOutput = JSON.stringify(executionResult.result || executionResult.error).replace(/<\/tool_result>/g, '&lt;/tool_result&gt;');

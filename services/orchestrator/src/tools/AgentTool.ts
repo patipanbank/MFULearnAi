@@ -7,6 +7,8 @@ export interface ToolResult {
 export interface AgentContext {
     userId: string;
     role: string;
+    department?: string;
+    collectionId?: string;
 }
 
 export abstract class AgentTool {
