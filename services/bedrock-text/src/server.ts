@@ -44,24 +44,36 @@ const validateModel = (modelId: string): string => {
 const normalizeMessages = (messages: any[]) => {
     if (!messages || messages.length === 0) return [];
 
+    // Filter out any system messages or invalid messages
+    const filtered = messages.filter(m => m && m.role !== 'system');
+    if (filtered.length === 0) return [];
+
     const normalized: any[] = [];
 
     // 1. Ensure it starts with 'user'
-    let startIndex = messages.findIndex(m => m.role === 'user');
+    // Find the first user message to start processing from.
+    let startIndex = filtered.findIndex(m => m.role === 'user');
     if (startIndex === -1) {
-        // No user message found, add a dummy one or fail? Let's add a dummy if needed
+        // If no user message is found, prepend a dummy user message to ensure the conversation starts correctly.
         normalized.push({ role: 'user', content: [{ type: 'text', text: '...' }] });
         startIndex = 0;
     }
 
-    for (let i = startIndex; i < messages.length; i++) {
-        const msg = messages[i];
-        if (!msg) continue;
-
+    // Process messages from the first valid starting point
+    for (let i = startIndex; i < filtered.length; i++) {
+        const msg = filtered[i];
+        // Determine the role, ensuring it's either 'user' or 'assistant'
         const role = msg.role === 'user' ? 'user' : 'assistant';
         const content: any[] = [];
 
-        if (msg.content) content.push({ type: 'text', text: msg.content });
+        // Handle different content types: string or array of content blocks
+        if (typeof msg.content === 'string' && msg.content.trim()) {
+            content.push({ type: 'text', text: msg.content });
+        } else if (Array.isArray(msg.content)) {
+            content.push(...msg.content);
+        }
+
+        // Add image content if present
         if (msg.images) {
             msg.images.forEach((img: any) => {
                 content.push({
@@ -71,14 +83,35 @@ const normalizeMessages = (messages: any[]) => {
             });
         }
 
-        if (content.length === 0) continue; // Skip empty messages
+        // Skip messages with no content
+        if (content.length === 0) continue;
 
+        // Merge consecutive messages from the same role
         if (normalized.length > 0 && normalized[normalized.length - 1].role === role) {
-            // MERGE consecutive same-role messages
             normalized[normalized.length - 1].content.push(...content);
         } else {
+            // Ensure strict alternation of roles (user, assistant, user, assistant...)
+            // If the current role is the same as the last one, and they are not being merged,
+            // it means the alternation is broken. We should correct it.
+            // For Claude, the sequence must be user, assistant, user, assistant...
+            // If we have user, user, we should merge. If we have assistant, assistant, we should merge.
+            // The logic above handles merging. This part ensures alternation if not merging.
+            // If the last message was 'user' and current is 'user', it means we skipped an assistant.
+            // If the last message was 'assistant' and current is 'assistant', it means we skipped a user.
+            // The current logic implicitly handles this by pushing a new message.
+            // The main goal here is to ensure the final output is strictly alternating.
+            // The merging logic above already handles consecutive same-role messages.
+            // So, if we reach here, it means the roles are alternating correctly or it's the first message.
             normalized.push({ role, content });
         }
+    }
+
+    // 2. Claude 3 requirement: Final message must be 'user'
+    // If it's assistant, it means history ended prematurely or model is being asked to "continue"
+    // For general chat, we strip trailing assistant messages to force a new response.
+    while (normalized.length > 0 && normalized[normalized.length - 1].role !== 'user') {
+        console.warn(`[Bedrock Text] Stripping trailing assistant message from history to satisfy Claude role requirements.`);
+        normalized.pop();
     }
 
     return normalized;

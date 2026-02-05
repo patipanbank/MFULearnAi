@@ -190,13 +190,16 @@ If you need to use a tool to answer, use it. If you have the answer, reply direc
                 messages.push({ role: 'assistant' as const, content: fullResponse });
                 messages.push({ role: 'user' as const, content: resultBlock });
 
-                // 5. History Pinning (Protect tool results from pruning)
-                if (messages.length > 12) {
+                // 5. History Pinning (Protect sequence and prevent context overflow)
+                if (messages.length > 10) {
                     const systemMsg = messages[0];
-                    const toolResults = messages.filter(m => m.content?.includes('</tool_result>')).slice(-2);
-                    const lastTurns = messages.filter(m => !m.content?.includes('</tool_result>') && m.role !== 'system').slice(-4);
-                    messages = [systemMsg, ...toolResults, ...lastTurns];
-                    LoggerService.info('agent_history_pinned_prune', { size: messages.length, pinnedTools: toolResults.length }, userId);
+                    // Keep the last 8 messages (4 pairs) to preserve context while staying efficient
+                    const recentHistory = messages.slice(-8);
+
+                    // Simple Validation: Ensure we don't start with Assistant after System if at all possible
+                    // Although normalizeMessages handles this, it's better to be clean here.
+                    messages = [systemMsg, ...recentHistory];
+                    LoggerService.info('agent_history_window_prune', { size: messages.length, traceId }, userId);
                 }
             }
 
