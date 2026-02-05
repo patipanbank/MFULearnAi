@@ -8,6 +8,7 @@ export const useChatStore = defineStore('chat', () => {
     const currentSessionId = ref(null)
     // Initialize from localStorage if available
     const currentCollectionId = ref(localStorage.getItem('active_collection_id') || null)
+    const currentMode = ref('chat') // 'chat' | 'agent'
 
     // Persist collection selection
     watch(currentCollectionId, (newVal) => {
@@ -59,6 +60,7 @@ export const useChatStore = defineStore('chat', () => {
             const response = await api.get(`/chat/${sessionId}`)
             messages.value = response.data.messages || []
             currentSessionId.value = sessionId
+            // Restore mode if saved in metadata? (For now assume chat, or user switches)
         } catch (error) {
             console.error('Failed to load session:', error)
         } finally {
@@ -77,7 +79,7 @@ export const useChatStore = defineStore('chat', () => {
     }
 
     // Send message with streaming
-    async function sendMessage(content, modelId = null, images = [], files = []) {
+    async function sendMessage(content, modelId = null, images = [], files = [], mode = 'chat') {
         if ((!content.trim() && images.length === 0 && files.length === 0) || isStreaming.value) return
 
         // Lazy session creation: if no session, create one now
@@ -148,6 +150,7 @@ export const useChatStore = defineStore('chat', () => {
             if (currentSessionId.value) formData.append('sessionId', currentSessionId.value)
             if (selectedModel) formData.append('modelId', selectedModel)
             if (currentCollectionId.value) formData.append('collectionId', currentCollectionId.value)
+            formData.append('mode', mode) // Add mode ('chat' or 'agent')
 
             // Append Images (If any - handling legacy base64 logic or new File logic?)
             // If images are base64 strings (existing logic), pass as JSON string? 
@@ -278,6 +281,7 @@ export const useChatStore = defineStore('chat', () => {
         availableModels,
         currentSessionId,
         currentCollectionId,
+        currentMode,
         currentSession,
         isLoading,
         isStreaming,

@@ -114,7 +114,7 @@ const handleSendMessage = async (message) => {
   attachments.value = []
 
   // Send to store (update store action to accept files)
-  await chatStore.sendMessage(finalMessage, null, imagesToSend, filesToSend)
+  await chatStore.sendMessage(finalMessage, null, imagesToSend, filesToSend, chatStore.currentMode)
   inputRef.value?.focus()
 }
 
@@ -200,6 +200,26 @@ const handleCopyMessage = (content) => {
         </div>
       </div>
       
+      <!-- Mode Toggle -->
+      <div class="mode-toggle-container">
+        <div class="mode-toggle">
+          <button 
+            class="mode-btn" 
+            :class="{ active: chatStore.currentMode === 'chat' }"
+            @click="chatStore.currentMode = 'chat'"
+          >
+            Chat
+          </button>
+          <button 
+            class="mode-btn" 
+            :class="{ active: chatStore.currentMode === 'agent' }"
+            @click="chatStore.currentMode = 'agent'"
+          >
+            Agent
+          </button>
+        </div>
+      </div>
+
       <!-- Input Area -->
       <ChatInput
         ref="inputRef"
@@ -265,5 +285,36 @@ const handleCopyMessage = (content) => {
   .messages-list {
     padding: 16px;
   }
+}
+
+.mode-toggle-container {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 8px;
+}
+
+.mode-toggle {
+  display: flex;
+  background: var(--color-bg-secondary);
+  padding: 4px;
+  border-radius: 20px;
+  gap: 4px;
+}
+
+.mode-btn {
+  background: transparent;
+  border: none;
+  padding: 4px 12px;
+  border-radius: 16px;
+  font-size: 12px;
+  cursor: pointer;
+  color: var(--color-text-muted);
+  transition: all 0.2s;
+}
+
+.mode-btn.active {
+  background: var(--color-accent);
+  color: white;
+  font-weight: 500;
 }
 </style>
