@@ -55,14 +55,24 @@ export const useChatStore = defineStore('chat', () => {
 
     // Load session history
     async function loadSession(sessionId) {
+        if (!sessionId || currentSessionId.value === sessionId && messages.value.length > 0) return
+
         isLoading.value = true
         try {
             const response = await api.get(`/chat/${sessionId}`)
             messages.value = response.data.messages || []
             currentSessionId.value = sessionId
-            // Restore mode if saved in metadata? (For now assume chat, or user switches)
+
+            // If the session isn't in our list yet (e.g. deep link), we should reload list
+            const exists = sessions.value.some(s => s.sessionId === sessionId)
+            if (!exists) {
+                await loadSessions()
+            }
         } catch (error) {
             console.error('Failed to load session:', error)
+            // If session not found, might want to redirect to /chat
+            currentSessionId.value = null
+            messages.value = []
         } finally {
             isLoading.value = false
         }

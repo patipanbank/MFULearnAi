@@ -23,7 +23,8 @@ const ConversationSchema = new mongoose.Schema({
     metadata: {
         totalTokens: { type: Number, default: 0 },
         estimatedCost: { type: Number, default: 0 },
-        messageCount: { type: Number, default: 0 }
+        messageCount: { type: Number, default: 0 },
+        title: { type: String, default: '' }
     },
     summary: { type: String, default: '' }, // Legacy Summary (Deprecated)
 

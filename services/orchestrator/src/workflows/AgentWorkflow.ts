@@ -238,8 +238,9 @@ If you need to use a tool to answer, use it. If you have the answer, reply direc
                     'anthropic.claude-3-5-sonnet-20240620-v1:0'
                 );
 
-                // 9. Background Summarization
+                // 9. Background Summarization & Auto-Naming
                 SummarizationService.runUpdate(userId, sessionId, [currentMessage, assistantMessage], smartContext);
+                SummarizationService.updateTitle(userId, sessionId, query);
             }
 
         } catch (error: any) {

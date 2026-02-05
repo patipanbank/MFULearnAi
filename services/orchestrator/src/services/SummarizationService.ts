@@ -1,6 +1,7 @@
 import { BedrockService } from './BedrockService';
 import { HistoryService } from './HistoryService';
 import { LoggerService } from './LoggerService';
+import { Conversation } from '../models/Conversation';
 import crypto from 'crypto';
 
 interface SmartContext {
@@ -299,6 +300,33 @@ ${JSON.stringify(rollingContext, null, 2)}
         } catch (e) {
             LoggerService.error('Canonization LLM call failed', e);
             return currentCanonical;
+        }
+    }
+
+    static async updateTitle(userId: string, sessionId: string, firstMessage: string) {
+        try {
+            // Check if title already exists
+            const conversation = await Conversation.findOne({ userId, sessionId }).select('metadata.title');
+            if (conversation?.metadata?.title) return;
+
+            const prompt = `Generate a very short, catchy 3-5 word title for a conversation starting with: "${firstMessage}"
+            Output ONLY the title string, no quotes or prefix.`;
+
+            const title = await BedrockService.sendChat(
+                'anthropic.claude-3-5-sonnet-20240620-v1:0',
+                [{ role: 'user', content: prompt }],
+                'You are a creative writer.',
+                0.7
+            );
+
+            const cleanedTitle = title.replace(/["']/g, '').trim();
+            await Conversation.updateOne(
+                { userId, sessionId },
+                { $set: { 'metadata.title': cleanedTitle } }
+            );
+            LoggerService.info('conversation_titled', { sessionId, title: cleanedTitle });
+        } catch (e) {
+            LoggerService.error('Auto-naming failed', e);
         }
     }
 }

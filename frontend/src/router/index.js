@@ -24,7 +24,7 @@ const router = createRouter({
                     redirect: '/chat'
                 },
                 {
-                    path: 'chat',
+                    path: 'chat/:sessionId?',
                     name: 'Chat',
                     component: () => import('../views/Chat.vue')
                 },

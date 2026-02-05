@@ -44,6 +44,7 @@ const envName = import.meta.env.VITE_ENV_NAME || 'MFULearnAI'
 
 // Composables
 const { scrollToBottom } = useScrollToBottom(messagesRef)
+const route = useRoute()
 
 // Computeds
 const userInitial = computed(() => 
@@ -52,7 +53,7 @@ const userInitial = computed(() =>
 const userName = computed(() => authStore.displayName || 'Guest')
 
 // Lifecycle
-onMounted(() => {
+onMounted(async () => {
   initTheme()
   initLang()
   
@@ -61,32 +62,44 @@ onMounted(() => {
     return
   }
   
-  // if (!chatStore.currentSessionId) {
-  //   chatStore.newSession()
-  // }
-  
-  chatStore.fetchModels()
-  chatStore.loadSessions()
-  chatStore.fetchModels()
-  chatStore.loadSessions()
+  await chatStore.fetchModels()
+  await chatStore.loadSessions()
+
+  // Load session from URL if present
+  if (route.params.sessionId) {
+    chatStore.loadSession(route.params.sessionId)
+  }
 })
 
 // Watchers
+watch(() => route.params.sessionId, (newId) => {
+  if (newId) {
+    if (chatStore.currentSessionId !== newId) {
+       chatStore.loadSession(newId)
+    }
+  } else {
+    chatStore.resetSession()
+  }
+})
+
 watch(() => chatStore.messages.length, () => scrollToBottom())
 watch(() => chatStore.messages[chatStore.messages.length - 1]?.content, () => scrollToBottom())
 
 // Methods
 const handleNewChat = () => {
   chatStore.newSession()
+  router.push('/chat')
   inputRef.value?.focus()
 }
 
 const handleSelectSession = (sessionId) => {
-  chatStore.loadSession(sessionId)
+  router.push(`/chat/${sessionId}`)
 }
 
 const handleSendMessage = async (message) => {
   if (!message?.trim() && attachments.value.length === 0) return
+
+  const isNewSession = !chatStore.currentSessionId
 
   // Prepare payload
   let finalMessage = message || ''
@@ -115,6 +128,12 @@ const handleSendMessage = async (message) => {
 
   // Send to store (update store action to accept files)
   await chatStore.sendMessage(finalMessage, null, imagesToSend, filesToSend)
+  
+  // If it was a new session, update URL so refresh works
+  if (isNewSession && chatStore.currentSessionId) {
+    router.replace(`/chat/${chatStore.currentSessionId}`)
+  }
+  
   inputRef.value?.focus()
 }
 

@@ -43,17 +43,13 @@ const isEffectiveCollapsed = computed(() => {
 // Methods
 const handleNewChat = () => {
     chatStore.resetSession()
-    if (route.path !== '/chat') {
-        router.push('/chat')
-    }
+    router.push('/chat')
     if (props.isMobile) emit('close-mobile')
 }
 
 const handleSelectSession = (sessionId) => {
-    chatStore.loadSession(sessionId)
-    if (route.path !== '/chat') {
-        router.push('/chat')
-    }
+    // We navigate to the session URL, and the Chat.vue watcher will load it
+    router.push(`/chat/${sessionId}`)
     if (props.isMobile) emit('close-mobile')
 }
 
