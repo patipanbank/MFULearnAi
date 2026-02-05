@@ -14,7 +14,7 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 7000;
 const CHROMA_URL = process.env.CHROMA_URL || 'http://chromadb:8000';
-const BEDROCK_EMBEDDING_URL = process.env.BEDROCK_EMBEDDING_URL || 'http://localhost:5003/api/bedrock';
+const BEDROCK_EMBEDDING_URL = process.env.BEDROCK_EMBEDDING_URL || 'http://bedrock-embedding:5003/api/bedrock';
 const MONGO_URI = process.env.MONGO_URI || 'mongodb://mongo:27017/mfulearnai_knowledge';
 const ENV_TYPE = process.env.ENV_TYPE || 'TEST';
 

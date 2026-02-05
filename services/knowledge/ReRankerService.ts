@@ -9,7 +9,7 @@
 // I'll implement a simple sendChat counterpart in Knowledge service for re-ranking.
 
 import axios from 'axios';
-const BEDROCK_ENDPOINT = process.env.BEDROCK_TEXT_URL || 'http://localhost:5001/api/bedrock';
+const BEDROCK_ENDPOINT = process.env.BEDROCK_TEXT_URL || 'http://bedrock-text:5001/api/bedrock';
 import { TokenUtil } from './tokenUtils';
 
 export class ReRankerService {

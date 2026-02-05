@@ -207,6 +207,7 @@ services:
       - ENV_TYPE=TEST
       - CHROMA_URL=http://chroma:8000
       - BEDROCK_EMBEDDING_URL=http://bedrock-embedding:5003/api/bedrock
+      - BEDROCK_TEXT_URL=http://bedrock-text:5001/api/bedrock
       - REDIS_URL=redis://redis:6379
       - MINIO_ENDPOINT=minio
       - MINIO_PORT=9000
