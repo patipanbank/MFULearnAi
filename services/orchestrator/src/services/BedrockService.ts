@@ -102,13 +102,16 @@ export class BedrockService {
                 timeout: 60000
             });
 
-            // If downstream supports stream: false, it returns { text: "..." }
+            // If downstream supports stream: false, it returns { content: "..." }
+            if (response.data && response.data.content) {
+                return response.data.content;
+            }
+
+            // Fallback for older or different implementations
             if (response.data && response.data.text) {
                 return response.data.text;
             }
 
-            // Fallback: If it returns stream despite request? (Unlikely with axios json default)
-            // But let's assume it might return ndjson if it ignores stream: false
             return JSON.stringify(response.data);
 
         } catch (error: any) {

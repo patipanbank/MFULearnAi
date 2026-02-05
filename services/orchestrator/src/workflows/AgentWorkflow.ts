@@ -123,28 +123,7 @@ If you need to use a tool to answer, use it. If you have the answer, reply direc
                 LoggerService.info('agent_step', { step: steps, sessionId, traceId }, userId);
 
                 // Call Model (Non-Streaming for internal reasoning)
-                let fullResponse = '';
-                let tokenUsage = { input: 0, output: 0, total: 0 };
-                await new Promise<void>(resolve => {
-                    const mockRes: any = {
-                        write: (chunk: any) => {
-                            const str = typeof chunk === 'string' ? chunk : chunk.toString();
-                            if (str.startsWith('data: ')) {
-                                const d = str.replace('data: ', '').trim();
-                                if (d === '[DONE]') return;
-                                try {
-                                    const j = JSON.parse(d);
-                                    if (j.text) fullResponse += j.text;
-                                    if (j.type === 'usage' && j.usage) tokenUsage = j.usage;
-                                } catch (e) { }
-                            }
-                        },
-                        status: function (s: number) { this.statusCode = s; return this; },
-                        json: function (j: any) { fullResponse = JSON.stringify(j); return this; },
-                        end: () => resolve()
-                    };
-                    BedrockService.streamChat(messages, 'anthropic.claude-3-5-sonnet-20240620-v1:0', mockRes, async () => { });
-                });
+                const fullResponse = await BedrockService.sendChat('anthropic.claude-3-5-sonnet-20240620-v1:0', messages);
 
                 // 2. Parse Tool Use (Robust Regex)
                 const toolRegex = /<tool_use>([\s\S]*?)<\/tool_use>/;
