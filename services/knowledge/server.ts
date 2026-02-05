@@ -42,59 +42,60 @@ const GLOBAL_CHROMA_COLLECTION = "mfulearnai-global-kb";
 // File Upload - Using Busboy (Streaming)
 
 // --- Auth Middleware ---
-// Mock or Extract from Gateway Headers if available. 
-// Ideally, the Gateway validates JWT and passes User Info.
-// For this strict RBAC, we'll try to decode the token passed in Authorization header for now
-// or assume Gateway passes x-user-id, x-role, x-department.
-// Let's implement a robust JWT decoder here assuming Bearer token is passed through.
+const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret';
+const PUBLIC_KEY_PATH = process.env.JWT_PUBLIC_KEY_PATH || '/run/secrets/jwt_public_key';
 
 interface UserContext {
     userId: string;
-    role: string; // 'admin', 'teacher', 'student'
+    role: string;
     department: string;
 }
 
 const extractUser = (req: Request): UserContext | null => {
-    // Try headers from Gateway first (Preferred)
+    // 1. Try headers from Gateway (Preferred if Gateway does Auth)
     const gwId = req.headers['x-user-id'] as string;
-    const gwRole = req.headers['x-role'] as string;
-    const gwDept = req.headers['x-department'] as string;
-
     if (gwId) {
-        return { userId: gwId, role: gwRole || 'student', department: gwDept || 'General' };
+        return {
+            userId: gwId,
+            role: (req.headers['x-role'] as string) || 'student',
+            department: (req.headers['x-department'] as string) || 'General'
+        };
     }
 
-    // Fallback: Verify Bearer Token (Orchestrator Internal Call)
+    // 2. Validate Bearer Token
     const authHeader = req.headers.authorization;
-    const PUBLIC_KEY_PATH = process.env.JWT_PUBLIC_KEY_PATH || '/run/secrets/jwt_public_key';
-
-    // We should import fs but it's not imported at top. 
-    // And this is inside a function. 
-    // Let's add 'import fs from "fs";' at top if not user will have to do it? 
-    // Actually, I can rely on TypeScript to complain or add it myself? 
-    // I cannot modify imports with this tool call easily if far away.
-    // I'll assume I can add require('fs') or hope for auto-import? 
-    // No, I must be precise. I will use 'fs.readFileSync' and assume import is there or use require inline if needed.
-    // But this file has imports at top. I should verify if I can edit multiple blocks or ensure fs is imported.
-    // I will use require('fs') to be safe without touching top imports yet.
-
-    if (authHeader) {
+    if (authHeader && authHeader.startsWith('Bearer ')) {
         const token = authHeader.split(' ')[1];
         try {
-            // Try matching internal secret first (for Orchestrator calls)
-            const fs = require('fs');
-            const publicKey = fs.readFileSync(PUBLIC_KEY_PATH);
+            // A. Try User Token (HS256 - from Identity Service)
+            try {
+                const decodedUser: any = jwt.verify(token, JWT_SECRET, { algorithms: ['HS256'] });
+                if (decodedUser && decodedUser.userId) {
+                    return {
+                        userId: decodedUser.userId,
+                        role: decodedUser.role || 'student',
+                        department: decodedUser.department || 'General'
+                    };
+                }
+            } catch (ignore) { /* Not a user token, verify as internal */ }
 
-            const decoded: any = jwt.verify(token, publicKey, { algorithms: ['RS256'] });
-            if (decoded && decoded.aud === 'knowledge') {
-                return {
-                    userId: decoded.iss || 'orchestrator', // Use Issuer as User ID for internal calls? Or 'system'?
-                    role: 'admin', // Internal calls treated as Admin or specific system role?
-                    department: 'Global'
-                };
+            // B. Try Internal Token (RS256 - from Orchestrator)
+            const fs = require('fs');
+            // Check if key file exists
+            if (fs.existsSync(PUBLIC_KEY_PATH)) {
+                const publicKey = fs.readFileSync(PUBLIC_KEY_PATH);
+                const decodedInternal: any = jwt.verify(token, publicKey, { algorithms: ['RS256'] });
+
+                if (decodedInternal && decodedInternal.aud === 'knowledge') {
+                    return {
+                        userId: decodedInternal.iss || 'orchestrator',
+                        role: 'admin', // Internal calls are privileged
+                        department: 'Global'
+                    };
+                }
             }
         } catch (e) {
-            console.warn('Token verify failed');
+            console.warn(`[Knowledge] Token verification failed: ${e instanceof Error ? e.message : 'Unknown'}`);
         }
     }
     return null;

@@ -8,7 +8,10 @@ const BEDROCK_EMBEDDING_URL = process.env.BEDROCK_EMBEDDING_URL || 'http://local
 
 export async function getEmbedding(text: string): Promise<number[]> {
     try {
-        const response = await axios.post(`${BEDROCK_EMBEDDING_URL}/embeddings`, { text });
+        const INTERNAL_API_KEY = process.env.INTERNAL_API_KEY || 'internal-secret-key';
+        const response = await axios.post(`${BEDROCK_EMBEDDING_URL}/embeddings`, { text }, {
+            headers: { 'x-internal-key': INTERNAL_API_KEY }
+        });
         if (response.data && response.data.embedding) return response.data.embedding;
         throw new Error('Invalid Bedrock response');
     } catch (e: any) {
