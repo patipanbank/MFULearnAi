@@ -799,12 +799,13 @@ app.post('/api/knowledge/search', async (req: Request, res: Response) => {
         hits.sort((a, b) => b.score - a.score);
 
         // 3. ENRICH WITH METADATA (Ownership/Privacy)
-        const uniqueIds = Array.from(new Set(hits.map(h => h.metadata.knowledgeId)));
+        const uniqueIds = Array.from(new Set(hits.map(h => h.metadata.knowledgeId as string))).filter(id => !!id);
         const kbDocs = await Knowledge.find({ _id: { $in: uniqueIds } }).select('ownerId type department');
         const kbMap = new Map(kbDocs.map(k => [k._id.toString(), k]));
 
         const enrichedHits = hits.map(h => {
-            const kb = kbMap.get(h.metadata.knowledgeId);
+            const kid = h.metadata.knowledgeId as string;
+            const kb = kid ? kbMap.get(kid) : null;
             return {
                 ...h,
                 metadata: {
