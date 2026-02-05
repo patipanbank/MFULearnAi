@@ -2,6 +2,7 @@ import axios from '../config/axios';
 import FormData from 'form-data';
 import { CanonicalIR } from '../../../../shared/types';
 import { TokenService } from './TokenService';
+import { LoggerService } from './LoggerService';
 
 const KNOWLEDGE_URL = process.env.KNOWLEDGE_URL || 'http://localhost:7000/api/knowledge';
 
@@ -21,9 +22,16 @@ export class KnowledgeService {
             const response = await axios.post(`${KNOWLEDGE_URL}/search`, payload, { headers });
 
             if (response.data && response.data.results) {
+                LoggerService.info('rag_search_raw_results', {
+                    count: response.data.results.length,
+                    intent,
+                    query
+                });
                 return response.data.results
                     .map((hit: any) => `[Source: ${hit.metadata.source}]\n${hit.content}`)
                     .join('\n\n');
+            } else {
+                LoggerService.warn('rag_search_no_results', { intent, query });
             }
         } catch (error: any) {
             console.warn('[KnowledgeService] Search failed:', error.message);

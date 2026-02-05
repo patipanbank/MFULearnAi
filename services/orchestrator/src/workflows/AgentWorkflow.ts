@@ -65,8 +65,10 @@ export class AgentWorkflow {
             // Heuristic RAG Gating: Intent + Complexity Check
             const queryComplexity = query.split(/\s+/).length > 3 || /[\?\.!]/.test(query);
             const hasDomainKeywords = /MFU|system|architecture|security|JWT|canonical|rolling|memory|promotion|auth/i.test(query);
-            const shouldUseRAG = RAG_INTENTS.includes(currentIntent) && (queryComplexity || hasDomainKeywords);
 
+            // Relaxed Rule: Trigger RAG if Intent is factual OR (Query is complex AND intent matches RAG list)
+            const shouldUseRAG = (currentIntent === 'FACT_LOOKUP' || currentIntent === 'RESEARCH') ||
+                (RAG_INTENTS.includes(currentIntent) && (queryComplexity || hasDomainKeywords));
             let ragContext = '';
             if (shouldUseRAG) {
                 ragContext = await KnowledgeService.search(query, userContext, collectionId, currentIntent);
@@ -116,6 +118,7 @@ If you need to use a tool to answer, use it. If you have the answer, reply direc
 
                 // Call Model (Non-Streaming for internal reasoning)
                 let fullResponse = '';
+                let tokenUsage = { input: 0, output: 0, total: 0 };
                 await new Promise<void>(resolve => {
                     const mockRes: any = {
                         write: (chunk: any) => {
@@ -126,6 +129,7 @@ If you need to use a tool to answer, use it. If you have the answer, reply direc
                                 try {
                                     const j = JSON.parse(d);
                                     if (j.text) fullResponse += j.text;
+                                    if (j.type === 'usage' && j.usage) tokenUsage = j.usage;
                                 } catch (e) { }
                             }
                         },
@@ -226,8 +230,23 @@ If you need to use a tool to answer, use it. If you have the answer, reply direc
                     tokenPressure: messages.length
                 });
 
-                // 8. Background Summarization
-                SummarizationService.runUpdate(userId, sessionId, [{ role: 'user', content: query }, { role: 'assistant', content: cleanedAnswer }], smartContext);
+                // 8. Persistence (Save to Redis & MongoDB)
+                const currentMessage = { role: 'user' as const, content: query, timestamp: new Date() };
+                const assistantMessage = { role: 'assistant' as const, content: cleanedAnswer, timestamp: new Date() };
+
+                await HistoryService.addMessage(userId, sessionId, currentMessage);
+                await HistoryService.addMessage(userId, sessionId, assistantMessage);
+                await HistoryService.saveToPersistentStorage(
+                    userId,
+                    sessionId,
+                    [currentMessage, assistantMessage],
+                    { totalTokens: 0 }, // Token usage from internal steps is harder to aggregate accurately across steps without more state
+                    process.env.ENV_TYPE || 'TEST',
+                    'anthropic.claude-3-5-sonnet-20240620-v1:0'
+                );
+
+                // 9. Background Summarization
+                SummarizationService.runUpdate(userId, sessionId, [currentMessage, assistantMessage], smartContext);
             }
 
         } catch (error: any) {
