@@ -7,6 +7,7 @@ import { BedrockService } from '../services/BedrockService';
 import { Conversation } from '../models/Conversation';
 import { LoggerService } from '../services/LoggerService';
 import { CanonicalIR } from '../../../../shared/types';
+import { ContextService } from '../services/ContextService';
 
 export class ChatController {
     static async chat(req: any, res: Response) {
@@ -24,38 +25,46 @@ export class ChatController {
         let fileParses: CanonicalIR[] = [];
         let mode: 'chat' | 'agent' = 'chat';
 
-        const executeWorkflow = () => {
-            const actualSessionId = sessionId || `session-${Date.now()}`;
-            if (!message && (!images || images.length === 0) && (!files || files.length === 0)) {
-                return res.status(400).json({ error: 'Message or attachment is required' });
-            }
+        // Capture context from request (preserved from middleware)
+        const correlationId = (req.headers['x-correlation-id'] as string) || 'unknown';
 
-            ChatWorkflow.execute({
-                userId,
-                sessionId: actualSessionId,
-                message,
-                modelId,
-                collectionId,
-                context,
-                scenarioId,
-                images,
-                files,
-                userRole: req.user.role,
-                userDepartment: req.user.department
-            }, res, fileParses).catch(err => {
-                console.error('[ChatController] Workflow Error:', err);
-                if (!res.headersSent) res.status(500).json({ error: 'Internal Server Error' });
+        const executeWorkflow = () => {
+            // Restore context for async operations
+            ContextService.run({ correlationId }, () => {
+                const actualSessionId = sessionId || `session-${Date.now()}`;
+                if (!message && (!images || images.length === 0) && (!files || files.length === 0)) {
+                    return res.status(400).json({ error: 'Message or attachment is required' });
+                }
+
+                ChatWorkflow.execute({
+                    userId,
+                    sessionId: actualSessionId,
+                    message,
+                    modelId,
+                    collectionId,
+                    context,
+                    scenarioId,
+                    images,
+                    files,
+                    userRole: req.user.role,
+                    userDepartment: req.user.department
+                }, res, fileParses).catch(err => {
+                    console.error('[ChatController] Workflow Error:', err);
+                    if (!res.headersSent) res.status(500).json({ error: 'Internal Server Error' });
+                });
             });
         };
 
         const executeAgent = () => {
-            const actualSessionId = sessionId || `session-${Date.now()}`;
-            import('../workflows/AgentWorkflow').then(({ AgentWorkflow }) => {
-                AgentWorkflow.execute(userId, actualSessionId, message, req.user.role, res)
-                    .catch(err => {
-                        console.error('[ChatController] Agent Error:', err);
-                        if (!res.headersSent) res.status(500).json({ error: 'Agent Error' });
-                    });
+            ContextService.run({ correlationId }, () => {
+                const actualSessionId = sessionId || `session-${Date.now()}`;
+                import('../workflows/AgentWorkflow').then(({ AgentWorkflow }) => {
+                    AgentWorkflow.execute(userId, actualSessionId, message, req.user.role, res)
+                        .catch(err => {
+                            console.error('[ChatController] Agent Error:', err);
+                            if (!res.headersSent) res.status(500).json({ error: 'Agent Error' });
+                        });
+                });
             });
         };
 
