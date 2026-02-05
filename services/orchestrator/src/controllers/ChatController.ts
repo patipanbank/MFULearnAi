@@ -139,7 +139,16 @@ export class ChatController {
             const data = await BedrockService.getModels();
             res.json(data);
         } catch (error: any) {
-            res.status(500).json({ error: 'Failed to fetch available models' });
+            console.error('[ChatController] getModels Error:', error.message);
+            if (error.response) {
+                console.error('[ChatController] getModels Error Data:', error.response.data);
+                console.error('[ChatController] getModels Error Status:', error.response.status);
+            }
+            res.status(500).json({
+                error: 'Failed to fetch available models',
+                details: error.message,
+                status: error.response?.status
+            });
         }
     }
 

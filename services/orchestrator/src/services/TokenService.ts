@@ -1,5 +1,6 @@
 import jwt from 'jsonwebtoken';
 import fs from 'fs';
+import crypto from 'crypto';
 
 const PRIVATE_KEY_PATHS = [
     process.env.JWT_PRIVATE_KEY_PATH || '/run/secrets/jwt_private_key',
@@ -56,7 +57,7 @@ export class TokenService {
                 aud: AUDIENCE_MAP[targetService],
                 scope: `internal:${scope}`,
                 typ: 'internal-jwt',
-                jti: require('crypto').randomUUID()
+                jti: crypto.randomUUID()
             },
             key,
             {
