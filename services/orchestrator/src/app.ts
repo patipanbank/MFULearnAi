@@ -26,6 +26,8 @@ app.use((req, res, next) => {
     const correlationId = (req.headers['x-correlation-id'] as string) || uuidv4();
     // Propagate back to response
     res.setHeader('x-correlation-id', correlationId);
+    // Ensure downstream controllers can see it
+    req.headers['x-correlation-id'] = correlationId;
 
     ContextService.run({ correlationId }, () => {
         next();
