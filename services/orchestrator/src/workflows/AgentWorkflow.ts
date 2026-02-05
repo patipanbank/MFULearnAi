@@ -35,7 +35,15 @@ export class AgentWorkflow {
 
         // 1.2 RAG Search (Merged from ChatWorkflow)
         const userContext = { userId, role: userRole, department: userDepartment };
+        LoggerService.log('info', 'agent_rag_start', { query, collectionId }, userId);
+
         const ragContext = await KnowledgeService.search(query, userContext, collectionId);
+
+        LoggerService.log('info', 'agent_rag_result', {
+            found: !!ragContext,
+            length: ragContext?.length || 0
+        }, userId);
+
         const ragSystemPrompt = ragContext
             ? `\n\n=== KNOWLEDGE BASE CONTEXT ===\n${ragContext}\n==============================\nUse this context to answer the user's question if relevant.`
             : '';
