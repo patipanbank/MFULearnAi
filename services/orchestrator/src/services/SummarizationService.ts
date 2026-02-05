@@ -243,7 +243,7 @@ ${newMessages.map(m => `${m.role}: ${m.content}`).join('\n')}
 `;
 
         try {
-            const response = await BedrockService.sendChat(
+            const { text: response } = await BedrockService.sendChat(
                 'anthropic.claude-3-5-sonnet-20240620-v1:0',
                 [{ role: 'user', content: prompt }],
                 SummarizationService.ROLLING_PROMPT,
@@ -290,7 +290,7 @@ ${JSON.stringify(rollingContext, null, 2)}
 `;
 
         try {
-            const response = await BedrockService.sendChat(
+            const { text: response } = await BedrockService.sendChat(
                 'anthropic.claude-3-5-sonnet-20240620-v1:0',
                 [{ role: 'user', content: prompt }],
                 SummarizationService.CANONIZATION_PROMPT,
@@ -312,7 +312,7 @@ ${JSON.stringify(rollingContext, null, 2)}
             const prompt = `Generate a very short, catchy 3-5 word title for a conversation starting with: "${firstMessage}"
             Output ONLY the title string, no quotes or prefix.`;
 
-            const title = await BedrockService.sendChat(
+            const { text: title } = await BedrockService.sendChat(
                 'anthropic.claude-3-5-sonnet-20240620-v1:0',
                 [{ role: 'user', content: prompt }],
                 'You are a creative writer.',

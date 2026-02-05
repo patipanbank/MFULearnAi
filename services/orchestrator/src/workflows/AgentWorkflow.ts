@@ -41,6 +41,7 @@ export class AgentWorkflow {
         res.setHeader('Cache-Control', 'no-cache');
         res.setHeader('Connection', 'keep-alive');
 
+        const totalUsage = { input: 0, output: 0, total: 0 };
         LoggerService.info('agent_workflow_start', { traceId, userId, message }, userId);
 
         try {
@@ -59,7 +60,10 @@ export class AgentWorkflow {
                     last_decisions: smartContext?.rolling?.decisions || [],
                     constraints: smartContext?.rolling?.constraints || []
                 };
-                const fastIntent = await this.quickIntentCheck(query, intentContext);
+                const { intent: fastIntent, usage: intentUsage } = await this.quickIntentCheck(query, intentContext);
+                totalUsage.input += intentUsage.input;
+                totalUsage.output += intentUsage.output;
+                totalUsage.total += intentUsage.total;
                 if (fastIntent !== currentIntent) {
                     LoggerService.info('agent_intent_corrected', { old: currentIntent, new: fastIntent, traceId }, userId);
                     currentIntent = fastIntent;
@@ -159,7 +163,10 @@ If you need to use a tool to answer, use it. If you have the answer, reply direc
                 LoggerService.info('agent_step', { step: steps, sessionId, traceId }, userId);
 
                 // Call Model (Non-Streaming for internal reasoning)
-                const fullResponse = await BedrockService.sendChat('anthropic.claude-3-5-sonnet-20240620-v1:0', messages);
+                const { text: fullResponse, usage: stepUsage } = await BedrockService.sendChat('anthropic.claude-3-5-sonnet-20240620-v1:0', messages);
+                totalUsage.input += stepUsage.input;
+                totalUsage.output += stepUsage.output;
+                totalUsage.total += stepUsage.total;
 
                 // 2. Parse Tool Use (Robust Regex)
                 const toolRegex = /<tool_use>([\s\S]*?)<\/tool_use>/;
@@ -252,7 +259,8 @@ If you need to use a tool to answer, use it. If you have the answer, reply direc
                         usedRAG: !!ragContext,
                         sources: ragSources,
                         stepsUsed: steps,
-                        tokenPressure: messages.length
+                        tokenPressure: messages.length,
+                        totalTokens: totalUsage.total
                     }
                 })}\n\n`);
                 res.write(`data: ${JSON.stringify({ type: 'status', message: '' })}\n\n`); // Clear status
@@ -269,7 +277,8 @@ If you need to use a tool to answer, use it. If you have the answer, reply direc
                     usedRAG: shouldUseRAG,
                     intent: currentIntent,
                     loopDetected: repeatCount > 1,
-                    tokenPressure: messages.length
+                    tokenPressure: messages.length,
+                    totalTokens: totalUsage.total
                 });
 
                 // 8. Persistence (Save to Redis & MongoDB)
@@ -282,7 +291,7 @@ If you need to use a tool to answer, use it. If you have the answer, reply direc
                     userId,
                     sessionId,
                     [currentMessage, assistantMessage],
-                    { totalTokens: 0 }, // Token usage from internal steps is harder to aggregate accurately across steps without more state
+                    { totalTokens: totalUsage.total },
                     process.env.ENV_TYPE || 'TEST',
                     'anthropic.claude-3-5-sonnet-20240620-v1:0'
                 );
@@ -299,7 +308,7 @@ If you need to use a tool to answer, use it. If you have the answer, reply direc
         }
     }
 
-    private static async quickIntentCheck(query: string, context?: any): Promise<string> {
+    private static async quickIntentCheck(query: string, context?: any): Promise<{ intent: string, usage: { input: number, output: number, total: number } }> {
         try {
             const contextStr = context ? `
 Context:
@@ -314,11 +323,11 @@ Context:
             Note: If query is ambiguous (e.g. "Why is it broken?"), rely on Last Intent.
             Output ONLY the enum value in <intent></intent> tags.`;
 
-            const response = await BedrockService.sendChat('anthropic.claude-3-5-sonnet-20240620-v1:0', [{ role: 'user', content: prompt }], '', 0.1);
+            const { text: response, usage } = await BedrockService.sendChat('anthropic.claude-3-5-sonnet-20240620-v1:0', [{ role: 'user', content: prompt }], '', 0.1);
             const match = response.match(/<intent>(.*?)<\/intent>/);
-            return match ? match[1].trim() : 'QUERY';
+            return { intent: match ? match[1].trim() : 'QUERY', usage };
         } catch {
-            return 'QUERY';
+            return { intent: 'QUERY', usage: { input: 0, output: 0, total: 0 } };
         }
     }
 }

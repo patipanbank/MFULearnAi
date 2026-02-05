@@ -44,13 +44,15 @@ export class ChatWorkflow {
         let currentIntent = typeof rollingIntent === 'string' ? rollingIntent : (rollingIntent?.primary || 'QUERY');
 
         // Fast Intent Re-check (Haiku) with Context
+        let intentUsage = { input: 0, output: 0, total: 0 };
         if (currentIntent === 'CHITCHAT' || currentIntent === 'QUERY') {
             const intentContext = {
                 last_intent: smartContext?.rolling?.intent?.primary || 'QUERY',
                 last_decisions: smartContext?.rolling?.decisions || [],
                 constraints: smartContext?.rolling?.constraints || []
             };
-            const fastIntent = await this.quickIntentCheck(message, intentContext);
+            const { intent: fastIntent, usage } = await this.quickIntentCheck(message, intentContext);
+            intentUsage = usage;
             if (fastIntent !== currentIntent) {
                 LoggerService.info('chat_intent_corrected', { old: currentIntent, new: fastIntent, sessionId }, userId);
                 currentIntent = fastIntent;
@@ -186,7 +188,7 @@ ${JSON.stringify(smartContext.rolling || {}, null, 2)}
                 userId,
                 sessionId,
                 [currentMessage, assistantMessage],
-                { totalTokens: tokenUsage.total },
+                { totalTokens: tokenUsage.total + intentUsage.total },
                 envType,
                 modelId
             );
@@ -199,7 +201,7 @@ ${JSON.stringify(smartContext.rolling || {}, null, 2)}
         });
     }
 
-    private static async quickIntentCheck(query: string, context?: any): Promise<string> {
+    private static async quickIntentCheck(query: string, context?: any): Promise<{ intent: string, usage: { input: number, output: number, total: number } }> {
         try {
             const contextStr = context ? `
 Context:
@@ -214,11 +216,11 @@ Context:
             Note: If query is ambiguous (e.g. "Why is it broken?"), rely on Last Intent.
             Output ONLY the enum value in <intent></intent> tags.`;
 
-            const response = await BedrockService.sendChat('anthropic.claude-3-5-sonnet-20240620-v1:0', [{ role: 'user', content: prompt }], '', 0.1);
+            const { text: response, usage } = await BedrockService.sendChat('anthropic.claude-3-5-sonnet-20240620-v1:0', [{ role: 'user', content: prompt }], '', 0.1);
             const match = response.match(/<intent>(.*?)<\/intent>/);
-            return match ? match[1].trim() : 'QUERY';
+            return { intent: match ? match[1].trim() : 'QUERY', usage };
         } catch {
-            return 'QUERY';
+            return { intent: 'QUERY', usage: { input: 0, output: 0, total: 0 } };
         }
     }
 }

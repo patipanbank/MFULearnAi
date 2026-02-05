@@ -82,7 +82,7 @@ export class BedrockService {
         messages: ChatMessage[],
         system?: string,
         temperature: number = 0.5
-    ): Promise<string> {
+    ): Promise<{ text: string, usage: any }> {
         try {
             const response = await axios({
                 method: 'post',
@@ -115,16 +115,18 @@ export class BedrockService {
                 throw new Error(response.data.error || 'Upstream Model Error');
             }
 
+            const usage = response.data.usage || { input: 0, output: 0, total: 0 };
+
             if (!content) {
                 console.warn('[BedrockService] Warning: Received empty content from model', {
                     status: response.status,
                     stopReason: response.data.stopReason,
                     dataKeys: response.data ? Object.keys(response.data) : [],
-                    usage: response.data.usage
+                    usage
                 });
             }
 
-            return content;
+            return { text: content, usage };
         } catch (error: any) {
             console.error('[BedrockService] SendChat Error:', error.message, {
                 responseData: error.response?.data
