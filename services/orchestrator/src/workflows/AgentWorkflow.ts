@@ -77,9 +77,10 @@ Current User Role: ${userRole}
             let reply = '';
             await new Promise<void>(resolve => {
                 const mockRes: any = {
-                    write: (chunk: string) => {
+                    write: (chunk: any) => {
                         // Parse SSE format locally
-                        const lines = chunk.split('\n');
+                        const chunkStr = chunk.toString();
+                        const lines = chunkStr.split('\n');
                         for (const line of lines) {
                             if (line.startsWith('data: ')) {
                                 const d = line.replace('data: ', '');
@@ -95,7 +96,7 @@ Current User Role: ${userRole}
                     setHeader: () => { },
                     on: () => { }
                 };
-                BedrockService.streamChat(messages, 'anthropic.claude-3-haiku-20240307-v1:0', mockRes, async () => { });
+                BedrockService.streamChat(messages, 'anthropic.claude-3-5-sonnet-20240620-v1:0', mockRes, async () => { });
             });
 
             // Parse for Tool Use
