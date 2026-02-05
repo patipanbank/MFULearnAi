@@ -28,15 +28,28 @@ export class KnowledgeService {
                     query
                 });
 
-                // Track unique sources with ID and Name
-                const sourceMap = new Map<string, string>();
+                // Track unique sources with ID, Name, and canView permission
+                const sourceMap = new Map<string, any>();
                 response.data.results.forEach((hit: any) => {
-                    if (hit.metadata.knowledgeId) {
-                        sourceMap.set(hit.metadata.knowledgeId, hit.metadata.source);
+                    const kid = hit.metadata.knowledgeId;
+                    if (kid && !sourceMap.has(kid)) {
+                        // Privacy Logic:
+                        // 1. Owner can always view
+                        // 2. Admin of the same department can view
+                        // 3. Public knowledge is viewable by its department admins (Adjust if public means really public)
+                        const isOwner = userContext.userId === hit.metadata.ownerId;
+                        const isAdminOfDept = userContext.role === 'admin' && userContext.department === hit.metadata.department;
+                        const canView = isOwner || isAdminOfDept;
+
+                        sourceMap.set(kid, {
+                            id: kid,
+                            name: hit.metadata.source,
+                            canView
+                        });
                     }
                 });
 
-                const sources = Array.from(sourceMap.entries()).map(([id, name]) => ({ id, name }));
+                const sources = Array.from(sourceMap.values());
                 const text = response.data.results
                     .map((hit: any) => `[Source: ${hit.metadata.source}]\n${hit.content}`)
                     .join('\n\n');

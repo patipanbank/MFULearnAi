@@ -33,12 +33,12 @@ const formatTime = (timestamp) => {
   return new Date(timestamp).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })
 }
 
-const openSource = async (sourceId) => {
-    if (!sourceId) return
+const openSource = async (source) => {
+    if (!source || !source.id || source.canView === false) return
     try {
         const token = localStorage.getItem('auth_token')
         // Directly open the streaming URL in a new tab
-        const url = `/api/knowledge/${sourceId}/view?token=${token}`
+        const url = `/api/knowledge/${source.id}/view?token=${token}`
         window.open(url, '_blank')
     } catch (e) {
         console.error('Failed to open source:', e)
@@ -156,14 +156,18 @@ const getFileIcon = (name) => {
                 v-for="source in message.meta.sources" 
                 :key="typeof source === 'object' ? source.id : source"
                 class="source-pill"
-                @click="typeof source === 'object' ? openSource(source.id) : null"
-                :class="{ 'clickable': typeof source === 'object' }"
-                :style="typeof source === 'object' ? { borderColor: getFileIcon(source.name).color + '40' } : {}"
+                @click="openSource(source)"
+                :class="{ 
+                    'clickable': typeof source === 'object' && source.canView !== false,
+                    'restricted': typeof source === 'object' && source.canView === false
+                }"
+                :style="typeof source === 'object' && source.canView !== false ? { borderColor: getFileIcon(source.name).color + '40' } : {}"
               >
-                <span class="source-icon" :style="typeof source === 'object' ? { color: getFileIcon(source.name).color } : {}">
+                <span class="source-icon" :style="typeof source === 'object' && source.canView !== false ? { color: getFileIcon(source.name).color } : { color: '#9ca3af' }">
                     {{ getFileIcon(typeof source === 'object' ? source.name : source).icon }}
                 </span>
                 <span class="source-name">{{ typeof source === 'object' ? source.name : source }}</span>
+                <span v-if="typeof source === 'object' && source.canView === false" class="lock-icon" title="Restricted Access">🔒</span>
               </div>
               <!-- Fallback if sources list is empty but usedRAG is true -->
               <div v-if="!message.meta.sources?.length" class="source-pill plain">

@@ -798,10 +798,28 @@ app.post('/api/knowledge/search', async (req: Request, res: Response) => {
         // Sort by final score
         hits.sort((a, b) => b.score - a.score);
 
-        // 3. RE-RANKING (Sonnet/Haiku Stage)
-        const validatedHits = await ReRankerService.reRank(query, intent, hits.slice(0, 15));
+        // 3. ENRICH WITH METADATA (Ownership/Privacy)
+        const uniqueIds = Array.from(new Set(hits.map(h => h.metadata.knowledgeId)));
+        const kbDocs = await Knowledge.find({ _id: { $in: uniqueIds } }).select('ownerId type department');
+        const kbMap = new Map(kbDocs.map(k => [k._id.toString(), k]));
 
-        // 4. LOGGING (Breakdown)
+        const enrichedHits = hits.map(h => {
+            const kb = kbMap.get(h.metadata.knowledgeId);
+            return {
+                ...h,
+                metadata: {
+                    ...h.metadata,
+                    ownerId: kb?.ownerId,
+                    knowledgeType: kb?.type,
+                    department: kb?.department
+                }
+            };
+        });
+
+        // 4. RE-RANKING (Sonnet/Haiku Stage)
+        const validatedHits = await ReRankerService.reRank(query, intent, enrichedHits.slice(0, 15));
+
+        // 5. LOGGING (Breakdown)
         console.info(`[RAG Search] Query: "${query}" | Intent: ${intent} | Strategy: ${policy.strategy}`);
         validatedHits.slice(0, 3).forEach((h, i) => {
             console.info(`  Rank ${i + 1}: S=${h.scores.semantic.toFixed(3)} K=${h.scores.keyword.toFixed(3)} F=${h.scores.final.toFixed(3)}`);
