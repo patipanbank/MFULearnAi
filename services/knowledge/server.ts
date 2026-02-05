@@ -28,7 +28,7 @@ mongoose.connect(MONGO_URI)
     .then(() => console.log('[Knowledge] Connected to MongoDB'))
     .catch(err => console.error('[Knowledge] MongoDB error:', err));
 
-import { initMinio, minioClient, MINIO_BUCKET } from './minioClient';
+import { initMinio, minioClient, MINIO_BUCKET, MINIO_ENDPOINT, MINIO_PORT } from './minioClient';
 import { initWorker, knowledgeQueue } from './queue';
 import { getEmbedding } from './processingUtils';
 import { AdapterFactory } from './adapters/AdapterFactory';
@@ -838,7 +838,12 @@ app.get('/api/knowledge/:id/view', async (req: Request, res: Response) => {
         if (!kb.s3Key) return res.status(400).json({ error: 'No original file available for this item' });
 
         // Generate Presigned URL (Valid for 15 minutes)
-        const url = await minioClient.presignedGetObject(MINIO_BUCKET, kb.s3Key, 15 * 60);
+        let url = await minioClient.presignedGetObject(MINIO_BUCKET, kb.s3Key, 15 * 60);
+
+        // Phase 9.2: Support External Access if configured (for Browser)
+        if (process.env.MINIO_EXTERNAL_URL) {
+            url = url.replace(`${MINIO_ENDPOINT}:${MINIO_PORT}`, process.env.MINIO_EXTERNAL_URL);
+        }
 
         res.json({ success: true, url, title: kb.title, contentType: kb.contentType });
     } catch (e: any) {

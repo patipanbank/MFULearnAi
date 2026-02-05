@@ -222,6 +222,7 @@ services:
       - MINIO_SECRET_KEY=minioadmin
       - MINIO_BUCKET=mfulearnai-knowledge
       - MINIO_USE_SSL=false
+      - MINIO_EXTERNAL_URL=${MINIO_EXTERNAL_URL:-localhost:9000}
       - JWT_PUBLIC_KEY_PATH=/run/secrets/jwt_public_key
       - JWT_PRIVATE_KEY_PATH=/run/secrets/jwt_private_key
       - JWT_SECRET=${JWT_SECRET:-test-jwt-secret-change-me}
