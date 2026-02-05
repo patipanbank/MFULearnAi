@@ -5,12 +5,14 @@ import { BedrockService } from '../services/BedrockService';
 import { LoggerService } from '../services/LoggerService';
 import { SummarizationService } from '../services/SummarizationService';
 import { CalculatorTool } from '../tools/CalculatorTool';
+import { SearchTool } from '../tools/SearchTool';
 
 const MAX_STEPS = 5;
 
 // Whitelist of tools for the Agent
 const AVAILABLE_TOOLS = [
-    new CalculatorTool()
+    new CalculatorTool(),
+    new SearchTool()
 ];
 
 export class AgentWorkflow {
@@ -62,9 +64,9 @@ export class AgentWorkflow {
 
             const RAG_INTENTS = ['FACT_LOOKUP', 'RESEARCH', 'DEBUGGING', 'DESIGN'];
 
-            // Heuristic RAG Gating: Intent + Complexity Check
-            const queryComplexity = query.split(/\s+/).length > 3 || /[\?\.!]/.test(query);
-            const hasDomainKeywords = /MFU|system|architecture|security|JWT|canonical|rolling|memory|promotion|auth/i.test(query);
+            // Heuristic RAG Gating: Intent + Complexity Check (Improved for Thai)
+            const queryComplexity = query.split(/\s+/).length >= 3 || query.length > 15 || /[\?\.!]/.test(query);
+            const hasDomainKeywords = /MFU|system|architecture|security|JWT|canonical|rolling|memory|promotion|auth|Phitsanuruk|พิษณุรักษ์|คู่มือ|สิทธิ์|วิจัย|ค้นหา/i.test(query);
 
             // Relaxed Rule: Trigger RAG if Intent is factual OR (Query is complex AND intent matches RAG list)
             const shouldUseRAG = (currentIntent === 'FACT_LOOKUP' || currentIntent === 'RESEARCH') ||
