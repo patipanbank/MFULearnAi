@@ -38,17 +38,27 @@ export class ChatWorkflow {
         // 1. Get Context (Smart Context + History)
         const { messages: history, smartContext } = await HistoryService.getContext(userId, sessionId);
 
-        // 2. RAG Context (Optional) - GATED BY INTENT
+        // 2. RAG Context (Optional) - GATED BY INTENT + FAST RE-CHECK
         const userContext = { userId, role: userRole, department: userDepartment };
-        const intent = smartContext?.rolling?.intent || 'QUERY';
-        const RAG_INTENTS = ['FACT_LOOKUP', 'RESEARCH', 'DEBUGGING', 'DESIGN'];
-        const shouldUseRAG = RAG_INTENTS.includes(intent);
+        let currentIntent = smartContext?.rolling?.intent || 'QUERY';
 
-        LoggerService.info('chat_rag_check', { intent, shouldUseRAG }, userId);
+        // Fast Intent Re-check to mitigate "Lag Risk"
+        if (currentIntent === 'CHITCHAT' || currentIntent === 'QUERY') {
+            const fastIntent = await this.quickIntentCheck(message || '');
+            if (fastIntent !== currentIntent) {
+                LoggerService.info('chat_intent_corrected', { old: currentIntent, new: fastIntent }, userId);
+                currentIntent = fastIntent;
+            }
+        }
+
+        const RAG_INTENTS = ['FACT_LOOKUP', 'RESEARCH', 'DEBUGGING', 'DESIGN'];
+        const shouldUseRAG = RAG_INTENTS.includes(currentIntent);
+
+        LoggerService.info('chat_rag_check', { intent: currentIntent, shouldUseRAG }, userId);
 
         let ragContext = '';
         if (shouldUseRAG) {
-            ragContext = await KnowledgeService.search(message || '', userContext, collectionId, intent);
+            ragContext = await KnowledgeService.search(message || '', userContext, collectionId, currentIntent);
         }
 
         const ragSystemPrompt = ragContext ? `\n\nHere is some relevant context from the Knowledge Base:\n<context>\n${ragContext}\n</context>\nUse this context to answer the user's question if relevant.` : '';
@@ -177,5 +187,19 @@ ${JSON.stringify(smartContext.rolling || {}, null, 2)}
             SummarizationService.runUpdate(userId, sessionId, [currentMessage, assistantMessage], smartContext)
                 .catch(e => LoggerService.error('Background Summary Failed', e));
         });
+    }
+
+    private static async quickIntentCheck(query: string): Promise<string> {
+        try {
+            const prompt = `Classify user intent for: "${query}"
+            Options: FACT_LOOKUP, RESEARCH, DEBUGGING, DESIGN, CHITCHAT, QUERY.
+            Output ONLY the enum value in <intent></intent> tags.`;
+
+            const response = await BedrockService.sendChat('anthropic.claude-3-haiku-20240307-v1:0', [{ role: 'user', content: prompt }], '', 0.1);
+            const match = response.match(/<intent>(.*?)<\/intent>/);
+            return match ? match[1].trim() : 'QUERY';
+        } catch {
+            return 'QUERY';
+        }
     }
 }

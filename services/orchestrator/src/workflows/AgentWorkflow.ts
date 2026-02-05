@@ -17,30 +17,38 @@ export class AgentWorkflow {
     static async run(req: Request, res: Response) {
         const { userId, message, sessionId, collectionId, userRole, userDepartment } = (req as any).userContext;
         const query = message;
+        const traceId = crypto.randomUUID();
 
         res.setHeader('Content-Type', 'text/event-stream');
         res.setHeader('Cache-Control', 'no-cache');
         res.setHeader('Connection', 'keep-alive');
 
+        LoggerService.info('agent_workflow_start', { traceId, userId, message }, userId);
+
         try {
             // 1.1 Load History + Smart Context (Agent Memory)
             const { messages: history, smartContext } = await HistoryService.getContext(userId, sessionId);
 
-            // 1.2 RAG Search (Merged from ChatWorkflow) - GATED BY INTENT
+            // 1.2 RAG Search (Gated by Intent + Fast Re-check)
             const userContext = { userId, role: userRole, department: userDepartment };
-            const intent = smartContext?.rolling?.intent || 'QUERY';
-            const RAG_INTENTS = ['FACT_LOOKUP', 'RESEARCH', 'DEBUGGING', 'DESIGN'];
-            const shouldUseRAG = RAG_INTENTS.includes(intent);
+            let currentIntent = smartContext?.rolling?.intent || 'QUERY';
 
-            LoggerService.info('agent_rag_check', { intent, shouldUseRAG }, userId);
+            // Fast Intent Re-check (Haiku) to mitigate "Lag Risk"
+            if (currentIntent === 'CHITCHAT' || currentIntent === 'QUERY') {
+                const fastIntent = await this.quickIntentCheck(query);
+                if (fastIntent !== currentIntent) {
+                    LoggerService.info('agent_intent_corrected', { old: currentIntent, new: fastIntent, traceId }, userId);
+                    currentIntent = fastIntent;
+                }
+            }
+
+            const RAG_INTENTS = ['FACT_LOOKUP', 'RESEARCH', 'DEBUGGING', 'DESIGN'];
+            const shouldUseRAG = RAG_INTENTS.includes(currentIntent);
 
             let ragContext = '';
             if (shouldUseRAG) {
-                ragContext = await KnowledgeService.search(query, userContext, collectionId, intent);
-                LoggerService.info('agent_rag_result', {
-                    found: !!ragContext,
-                    intent
-                }, userId);
+                ragContext = await KnowledgeService.search(query, userContext, collectionId, currentIntent);
+                LoggerService.info('agent_rag_result', { found: !!ragContext, intent: currentIntent, traceId }, userId);
             }
 
             const ragSystemPrompt = ragContext
@@ -77,10 +85,11 @@ If you need to use a tool to answer, use it. If you have the answer, reply direc
 
             let steps = 0;
             let finalAnswer = '';
+            let lastToolCall = '';
 
             while (steps < MAX_STEPS) {
                 steps++;
-                LoggerService.info('agent_step', { step: steps, sessionId }, userId);
+                LoggerService.info('agent_step', { step: steps, sessionId, traceId }, userId);
 
                 // Call Model (Non-Streaming for internal reasoning)
                 let fullResponse = '';
@@ -107,7 +116,7 @@ If you need to use a tool to answer, use it. If you have the answer, reply direc
 
                 if (!match) {
                     if (!fullResponse.trim()) {
-                        LoggerService.warn('agent_empty_response', { step: steps }, userId);
+                        LoggerService.warn('agent_empty_response', { step: steps, traceId }, userId);
                         finalAnswer = "I'm sorry, I couldn't formulate a response. Please try again.";
                     } else {
                         finalAnswer = fullResponse;
@@ -121,11 +130,20 @@ If you need to use a tool to answer, use it. If you have the answer, reply direc
                     const rawJson = match[1].trim();
                     toolCall = JSON.parse(rawJson);
                 } catch (e) {
-                    LoggerService.error('agent_tool_parse_error', { step: steps, raw: match[1] }, userId);
+                    LoggerService.error('agent_tool_parse_error', { step: steps, raw: match[1], traceId }, userId);
                     messages.push({ role: 'assistant', content: fullResponse });
                     messages.push({ role: 'user', content: "Error: Your tool_use JSON was malformed. Please try again with valid JSON." });
                     continue;
                 }
+
+                // Loop Kill-Switch: If agent calls the SAME tool with SAME params twice, break.
+                const currentCall = `${toolCall.tool}:${JSON.stringify(toolCall.parameters)}`;
+                if (currentCall === lastToolCall) {
+                    LoggerService.warn('agent_loop_detected', { currentCall, traceId }, userId);
+                    finalAnswer = "I've detected a repetitive tool loop. Here is the last known output prior to the loop: " + fullResponse.replace(/<tool_use>[\s\S]*?<\/tool_use>/g, '').trim();
+                    break;
+                }
+                lastToolCall = currentCall;
 
                 const tool = allowedTools.find(t => t.name === toolCall.tool);
                 if (!tool) {
@@ -156,20 +174,35 @@ If you need to use a tool to answer, use it. If you have the answer, reply direc
                 }
             }
 
-            // 6. Streaming Final Answer
+            // 6. Streaming Final Answer (Cleaned)
             if (finalAnswer) {
-                res.write(`data: ${JSON.stringify({ text: finalAnswer })}\n\n`);
+                const cleanedAnswer = finalAnswer.replace(/<tool_use>[\s\S]*?<\/tool_use>/g, '').trim();
+                res.write(`data: ${JSON.stringify({ text: cleanedAnswer, traceId })}\n\n`);
                 res.write('data: [DONE]\n\n');
                 res.end();
 
                 // 7. Background Summarization
-                SummarizationService.runUpdate(userId, sessionId, [{ role: 'user', content: query }, { role: 'assistant', content: finalAnswer }], smartContext);
+                SummarizationService.runUpdate(userId, sessionId, [{ role: 'user', content: query }, { role: 'assistant', content: cleanedAnswer }], smartContext);
             }
 
         } catch (error: any) {
-            LoggerService.error('Agent Workflow Error', error);
-            res.write(`data: ${JSON.stringify({ error: 'Agent workflow failed' })}\n\n`);
+            LoggerService.error('Agent Workflow Error', { error: error.message, stack: error.stack, traceId });
+            res.write(`data: ${JSON.stringify({ error: 'Agent workflow failed', traceId })}\n\n`);
             res.end();
+        }
+    }
+
+    private static async quickIntentCheck(query: string): Promise<string> {
+        try {
+            const prompt = `Classify user intent for: "${query}"
+            Options: FACT_LOOKUP, RESEARCH, DEBUGGING, DESIGN, CHITCHAT, QUERY.
+            Output ONLY the enum value in <intent></intent> tags.`;
+
+            const response = await BedrockService.sendChat('anthropic.claude-3-haiku-20240307-v1:0', [{ role: 'user', content: prompt }], '', 0.1);
+            const match = response.match(/<intent>(.*?)<\/intent>/);
+            return match ? match[1].trim() : 'QUERY';
+        } catch {
+            return 'QUERY';
         }
     }
 }
