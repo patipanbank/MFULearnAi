@@ -14,9 +14,23 @@ const RATE_LIMIT = ENV_TYPE === 'PROD' ? 30 : 100;
 // Connect to Database
 connectDB();
 
+import { v4 as uuidv4 } from 'uuid';
+import { ContextService } from './services/ContextService';
+
 // Middleware
 app.use(express.json({ limit: '50mb' }));
 app.use(cors());
+
+// Observability Middleware
+app.use((req, res, next) => {
+    const correlationId = (req.headers['x-correlation-id'] as string) || uuidv4();
+    // Propagate back to response
+    res.setHeader('x-correlation-id', correlationId);
+
+    ContextService.run({ correlationId }, () => {
+        next();
+    });
+});
 
 // Routes
 app.use('/api', routes);

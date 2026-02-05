@@ -1,7 +1,8 @@
-import axios from 'axios'; // Use raw axios for stream, or configured one? stream is special.
+import axios from 'axios';
 import { ChatMessage } from '../../../../shared/types';
 import { Response } from 'express';
 import { TokenService } from './TokenService';
+import { ContextService } from './ContextService';
 
 const BEDROCK_TEXT_URL = process.env.BEDROCK_TEXT_URL || 'http://localhost:5001/api/bedrock';
 
@@ -18,7 +19,8 @@ export class BedrockService {
                 url: `${BEDROCK_TEXT_URL}/chat`,
                 data: { messages, modelId },
                 headers: {
-                    'Authorization': `Bearer ${TokenService.mint('bedrock', 'write')}`
+                    'Authorization': `Bearer ${TokenService.mint('bedrock', 'write')}`,
+                    'x-correlation-id': ContextService.getCorrelationId()
                 },
                 responseType: 'stream',
                 timeout: 120000
@@ -63,7 +65,8 @@ export class BedrockService {
     static async getModels() {
         const response = await axios.get(`${BEDROCK_TEXT_URL}/models`, {
             headers: {
-                'Authorization': `Bearer ${TokenService.mint('bedrock', 'read')}`
+                'Authorization': `Bearer ${TokenService.mint('bedrock', 'read')}`,
+                'x-correlation-id': ContextService.getCorrelationId()
             }
         });
         return response.data;
