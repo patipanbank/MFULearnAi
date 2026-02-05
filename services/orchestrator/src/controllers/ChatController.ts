@@ -59,15 +59,18 @@ export class ChatController {
             ContextService.run({ correlationId }, () => {
                 const actualSessionId = sessionId || `session-${Date.now()}`;
                 import('../workflows/AgentWorkflow').then(({ AgentWorkflow }) => {
-                    // UNIFIED MODE: Always use AgentWorkflow (now supports RAG)
+                    // UNIFIED MODE: Always use AgentWorkflow (now supports RAG + Multimodal)
                     AgentWorkflow.execute(
                         userId,
                         actualSessionId,
                         message,
                         req.user.role,
-                        req.user.department, // Pass Dept
-                        collectionId,        // Pass Collection
-                        res
+                        req.user.department,
+                        collectionId,
+                        res,
+                        images,
+                        fileParses,
+                        files
                     ).catch((err: any) => {
                         console.error('[ChatController] Agent Error:', err);
                         if (!res.headersSent) res.status(500).json({ error: 'Agent Error' });

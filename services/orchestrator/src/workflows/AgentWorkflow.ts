@@ -6,6 +6,7 @@ import { LoggerService } from '../services/LoggerService';
 import { SummarizationService } from '../services/SummarizationService';
 import { CalculatorTool } from '../tools/CalculatorTool';
 import { SearchTool } from '../tools/SearchTool';
+import { CanonicalIR } from '../../../../shared/types';
 
 const MAX_STEPS = 5;
 
@@ -17,8 +18,8 @@ const AVAILABLE_TOOLS = [
 
 export class AgentWorkflow {
     static async run(req: Request, res: Response) {
-        const { userId, message, sessionId, collectionId, userRole, userDepartment } = (req as any).userContext;
-        return this.execute(userId, sessionId, message, userRole, userDepartment, collectionId, res);
+        const { userId, message, sessionId, collectionId, userRole, userDepartment, images, fileParses, files } = (req as any).userContext;
+        return this.execute(userId, sessionId, message, userRole, userDepartment, collectionId, res, images, fileParses, files);
     }
 
     static async execute(
@@ -28,7 +29,10 @@ export class AgentWorkflow {
         userRole: string,
         userDepartment: string,
         collectionId: string | undefined,
-        res: Response
+        res: Response,
+        images: any[] = [],
+        fileParses: CanonicalIR[] = [],
+        files: any[] = []
     ) {
         const query = message;
         const traceId = (global as any).crypto ? (global as any).crypto.randomUUID() : require('crypto').randomUUID();
@@ -64,6 +68,9 @@ export class AgentWorkflow {
 
             const RAG_INTENTS = ['FACT_LOOKUP', 'RESEARCH', 'DEBUGGING', 'DESIGN', 'QUERY'];
 
+            // 1.3 Tools Preparation
+            const allowedTools = AVAILABLE_TOOLS.filter(t => t.isAllowed(userRole));
+
             // Heuristic RAG Gating: Intent + Complexity Check (Improved for Thai)
             const queryComplexity = query.split(/\s+/).length >= 3 || query.length > 15 || /[\?\.!]/.test(query);
             const hasDomainKeywords = /MFU|system|architecture|security|JWT|canonical|rolling|memory|promotion|auth|Phitsanuruk|พิษณุรักษ์|คู่มือ|สิทธิ์|วิจัย|ค้นหา/i.test(query);
@@ -92,11 +99,31 @@ export class AgentWorkflow {
                 ? `\n\n=== KNOWLEDGE BASE CONTEXT ===\n${ragContext}\n==============================\nUse this context to answer the user's question if relevant.`
                 : '';
 
-            // 1.3 Tools Preparation
-            const allowedTools = AVAILABLE_TOOLS.filter(t => t.isAllowed(userRole));
             const toolsPrompt = allowedTools.length > 0
                 ? `\n\nYou have access to the following tools:\n${allowedTools.map(t => `${t.name}: ${t.description}`).join('\n')}\n\nTo use a tool, wrap the JSON call in <tool_use> tags. Example: <tool_use>{"tool": "search", "parameters": {"query": "knowledge base search query"}}</tool_use>`
                 : '';
+
+            // 1.3.5 Attached Files Context
+            let fileContextPrompt = '';
+            if (fileParses.length > 0) {
+                fileContextPrompt += `\n\n=== ATTACHED FILE CONTEXT ===\n`;
+                fileParses.forEach((ir, idx) => {
+                    const originalName = files && files[idx] ? files[idx].name : `File ${idx + 1}`;
+                    fileContextPrompt += `\n[File: ${originalName}]\n`;
+
+                    let charCount = 0;
+                    const MAX_CHARS = 20000; // Agent context is tighter, use less per file than chat
+                    for (const block of ir.blocks) {
+                        if (charCount > MAX_CHARS) {
+                            fileContextPrompt += `\n... [Truncated] ... \n`;
+                            break;
+                        }
+                        fileContextPrompt += `\n${block.content}`;
+                        charCount += block.content.length;
+                    }
+                });
+                fileContextPrompt += `\n=== END ATTACHED FILES ===\n`;
+            }
 
             // 1.4 Construct Initial Prompt
             let messages: any[] = [
@@ -111,13 +138,14 @@ ${smartContext?.canonical || 'First session.'}
 ${JSON.stringify(smartContext?.rolling || {}, null, 2)}
 
 ${ragSystemPrompt}
+${fileContextPrompt}
 ${toolsPrompt}
 
 If you need to use a tool to answer, use it. If you have the answer, reply directly to the user.
 `
                 },
-                ...history.slice(-10), // Last 10 messages for immediate context
-                { role: 'user', content: query }
+                ...history.slice(-10).map(m => ({ role: m.role, content: m.content, images: m.images })),
+                { role: 'user', content: query, images }
             ];
 
             let steps = 0;
