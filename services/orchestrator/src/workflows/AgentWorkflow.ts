@@ -282,9 +282,24 @@ If you need to use a tool to answer, use it. If you have the answer, reply direc
                 }
             }
 
-            // 6. Streaming Final Answer (Cleaned)
+            // 6. Streaming Final Answer (Cleaned & Explained)
             if (finalAnswer) {
-                const cleanedAnswer = finalAnswer.replace(/<tool_use>[\s\S]*?<\/tool_use>/g, '').trim();
+                // Phase 16: Extract Self-Explanation (Robust Regex)
+                // Matches ```json OR ``` followed by { ... } at the end of string
+                const explanationRegex = /```(?:json)?\s*(\{[\s\S]*?\})\s*```/i;
+                const explanationMatch = finalAnswer.match(explanationRegex);
+                let explanation = { basis: 'Internal', assumptions: [], missing_info: [] };
+                let cleanedAnswer = finalAnswer.replace(/<tool_use>[\s\S]*?<\/tool_use>/g, '').trim();
+
+                if (explanationMatch) {
+                    try {
+                        explanation = JSON.parse(explanationMatch[1]);
+                        // Remove explanation block from user-facing text
+                        cleanedAnswer = cleanedAnswer.replace(explanationMatch[0], '').trim();
+                    } catch (e) {
+                        LoggerService.warn('explanation_parse_error', { raw: explanationMatch[1] }, userId);
+                    }
+                }
                 res.write(`data: ${JSON.stringify({ text: cleanedAnswer, traceId })}\n\n`);
                 res.write(`data: ${JSON.stringify({
                     type: 'metadata',
@@ -294,7 +309,8 @@ If you need to use a tool to answer, use it. If you have the answer, reply direc
                         sources: ragSources,
                         stepsUsed: steps,
                         tokenPressure: messages.length,
-                        totalTokens: totalUsage.total
+                        totalTokens: totalUsage.total,
+                        explanation: explanation
                     }
                 })}\n\n`);
                 res.write(`data: ${JSON.stringify({ type: 'status', message: '' })}\n\n`); // Clear status
