@@ -86,6 +86,7 @@ const getRetentionDays = (level: string): number => {
 app.post('/api/logs', async (req: Request, res: Response) => {
     try {
         const { level, service, userId, action, details, environment } = req.body;
+        console.log(`[LoggerService] Incoming Log: ${action} [${service}]`);
 
         if (!level || !service || !action) {
             return res.status(400).json({ error: 'Missing required log fields' });
