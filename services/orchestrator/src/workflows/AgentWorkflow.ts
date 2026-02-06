@@ -436,12 +436,15 @@ Context:
 ` : '';
 
             const prompt = `Classify user intent for: "${query}"
-            Options: FACT_LOOKUP, RESEARCH, DEBUGGING, DESIGN, CHITCHAT, QUERY.
-            ${contextStr}
-            Note: If query is ambiguous (e.g. "Why is it broken?", "ทำไม", "แบบนั้น") AND lacks technical details (error codes, logs),
-            your PRIORITY is to output 'CHITCHAT' so the model can ask for clarification.
-            However, if specific technical tokens are present (e.g. "401", "deploy failed"), trust it is DEBUGGING.
-            Output ONLY the enum value in <intent></intent> tags.`;
+        Options: FACT_LOOKUP, RESEARCH, DEBUGGING, DESIGN, CHITCHAT, QUERY.
+        ${contextStr}
+        
+        CRITICAL INSTRUCTIONS:
+        1. **Priority**: The user's NEW query is the source of truth. If it shifts topic from the 'Last Intent', IGNORE the context and classify based on the new query.
+        2. **Ambiguity**: If ambiguous (e.g., "Why?", "How?"), use Context to infer intent. If still unclear, default to 'QUERY'.
+        3. **ChitChat**: Only use 'CHITCHAT' for purely social interaction (Hello, Thanks). If it looks like a question, use 'QUERY' or 'FACT_LOOKUP'.
+        
+        Output ONLY the enum value in <intent></intent> tags.`;
 
             const { text: response, usage } = await BedrockService.sendChat('anthropic.claude-3-5-sonnet-20240620-v1:0', [{ role: 'user', content: prompt }], '', 0.1);
             const match = response.match(/<intent>(.*?)<\/intent>/);

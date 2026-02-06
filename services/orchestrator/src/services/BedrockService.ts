@@ -29,17 +29,27 @@ export class BedrockService {
             let fullResponseText = '';
             let tokenUsage = { input: 0, output: 0, total: 0 };
 
+            let buffer = '';
             response.data.on('data', (chunk: Buffer) => {
-                const lines = chunk.toString().split('\n');
-                for (const line of lines) {
-                    if (line.startsWith('data: ')) {
+                buffer += chunk.toString();
+                let params = buffer.split('\n');
+                // Keep the last partial line in the buffer
+                buffer = params.pop() || '';
+
+                for (const line of params) {
+                    if (line.trim().startsWith('data: ')) {
                         const dataStr = line.replace('data: ', '').trim();
                         if (dataStr === '[DONE]') continue;
                         try {
                             const data = JSON.parse(dataStr);
                             if (data.text) fullResponseText += data.text;
-                            if (data.type === 'usage' && data.usage) tokenUsage = data.usage;
-                        } catch (e) { }
+                            if (data.type === 'usage' && data.usage) {
+                                tokenUsage = data.usage;
+                                console.log(`[BedrockService] Stream Usage Received:`, tokenUsage);
+                            }
+                        } catch (e) {
+                            // Only log if it's not a partial JSON at the end (which shouldn't happen with the split logic unless data: prefix is split)
+                        }
                     }
                 }
                 res.write(chunk);
