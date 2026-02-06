@@ -415,25 +415,20 @@ app.get('/api/logs/usage/me', async (req: Request, res: Response) => {
         console.log(`[LoggerService] Usage/Me Debug - User: ${userId}, Total:`, userTotal[0], `Today:`, userToday[0]);
 
         res.json({
+            total: {
+                tokens: userTotal[0]?.tokens || 0,
+                requests: userTotal[0]?.requests || 0
+            },
+            today: {
+                tokens: userToday[0]?.tokens || 0,
+                requests: userToday[0]?.requests || 0
+            }
+        });
 
-            console.log(`[LoggerService] Usage/Me Debug - User: ${userId}, Total:`, userTotal[0], `Today:`, userToday[0]);
-
-            res.json({
-                // ...
-                total: {
-                    tokens: userTotal[0]?.tokens || 0,
-                    requests: userTotal[0]?.requests || 0
-                },
-                today: {
-                    tokens: userToday[0]?.tokens || 0,
-                    requests: userToday[0]?.requests || 0
-                }
-            });
-
-        } catch (error: any) {
-            res.status(500).json({ error: 'Failed to fetch user usage' });
-        }
-    });
+    } catch (error: any) {
+        res.status(500).json({ error: 'Failed to fetch user usage' });
+    }
+});
 
 // --- Health Check ---
 app.get('/health', (req: Request, res: Response) => res.json({
