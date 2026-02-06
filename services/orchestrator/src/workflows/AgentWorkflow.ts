@@ -183,6 +183,9 @@ If you need to use a tool to answer, use it. If you have the answer, reply direc
             let lastToolCall = '';
             let repeatCount = 0;
             const startTime = Date.now();
+            // Phase 16: Hoisted for Persistence
+            let confidence = 'Low';
+            let explanation = { basis: 'Internal', assumptions: [], missing_info: [] };
 
             while (steps < MAX_STEPS) {
                 steps++;
@@ -286,9 +289,10 @@ If you need to use a tool to answer, use it. If you have the answer, reply direc
             if (finalAnswer) {
                 // Phase 16: Extract Self-Explanation (Robust Regex)
                 // Matches ```json OR ``` followed by { ... } at the end of string
+                // Match anything inside ```json ... ``` or just ``` ... ```
                 const explanationRegex = /```(?:json)?\s*(\{[\s\S]*?\})\s*```/i;
                 const explanationMatch = finalAnswer.match(explanationRegex);
-                let explanation = { basis: 'Internal', assumptions: [], missing_info: [] };
+                // explanation = { ... } initialized above
                 let cleanedAnswer = finalAnswer.replace(/<tool_use>[\s\S]*?<\/tool_use>/g, '').trim();
 
                 if (explanationMatch) {
@@ -300,6 +304,29 @@ If you need to use a tool to answer, use it. If you have the answer, reply direc
                         LoggerService.warn('explanation_parse_error', { raw: explanationMatch[1] }, userId);
                     }
                 }
+                // Phase 16: Heuristic Confidence Engine
+                // confidence initialized to 'Low' above
+                if (explanation.basis === 'Canonical') {
+                    confidence = 'High';
+                } else if (ragContext && ragSources.length > 0) {
+                    // If purely RAG and no major assumptions -> High, else Medium
+                    if (explanation.assumptions && explanation.assumptions.length > 0) {
+                        confidence = 'Medium';
+                    } else {
+                        confidence = 'High';
+                    }
+                } else if (explanation.basis === 'Internal' || explanation.basis === 'Models') {
+                    // Internal knowledge is fallback
+                    confidence = 'Low';
+                } else {
+                    confidence = 'Medium';
+                }
+
+                // Override: specific Refusal Phrase
+                if (/i don't have enough/i.test(cleanedAnswer)) {
+                    confidence = 'Low';
+                }
+
                 res.write(`data: ${JSON.stringify({ text: cleanedAnswer, traceId })}\n\n`);
                 res.write(`data: ${JSON.stringify({
                     type: 'metadata',
@@ -333,7 +360,21 @@ If you need to use a tool to answer, use it. If you have the answer, reply direc
 
                 // 8. Persistence (Save to Redis & MongoDB)
                 const currentMessage = { role: 'user' as const, content: query, timestamp: new Date() };
-                const assistantMessage = { role: 'assistant' as const, content: cleanedAnswer, timestamp: new Date() };
+                const assistantMessage = {
+                    role: 'assistant' as const,
+                    content: cleanedAnswer,
+                    timestamp: new Date(),
+                    meta: {
+                        intent: currentIntent,
+                        usedRAG: !!ragContext,
+                        sources: ragSources,
+                        stepsUsed: steps,
+                        tokenPressure: messages.length,
+                        totalTokens: totalUsage.total,
+                        confidence,
+                        explanation
+                    }
+                };
 
                 await HistoryService.addMessage(userId, sessionId, currentMessage);
                 await HistoryService.addMessage(userId, sessionId, assistantMessage);

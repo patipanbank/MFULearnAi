@@ -29,6 +29,17 @@ export interface ChatMessage {
     content?: string;
   }>;
   isImageGeneration?: boolean;
+  meta?: {
+    confidence?: string;
+    explanation?: any;
+    sources?: Array<{ id: string, name: string }>;
+    usedRAG?: boolean;
+    intent?: string;
+    stepsUsed?: number;
+    tokenPressure?: number;
+    totalTokens?: number;
+    [key: string]: any;
+  };
 }
 
 export interface ServiceResponse<T = any> {

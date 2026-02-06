@@ -210,7 +210,21 @@ ${JSON.stringify(smartContext.rolling || {}, null, 2)}
             })}\n\n`);
 
             // On Complete
-            const assistantMessage: ChatMessage = { role: 'assistant', content: fullText, timestamp: new Date() };
+            const assistantMessage: ChatMessage = {
+                role: 'assistant',
+                content: fullText,
+                timestamp: new Date(),
+                meta: {
+                    intent: currentIntent,
+                    usedRAG: !!ragContext,
+                    sources: ragSources,
+                    stepsUsed: 1,
+                    tokenPressure: messagesToSend.length,
+                    totalTokens: tokenUsage.total + intentUsage.total,
+                    confidence,
+                    explanation
+                }
+            };
 
             await HistoryService.addMessage(userId, sessionId, currentMessage);
             await HistoryService.addMessage(userId, sessionId, assistantMessage);

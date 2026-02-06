@@ -17,7 +17,8 @@ const ConversationSchema = new mongoose.Schema({
             size: Number,
             mediaType: String
         }],
-        timestamp: { type: Date, default: Date.now }
+        timestamp: { type: Date, default: Date.now },
+        meta: { type: mongoose.Schema.Types.Mixed }
     }],
     modelId: String,
     metadata: {
@@ -50,5 +51,8 @@ const ConversationSchema = new mongoose.Schema({
     updatedAt: { type: Date, default: Date.now }
 });
 
-ConversationSchema.index({ userId: 1, sessionId: 1 }, { unique: true });
+// Index for fast retrieval / cleanup
+ConversationSchema.index({ userId: 1, sessionId: 1 });
+ConversationSchema.index({ updatedAt: -1 });
+
 export const Conversation = mongoose.model('Conversation', ConversationSchema);
