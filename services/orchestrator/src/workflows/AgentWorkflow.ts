@@ -143,10 +143,11 @@ export class AgentWorkflow {
             // 1.3.6 Dynamic Refusal Policy based on Intent
             // Phase 18: UX Improvement - Relaxed Refusal for General Facts with Guardrails
             // Guardrail: Detect if the query implies an organizational context (e.g., policy, specific entity, rules)
-            const isOrganizationalQuery = hasDomainKeywords || /policy|regulation|guideline|document|files|contract|agreement|budget|contact|email|who is/i.test(query);
+            const isOrganizationalQuery = hasDomainKeywords || /policy|regulation|guideline|document|files|contract|agreement|budget|contact|email|who is|fee|calendar|schedule|deadline|registration|course|gpa|grade/i.test(query);
 
-            // Allow internal knowledge ONLY if intent is safe AND it's NOT an organizational query
-            const isSafeGeneralIntent = ['FACT_LOOKUP', 'CHITCHAT', 'Research'].includes(currentIntent) && !isOrganizationalQuery;
+            // Allow internal knowledge for ANY intent as long as it's NOT an organizational query
+            // This prevents benign intents like 'INSTRUCTION' or 'SUMMARY' from being blocked
+            const isSafeGeneralIntent = !isOrganizationalQuery;
 
             const refusalRule = isSafeGeneralIntent
                 ? `- Basic factual questions (science, math, general definitions) may be answered using internal knowledge. 
