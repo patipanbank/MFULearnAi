@@ -87,11 +87,7 @@ app.post('/api/logs', async (req: Request, res: Response) => {
     try {
         const { level, service, userId, action, details, environment } = req.body;
 
-        if (action === 'agent_reliability_telemetry') {
-            console.log(`[LoggerService] Telemetry Payload:`, JSON.stringify(details, null, 2));
-        } else {
-            console.log(`[LoggerService] Incoming Log: ${action}`);
-        }
+
 
         if (!level || !service || !action) {
             return res.status(400).json({ error: 'Missing required log fields' });
