@@ -412,8 +412,6 @@ app.get('/api/logs/usage/me', async (req: Request, res: Response) => {
             ])
         ]);
 
-        console.log(`[LoggerService] Usage/Me Debug - User: ${userId}, Total:`, userTotal[0], `Today:`, userToday[0]);
-
         res.json({
             total: {
                 tokens: userTotal[0]?.tokens || 0,

@@ -198,6 +198,8 @@ services:
       - PORT=6000
       - ENV_TYPE=TEST
       - MONGO_URI=mongodb://mongo:27017/mfulearnai-logs
+    ports:
+      - "6000:6000"
     depends_on:
       - mongo
     networks:
