@@ -136,6 +136,8 @@ export class BedrockService {
                 });
             }
 
+            console.log(`[BedrockService] SendChat Usage Received:`, usage);
+
             return { text: content, usage };
         } catch (error: any) {
             console.error('[BedrockService] SendChat Error:', error.message, {
