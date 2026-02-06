@@ -128,7 +128,7 @@ const getFileIcon = (name) => {
         <div class="content-col">
           <div class="assistant-header">
             <span class="name">{{ t('aiAssistant') }}</span>
-            <div v-if="message.meta?.confidence" class="confidence-badge" :class="message.meta.confidence.toLowerCase()" :title="JSON.stringify(message.meta.explanation, null, 2)">
+            <div v-if="message.meta?.confidence" class="confidence-badge" :class="message.meta.confidence.toLowerCase()">
                 <span class="conf-dot"></span>
                 {{ message.meta.confidence }} Confidence
                 <div class="explanation-tooltip" v-if="message.meta.explanation">
