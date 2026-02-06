@@ -96,17 +96,7 @@ const handleSelectSession = (sessionId) => {
   router.push(`/chat/${sessionId}`)
 }
 
-const handleSendMessage = async (payload) => {
-  let message = ''
-  let mode = 'chat'
-
-  if (typeof payload === 'object' && payload !== null && payload.text !== undefined) {
-      message = payload.text
-      mode = payload.mode
-  } else {
-      message = payload
-  }
-
+const handleSendMessage = async (message) => {
   if (!message?.trim() && attachments.value.length === 0) return
 
   const isNewSession = !chatStore.currentSessionId
