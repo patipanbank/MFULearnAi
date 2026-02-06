@@ -127,7 +127,7 @@ const handleSendMessage = async (message) => {
   attachments.value = []
 
   // Send to store (update store action to accept files)
-  await chatStore.sendMessage(finalMessage, null, imagesToSend, filesToSend, mode)
+  await chatStore.sendMessage(finalMessage, null, imagesToSend, filesToSend)
   
   // If it was a new session, update URL so refresh works
   if (isNewSession && chatStore.currentSessionId) {
