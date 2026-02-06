@@ -96,7 +96,17 @@ const handleSelectSession = (sessionId) => {
   router.push(`/chat/${sessionId}`)
 }
 
-const handleSendMessage = async (message) => {
+const handleSendMessage = async (payload) => {
+  let message = ''
+  let mode = 'chat'
+
+  if (typeof payload === 'object' && payload !== null && payload.text !== undefined) {
+      message = payload.text
+      mode = payload.mode
+  } else {
+      message = payload
+  }
+
   if (!message?.trim() && attachments.value.length === 0) return
 
   const isNewSession = !chatStore.currentSessionId
@@ -127,7 +137,7 @@ const handleSendMessage = async (message) => {
   attachments.value = []
 
   // Send to store (update store action to accept files)
-  await chatStore.sendMessage(finalMessage, null, imagesToSend, filesToSend)
+  await chatStore.sendMessage(finalMessage, null, imagesToSend, filesToSend, mode)
   
   // If it was a new session, update URL so refresh works
   if (isNewSession && chatStore.currentSessionId) {

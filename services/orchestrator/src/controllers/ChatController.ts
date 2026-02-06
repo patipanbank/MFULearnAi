@@ -118,7 +118,11 @@ export class ChatController {
             bb.on('close', async () => {
                 await Promise.all(filePromises);
                 await Promise.all(filePromises);
-                executeAgent(); // Always use Agent
+                if (mode === 'agent') {
+                    executeAgent();
+                } else {
+                    executeWorkflow();
+                }
             });
 
             req.pipe(bb);
@@ -133,7 +137,11 @@ export class ChatController {
             scenarioId = req.body.scenarioId;
             mode = req.body.mode || 'chat';
 
-            executeAgent(); // Always use Agent
+            if (mode === 'agent') {
+                executeAgent();
+            } else {
+                executeWorkflow();
+            }
         }
     }
 
