@@ -36,11 +36,62 @@ const handleSend = () => {
 const handleFileClick = () => {
   fileInputRef.value?.click()
 }
-//...
+
+const handleFileChange = (e) => {
+  const files = e.target.files
+  if (files?.length) {
+    emit('upload', files)
+    e.target.value = ''
+  }
+}
+
+const healthStatus = computed(() => {
+    const len = chatStore.messages.length
+    if (len < 8) return 'safe'
+    if (len < 12) return 'medium'
+    return 'heavy'
+})
+
+const healthLabel = computed(() => {
+    const len = chatStore.messages.length
+    if (len < 8) return 'Perfect context'
+    if (len < 12) return 'Moderate context'
+    return 'Context pruning active'
+})
+
+defineExpose({
+  focus: () => document.querySelector('.chat-input')?.focus()
+})
 </script>
 
 <template>
-  <!-- ... -->
+  <div class="input-area">
+    <div class="input-container">
+      
+      <!-- Combined Input Wrapper -->
+      <div class="input-wrapper">
+          <!-- Attachments (Inside) -->
+          <div v-if="attachments && attachments.length > 0" class="attachments-preview">
+            <div v-for="(file, index) in attachments" :key="index" class="attachment-item">
+                <div v-if="file.type === 'image'" class="thumb-wrapper">
+                    <img :src="file.data" class="attachment-thumb" />
+                </div>
+                <div v-else class="file-icon-wrapper">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                        <polyline points="14 2 14 8 20 8"></polyline>
+                    </svg>
+                </div>
+                <span v-if="file.type !== 'image'" class="file-name">{{ file.name }}</span>
+                <button class="btn-remove" @click="$emit('remove-attachment', index)">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
+            </div>
+          </div>
+
           <div class="input-controls">
             <!-- File Upload Button -->
             <button 
@@ -49,7 +100,9 @@ const handleFileClick = () => {
               :title="t('uploadFile')"
               :disabled="disabled"
             >
-              <!-- ... -->
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
+              </svg>
             </button>
             <input
               ref="fileInputRef"
@@ -334,30 +387,6 @@ const handleFileClick = () => {
     font-weight: 500;
 }
 
-.mode-select {
-    background: var(--color-bg-tertiary);
-    border: 1px solid var(--color-border);
-    color: var(--color-text-primary);
-    padding: 0 8px;
-    height: 40px;
-    border-radius: var(--radius-md);
-    font-size: 13px;
-    cursor: pointer;
-    outline: none;
-    transition: all 0.2s;
-    min-width: 110px;
-}
-
-.mode-select:hover {
-    background: var(--color-bg-hover);
-    border-color: var(--color-text-muted);
-}
-
-.mode-select:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-}
-
 /* Responsive */
 @media (max-width: 768px) {
   .input-area {
@@ -368,14 +397,8 @@ const handleFileClick = () => {
     padding: 6px;
   }
   
-  .mode-select {
-    height: 36px;
-    font-size: 12px;
-    min-width: 90px;
-  }
-  
   .btn-attach, .btn-send {
-    width: 36px; /* Larger touch target relative to visual size is better, but visual size 36px fits better */
+    width: 36px;
     height: 36px;
   }
 }
