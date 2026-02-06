@@ -129,11 +129,27 @@ const getFileIcon = (name) => {
           <div class="assistant-header">
             <span class="name">{{ t('aiAssistant') }}</span>
             <div v-if="message.meta?.confidence" class="confidence-badge" :class="message.meta.confidence.toLowerCase()">
-                <span class="conf-dot"></span>
-                {{ message.meta.confidence }} Confidence
+                <!-- Icon based on confidence -->
+                <svg v-if="message.meta.confidence === 'High'" class="conf-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                    <path d="M9 12l2 2 4-4"/>
+                </svg>
+                <svg v-else-if="message.meta.confidence === 'Medium'" class="conf-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                    <line x1="12" y1="9" x2="12" y2="13"/>
+                    <line x1="12" y1="17" x2="12.01" y2="17"/>
+                </svg>
+                <svg v-else class="conf-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"/>
+                    <line x1="12" y1="8" x2="12" y2="12"/>
+                    <line x1="12" y1="16" x2="12.01" y2="16"/>
+                </svg>
+                
                 <div class="explanation-tooltip" v-if="message.meta.explanation">
+                    <div class="tooltip-header" :class="message.meta.confidence.toLowerCase()">
+                        {{ message.meta.confidence }} Confidence
+                    </div>
                     <div class="tooltip-row"><strong>Basis:</strong> {{ message.meta.explanation.basis }}</div>
-                    <!-- Simplify: Only show details if they are warnings or critical -->
                     <div class="tooltip-row" v-if="message.meta.confidence === 'Low' && message.meta.explanation.missing_info?.length">
                          <strong>Gap:</strong> {{ message.meta.explanation.missing_info[0] }}
                     </div>
@@ -641,4 +657,83 @@ const getFileIcon = (name) => {
     border: 1px solid rgba(255,255,255,0.1);
 }
 
+/* Confidence Badge & Tooltip Styles */
+.confidence-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    margin-left: 8px;
+    cursor: help;
+    position: relative;
+    user-select: none;
+    transition: transform 0.2s;
+}
+
+.confidence-badge:hover {
+    transform: scale(1.1);
+}
+
+.conf-icon {
+    width: 16px;
+    height: 16px;
+}
+
+.confidence-badge.high {
+    background: #ecfdf5;
+    color: #059669;
+    border: 1px solid #a7f3d0;
+}
+
+.confidence-badge.medium {
+    background: #fffbeb;
+    color: #d97706;
+    border: 1px solid #fde68a;
+}
+
+.confidence-badge.low {
+    background: #fef2f2;
+    color: #dc2626;
+    border: 1px solid #fecaca;
+}
+
+/* Explanation Tooltip */
+.explanation-tooltip {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    width: 200px; /* narrowed */
+    background: var(--color-bg-tertiary, #ffffff);
+    color: var(--color-text-primary, #111827);
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    padding: 12px;
+    box-shadow: var(--shadow-lg);
+    z-index: 100;
+    margin-top: 8px;
+    text-transform: none;
+    letter-spacing: normal;
+    font-weight: 400;
+    font-size: 12px;
+}
+
+.tooltip-header {
+    font-weight: 600;
+    margin-bottom: 4px;
+    padding-bottom: 4px;
+    border-bottom: 1px solid var(--color-border);
+    display: flex;
+    justify-content: space-between;
+}
+
+.tooltip-header.high { color: #059669; }
+.tooltip-header.medium { color: #d97706; }
+.tooltip-header.low { color: #dc2626; }
+
+.confidence-badge:hover .explanation-tooltip {
+    display: block;
+}
 </style>
