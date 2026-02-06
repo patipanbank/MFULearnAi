@@ -361,13 +361,54 @@ app.get('/api/logs/usage/me', async (req: Request, res: Response) => {
         const [userTotal, userToday] = await Promise.all([
             // All Time for User
             LogEntry.aggregate([
-                { $match: { action: 'chat_completion', environment: ENV_TYPE, userId: userId } },
-                { $group: { _id: null, tokens: { $sum: "$details.tokens.total" }, requests: { $sum: 1 } } }
+                {
+                    $match: {
+                        action: { $in: ['chat_completion', 'agent_reliability_telemetry'] },
+                        environment: ENV_TYPE,
+                        userId: userId
+                    }
+                },
+                {
+                    $group: {
+                        _id: null,
+                        tokens: {
+                            $sum: {
+                                $cond: [
+                                    { $eq: ["$action", "chat_completion"] },
+                                    { $ifNull: ["$details.tokens.total", 0] },
+                                    { $ifNull: ["$details.totalTokens", 0] }
+                                ]
+                            }
+                        },
+                        requests: { $sum: 1 }
+                    }
+                }
             ]),
             // Today for User
             LogEntry.aggregate([
-                { $match: { action: 'chat_completion', environment: ENV_TYPE, userId: userId, timestamp: { $gte: startOfDay } } },
-                { $group: { _id: null, tokens: { $sum: "$details.tokens.total" }, requests: { $sum: 1 } } }
+                {
+                    $match: {
+                        action: { $in: ['chat_completion', 'agent_reliability_telemetry'] },
+                        environment: ENV_TYPE,
+                        userId: userId,
+                        timestamp: { $gte: startOfDay }
+                    }
+                },
+                {
+                    $group: {
+                        _id: null,
+                        tokens: {
+                            $sum: {
+                                $cond: [
+                                    { $eq: ["$action", "chat_completion"] },
+                                    { $ifNull: ["$details.tokens.total", 0] },
+                                    { $ifNull: ["$details.totalTokens", 0] }
+                                ]
+                            }
+                        },
+                        requests: { $sum: 1 }
+                    }
+                }
             ])
         ]);
 
