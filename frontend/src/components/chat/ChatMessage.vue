@@ -133,13 +133,9 @@ const getFileIcon = (name) => {
                 {{ message.meta.confidence }} Confidence
                 <div class="explanation-tooltip" v-if="message.meta.explanation">
                     <div class="tooltip-row"><strong>Basis:</strong> {{ message.meta.explanation.basis }}</div>
-                    <div class="tooltip-row" v-if="message.meta.explanation.assumptions?.length">
-                        <strong>Assumptions:</strong>
-                        <ul><li v-for="a in message.meta.explanation.assumptions" :key="a">{{ a }}</li></ul>
-                    </div>
-                    <div class="tooltip-row" v-if="message.meta.explanation.missing_info?.length">
-                        <strong>Missing:</strong>
-                        <ul><li v-for="m in message.meta.explanation.missing_info" :key="m">{{ m }}</li></ul>
+                    <!-- Simplify: Only show details if they are warnings or critical -->
+                    <div class="tooltip-row" v-if="message.meta.confidence === 'Low' && message.meta.explanation.missing_info?.length">
+                         <strong>Gap:</strong> {{ message.meta.explanation.missing_info[0] }}
                     </div>
                 </div>
             </div>
