@@ -7,7 +7,7 @@ import { LoggerService } from './LoggerService';
 const KNOWLEDGE_URL = process.env.KNOWLEDGE_URL || 'http://localhost:7000/api/knowledge';
 
 export class KnowledgeService {
-    static async search(query: string, userContext: any, collectionId?: string, intent: string = 'QUERY'): Promise<{ text: string, sources: Array<{ id: string, name: string }> }> {
+    static async search(query: string, userContext: any, collectionId?: string, intent: string = 'QUERY'): Promise<{ text: string, sources: Array<{ id: string, name: string }>, maxScore?: number }> {
         try {
             const payload: any = { query, limit: 3, intent };
             if (collectionId) payload.collectionId = collectionId;
@@ -54,7 +54,10 @@ export class KnowledgeService {
                     .map((hit: any) => `[Source: ${hit.metadata.source}]\n${hit.content}`)
                     .join('\n\n');
 
-                return { text, sources };
+                // Expose the highest score for confidence gating
+                const maxScore = response.data.results.length > 0 ? Math.max(...response.data.results.map((r: any) => r.score || 0)) : 0;
+
+                return { text, sources, maxScore };
             } else {
                 LoggerService.warn('rag_search_no_results', { intent, query });
             }

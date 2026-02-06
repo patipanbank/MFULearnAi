@@ -88,19 +88,30 @@ export class AgentWorkflow {
                 (RAG_INTENTS.includes(currentIntent) && (queryComplexity || hasDomainKeywords));
             let ragContext = '';
             let ragSources: Array<{ id: string, name: string }> = [];
+            let ragMaxScore = 0;
+
             if (shouldUseRAG) {
                 res.write(`data: ${JSON.stringify({ type: 'intent', intent: currentIntent })}\n\n`);
                 res.write(`data: ${JSON.stringify({ type: 'status', message: 'Searching Knowledge Base...' })}\n\n`);
                 const searchResult = await KnowledgeService.search(query, userContext, collectionId, currentIntent);
                 ragContext = searchResult.text;
                 ragSources = searchResult.sources;
-                LoggerService.info('agent_rag_result', { found: !!ragContext, intent: currentIntent, traceId, queryComplexity }, userId);
+                ragMaxScore = searchResult.maxScore || 0;
+                LoggerService.info('agent_rag_result', { found: !!ragContext, score: ragMaxScore, intent: currentIntent, traceId, queryComplexity }, userId);
             } else {
                 res.write(`data: ${JSON.stringify({ type: 'intent', intent: currentIntent })}\n\n`);
                 res.write(`data: ${JSON.stringify({ type: 'status', message: 'Analyzing request...' })}\n\n`);
             }
+
+            // Phase 18: Score-Based Anti-Redundancy Guard
+            // If score > 0.65 (High Confidence), we FORBID redundant search
+            // If score <= 0.65 (Low Confidence), we SUGGEST clarification
+            const ragInstruction = ragMaxScore > 0.65
+                ? `INSTRUCTION: This context matches your query with HIGH CONFIDENCE. Do NOT use the 'search' tool unless absolutely necessary. Rely on this text.`
+                : `INSTRUCTION: This context was retrieved but may be partial (Confidence: ${(ragMaxScore * 100).toFixed(0)}%). If it is insufficient, YOU MUST USE THE 'search' TOOL to find better information.`;
+
             const ragSystemPrompt = ragContext
-                ? `\n\n=== KNOWLEDGE BASE CONTEXT ===\n${ragContext}\n==============================\nUse this context to answer the user's question if relevant.`
+                ? `\n\n=== KNOWLEDGE BASE CONTEXT (PRE-RETRIEVED) ===\n${ragContext}\n==============================\n${ragInstruction}`
                 : '';
 
             const toolsPrompt = allowedTools.length > 0
@@ -129,6 +140,20 @@ export class AgentWorkflow {
                 fileContextPrompt += `\n=== END ATTACHED FILES ===\n`;
             }
 
+            // 1.3.6 Dynamic Refusal Policy based on Intent
+            // Phase 18: UX Improvement - Relaxed Refusal for General Facts with Guardrails
+            // Guardrail: Detect if the query implies an organizational context (e.g., policy, specific entity, rules)
+            const isOrganizationalQuery = hasDomainKeywords || /policy|regulation|guideline|document|files|contract|agreement|budget|contact|email|who is/i.test(query);
+
+            // Allow internal knowledge ONLY if intent is safe AND it's NOT an organizational query
+            const isSafeGeneralIntent = ['FACT_LOOKUP', 'CHITCHAT', 'Research'].includes(currentIntent) && !isOrganizationalQuery;
+
+            const refusalRule = isSafeGeneralIntent
+                ? `- Basic factual questions (science, math, general definitions) may be answered using internal knowledge. 
+                   - WARNING: If the question pertains to specific organizational policies, documents, or data absent in context, you MUST refuse.
+                   - When answering from internal knowledge, keep answers generic and timeless. Do NOT invent names, dates, or policies.`
+                : `- If the Knowledge Base or Context does not explicitly contain the answer, you MUST say "I don't have enough information". Do NOT use internal knowledge for organizational inquiries.`;
+
             // 1.4 Construct Initial Prompt
             let messages: any[] = [
                 {
@@ -141,11 +166,12 @@ export class AgentWorkflow {
 3. Attached Files (User Uploads) - May be outdated or partial
 4. Your Internal Knowledge - LOWEST/Fallback
 
-CRITICAL RULES:
+=== CRITICAL RULES (ADAPTED FOR ${currentIntent}) ===
 - If Attached Files conflict with Canonical Memory, TRUST MEMORY and warn the user.
 - If Canonical Memory contradicts recent evidence, FLAG the contradiction in your response.
-- If the Knowledge Base or Context does not explicitly contain the answer, you MUST say "I don't have enough information".
+${refusalRule}
 - If the answer requires inference beyond the explicit text, clearly label it as an assumption or hypothesis.
+- TRAP GUARD: If the retrieved KNOWLEDGE BASE CONTEXT only partially answers the question or seems off-topic, you MAY search for clarification using tools. Do NOT settle for a partial answer if a search could fix it.
 - Do NOT infer dates, policies, or announcements that are not present in the context.
 - If confidence is low, ask for clarification.
 
@@ -267,7 +293,7 @@ If you need to use a tool to answer, use it. If you have the answer, reply direc
 
                 // 4. Build Result (Sanitized)
                 const safeOutput = JSON.stringify(executionResult.result || executionResult.error).replace(/<\/tool_result>/g, '&lt;/tool_result&gt;');
-                const resultBlock = `\n<tool_result>\n<tool_name>${toolCall.tool}</tool_name>\n<status>${executionResult.success ? 'success' : 'error'}</status>\n<output>${safeOutput}</output>\n</tool_result>\n`;
+                const resultBlock = `\n<tool_result>\n<tool_name>${toolCall.tool}</tool_name>\n<status>${executionResult.success ? 'success' : 'error'}</status>\n<output>${safeOutput}</output>\n</tool_result>\n\nREMINDER: Your original goal is: "${query}". Use this new information to answer the user's question, or explain if it's still insufficient.`;
 
                 messages.push({ role: 'assistant' as const, content: fullResponse });
                 messages.push({ role: 'user' as const, content: resultBlock });
