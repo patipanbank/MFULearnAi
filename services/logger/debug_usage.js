@@ -25,34 +25,34 @@ async function debug() {
         await mongoose.connect(MONGO_URI);
         console.log('Connected.');
 
-        // 1. Check Most Recent Log
-        const latest = await LogEntry.findOne().sort({ timestamp: -1 });
-        if (latest) {
-            console.log('Latest Log Timestamp:', latest.timestamp);
-            console.log('Latest Log Action:', latest.action);
-            console.log('Latest Log Details:', JSON.stringify(latest.details, null, 2));
-        } else {
-            console.log('No logs found in DB.');
-        }
-
-        // 2. Count Agent Logs
-        const count = await LogEntry.countDocuments({ action: 'agent_reliability_telemetry' });
-        console.log(`Total Agent Logs: ${count}`);
-
-        // 3. Count Today's Logs
+        // 3. Find ONE Agent Log from today
         const startOfDay = new Date();
         startOfDay.setHours(0, 0, 0, 0);
-        console.log('Checking logs since:', startOfDay.toISOString());
 
-        const todayCount = await LogEntry.countDocuments({ timestamp: { $gte: startOfDay } });
-        console.log(`Logs since start of day: ${todayCount}`);
+        console.log('--- Analyzing Today Log ---');
+        console.log('Start of Day:', startOfDay.toISOString());
 
-        if (count > 0) {
-            // ... (keep existing aggregation test if needed, but the above is more critical)
+        const agentLogToday = await LogEntry.findOne({
+            action: 'agent_reliability_telemetry',
+            timestamp: { $gte: startOfDay }
+        });
+
+        if (agentLogToday) {
+            console.log('Found Agent Log Today!');
+            console.log('ID:', agentLogToday._id);
+            console.log('User ID:', agentLogToday.userId);
+            console.log('Environment:', agentLogToday.environment);
+            console.log('Timestamp:', agentLogToday.timestamp.toISOString());
+            console.log('Details.totalTokens:', agentLogToday.details?.totalTokens);
+
+            // Run EXACT Server Aggregation for this User
             const agg = await LogEntry.aggregate([
                 {
                     $match: {
-                        action: { $in: ['chat_completion', 'agent_reliability_telemetry'] }
+                        action: { $in: ['chat_completion', 'agent_reliability_telemetry'] },
+                        environment: agentLogToday.environment, // Use actual env
+                        userId: agentLogToday.userId,         // Use actual user
+                        timestamp: { $gte: startOfDay }
                     }
                 },
                 {
@@ -70,7 +70,14 @@ async function debug() {
                     }
                 }
             ]);
-            console.log('Global Token Count (Agg):', agg[0]?.totalTokens);
+            console.log('Server Aggregation Result (Today):', JSON.stringify(agg, null, 2));
+
+        } else {
+            console.log('❌ NO Agent Telemetry logs found for Today.');
+            const anyLog = await LogEntry.findOne({ timestamp: { $gte: startOfDay } });
+            if (anyLog) {
+                console.log('But found OTHER logs today:', anyLog.action, 'Env:', anyLog.environment);
+            }
         }
 
     } catch (error) {
