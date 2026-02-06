@@ -128,6 +128,21 @@ const getFileIcon = (name) => {
         <div class="content-col">
           <div class="assistant-header">
             <span class="name">{{ t('aiAssistant') }}</span>
+            <div v-if="message.meta?.confidence" class="confidence-badge" :class="message.meta.confidence.toLowerCase()" :title="JSON.stringify(message.meta.explanation, null, 2)">
+                <span class="conf-dot"></span>
+                {{ message.meta.confidence }} Confidence
+                <div class="explanation-tooltip" v-if="message.meta.explanation">
+                    <div class="tooltip-row"><strong>Basis:</strong> {{ message.meta.explanation.basis }}</div>
+                    <div class="tooltip-row" v-if="message.meta.explanation.assumptions?.length">
+                        <strong>Assumptions:</strong>
+                        <ul><li v-for="a in message.meta.explanation.assumptions" :key="a">{{ a }}</li></ul>
+                    </div>
+                    <div class="tooltip-row" v-if="message.meta.explanation.missing_info?.length">
+                        <strong>Missing:</strong>
+                        <ul><li v-for="m in message.meta.explanation.missing_info" :key="m">{{ m }}</li></ul>
+                    </div>
+                </div>
+            </div>
           </div>
           
           <div class="prose-content prose" v-if="message.content" v-html="render(message.content)"></div>

@@ -74,9 +74,12 @@ export class ChatWorkflow {
             (RAG_INTENTS.includes(currentIntent) && (queryComplexity || hasDomainKeywords));
 
         let ragContext = '';
+        let ragSources: Array<{ id: string, name: string, confidence?: number }> = [];
+
         if (shouldUseRAG) {
-            const { text } = await KnowledgeService.search(message, userContext, collectionId, currentIntent);
+            const { text, sources } = await KnowledgeService.search(message, userContext, collectionId, currentIntent);
             ragContext = text;
+            ragSources = sources;
             LoggerService.info('chat_rag_result', { found: !!ragContext, intent: currentIntent, queryComplexity }, userId);
         }
 
@@ -184,6 +187,28 @@ ${JSON.stringify(smartContext.rolling || {}, null, 2)}
         res.setHeader('X-Accel-Buffering', 'no');
 
         await BedrockService.streamChat(messagesToSend, modelId, res, async (fullText, tokenUsage) => {
+            // Phase 16: Simple Confidence Injection for Chat Mode
+            // Since ChatWorkflow is simpler, we infer confidence from RAG usage.
+            const confidence = ragContext ? 'High' : 'Medium';
+            const explanation = {
+                basis: ragContext ? 'RAG' : 'Internal',
+                assumptions: ragContext ? [] : ['Relied on internal knowledge'],
+                missing_info: []
+            };
+
+            res.write(`data: ${JSON.stringify({
+                type: 'metadata',
+                metadata: {
+                    intent: currentIntent,
+                    usedRAG: !!ragContext,
+                    sources: ragSources,
+                    stepsUsed: 1,
+                    tokenPressure: messagesToSend.length,
+                    confidence,
+                    explanation
+                }
+            })}\n\n`);
+
             // On Complete
             const assistantMessage: ChatMessage = { role: 'assistant', content: fullText, timestamp: new Date() };
 

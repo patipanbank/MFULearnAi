@@ -77,7 +77,7 @@ export class AgentWorkflow {
 
             // Heuristic RAG Gating: Intent + Complexity Check (Improved for Thai)
             const queryComplexity = query.split(/\s+/).length >= 3 || query.length > 20 || /[\?\.!]/.test(query);
-            const hasDomainKeywords = /MFU|system|architecture|security|JWT|canonical|rolling|memory|promotion|auth|Phitsanulok|พิษณุรักษ์|คู่มือ|สิทธิ์|วิจัย|ค้นหา|ระเบียบ|ประกาศ|แนวทาง|ใคร|คือ|ที่ไหน|เมื่อไหร่|อย่างไร|กำหนดการ/i.test(query);
+            const hasDomainKeywords = /MFU|system|architecture|security|JWT|canonical|rolling|memory|promotion|auth|คู่มือ|สิทธิ์|วิจัย|ค้นหา|ระเบียบ|ประกาศ|แนวทาง|ใคร|คือ|ที่ไหน|เมื่อไหร่|อย่างไร|กำหนดการ/i.test(query);
 
             // Relaxed Rule: Trigger RAG if:
             // 1. Intent is explicitly factual (FACT_LOOKUP, RESEARCH)
@@ -148,6 +148,18 @@ CRITICAL RULES:
 - If the answer requires inference beyond the explicit text, clearly label it as an assumption or hypothesis.
 - Do NOT infer dates, policies, or announcements that are not present in the context.
 - If confidence is low, ask for clarification.
+
+=== OUTPUT CONTRACT (SELF-EXPLANATION) ===
+After your final answer, you MUST append a JSON explanation block (invisible to user).
+Format:
+\`\`\`json
+{
+  "basis": "Canonical" | "RAG" | "Files" | "Internal" | "Mixed",
+  "assumptions": ["Assumption 1", "Assumption 2"],
+  "missing_info": ["Missing 1"]
+}
+\`\`\`
+Do NOT explain your chain-of-thought in text. Just provide the answer, then the JSON block. Broadway
                     
 === CANONICAL MEMORY (Established Facts) ===
 ${smartContext?.canonical || 'First session.'}
