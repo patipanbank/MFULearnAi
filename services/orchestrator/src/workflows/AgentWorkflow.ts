@@ -383,7 +383,7 @@ If you need to use a tool to answer, use it. If you have the answer, reply direc
                     loopDetected: repeatCount > 1,
                     tokenPressure: messages.length,
                     totalTokens: totalUsage.total
-                });
+                }, userId);
 
                 // 8. Persistence (Save to Redis & MongoDB)
                 const currentMessage = { role: 'user' as const, content: query, timestamp: new Date() };
