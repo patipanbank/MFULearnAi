@@ -128,12 +128,6 @@ const getFileIcon = (name) => {
         <div class="content-col">
           <div class="assistant-header">
             <span class="name">{{ t('aiAssistant') }}</span>
-            <div v-if="message.intent && message.intent !== 'RESEARCH'" class="intent-badge-mini" :class="message.intent.toLowerCase()">
-                {{ message.intent === 'CHITCHAT' ? '💬 Chat' : 
-                   message.intent === 'FACT_LOOKUP' ? '🔍 Lookup' : 
-                   message.intent === 'DEBUGGING' ? '🛠 Debug' : 
-                   message.intent === 'DESIGN' ? '📐 Design' : message.intent }}
-            </div>
           </div>
           
           <div class="prose-content prose" v-if="message.content" v-html="render(message.content)"></div>

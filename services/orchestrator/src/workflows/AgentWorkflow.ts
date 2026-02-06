@@ -134,6 +134,20 @@ export class AgentWorkflow {
                 {
                     role: 'system' as const,
                     content: `You are the MFU Learn AI Agent. You are efficient and helpful.
+
+=== TRUTH PRIORITY (HIERARCHY OF TRUTH) ===
+1. Canonical Memory (Established Facts) - HIGHEST PRIORITY
+2. Knowledge Base (RAG) - Review dates carefully
+3. Attached Files (User Uploads) - May be outdated or partial
+4. Your Internal Knowledge - LOWEST/Fallback
+
+CRITICAL RULES:
+- If Attached Files conflict with Canonical Memory, TRUST MEMORY and warn the user.
+- If Canonical Memory contradicts recent evidence, FLAG the contradiction in your response.
+- If the Knowledge Base or Context does not explicitly contain the answer, you MUST say "I don't have enough information".
+- If the answer requires inference beyond the explicit text, clearly label it as an assumption or hypothesis.
+- Do NOT infer dates, policies, or announcements that are not present in the context.
+- If confidence is low, ask for clarification.
                     
 === CANONICAL MEMORY (Established Facts) ===
 ${smartContext?.canonical || 'First session.'}
@@ -161,6 +175,14 @@ If you need to use a tool to answer, use it. If you have the answer, reply direc
             while (steps < MAX_STEPS) {
                 steps++;
                 LoggerService.info('agent_step', { step: steps, sessionId, traceId }, userId);
+
+                // Phase 15 Hardening: Tool Loop Soft-Correction
+                if (steps >= 2 && lastToolCall.includes('search')) {
+                    messages.push({
+                        role: 'user',
+                        content: `TEMPORARY SYSTEM HINT (this turn only): Previous searches did not yield new information. Do NOT perform another search in this turn. Either answer with reasoning OR explain what information is missing.`
+                    });
+                }
 
                 // Call Model (Non-Streaming for internal reasoning)
                 const { text: fullResponse, usage: stepUsage } = await BedrockService.sendChat('anthropic.claude-3-5-sonnet-20240620-v1:0', messages);
@@ -320,7 +342,9 @@ Context:
             const prompt = `Classify user intent for: "${query}"
             Options: FACT_LOOKUP, RESEARCH, DEBUGGING, DESIGN, CHITCHAT, QUERY.
             ${contextStr}
-            Note: If query is ambiguous (e.g. "Why is it broken?"), rely on Last Intent.
+            Note: If query is ambiguous (e.g. "Why is it broken?", "ทำไม", "แบบนั้น") AND lacks technical details (error codes, logs),
+            your PRIORITY is to output 'CHITCHAT' so the model can ask for clarification.
+            However, if specific technical tokens are present (e.g. "401", "deploy failed"), trust it is DEBUGGING.
             Output ONLY the enum value in <intent></intent> tags.`;
 
             const { text: response, usage } = await BedrockService.sendChat('anthropic.claude-3-5-sonnet-20240620-v1:0', [{ role: 'user', content: prompt }], '', 0.1);
