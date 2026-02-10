@@ -19,7 +19,13 @@ import { ContextService } from './services/ContextService';
 
 // Middleware
 app.use(express.json({ limit: '50mb' }));
-app.use(cors());
+app.use(cors({
+    origin: ENV_TYPE === 'PROD'
+        ? (process.env.CORS_ORIGIN || 'https://mfulearnai.mfu.ac.th')
+        : true, // Allow all in TEST/DEV
+    credentials: true
+}));
+
 
 // Observability Middleware
 app.use((req, res, next) => {

@@ -1,6 +1,5 @@
 import { Request, Response } from 'express';
 import busboy from 'busboy';
-import { ChatWorkflow } from '../workflows/ChatWorkflow';
 import { KnowledgeService } from '../services/KnowledgeService';
 import { HistoryService } from '../services/HistoryService';
 import { BedrockService } from '../services/BedrockService';
@@ -28,38 +27,14 @@ export class ChatController {
         // Capture context from request (preserved from middleware)
         const correlationId = (req.headers['x-correlation-id'] as string) || 'unknown';
 
-        const executeWorkflow = () => {
-            // Restore context for async operations
+        const executeAgent = () => {
             ContextService.run({ correlationId }, () => {
                 const actualSessionId = sessionId || `session-${Date.now()}`;
                 if (!message && (!images || images.length === 0) && (!files || files.length === 0)) {
                     return res.status(400).json({ error: 'Message or attachment is required' });
                 }
 
-                ChatWorkflow.execute({
-                    userId,
-                    sessionId: actualSessionId,
-                    message,
-                    modelId,
-                    collectionId,
-                    context,
-                    scenarioId,
-                    images,
-                    files,
-                    userRole: req.user.role,
-                    userDepartment: req.user.department
-                }, res, fileParses).catch((err: any) => {
-                    console.error('[ChatController] Workflow Error:', err);
-                    if (!res.headersSent) res.status(500).json({ error: 'Internal Server Error' });
-                });
-            });
-        };
-
-        const executeAgent = () => {
-            ContextService.run({ correlationId }, () => {
-                const actualSessionId = sessionId || `session-${Date.now()}`;
                 import('../workflows/AgentWorkflow').then(({ AgentWorkflow }) => {
-                    // UNIFIED MODE: Always use AgentWorkflow (now supports RAG + Multimodal)
                     AgentWorkflow.execute(
                         userId,
                         actualSessionId,
@@ -72,7 +47,7 @@ export class ChatController {
                         fileParses,
                         files
                     ).catch((err: any) => {
-                        console.error('[ChatController] Agent Error:', err);
+                        LoggerService.error('agent_workflow_error', { error: err.message, stack: err.stack });
                         if (!res.headersSent) res.status(500).json({ error: 'Agent Error' });
                     });
                 });

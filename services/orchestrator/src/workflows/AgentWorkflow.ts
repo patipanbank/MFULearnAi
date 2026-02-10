@@ -7,9 +7,7 @@ import { SummarizationService } from '../services/SummarizationService';
 import { CalculatorTool } from '../tools/CalculatorTool';
 import { SearchTool } from '../tools/SearchTool';
 import { CanonicalIR } from '../../../../shared/types';
-import { AgentTool } from '../tools/AgentTool';
-
-const MAX_STEPS = 8; // Increased step limit for agentic freedom
+import { MODELS, AGENT_CONFIG } from '../config/models';
 
 // Whitelist of tools for the Agent
 const AVAILABLE_TOOLS = [
@@ -50,16 +48,21 @@ export class AgentWorkflow {
         res.setHeader('Cache-Control', 'no-cache');
         res.setHeader('Connection', 'keep-alive');
 
+        // Client disconnect detection for SSE
+        let clientDisconnected = false;
+        const req = (res as any).req;
+        if (req) req.on('close', () => { clientDisconnected = true; });
+
+        const safeWrite = (data: string) => {
+            if (!clientDisconnected && !res.writableEnded) res.write(data);
+        };
+
         const totalUsage = { input: 0, output: 0, total: 0 };
         LoggerService.info('agent_workflow_start', { traceId, userId, message }, userId);
 
         try {
             // 1.1 Load History + Smart Context (Agent Memory)
             const { messages: history, smartContext } = await HistoryService.getContext(userId, sessionId);
-
-            // PRE-RAG REMOVED: Defaulting variables for downstream compatibility
-            const currentIntent = 'QUERY';
-            const ragMaxScore = 0;
 
             // 1.3.5 Attached Files Context (ChatGPT-Level Scoped Injection)
             let fileContextPrompt = '';
@@ -177,28 +180,39 @@ ${JSON.stringify(smartContext?.rolling || {}, null, 2)}`
             let finalAnswer = '';
             const startTime = Date.now();
             let confidence = 'Low';
-            let explanation = { basis: 'Internal', assumptions: [] as string[], missing_info: [] as string[] }; // Typed
+            let explanation = { basis: 'Internal', assumptions: [] as string[], missing_info: [] as string[] };
 
-            // Scope variables for metadata (outside loop)
-            // Scope variables for metadata (outside loop)
-            let answerState = 'UNVERIFIED'; // LOCK 2: Default State
-            let answerMode = 'internal'; // LOCK 3: Default Mode
-            const usedTools = new Set<string>(); // R3: Robust Tool Detection
+            let answerState = 'UNVERIFIED';
+            let answerMode = 'internal';
+            const usedTools = new Set<string>();
 
             // === MAIN AGENT LOOP ===
-            while (steps < MAX_STEPS) {
+            while (steps < AGENT_CONFIG.MAX_STEPS) {
+                // Wall-clock timeout protection
+                if (Date.now() - startTime > AGENT_CONFIG.MAX_WALL_MS) {
+                    LoggerService.warn('agent_timeout', { steps, elapsed: Date.now() - startTime, traceId }, userId);
+                    finalAnswer = 'ขออภัยครับ คำขอใช้เวลาเกินกำหนด กรุณาลองถามใหม่อีกครั้ง';
+                    answerMode = 'internal';
+                    answerState = 'TIMEOUT';
+                    break;
+                }
+
+                // Client disconnected — stop processing
+                if (clientDisconnected) {
+                    LoggerService.info('agent_client_disconnected', { steps, traceId }, userId);
+                    return;
+                }
+
                 steps++;
                 LoggerService.info('agent_step', { step: steps, sessionId, traceId }, userId);
 
-                // Call Model with Native Tools
-                // Note: We don't stream here because we need to check for tool calls
                 const { text: fullResponse, usage: stepUsage, stopReason } = await BedrockService.sendChat(
-                    'anthropic.claude-3-5-sonnet-20240620-v1:0',
+                    MODELS.PRIMARY,
                     messages,
-                    undefined,  // system is already in messages[0]
+                    undefined,
                     0.5,
                     toolConfig,
-                    guardrailConfig  // Enhancement 3: Pass guardrails
+                    guardrailConfig
                 );
 
                 LoggerService.info('agent_model_response', {
@@ -236,7 +250,7 @@ ${JSON.stringify(smartContext?.rolling || {}, null, 2)}`
                             const toolInput = block.input;
                             // ... (Execution logic) ...
                             LoggerService.info('tool_execution', { tool: toolName, input: toolInput }, userId);
-                            res.write(`data: ${JSON.stringify({ type: 'status', message: `Using ${toolName}...` })}\n\n`);
+                            safeWrite(`data: ${JSON.stringify({ type: 'status', message: `Using ${toolName}...` })}\n\n`);
 
                             const tool = allowedTools.find(t => t.schemaJSON.name === toolName);
                             let resultContent: any;
@@ -317,11 +331,10 @@ ${JSON.stringify(smartContext?.rolling || {}, null, 2)}`
                     explanation.basis = 'RAG'; // Legacy field compatibility
                 }
 
-                res.write(`data: ${JSON.stringify({ text: finalAnswer, traceId })}\n\n`);
-                res.write(`data: ${JSON.stringify({
+                safeWrite(`data: ${JSON.stringify({ text: finalAnswer, traceId })}\n\n`);
+                safeWrite(`data: ${JSON.stringify({
                     type: 'metadata',
                     metadata: {
-                        intent: currentIntent,
                         answer_mode: answerMode,
                         answer_state: answerState,
                         usedRAG: answerMode !== 'internal',
@@ -330,9 +343,9 @@ ${JSON.stringify(smartContext?.rolling || {}, null, 2)}`
                         explanation
                     }
                 })}\n\n`);
-                res.write(`data: ${JSON.stringify({ type: 'status', message: '' })}\n\n`);
-                res.write('data: [DONE]\n\n');
-                res.end();
+                safeWrite(`data: ${JSON.stringify({ type: 'status', message: '' })}\n\n`);
+                safeWrite('data: [DONE]\n\n');
+                if (!res.writableEnded) res.end();
 
                 // 7. Telemetry & Persistence
                 const currentMessage = { role: 'user' as const, content: query, timestamp: new Date() };
@@ -341,7 +354,6 @@ ${JSON.stringify(smartContext?.rolling || {}, null, 2)}`
                     content: finalAnswer,
                     timestamp: new Date(),
                     meta: {
-                        intent: currentIntent,
                         stepsUsed: steps,
                         answer_mode: answerMode,
                         answer_state: answerState,
@@ -353,30 +365,22 @@ ${JSON.stringify(smartContext?.rolling || {}, null, 2)}`
 
                 await HistoryService.addMessage(userId, sessionId, currentMessage);
                 await HistoryService.addMessage(userId, sessionId, assistantMessage);
-                await HistoryService.saveToPersistentStorage(userId, sessionId, [currentMessage, assistantMessage], { totalTokens: totalUsage.total }, process.env.ENV_TYPE || 'TEST', 'anthropic.claude-3-5-sonnet-20240620-v1:0');
+                await HistoryService.saveToPersistentStorage(userId, sessionId, [currentMessage, assistantMessage], { totalTokens: totalUsage.total }, process.env.ENV_TYPE || 'TEST', MODELS.PRIMARY);
+
+                // 8. Background Summarization (fire-and-forget)
+                SummarizationService.runUpdate(userId, sessionId, [currentMessage, assistantMessage], smartContext || {
+                    canonical: '', rolling: { facts: [], intent: { primary: 'QUERY', confidence: 1 }, constraints: [], decisions: [], open_questions: [], confidence_score: 1 },
+                    version: 0, hashes: { canonical: '', rolling: '', raw: '' }, lastCanonizedAt: new Date()
+                }).catch((e: any) => LoggerService.error('Background Summary Failed', e));
             }
 
         } catch (error: any) {
             LoggerService.error('Agent Workflow Error', { error: error.message, stack: error.stack, traceId });
-            res.write(`data: ${JSON.stringify({ error: 'Agent workflow failed', traceId })}\n\n`);
-            res.end();
+            if (!clientDisconnected && !res.writableEnded) {
+                safeWrite(`data: ${JSON.stringify({ error: 'Agent workflow failed', traceId })}\n\n`);
+                res.end();
+            }
         }
     }
 
-
-
-    private static async quickIntentCheck(query: string, context?: any): Promise<{ intent: string, usage: { input: number, output: number, total: number } }> {
-        // Same implementation but ensuring we call Sonnet
-        const prompt = `Classify user intent for: "${query}"
-        Options: FACT_LOOKUP, RESEARCH, DEBUGGING, DESIGN, CHITCHAT, QUERY.
-        Output ONLY the enum value in <intent></intent> tags.`;
-
-        try {
-            const { text: response, usage } = await BedrockService.sendChat('anthropic.claude-3-5-sonnet-20240620-v1:0', [{ role: 'user', content: prompt }], undefined, 0.1);
-            const match = response.match(/<intent>(.*?)<\/intent>/);
-            return { intent: match ? match[1].trim() : 'QUERY', usage };
-        } catch {
-            return { intent: 'QUERY', usage: { input: 0, output: 0, total: 0 } };
-        }
-    }
 }

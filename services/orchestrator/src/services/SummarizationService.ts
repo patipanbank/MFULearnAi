@@ -3,6 +3,7 @@ import { HistoryService } from './HistoryService';
 import { LoggerService } from './LoggerService';
 import { Conversation } from '../models/Conversation';
 import crypto from 'crypto';
+import { MODELS } from '../config/models';
 
 interface SmartContext {
     canonical: string;
@@ -244,7 +245,7 @@ ${newMessages.map(m => `${m.role}: ${m.content}`).join('\n')}
 
         try {
             const { text: response } = await BedrockService.sendChat(
-                'anthropic.claude-3-5-sonnet-20240620-v1:0',
+                MODELS.FAST,
                 [{ role: 'user', content: prompt }],
                 SummarizationService.ROLLING_PROMPT,
                 0.1
@@ -291,7 +292,7 @@ ${JSON.stringify(rollingContext, null, 2)}
 
         try {
             const { text: response } = await BedrockService.sendChat(
-                'anthropic.claude-3-5-sonnet-20240620-v1:0',
+                MODELS.FAST,
                 [{ role: 'user', content: prompt }],
                 SummarizationService.CANONIZATION_PROMPT,
                 0.1
@@ -313,7 +314,7 @@ ${JSON.stringify(rollingContext, null, 2)}
             Output ONLY the title string, no quotes or prefix.`;
 
             const { text: title } = await BedrockService.sendChat(
-                'anthropic.claude-3-5-sonnet-20240620-v1:0',
+                MODELS.FAST,
                 [{ role: 'user', content: prompt }],
                 'You are a creative writer.',
                 0.7

@@ -38,7 +38,7 @@ export class SearchTool extends AgentTool {
                 return { success: true, result: "No relevant information found in the knowledge base." };
             }
 
-            // R2: Return structured blocks so the AgentWorkflow can parse IDs and valid citations
+            // R2: Return structured blocks for the agent to use as context
             return { success: true, result: JSON.stringify(blocks) };
         } catch (error: any) {
             return { success: false, result: null, error: error.message };

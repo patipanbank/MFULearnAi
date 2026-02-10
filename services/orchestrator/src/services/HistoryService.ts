@@ -30,8 +30,8 @@ export class HistoryService {
             };
         }
 
-        // 2. Get Recent Messages from Redis (Hot Cache)
-        const rawHistory = await redis.lrange(historyKey, 0, -1);
+        // 2. Get Recent Messages from Redis (Hot Cache — last 50 only)
+        const rawHistory = await redis.lrange(historyKey, -50, -1);
         let messages: ChatMessage[] = [];
 
         if (rawHistory.length > 0) {

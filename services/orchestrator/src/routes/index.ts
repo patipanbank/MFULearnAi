@@ -6,7 +6,14 @@ import { authenticateToken } from '../../../../shared/middleware/auth';
 import { RateLimiter } from '../middleware/rateLimiter';
 
 const router = Router();
-const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret';
+const ENV_TYPE = process.env.ENV_TYPE || 'TEST';
+const JWT_SECRET = process.env.JWT_SECRET || (ENV_TYPE === 'PROD' ? '' : 'dev-secret');
+
+if (!JWT_SECRET) {
+    console.error('[FATAL] JWT_SECRET is required in PROD environment');
+    process.exit(1);
+}
+
 const checkAuth = authenticateToken(JWT_SECRET);
 
 // Chat Routes
@@ -24,6 +31,6 @@ router.post('/prompts/:key/versions', checkAuth, PromptController.addVersion);
 router.post('/prompts/:key/toggle-active', checkAuth, PromptController.toggleActive);
 
 // Knowledge Routes (Proxy)
-router.get('/knowledge/:id/view', KnowledgeController.view);
+router.get('/knowledge/:id/view', checkAuth, KnowledgeController.view);
 
 export default router;

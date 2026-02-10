@@ -3,8 +3,20 @@ import { ChatMessage } from '../../../../shared/types';
 import { Response } from 'express';
 import { TokenService } from './TokenService';
 import { ContextService } from './ContextService';
+import { LoggerService } from './LoggerService';
 
 const BEDROCK_TEXT_URL = process.env.BEDROCK_TEXT_URL || 'http://localhost:5001/api/bedrock';
+
+/** Retry configuration for transient errors */
+const RETRY_CONFIG = {
+    maxRetries: 2,
+    baseDelayMs: 1000,
+    retryableStatuses: [429, 503, 502],
+};
+
+function sleep(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
 
 export class BedrockService {
     static async streamChat(
@@ -33,7 +45,6 @@ export class BedrockService {
             response.data.on('data', (chunk: Buffer) => {
                 buffer += chunk.toString();
                 let params = buffer.split('\n');
-                // Keep the last partial line in the buffer
                 buffer = params.pop() || '';
 
                 for (const line of params) {
@@ -45,10 +56,9 @@ export class BedrockService {
                             if (data.text) fullResponseText += data.text;
                             if (data.type === 'usage' && data.usage) {
                                 tokenUsage = data.usage;
-                                console.log(`[BedrockService] Stream Usage Received:`, tokenUsage);
                             }
                         } catch (e) {
-                            // Only log if it's not a partial JSON at the end (which shouldn't happen with the split logic unless data: prefix is split)
+                            // Partial JSON — skip
                         }
                     }
                 }
@@ -61,17 +71,16 @@ export class BedrockService {
             });
 
             response.data.on('error', (err: Error) => {
-                console.error('[BedrockService] Stream error:', err);
+                LoggerService.error('bedrock_stream_error', { error: err.message });
                 if (!res.headersSent) res.write(`event: error\ndata: ${JSON.stringify({ error: err.message })}\n\n`);
                 res.end();
             });
 
         } catch (error: any) {
-            console.error('[BedrockService] Request Error:', error.message);
+            LoggerService.error('bedrock_stream_request_error', { error: error.message });
             if (!res.headersSent && typeof res.status === 'function') {
                 res.status(500).json({ error: 'Upstream Model Error' });
             } else if (!res.headersSent) {
-                // Background/Mock response handling
                 res.write(`data: ${JSON.stringify({ error: 'Upstream Model Error', message: error.message })}\n\n`);
                 res.end();
             }
@@ -87,6 +96,7 @@ export class BedrockService {
         });
         return response.data;
     }
+
     static async sendChat(
         modelId: string,
         messages: ChatMessage[],
@@ -95,91 +105,92 @@ export class BedrockService {
         toolConfig?: any,
         guardrailConfig?: any
     ): Promise<{ text: string, usage: any, stopReason?: string, cacheUsage?: any, guardrailTrace?: any }> {
-        try {
-            const requestData: any = {
-                messages,
-                modelId,
-                system,      // Can be string or array of blocks (Enhancement 4)
-                temperature,
-                stream: false
-            };
+        const requestData: any = {
+            messages,
+            modelId,
+            system,
+            temperature,
+            stream: false
+        };
 
-            if (toolConfig) {
-                requestData.toolConfig = toolConfig;
-            }
-            if (guardrailConfig) {
-                requestData.guardrailConfig = guardrailConfig;
-            }
-            console.log(`[BedrockService] Sending to ${modelId}. ToolConfig present: ${!!toolConfig}`);
-            if (toolConfig) console.log(`[BedrockService] ToolConfig:`, JSON.stringify(toolConfig));
+        if (toolConfig) requestData.toolConfig = toolConfig;
+        if (guardrailConfig) requestData.guardrailConfig = guardrailConfig;
 
-            const response = await axios({
-                method: 'post',
-                url: `${BEDROCK_TEXT_URL}/chat`,
-                data: requestData,
-                headers: {
-                    'Authorization': `Bearer ${TokenService.mint('bedrock', 'write')}`,
-                    'x-correlation-id': ContextService.getCorrelationId()
-                },
-                responseType: 'json', // Expect JSON if stream=false supported
-                timeout: 60000
-            });
-            console.log(`[BedrockService] Received ${response.status}. Data:`, JSON.stringify(response.data).substring(0, 2000));
+        // Retry loop with exponential backoff
+        for (let attempt = 0; attempt <= RETRY_CONFIG.maxRetries; attempt++) {
+            try {
+                LoggerService.info('bedrock_sendchat', { modelId, attempt, hasTools: !!toolConfig });
 
-            // Robust content extraction
-            let content = '';
-            let stopReason = response.data.stopReason;
-
-            // Handle Tool Use Response (Claude 3.5 Native)
-            if (stopReason === 'tool_use' || (response.data.content && Array.isArray(response.data.content))) {
-                // Return the raw content array if it contains tool_use
-                // downstream AgentWorkflow will parse it
-                if (Array.isArray(response.data.content)) {
-                    // For now, we serialize the content array to string if it's mixed text+tool, 
-                    // BUT AgentWorkflow needs to know. 
-                    // Let's return the raw content object if possible or stringify it carefully.
-                    // Actually, let's keep the existing signature returning string, but if tool_use, return JSON string of content
-                    content = JSON.stringify(response.data.content);
-                }
-            } else if (response.data && response.data.content !== undefined) {
-                content = typeof response.data.content === 'string' ? response.data.content : JSON.stringify(response.data.content);
-            } else if (response.data && response.data.text !== undefined) {
-                content = response.data.text;
-            }
-
-            if (!content && response.data.success === false) {
-                console.error('[BedrockService] Model Error Response:', response.data.error || 'Unknown error');
-                throw new Error(response.data.error || 'Upstream Model Error');
-            }
-
-            const usage = response.data.usage || { input: 0, output: 0, total: 0 };
-
-            if (!content) {
-                console.warn('[BedrockService] Warning: Received empty content from model', {
-                    status: response.status,
-                    stopReason: response.data.stopReason,
-                    dataKeys: response.data ? Object.keys(response.data) : [],
-                    usage
+                const response = await axios({
+                    method: 'post',
+                    url: `${BEDROCK_TEXT_URL}/chat`,
+                    data: requestData,
+                    headers: {
+                        'Authorization': `Bearer ${TokenService.mint('bedrock', 'write')}`,
+                        'x-correlation-id': ContextService.getCorrelationId()
+                    },
+                    responseType: 'json',
+                    timeout: 60000
                 });
+
+                // Robust content extraction
+                let content = '';
+                let stopReason = response.data.stopReason;
+
+                if (stopReason === 'tool_use' || (response.data.content && Array.isArray(response.data.content))) {
+                    if (Array.isArray(response.data.content)) {
+                        content = JSON.stringify(response.data.content);
+                    }
+                } else if (response.data && response.data.content !== undefined) {
+                    content = typeof response.data.content === 'string' ? response.data.content : JSON.stringify(response.data.content);
+                } else if (response.data && response.data.text !== undefined) {
+                    content = response.data.text;
+                }
+
+                if (!content && response.data.success === false) {
+                    throw new Error(response.data.error || 'Upstream Model Error');
+                }
+
+                const usage = response.data.usage || { input: 0, output: 0, total: 0 };
+
+                if (!content) {
+                    LoggerService.warn('bedrock_empty_content', {
+                        status: response.status,
+                        stopReason,
+                        dataKeys: response.data ? Object.keys(response.data) : []
+                    });
+                }
+
+                const cacheUsage = response.data.cacheUsage || null;
+                const guardrailTrace = response.data.guardrailTrace || null;
+
+                return { text: content, usage, stopReason, cacheUsage, guardrailTrace };
+
+            } catch (error: any) {
+                const status = error.response?.status;
+                const isRetryable = RETRY_CONFIG.retryableStatuses.includes(status);
+                const canRetry = attempt < RETRY_CONFIG.maxRetries && isRetryable;
+
+                LoggerService.warn('bedrock_sendchat_error', {
+                    error: error.message,
+                    status,
+                    attempt,
+                    willRetry: canRetry
+                });
+
+                if (canRetry) {
+                    const delay = RETRY_CONFIG.baseDelayMs * Math.pow(2, attempt);
+                    LoggerService.info('bedrock_retry', { attempt: attempt + 1, delayMs: delay });
+                    await sleep(delay);
+                    continue;
+                }
+
+                throw error;
             }
-
-            console.log(`[BedrockService] SendChat Usage Received:`, usage, `StopReason:`, stopReason);
-
-            // Enhancement 1: Capture cache usage
-            const cacheUsage = response.data.cacheUsage || null;
-            if (cacheUsage) {
-                console.log(`[BedrockService] Cache Usage:`, JSON.stringify(cacheUsage));
-            }
-
-            // Enhancement 3: Capture guardrail trace
-            const guardrailTrace = response.data.guardrailTrace || null;
-
-            return { text: content, usage, stopReason, cacheUsage, guardrailTrace };
-        } catch (error: any) {
-            console.error('[BedrockService] SendChat Error:', error.message, {
-                responseData: error.response?.data
-            });
-            throw error;
         }
+
+        // Should never reach here, but TypeScript needs it
+        throw new Error('Bedrock sendChat: max retries exceeded');
     }
 }
+
