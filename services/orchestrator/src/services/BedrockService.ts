@@ -160,22 +160,6 @@ export class BedrockService {
 
             return { text: content, usage, stopReason };
         } catch (error: any) {
-            // R7: Model Fallback Mechanism
-            const isAccessError = error.response?.data?.error?.includes('Access to this model is not available') ||
-                error.message?.includes('AccessDeniedException') ||
-                error.response?.status === 403;
-
-            if (isAccessError && modelId.includes('haiku')) {
-                console.warn(`[BedrockService] Model ${modelId} not available. Falling back to Sonnet.`);
-                // Recursive call with Sonnet
-                // Note: Sonnet might be slower/more expensive, but it works.
-                // Try standard Sonnet 3 or 3.5 if available
-                const fallbackModel = 'anthropic.claude-3-sonnet-20240229-v1:0';
-                if (modelId !== fallbackModel) {
-                    return this.sendChat(fallbackModel, messages, system, temperature, toolConfig);
-                }
-            }
-
             console.error('[BedrockService] SendChat Error:', error.message, {
                 responseData: error.response?.data
             });

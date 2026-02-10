@@ -262,10 +262,6 @@ export const useChatStore = defineStore('chat', () => {
             messages.value[assistantIndex].error = true
         } finally {
             isStreaming.value = false
-            // Clear status message (e.g. "Synthesizing Answer...") so it doesn't persist
-            if (messages.value[assistantIndex]) {
-                messages.value[assistantIndex].status = null
-            }
             console.log('[ChatStore] Stream finished')
         }
     }

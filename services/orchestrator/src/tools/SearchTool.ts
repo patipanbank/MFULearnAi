@@ -27,9 +27,6 @@ export class SearchTool extends AgentTool {
     async execute(args: any, context: AgentContext): Promise<ToolResult> {
         try {
             const { query } = args;
-            if (!query || typeof query !== 'string' || query.trim().length === 0) {
-                return { success: false, result: null, error: 'Search query is missing or empty.' };
-            }
             const userContext = {
                 userId: context.userId,
                 role: context.role || 'student',
@@ -42,8 +39,7 @@ export class SearchTool extends AgentTool {
             }
 
             // R2: Return structured blocks so the AgentWorkflow can parse IDs and valid citations
-            // However, for pure Text Synthesis, we return the 'text' which is already formatted with <block> tags.
-            return { success: true, result: text };
+            return { success: true, result: JSON.stringify(blocks) };
         } catch (error: any) {
             return { success: false, result: null, error: error.message };
         }

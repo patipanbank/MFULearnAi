@@ -11,12 +11,6 @@ export class LoggerService {
         userId?: string
     ) {
         try {
-            // Also log to console for local debugging
-            const logMsg = `[${level.toUpperCase()}] [${action}] ${JSON.stringify(context || {})}`;
-            if (level === 'error') console.error(logMsg);
-            else if (level === 'warn') console.warn(logMsg);
-            else console.log(logMsg);
-
             await axios.post(LOGGER_URL, {
                 level,
                 service: 'orchestrator',
@@ -27,11 +21,9 @@ export class LoggerService {
                 timestamp: new Date().toISOString()
             });
         } catch (err) {
-            // If external logger fails, we still have the console log above (except for the error itself)
-            console.error('[LoggerService] Failed to send log to aggregator:', err);
+            console.error('[LoggerService] Failed to log:', err);
         }
     }
-
     static async info(action: string, context?: any, userId?: string) {
         return this.log('info', action, context, userId);
     }
@@ -42,10 +34,5 @@ export class LoggerService {
 
     static async error(action: string, context?: any, userId?: string) {
         return this.log('error', action, context, userId);
-    }
-
-    // R6.1: Full Execution Trace Logging
-    static async logTrace(trace: any, userId: string) {
-        return this.log('audit', 'agent_execution_trace', trace, userId);
     }
 }
