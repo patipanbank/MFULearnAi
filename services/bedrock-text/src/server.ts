@@ -163,7 +163,12 @@ app.use(authenticateInternal);
 // --- Routes ---
 
 app.post('/api/bedrock/chat', async (req: Request, res: Response) => {
-    const { messages, modelId } = req.body;
+    const { messages, modelId, toolConfig } = req.body;
+
+    console.log(`[Bedrock Text] Incoming Chat Request: ${messages?.length} messages. Tools: ${toolConfig ? 'YES' : 'NO'}`);
+    if (toolConfig) {
+        console.log(`[Bedrock Text] Tool Config:`, JSON.stringify(toolConfig).substring(0, 200) + '...');
+    }
 
     if (!messages || !Array.isArray(messages)) {
         return res.status(400).json({ error: 'Invalid messages format' });

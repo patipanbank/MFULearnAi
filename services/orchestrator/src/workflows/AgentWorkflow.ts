@@ -163,6 +163,13 @@ ${fileContextPrompt}
                 // Note: We don't stream here because we need to check for tool calls
                 const { text: fullResponse, usage: stepUsage, stopReason } = await BedrockService.sendChat('anthropic.claude-3-5-sonnet-20240620-v1:0', messages, undefined, 0.5, toolConfig);
 
+                LoggerService.info('agent_model_response', {
+                    step: steps,
+                    stopReason,
+                    responseLength: fullResponse?.length,
+                    rawResponsePreview: fullResponse?.substring(0, 200)
+                }, userId);
+
                 // ... (Usage tracking) ...
                 totalUsage.input += stepUsage.input;
                 totalUsage.output += stepUsage.output;
@@ -170,6 +177,7 @@ ${fileContextPrompt}
 
                 // Handle Response
                 if (stopReason === 'tool_use') {
+                    LoggerService.info('agent_tool_use_detected', { step: steps }, userId);
                     // ... (Parsing logic) ...
                     let contentBlocks: any[] = [];
                     try {
