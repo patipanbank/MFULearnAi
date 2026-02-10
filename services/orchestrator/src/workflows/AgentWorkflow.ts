@@ -104,7 +104,7 @@ export class AgentWorkflow {
             // 1.3.5 Attached Files Context (ChatGPT-Level Scoped Injection)
             let fileContextPrompt = '';
             let validCitationIds = new Set<string>(); // Scope for Validation
-            let injectedEvidence: Array<{ id: string, fileName: string, page?: number, bbox?: any }> = []; // LOCK 1: Manifest
+            let injectedEvidence: Array<{ id: string, fileName: string, fileId?: string, page?: number, bbox?: any }> = []; // LOCK 1: Manifest
 
             if (fileParses.length > 0) {
                 // A. Assign Stable IDs (Once)
@@ -257,6 +257,7 @@ ${fileContextPrompt}
                                                     injectedEvidence.push({
                                                         id: block.id,
                                                         fileName: block.metadata?.fileName || 'Search Result',
+                                                        fileId: block.metadata?.fileId,
                                                         page: block.metadata?.page,
                                                         bbox: block.metadata?.bbox
                                                     });

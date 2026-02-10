@@ -22,6 +22,7 @@ export class TextAdapter implements BaseAdapter {
         return {
             file_type: isCode ? 'code' : 'document',
             blocks: [{
+                id: 'txt_b0',
                 type: isCode ? 'code' : 'text',
                 content: text,
                 metadata: {

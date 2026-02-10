@@ -35,7 +35,8 @@ export class OfficeAdapter implements BaseAdapter {
         // For now, sticking to raw text but blocks based on double newlines.
         const paragraphs = text.split(/\n\s*\n/);
 
-        const blocks: IRBlock[] = paragraphs.filter(p => p.trim()).map(p => ({
+        const blocks: IRBlock[] = paragraphs.filter(p => p.trim()).map((p, idx) => ({
+            id: `docx_b${idx}`,
             type: 'text',
             content: p.trim(),
             metadata: {
@@ -92,6 +93,7 @@ export class OfficeAdapter implements BaseAdapter {
             const textRep = rows.map(row => row.join(' | ')).join('\n');
 
             blocks.push({
+                id: `sheet_b${blocks.length}`,
                 type: 'table',
                 content: `Sheet: ${sheetName}\n${textRep}`,
                 table_data: {

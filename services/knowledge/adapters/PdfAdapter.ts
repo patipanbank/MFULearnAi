@@ -121,6 +121,7 @@ export class PdfAdapter implements BaseAdapter {
             const pageParts = fullText.split(/--- Page \d+ ---/g).filter((t: string) => t.trim().length > 0);
 
             const blocks: IRBlock[] = pageParts.map((text: string, idx: number) => ({
+                id: `ocr_b${idx}`,
                 type: 'text',
                 content: text.trim(),
                 metadata: {
@@ -148,7 +149,8 @@ export class PdfAdapter implements BaseAdapter {
     private convertToIR(result: { pages: { text: string, pageNum: number }[] }, totalSize: number): CanonicalIR {
         // Header/Footer Deduplication Logic could go here
         // For now, mapping directly
-        const blocks: IRBlock[] = result.pages.map(p => ({
+        const blocks: IRBlock[] = result.pages.map((p, idx) => ({
+            id: `pdf_b${idx}`,
             type: 'text',
             content: p.text,
             metadata: {
