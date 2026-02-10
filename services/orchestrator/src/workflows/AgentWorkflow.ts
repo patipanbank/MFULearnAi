@@ -105,8 +105,8 @@ export class AgentWorkflow {
 
             const refusalRule = isSafeGeneralIntent
                 ? `- Basic factual questions may be answered using internal knowledge.
-                   - WARNING: If the question pertains to specific organizational policies absent in context, you MUST refuse or use the Search tool.`
-                : `- If the Knowledge Base or Context does not explicitly contain the answer, use the 'search' tool. If still not found, say "I don't have enough information".`;
+                   - WARNING: If the question pertains to specific organizational policies absent in context, you MUST use the Search tool.`
+                : `- If the Knowledge Base or Context does not explicitly contain the answer, you MUST use the 'search' tool to find it. Do NOT say "I don't have enough information" without searching first.`;
 
             // 1.4 Construct Initial Messages
             let messages: any[] = [

@@ -106,6 +106,8 @@ export class BedrockService {
             if (toolConfig) {
                 requestData.toolConfig = toolConfig;
             }
+            console.log(`[BedrockService] Sending to ${modelId}. ToolConfig present: ${!!toolConfig}`);
+            if (toolConfig) console.log(`[BedrockService] ToolConfig:`, JSON.stringify(toolConfig));
 
             const response = await axios({
                 method: 'post',
@@ -118,6 +120,7 @@ export class BedrockService {
                 responseType: 'json', // Expect JSON if stream=false supported
                 timeout: 60000
             });
+            console.log(`[BedrockService] Received ${response.status}. Data:`, JSON.stringify(response.data).substring(0, 2000));
 
             // Robust content extraction
             let content = '';
