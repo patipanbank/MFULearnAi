@@ -66,12 +66,34 @@ export class AgentWorkflow {
             let fileContextPrompt = '';
             let validCitationIds = new Set<string>(); // Scope for Validation
             let injectedEvidence: Array<{ id: string, fileName: string, fileId?: string, page?: number, bbox?: any }> = []; // LOCK 1: Manifest
+            let nativeDocBlocks: Array<{ type: 'document', format: string, name: string, data: string }> = []; // Enhancement 2: Native Document Blocks
 
             if (fileParses.length > 0) {
                 // A. Assign Stable IDs (Once)
                 const fileParsesWithIds = KnowledgeService.assignBlockIds(fileParses);
 
-                // B. Scoped Search (Top 15 Blocks)
+                // Enhancement 2: Attempt Native Document Injection for small files
+                // If the original file data is available and < 4.5MB, send it natively
+                if (files && files.length > 0) {
+                    for (const file of files) {
+                        const MAX_NATIVE_SIZE = 4.5 * 1024 * 1024; // 4.5MB
+                        if (file.buffer && file.buffer.length < MAX_NATIVE_SIZE) {
+                            const ext = (file.originalname || '').split('.').pop()?.toLowerCase() || 'pdf';
+                            const supportedFormats = ['pdf', 'txt', 'md', 'html', 'csv', 'doc', 'docx', 'xls', 'xlsx'];
+                            if (supportedFormats.includes(ext)) {
+                                nativeDocBlocks.push({
+                                    type: 'document',
+                                    format: ext,
+                                    name: file.originalname || 'document',
+                                    data: Buffer.from(file.buffer).toString('base64')
+                                });
+                                LoggerService.info('native_doc_injected', { fileName: file.originalname, size: file.buffer.length }, userId);
+                            }
+                        }
+                    }
+                }
+
+                // B. Scoped Search (Top 15 Blocks) - Still needed for citation IDs
                 const topBlocks = await KnowledgeService.searchLocal(query, fileParsesWithIds, 15);
 
                 if (topBlocks.length > 0) {
@@ -108,11 +130,13 @@ export class AgentWorkflow {
                    - WARNING: If the question pertains to specific organizational policies absent in context, you MUST use the Search tool.`
                 : `- If the Knowledge Base or Context does not explicitly contain the answer, you MUST use the 'search' tool to find it. Do NOT say "I don't have enough information" without searching first.`;
 
-            // 1.4 Construct Initial Messages
-            let messages: any[] = [
-                {
-                    role: 'system',
-                    content: `You are the MFU Learn AI Agent. You are efficient and helpful.
+            // Enhancement 4: Multi-Block System Prompts
+            // Split the system prompt into logical blocks for better compartmentalization and caching
+            const systemBlocks: Array<{ text: string }> = [];
+
+            // Block 1: Persona & Core Rules (Static - great for caching)
+            systemBlocks.push({
+                text: `You are the MFU Learn AI Agent. You are efficient and helpful.
 === TRUTH PRIORITY ===
 1. Canonical Memory
 2. Tool Results (Search/Calc)
@@ -130,16 +154,44 @@ ${refusalRule}
 - When you use information from EVIDENCE, you MUST cite the Block ID using the tag: <cite>ID</cite>.
 - Example: "Students may declare multiple majors <cite>f1_b3</cite>."
 - Do NOT use footnotes like [1] or (Source). Use ONLY the <cite> tag with the exact ID found in the <block> tag.
-- LOCK 4: If the attached evidence does NOT contain the answer, explicitly say: "The attached documents do not provide this information." Do NOT guess.
+- LOCK 4: If the attached evidence does NOT contain the answer, explicitly say: "The attached documents do not provide this information." Do NOT guess.` });
 
-=== CONTEXT ===
+            // Block 2: Session Context (Changes per session)
+            systemBlocks.push({
+                text: `=== SESSION CONTEXT ===
 ${smartContext?.canonical || 'First session.'}
-${JSON.stringify(smartContext?.rolling || {}, null, 2)}
-${fileContextPrompt}
-`
+${JSON.stringify(smartContext?.rolling || {}, null, 2)}`
+            });
+
+            // Block 3: RAG Evidence (Changes per query)
+            if (fileContextPrompt) {
+                systemBlocks.push({ text: fileContextPrompt });
+            }
+
+            // Enhancement 3: Guardrails Configuration
+            const guardrailConfig = process.env.BEDROCK_GUARDRAIL_ID ? {
+                guardrailIdentifier: process.env.BEDROCK_GUARDRAIL_ID,
+                guardrailVersion: process.env.BEDROCK_GUARDRAIL_VERSION || 'DRAFT'
+            } : undefined;
+
+            // 1.4 Construct Initial Messages
+            // Enhancement 5: Include native document blocks in user message
+            const userContent: any[] = [];
+            if (nativeDocBlocks.length > 0) {
+                userContent.push(...nativeDocBlocks);
+            }
+            userContent.push({ type: 'text', text: query });
+            if (images && images.length > 0) {
+                userContent.push(...images.map((img: any) => ({ type: 'image', source: img })));
+            }
+
+            let messages: any[] = [
+                {
+                    role: 'system',
+                    content: systemBlocks  // Enhancement 4: Array of blocks
                 },
                 ...history.slice(-10).map(m => ({ role: m.role, content: m.content, images: m.images })),
-                { role: 'user', content: query, images }
+                { role: 'user', content: userContent }
             ];
 
             let steps = 0;
@@ -161,7 +213,14 @@ ${fileContextPrompt}
 
                 // Call Model with Native Tools
                 // Note: We don't stream here because we need to check for tool calls
-                const { text: fullResponse, usage: stepUsage, stopReason } = await BedrockService.sendChat('anthropic.claude-3-5-sonnet-20240620-v1:0', messages, undefined, 0.5, toolConfig);
+                const { text: fullResponse, usage: stepUsage, stopReason } = await BedrockService.sendChat(
+                    'anthropic.claude-3-5-sonnet-20240620-v1:0',
+                    messages,
+                    undefined,  // system is already in messages[0]
+                    0.5,
+                    toolConfig,
+                    guardrailConfig  // Enhancement 3: Pass guardrails
+                );
 
                 LoggerService.info('agent_model_response', {
                     step: steps,

@@ -90,21 +90,25 @@ export class BedrockService {
     static async sendChat(
         modelId: string,
         messages: ChatMessage[],
-        system?: string,
+        system?: string | Array<{ text: string }>,
         temperature: number = 0.5,
-        toolConfig?: any
-    ): Promise<{ text: string, usage: any, stopReason?: string }> {
+        toolConfig?: any,
+        guardrailConfig?: any
+    ): Promise<{ text: string, usage: any, stopReason?: string, cacheUsage?: any, guardrailTrace?: any }> {
         try {
             const requestData: any = {
                 messages,
                 modelId,
-                system,      // Pass system prompt if supported by downstream
-                temperature,  // Pass params
-                stream: false // Hint downstream to not stream (if supported)
+                system,      // Can be string or array of blocks (Enhancement 4)
+                temperature,
+                stream: false
             };
 
             if (toolConfig) {
                 requestData.toolConfig = toolConfig;
+            }
+            if (guardrailConfig) {
+                requestData.guardrailConfig = guardrailConfig;
             }
             console.log(`[BedrockService] Sending to ${modelId}. ToolConfig present: ${!!toolConfig}`);
             if (toolConfig) console.log(`[BedrockService] ToolConfig:`, JSON.stringify(toolConfig));
@@ -161,7 +165,16 @@ export class BedrockService {
 
             console.log(`[BedrockService] SendChat Usage Received:`, usage, `StopReason:`, stopReason);
 
-            return { text: content, usage, stopReason };
+            // Enhancement 1: Capture cache usage
+            const cacheUsage = response.data.cacheUsage || null;
+            if (cacheUsage) {
+                console.log(`[BedrockService] Cache Usage:`, JSON.stringify(cacheUsage));
+            }
+
+            // Enhancement 3: Capture guardrail trace
+            const guardrailTrace = response.data.guardrailTrace || null;
+
+            return { text: content, usage, stopReason, cacheUsage, guardrailTrace };
         } catch (error: any) {
             console.error('[BedrockService] SendChat Error:', error.message, {
                 responseData: error.response?.data

@@ -13,6 +13,14 @@ export interface User {
   groups: string[];
 }
 
+// Enhancement 2/5: Native file blocks sent directly to Bedrock Converse API
+export interface NativeFileBlock {
+  type: 'document';
+  format: string;  // pdf, txt, md, html, csv, doc, docx, xls, xlsx
+  name: string;
+  data: string;    // base64 encoded file content
+}
+
 export interface ChatMessage {
   role: 'user' | 'assistant' | 'system';
   content: string;
@@ -28,6 +36,7 @@ export interface ChatMessage {
     size: number;
     content?: string;
   }>;
+  native_files?: NativeFileBlock[];  // Enhancement 2/5: Files sent directly to Bedrock Converse API
   isImageGeneration?: boolean;
   meta?: {
     confidence?: string;

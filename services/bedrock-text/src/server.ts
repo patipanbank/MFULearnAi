@@ -16,6 +16,16 @@ app.use(cors());
 const PORT = process.env.PORT || 5001;
 const ENV_TYPE = process.env.ENV_TYPE || 'TEST';
 
+// --- Enhancement 3: Guardrails Config ---
+const GUARDRAIL_ID = process.env.BEDROCK_GUARDRAIL_ID || '';
+const GUARDRAIL_VERSION = process.env.BEDROCK_GUARDRAIL_VERSION || 'DRAFT';
+
+// --- Enhancement 1: Prompt Caching supported models ---
+const CACHE_SUPPORTED_MODELS = [
+    'anthropic.claude-3-5-sonnet-20240620-v1:0',
+    'anthropic.claude-3-haiku-20240307-v1:0'
+];
+
 // --- Bedrock Client Setup ---
 const client = new BedrockRuntimeClient({
     region: process.env.AWS_REGION || 'ap-southeast-1',
@@ -76,7 +86,21 @@ const normalizeMessages = (messages: any[]) => {
 
             msg.content.forEach((block: any) => {
                 if (block.type === 'text') content.push({ text: block.text });
-                else if (block.type === 'image') content.push({ image: block.source }); // Check format!
+                else if (block.type === 'image') content.push({ image: block.source });
+                // Enhancement 2: Native Document Support
+                else if (block.type === 'document') {
+                    content.push({
+                        document: {
+                            format: block.format || 'pdf',
+                            name: block.name || 'document',
+                            source: {
+                                bytes: typeof block.data === 'string'
+                                    ? Buffer.from(block.data, 'base64')
+                                    : block.data
+                            }
+                        }
+                    });
+                }
                 else if (block.type === 'tool_use') {
                     content.push({
                         toolUse: {
@@ -106,6 +130,23 @@ const normalizeMessages = (messages: any[]) => {
             msg.images.forEach((img: any) => {
                 content.push({
                     image: { format: img.mediaType.split('/')[1], source: { bytes: Buffer.from(img.data, 'base64') } }
+                });
+            });
+        }
+
+        // Enhancement 5: Rich Multi-modal History - Native file attachments
+        if (msg.native_files) {
+            msg.native_files.forEach((file: any) => {
+                content.push({
+                    document: {
+                        format: file.format || 'pdf',
+                        name: file.name || 'document',
+                        source: {
+                            bytes: typeof file.data === 'string'
+                                ? Buffer.from(file.data, 'base64')
+                                : file.data
+                        }
+                    }
                 });
             });
         }
@@ -166,7 +207,7 @@ app.use(authenticateInternal);
 // --- Routes ---
 
 app.post('/api/bedrock/chat', async (req: Request, res: Response) => {
-    const { messages, modelId, toolConfig } = req.body;
+    const { messages, modelId, toolConfig, guardrailConfig: reqGuardrailConfig } = req.body;
 
     console.log(`[Bedrock Text] Incoming Chat Request: ${messages?.length} messages. Tools: ${toolConfig ? 'YES' : 'NO'}`);
     if (toolConfig) {
@@ -179,9 +220,31 @@ app.post('/api/bedrock/chat', async (req: Request, res: Response) => {
 
     const finalModelId = validateModel(modelId);
 
-    // Extract System Prompt for Converse API
-    const systemContent = messages.find(msg => msg.role === 'system')?.content;
-    const system = systemContent ? [{ text: systemContent }] : undefined;
+    // Enhancement 4: Multi-Block System Prompts
+    // System prompt can now be a string OR an array of { text: string } blocks
+    const systemMsg = messages.find(msg => msg.role === 'system');
+    let system: any[] | undefined;
+    if (systemMsg) {
+        if (Array.isArray(systemMsg.content)) {
+            // Already structured as blocks: [{ text: '...' }, { text: '...' }]
+            system = systemMsg.content.map((block: any) => (
+                typeof block === 'string' ? { text: block } : block
+            ));
+        } else if (typeof systemMsg.content === 'string') {
+            system = [{ text: systemMsg.content }];
+        }
+    }
+
+    // Enhancement 3: Guardrails - merge env config with request config
+    let guardrailConfig: any = undefined;
+    if (reqGuardrailConfig) {
+        guardrailConfig = reqGuardrailConfig;
+    } else if (GUARDRAIL_ID) {
+        guardrailConfig = {
+            guardrailIdentifier: GUARDRAIL_ID,
+            guardrailVersion: GUARDRAIL_VERSION
+        };
+    }
 
     // Normalize for Converse
     const formattedMessages = normalizeMessages(messages.filter(msg => msg.role !== 'system'));
@@ -192,19 +255,37 @@ app.post('/api/bedrock/chat', async (req: Request, res: Response) => {
 
     const stream = req.body.stream !== false;
 
+    // Enhancement 1: Prompt Caching
+    // Enable cache checkpoints for supported models with long system prompts
+    const enableCaching = CACHE_SUPPORTED_MODELS.some(m => finalModelId.includes(m));
+    let additionalModelRequestFields: any = undefined;
+    if (enableCaching && system && system.length > 0) {
+        // Add cache_point to end of system blocks for Anthropic Prompt Caching
+        additionalModelRequestFields = {
+            anthropic_beta: ['prompt-caching-2024-07-31']
+        };
+        // Add cachePoint marker after the last system block
+        system.push({ cachePoint: { type: 'default' } } as any);
+        console.log(`[Bedrock Text] Prompt Caching ENABLED for ${finalModelId}`);
+    }
+
     try {
         if (stream) {
             res.setHeader('Content-Type', 'text/event-stream');
             res.setHeader('Cache-Control', 'no-cache');
             res.setHeader('Connection', 'keep-alive');
 
-            const command = new ConverseStreamCommand({
+            const streamCommandInput: any = {
                 modelId: finalModelId,
                 messages: formattedMessages,
                 system,
                 inferenceConfig: { maxTokens: 4096, temperature: 0.5 },
-                toolConfig // Pass tools if present
-            });
+                toolConfig
+            };
+            if (guardrailConfig) streamCommandInput.guardrailConfig = guardrailConfig;
+            if (additionalModelRequestFields) streamCommandInput.additionalModelRequestFields = additionalModelRequestFields;
+
+            const command = new ConverseStreamCommand(streamCommandInput);
 
             const response = await client.send(command);
 
@@ -215,10 +296,13 @@ app.post('/api/bedrock/chat', async (req: Request, res: Response) => {
                     }
                     if (chunk.metadata) {
                         const usage = chunk.metadata.usage || { inputTokens: 0, outputTokens: 0, totalTokens: 0 };
-                        res.write(`data: ${JSON.stringify({
+                        const cacheUsage = (chunk.metadata as any).cacheUsage || null;
+                        const usagePayload: any = {
                             type: 'usage',
                             usage: { input: usage.inputTokens, output: usage.outputTokens, total: usage.totalTokens }
-                        })}\n\n`);
+                        };
+                        if (cacheUsage) usagePayload.cacheUsage = cacheUsage;
+                        res.write(`data: ${JSON.stringify(usagePayload)}\n\n`);
                     }
                 }
             }
@@ -227,13 +311,17 @@ app.post('/api/bedrock/chat', async (req: Request, res: Response) => {
 
         } else {
             // Synchronous (Agent Usage)
-            const command = new ConverseCommand({
+            const converseInput: any = {
                 modelId: finalModelId,
                 messages: formattedMessages,
                 system,
                 inferenceConfig: { maxTokens: 4096, temperature: 0.5 },
-                toolConfig // Pass tools!
-            });
+                toolConfig
+            };
+            if (guardrailConfig) converseInput.guardrailConfig = guardrailConfig;
+            if (additionalModelRequestFields) converseInput.additionalModelRequestFields = additionalModelRequestFields;
+
+            const command = new ConverseCommand(converseInput);
 
             console.log(`[Bedrock Text] Sending ConverseCommand to ${finalModelId}`);
             const response = await client.send(command);
@@ -264,7 +352,10 @@ app.post('/api/bedrock/chat', async (req: Request, res: Response) => {
             // AgentWorkflow expects { success: true, content: string|array, ... }
             // We return the content array directly.
 
-            res.json({
+            // Enhancement 1: Include cache usage in response
+            const cacheUsage = (response as any).cacheUsage || null;
+
+            const responsePayload: any = {
                 success: true,
                 content: content,
                 stopReason: stopReason,
@@ -273,7 +364,19 @@ app.post('/api/bedrock/chat', async (req: Request, res: Response) => {
                     output: usage.outputTokens,
                     total: (usage.inputTokens || 0) + (usage.outputTokens || 0)
                 }
-            });
+            };
+            if (cacheUsage) {
+                responsePayload.cacheUsage = cacheUsage;
+                console.log(`[Bedrock Text] Cache Usage:`, JSON.stringify(cacheUsage));
+            }
+
+            // Enhancement 3: Include guardrail trace if present
+            if ((response as any).trace?.guardrail) {
+                responsePayload.guardrailTrace = (response as any).trace.guardrail;
+                console.log(`[Bedrock Text] Guardrail Trace:`, JSON.stringify((response as any).trace.guardrail).substring(0, 200));
+            }
+
+            res.json(responsePayload);
         }
     } catch (e: any) {
         console.error('[Bedrock Text] Chat error:', e);
