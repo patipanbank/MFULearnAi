@@ -5,7 +5,6 @@ import { HistoryService } from '../services/HistoryService';
 import { BedrockService } from '../services/BedrockService';
 import { Conversation } from '../models/Conversation';
 import { LoggerService } from '../services/LoggerService';
-import { CanonicalIR } from '../../../../shared/types';
 import { ContextService } from '../services/ContextService';
 
 export class ChatController {
@@ -21,7 +20,6 @@ export class ChatController {
         let scenarioId = '';
         let images: any[] = [];
         let files: any[] = [];
-        let fileParses: CanonicalIR[] = [];
         let mode: 'chat' | 'agent' = 'chat';
 
         // Capture context from request (preserved from middleware)
@@ -44,7 +42,6 @@ export class ChatController {
                         collectionId,
                         res,
                         images,
-                        fileParses,
                         files
                     ).catch((err: any) => {
                         LoggerService.error('agent_workflow_error', { error: err.message, stack: err.stack });
@@ -77,13 +74,14 @@ export class ChatController {
                     file.on('data', (d: any) => chunks.push(d));
                     file.on('end', async () => {
                         const buf = Buffer.concat(chunks);
-                        const meta = {
+                        // Keep raw buffer — AgentWorkflow sends it as native doc block to Converse API
+                        resolve({
                             name: info.filename,
                             mediaType: mimeType,
-                            size: buf.length
-                        };
-                        const ir = await KnowledgeService.parseFile(buf, info.filename, mimeType);
-                        resolve({ meta, ir });
+                            size: buf.length,
+                            buffer: buf,
+                            originalname: info.filename
+                        });
                     });
                 });
                 filePromises.push(promise);
@@ -91,11 +89,8 @@ export class ChatController {
 
             bb.on('close', async () => {
                 const results = await Promise.all(filePromises);
-                results.forEach(res => {
-                    if (res && res.ir) {
-                        files.push(res.meta);
-                        fileParses.push(res.ir);
-                    }
+                results.forEach(f => {
+                    if (f) files.push(f);
                 });
                 executeAgent(); // Always use Agent
             });

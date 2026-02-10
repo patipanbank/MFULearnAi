@@ -6,8 +6,8 @@ import { LoggerService } from '../services/LoggerService';
 import { SummarizationService } from '../services/SummarizationService';
 import { CalculatorTool } from '../tools/CalculatorTool';
 import { SearchTool } from '../tools/SearchTool';
-import { CanonicalIR } from '../../../../shared/types';
 import { MODELS, AGENT_CONFIG } from '../config/models';
+
 
 // Whitelist of tools for the Agent
 const AVAILABLE_TOOLS = [
@@ -17,8 +17,8 @@ const AVAILABLE_TOOLS = [
 
 export class AgentWorkflow {
     static async run(req: Request, res: Response) {
-        const { userId, message, sessionId, collectionId, userRole, userDepartment, images, fileParses, files } = (req as any).userContext;
-        return this.execute(userId, sessionId, message, userRole, userDepartment, collectionId, res, images, fileParses, files);
+        const { userId, message, sessionId, collectionId, userRole, userDepartment, images, files } = (req as any).userContext;
+        return this.execute(userId, sessionId, message, userRole, userDepartment, collectionId, res, images, files);
     }
 
     static async execute(
@@ -30,7 +30,6 @@ export class AgentWorkflow {
         collectionId: string | undefined,
         res: Response,
         images: any[] = [],
-        fileParses: CanonicalIR[] = [],
         files: any[] = []
     ) {
         const query = message;
@@ -64,48 +63,30 @@ export class AgentWorkflow {
             // 1.1 Load History + Smart Context (Agent Memory)
             const { messages: history, smartContext } = await HistoryService.getContext(userId, sessionId);
 
-            // 1.3.5 Attached Files Context (ChatGPT-Level Scoped Injection)
-            let fileContextPrompt = '';
-            let nativeDocBlocks: Array<{ type: 'document', format: string, name: string, data: string }> = []; // Enhancement 2: Native Document Blocks
+            // 1.3.5 Attached Files — Send directly as native Converse API document blocks
+            let nativeDocBlocks: Array<{ type: 'document', format: string, name: string, data: string }> = [];
 
-            if (fileParses.length > 0) {
-                // A. Assign Stable IDs (Once)
-                const fileParsesWithIds = KnowledgeService.assignBlockIds(fileParses);
+            if (files && files.length > 0) {
+                const MAX_NATIVE_SIZE = 4.5 * 1024 * 1024; // 4.5MB Converse API limit
+                const supportedFormats = ['pdf', 'txt', 'md', 'html', 'csv', 'doc', 'docx', 'xls', 'xlsx'];
 
-                // Enhancement 2: Attempt Native Document Injection for small files
-                // If the original file data is available and < 4.5MB, send it natively
-                if (files && files.length > 0) {
-                    for (const file of files) {
-                        const MAX_NATIVE_SIZE = 4.5 * 1024 * 1024; // 4.5MB
-                        if (file.buffer && file.buffer.length < MAX_NATIVE_SIZE) {
-                            const ext = (file.originalname || '').split('.').pop()?.toLowerCase() || 'pdf';
-                            const supportedFormats = ['pdf', 'txt', 'md', 'html', 'csv', 'doc', 'docx', 'xls', 'xlsx'];
-                            if (supportedFormats.includes(ext)) {
-                                nativeDocBlocks.push({
-                                    type: 'document',
-                                    format: ext,
-                                    name: file.originalname || 'document',
-                                    data: Buffer.from(file.buffer).toString('base64')
-                                });
-                                LoggerService.info('native_doc_injected', { fileName: file.originalname, size: file.buffer.length }, userId);
-                            }
+                for (const file of files) {
+                    if (file.buffer && file.buffer.length < MAX_NATIVE_SIZE) {
+                        const ext = (file.originalname || file.name || '').split('.').pop()?.toLowerCase() || 'pdf';
+                        if (supportedFormats.includes(ext)) {
+                            nativeDocBlocks.push({
+                                type: 'document',
+                                format: ext,
+                                name: (file.originalname || file.name || 'document').replace(/[^a-zA-Z0-9._-]/g, '_'),
+                                data: Buffer.from(file.buffer).toString('base64')
+                            });
+                            LoggerService.info('native_doc_injected', { fileName: file.originalname || file.name, size: file.buffer.length }, userId);
+                        } else {
+                            LoggerService.warn('unsupported_file_format', { fileName: file.originalname || file.name, ext }, userId);
                         }
+                    } else {
+                        LoggerService.warn('file_too_large_for_native', { fileName: file.originalname || file.name, size: file.buffer?.length }, userId);
                     }
-                }
-
-                // B. Scoped Search (Top 15 Blocks)
-                const topBlocks = await KnowledgeService.searchLocal(query, fileParsesWithIds, 15);
-
-                if (topBlocks.length > 0) {
-                    fileContextPrompt += `\n\n=== ATTACHED FILE CONTEXT ===\n`;
-                    fileContextPrompt += `The following text blocks are extracted from the attached files. Use them to answer.\n`;
-
-                    topBlocks.forEach(block => {
-                        const fileName = block.metadata?.fileName || 'unknown_file';
-                        const pageInfo = block.metadata?.page ? ` (Page ${block.metadata.page})` : '';
-                        fileContextPrompt += `\n[${fileName}${pageInfo}]\n${block.content}\n`;
-                    });
-                    fileContextPrompt += `\n=== END ATTACHED EVIDENCE ===\n`;
                 }
             }
 
@@ -145,9 +126,10 @@ ${smartContext?.canonical || 'First session.'}
 ${JSON.stringify(smartContext?.rolling || {}, null, 2)}`
             });
 
-            // Block 3: RAG Evidence (Changes per query)
-            if (fileContextPrompt) {
-                systemBlocks.push({ text: fileContextPrompt });
+            // Block 3: Attached file names hint (actual docs are in user message content blocks)
+            if (nativeDocBlocks.length > 0) {
+                const fileNames = nativeDocBlocks.map(d => d.name).join(', ');
+                systemBlocks.push({ text: `The user has attached ${nativeDocBlocks.length} document(s): ${fileNames}. They are included as native document blocks in the user message. Read and analyze them to answer the user's question.` });
             }
 
             // Enhancement 3: Guardrails Configuration
@@ -308,7 +290,7 @@ ${JSON.stringify(smartContext?.rolling || {}, null, 2)}`
                     finalAnswer = textContent;
 
                     // Simplified answer mode logic (no citations)
-                    if (fileContextPrompt) {
+                    if (nativeDocBlocks.length > 0) {
                         answerMode = 'file_grounded';
                         answerState = 'VERIFIED';
                     } else if (usedTools.has('search')) {
