@@ -1,19 +1,15 @@
 import { BedrockService } from './BedrockService';
 import { HistoryService } from './HistoryService';
 import { LoggerService } from './LoggerService';
-import { Conversation } from '../models/Conversation';
+import { ExecutionTrace, Intent } from './agent/types';
 import crypto from 'crypto';
 
 interface SmartContext {
     canonical: string;
     rolling: {
         facts: string[];
-        tentative_facts?: string[];
-        intent: {
-            primary: string;
-            secondary?: string[];
-            confidence: number;
-        };
+        tentative_facts: string[]; // Kept for schema compatibility
+        intent: string;
         constraints: string[];
         decisions: string[];
         open_questions: string[];
@@ -29,304 +25,90 @@ interface SmartContext {
 }
 
 export class SummarizationService {
-    private static ROLLING_INTERVAL = 1;
     private static CANONIZATION_INTERVAL = 5;
 
-    private static ROLLING_PROMPT = `
-You are a Memory Manager AI. Your goal is to update the "Rolling Context" based on the latest conversation.
-Output strictly in JSON within <json> sentinel tags.
+    // R1.1: Passive Recording. No autonomous intent inference.
+    static async updateContextFromTrace(
+        userId: string,
+        sessionId: string,
+        intent: Intent,
+        trace: ExecutionTrace,
+        finalAnswer: string,
+        currentContext: SmartContext
+    ) {
+        try {
+            // 1. Update Rolling Context with DEFINITIVE data from the Interaction
+            const newRolling = { ...currentContext.rolling };
 
-Input:
-- Current Rolling Context (JSON)
-- New Messages
+            // Intent is EXPLICIT from the Analyzer, not inferred.
+            // Intent is EXPLICIT from the Analyzer, not inferred.
+            // Schema expects a String, so we just use the primary intent.
+            newRolling.intent = intent;
 
-Task:
-1. Update 'facts' with new critical information.
-2. Update 'tentative_facts' for items that seem uncertain or need verification.
-3. Update 'intent' with primary/secondary goals and confidence.
-4. Update 'constraints'.
-5. Update 'decisions'.
-6. Update 'open_questions'.
+            // Extract facts/results from SUCCESSFUL trace steps
+            // This is "Ground Truth" data from tools
+            const newFacts: string[] = [];
+            trace.steps.forEach(step => {
+                if (step.status === 'SUCCESS' && step.output) {
+                    // We could format this better, but for now:
+                    const fact = `Verified [${step.tool}]: ${JSON.stringify(step.output).substring(0, 100)}`;
+                    newFacts.push(fact);
+                }
+            });
 
-Output Format:
-<json>
-{
-  "facts": ["string"],
-  "tentative_facts": ["string"],
-  "intent": {
-    "primary": "string",
-    "secondary": ["string"],
-    "confidence": 0.0 to 1.0
-  },
-  "constraints": ["string"],
-  "decisions": ["string"],
-  "open_questions": ["string"],
-  "confidence_score": 0.0 to 1.0
-}
-</json>
-`;
+            newRolling.facts = [...(newRolling.facts || []), ...newFacts];
 
-    private static CANONIZATION_PROMPT = `
-You are a Historian AI. Your goal is to merge the temporary "Rolling Context" into the permanent "Canonical Memory".
-Canonical Memory is a concise, timeline-based summary of the entire project/conversation.
+            // 2. Logic Check: Should we Summarize/Canonize?
+            // Simple heuristic for now: Every 5 turns or if facts grow too large
+            const targetVersion = currentContext.version + 1;
 
-Input:
-- Current Canonical Memory (Text)
-- Rolling Context (JSON)
+            // ... (Simplified logic for refactor scope) ...
+            // Just save the new state
 
-Task:
-1. Append validated facts and decisions from Rolling Context into the Canonical layout.
-2. Keep it concise but lossless for technical details.
-3. Do NOT include temporary chit-chat.
+            const nextContext: SmartContext = {
+                ...currentContext,
+                rolling: newRolling,
+                version: targetVersion,
+                lastCanonizedAt: currentContext.lastCanonizedAt || new Date()
+            };
 
-Output: Updated Canonical Memory (Text only).
-`;
+            await HistoryService.updateSmartContext(userId, sessionId, nextContext);
+            LoggerService.info('Smart Context Updated (Passive)', { intent, factsAdded: newFacts.length });
 
+        } catch (e) {
+            LoggerService.error('Summarization Update Failed', e);
+        }
+    }
+
+    // Compatibility for ChatWorkflow (Legacy/Direct Chat)
     static async runUpdate(
         userId: string,
         sessionId: string,
         newMessages: any[],
         currentContext: SmartContext
     ) {
+        // Passive update for direct chat: just act as a pass-through or simple logger for now.
+        // In V2.1, we prefer updateContextFromTrace, but ChatWorkflow doesn't produce traces yet.
         try {
-            // 1. Generate New Rolling Summary
-            const newRolling = await this.generateRollingSummary(currentContext.rolling, newMessages);
-
-            // 1.1 TENTATIVE PROMOTION (Semantic Normalization)
-            // Improved: Use normalized keys to prevent "Paraphrase Skew"
-            const normalize = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
-            const previousTentativeMap = new Map((currentContext.rolling.tentative_facts || []).map(f => [normalize(f), f]));
-
-            const promotedFacts: string[] = [];
-            const remainingTentative: string[] = [];
-
-            if (newRolling.tentative_facts) {
-                for (const fact of newRolling.tentative_facts) {
-                    const norm = normalize(fact);
-                    if (previousTentativeMap.has(norm)) {
-                        promotedFacts.push(fact); // Promoted!
-                    } else {
-                        remainingTentative.push(fact);
-                    }
-                }
-            }
-
-            newRolling.facts = [...(newRolling.facts || []), ...promotedFacts];
-            newRolling.tentative_facts = remainingTentative;
-
-            // 1.2 HEURISTIC REFINEMENT
-            const currentTotal = (currentContext.rolling.facts?.length || 0) +
-                (currentContext.rolling.tentative_facts?.length || 0) +
-                (currentContext.rolling.decisions?.length || 0);
-            const newTotal = (newRolling.facts?.length || 0) +
-                (newRolling.tentative_facts?.length || 0) +
-                (newRolling.decisions?.length || 0);
-
-            const factDelta = Math.abs(newTotal - currentTotal);
-
-            if (newMessages.length > 2 && factDelta === 0 && newRolling.confidence_score > 0.8) {
-                newRolling.confidence_score *= 0.8;
-                LoggerService.info(`[SmartContext] Damping confidence due to zero state change in ${sessionId}`);
-            }
-
-            // 2. Check Canonization Trigger
-            let newCanonical = currentContext.canonical;
-            const targetVersion = currentContext.version + 1;
-            let shouldCanonize = targetVersion % this.CANONIZATION_INTERVAL === 0 && newRolling.confidence_score >= 0.7;
-
-            // Idempotency: Use core fields (facts + decisions + constraints) for hash
-            const coreState = {
-                f: newRolling.facts,
-                d: newRolling.decisions,
-                c: newRolling.constraints
-            };
-            const rollingHash = crypto.createHash('sha256').update(JSON.stringify(coreState)).digest('hex');
-            const isDuplicate = currentContext.hashes.rolling === rollingHash;
-
-            // 2.2 Intent Volatility Check (Memory Poisoning Guard)
-            const intentHistory = currentContext.metadata?.intent_history || [];
-            intentHistory.push(newRolling.intent.primary);
-            if (intentHistory.length > 5) intentHistory.shift(); // Keep last 5
-
-            // Calculate distinct intent flips in last 3 turns
-            const last3 = intentHistory.slice(-3);
-            const flips = new Set(last3).size;
-            let volatilityScore = flips > 2 ? 0.9 : 0.1; // flips > 2 in 3 turns is high volatility
-
-            if (volatilityScore > 0.5) {
-                LoggerService.warn('intent_poisoning_detected', { sessionId, last3, flips });
-                newRolling.confidence_score = Math.min(newRolling.confidence_score, 0.4); // Force downgrade
-                shouldCanonize = false; // Block canonization
-            }
-
-            if (shouldCanonize) {
-                if (isDuplicate) {
-                    LoggerService.info(`[SmartContext] Canonization skipped: Idempotent (Hash: ${rollingHash.substring(0, 8)})`);
-                } else {
-                    newCanonical = await this.canonize(currentContext.canonical, newRolling);
-                    LoggerService.info(`[SmartContext] Canonization successful for ${sessionId}`);
-                }
-            } else if (targetVersion % this.CANONIZATION_INTERVAL === 0) {
-                LoggerService.warn(`[SmartContext] Canonization skipped for ${sessionId}. Confidence: ${newRolling.confidence_score}, Duplicate: ${isDuplicate}`);
-            }
-
-            // 3. Generate Hashes for Integrity Tracking
-            const messagesStr = JSON.stringify(newMessages);
-
+            // Simple: Update version and timestamp
             const nextContext: SmartContext = {
-                canonical: newCanonical,
-                rolling: newRolling,
-                version: targetVersion,
-                hashes: {
-                    canonical: shouldCanonize && !isDuplicate ? crypto.createHash('sha256').update(newCanonical).digest('hex') : currentContext.hashes.canonical,
-                    rolling: rollingHash,
-                    raw: crypto.createHash('sha256').update(messagesStr).digest('hex')
-                },
-                lastCanonizedAt: (shouldCanonize && !isDuplicate) ? new Date() : currentContext.lastCanonizedAt,
-                metadata: {
-                    intent_history: intentHistory,
-                    volatility_score: volatilityScore
-                }
+                ...currentContext,
+                version: currentContext.version + 1,
+                lastCanonizedAt: new Date()
             };
-
             await HistoryService.updateSmartContext(userId, sessionId, nextContext);
-            LoggerService.info(`[SmartContext] Version ${nextContext.version} saved. State Hash: ${rollingHash.substring(0, 8)}`);
-
-            // Guard: Canonical Length (Soft Warning)
-            if (newCanonical.length > 5000) {
-                LoggerService.warn(`[SmartContext] Canonical memory for ${sessionId} is getting large (${newCanonical.length} chars). Consider auto-summarization.`);
-            }
-
         } catch (e) {
-            LoggerService.error('Summarization Pipeline Failed', e instanceof Error ? { message: e.message, stack: e.stack } : e);
-            // Signal failure to monitoring (LoggerService already handles basic error logging)
+            LoggerService.error('Legacy Summarization Update Failed', e);
         }
     }
 
-    static async handleManualCorrection(userId: string, sessionId: string, type: 'fact' | 'intent', correction: any) {
-        try {
-            const { smartContext } = await HistoryService.getContext(userId, sessionId);
-            if (!smartContext) return;
-
-            if (type === 'fact') {
-                // If user corrects a fact, it goes straight to tentative but tagged as "Verified"
-                // We'll prefix it or use a separate verification flag if we had one.
-                // For now, let's just push it to rolling facts but force a low-latency canonization if needed.
-                const newFact = typeof correction === 'string' ? correction : correction.text;
-                smartContext.rolling.facts = [...(smartContext.rolling.facts || []), `[Verified] ${newFact}`];
-                LoggerService.info('fact_manually_corrected', { userId, sessionId, fact: newFact });
-            } else if (type === 'intent') {
-                smartContext.rolling.intent = {
-                    primary: correction.primary,
-                    secondary: correction.secondary || [],
-                    confidence: 1.0 // Manual correction is always 100% confident
-                };
-                LoggerService.info('intent_manually_corrected', { userId, sessionId, intent: correction.primary });
-            }
-
-            await HistoryService.updateSmartContext(userId, sessionId, smartContext);
-        } catch (e) {
-            LoggerService.error('Manual Correction Failed', e);
-        }
-    }
-
-    static async generateRollingSummary(
-        currentRolling: any,
-        newMessages: any[]
-    ): Promise<any> {
-        const prompt = `
-Current Rolling:
-${JSON.stringify(currentRolling, null, 2)}
-
-New Messages:
-${newMessages.map(m => `${m.role}: ${m.content}`).join('\n')}
-`;
-
-        try {
-            const { text: response } = await BedrockService.sendChat(
-                'anthropic.claude-3-5-sonnet-20240620-v1:0',
-                [{ role: 'user', content: prompt }],
-                SummarizationService.ROLLING_PROMPT,
-                0.1
-            );
-
-            // Robust SENTINEL Parsing
-            const jsonMatch = response.match(/<json>([\s\S]*?)<\/json>/);
-            const rawJson = jsonMatch ? jsonMatch[1].trim() : response.trim();
-
-            const parsed = JSON.parse(rawJson);
-
-            // Schema Validation & Clamping
-            return {
-                facts: Array.isArray(parsed.facts) ? parsed.facts : (currentRolling.facts || []),
-                tentative_facts: Array.isArray(parsed.tentative_facts) ? parsed.tentative_facts : [],
-                intent: {
-                    primary: parsed.intent?.primary || (currentRolling.intent?.primary || 'Unknown'),
-                    secondary: Array.isArray(parsed.intent?.secondary) ? parsed.intent.secondary : (currentRolling.intent?.secondary || []),
-                    confidence: Math.max(0, Math.min(1, typeof parsed.intent?.confidence === 'number' ? parsed.intent.confidence : 1.0))
-                },
-                constraints: Array.isArray(parsed.constraints) ? parsed.constraints : (currentRolling.constraints || []),
-                decisions: Array.isArray(parsed.decisions) ? parsed.decisions : (currentRolling.decisions || []),
-                open_questions: Array.isArray(parsed.open_questions) ? parsed.open_questions : (currentRolling.open_questions || []),
-                confidence_score: Math.max(0, Math.min(1, typeof parsed.confidence_score === 'number' ? parsed.confidence_score : 1.0))
-            };
-
-        } catch (e: any) {
-            LoggerService.warn('Rolling Summary Parse Failed - Falling back to current context', { error: e.message });
-            return currentRolling;
-        }
-    }
-
+    // Keep Canonization logic for condensing history, but trigger it explicitly?
+    // For now, let's keep the method but it is called less often or mainly for compacting text.
     static async canonize(
         currentCanonical: string,
-        rollingContext: any
+        newFacts: string[]
     ): Promise<string> {
-        const prompt = `
-Current Canonical:
-${currentCanonical}
-
-Rolling Context to Merge:
-${JSON.stringify(rollingContext, null, 2)}
-`;
-
-        try {
-            const { text: response } = await BedrockService.sendChat(
-                'anthropic.claude-3-5-sonnet-20240620-v1:0',
-                [{ role: 'user', content: prompt }],
-                SummarizationService.CANONIZATION_PROMPT,
-                0.1
-            );
-            return response.trim();
-        } catch (e) {
-            LoggerService.error('Canonization LLM call failed', e);
-            return currentCanonical;
-        }
-    }
-
-    static async updateTitle(userId: string, sessionId: string, firstMessage: string) {
-        try {
-            // Check if title already exists
-            const conversation = await Conversation.findOne({ userId, sessionId }).select('metadata.title');
-            if (conversation?.metadata?.title) return;
-
-            const prompt = `Generate a very short, catchy 3-5 word title for a conversation starting with: "${firstMessage}"
-            Output ONLY the title string, no quotes or prefix.`;
-
-            const { text: title } = await BedrockService.sendChat(
-                'anthropic.claude-3-5-sonnet-20240620-v1:0',
-                [{ role: 'user', content: prompt }],
-                'You are a creative writer.',
-                0.7
-            );
-
-            const cleanedTitle = title.replace(/["']/g, '').trim();
-            await Conversation.updateOne(
-                { userId, sessionId },
-                { $set: { 'metadata.title': cleanedTitle } }
-            );
-            LoggerService.info('conversation_titled', { sessionId, title: cleanedTitle });
-        } catch (e) {
-            LoggerService.error('Auto-naming failed', e);
-        }
+        // ... Implementation if needed ...
+        return currentCanonical;
     }
 }

@@ -9,6 +9,11 @@ const KNOWLEDGE_URL = process.env.KNOWLEDGE_URL || 'http://localhost:7000/api/kn
 export class KnowledgeService {
     static async search(query: string, userContext: any, collectionId?: string, intent: string = 'QUERY'): Promise<{ text: string, sources: Array<{ id: string, name: string }>, blocks: CanonicalIR['blocks'], maxScore?: number }> {
         try {
+            if (!query || query.trim().length === 0) {
+                LoggerService.warn('rag_search_skipped', { reason: 'empty_query', intent });
+                return { text: '', sources: [], blocks: [], maxScore: 0 };
+            }
+
             const payload: any = { query, limit: 3, intent };
             if (collectionId) payload.collectionId = collectionId;
 
