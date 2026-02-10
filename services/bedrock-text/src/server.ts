@@ -20,7 +20,9 @@ const ENV_TYPE = process.env.ENV_TYPE || 'TEST';
 const GUARDRAIL_ID = process.env.BEDROCK_GUARDRAIL_ID || '';
 const GUARDRAIL_VERSION = process.env.BEDROCK_GUARDRAIL_VERSION || 'DRAFT';
 
-// --- Enhancement 1: Prompt Caching supported models ---
+// --- Enhancement 1: Prompt Caching (OPT-IN) ---
+// Set BEDROCK_ENABLE_CACHE=true to enable. Not all regions/models support this.
+const ENABLE_PROMPT_CACHE = process.env.BEDROCK_ENABLE_CACHE === 'true';
 const CACHE_SUPPORTED_MODELS = [
     'anthropic.claude-3-5-sonnet-20240620-v1:0',
     'anthropic.claude-3-haiku-20240307-v1:0'
@@ -255,9 +257,9 @@ app.post('/api/bedrock/chat', async (req: Request, res: Response) => {
 
     const stream = req.body.stream !== false;
 
-    // Enhancement 1: Prompt Caching
-    // Enable cache checkpoints for supported models with long system prompts
-    const enableCaching = CACHE_SUPPORTED_MODELS.some(m => finalModelId.includes(m));
+    // Enhancement 1: Prompt Caching (OPT-IN only)
+    // Only enable if BEDROCK_ENABLE_CACHE=true AND model supports it
+    const enableCaching = ENABLE_PROMPT_CACHE && CACHE_SUPPORTED_MODELS.some(m => finalModelId.includes(m));
     let additionalModelRequestFields: any = undefined;
     if (enableCaching && system && system.length > 0) {
         // Add cache_point to end of system blocks for Anthropic Prompt Caching
