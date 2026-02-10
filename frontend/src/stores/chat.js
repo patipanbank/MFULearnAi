@@ -170,22 +170,11 @@ export const useChatStore = defineStore('chat', () => {
                 formData.append('images', JSON.stringify(images))
             }
 
-            // Append Files (Real File objects)
+            // Append Files (Raw File objects from Chat.vue)
             if (files && files.length > 0) {
                 files.forEach((file) => {
-                    // Start of Selection
-                    // Check if 'file' is a native File object or our wrapper?
-                    // ChatInput.vue seems to push native File objects if we adhere to new logic, 
-                    // BUT previous view of Chat.vue (line 96) showed wrapper object push: 
-                    // { type: 'doc', name: file.name, content: text, ... }
-                    // Wait, we want to change this to send RAW FILE.
-                    // Implementation Plan said: "Update Chat.vue to send Multipart request"
-                    // So we must update Chat.vue handleFileUpload as well. 
-                    // Assuming Chat.vue will now pass raw File objects in 'files' array to this store action.
                     if (file instanceof File) {
                         formData.append('files', file)
-                    } else if (file.rawFile instanceof File) {
-                        formData.append('files', file.rawFile)
                     }
                 })
             }

@@ -106,33 +106,26 @@ const handleSendMessage = async (message) => {
 
   const isNewSession = !chatStore.currentSessionId
 
-  // Prepare payload
-  let finalMessage = message || ''
+  // Separate images (base64) and files (raw File objects)
   const imagesToSend = []
   const filesToSend = []
 
-  // Process attachments
-  for (const file of attachments.value) {
-    if (file.type === 'doc') {
-        filesToSend.push({
-            name: file.name,
-            content: file.content,
-            size: file.size || 0,
-            mediaType: file.mediaType || 'text/plain'
-        })
-    } else if (file.type === 'image') {
+  for (const att of attachments.value) {
+    if (att.type === 'image') {
         imagesToSend.push({
-            data: file.data.split(',')[1], // Remove prefix
-            mediaType: file.mediaType
+            data: att.data.split(',')[1], // Remove data:... prefix
+            mediaType: att.mediaType
         })
+    } else if (att.type === 'doc') {
+        filesToSend.push(att.rawFile) // Pass raw File object
     }
   }
 
   // Clear attachments immediately so UI resets
   attachments.value = []
 
-  // Send to store (update store action to accept files)
-  await chatStore.sendMessage(finalMessage, null, imagesToSend, filesToSend)
+  // Send to store
+  await chatStore.sendMessage(message || '', null, imagesToSend, filesToSend)
   
   // If it was a new session, update URL so refresh works
   if (isNewSession && chatStore.currentSessionId) {
@@ -151,7 +144,7 @@ const handleFileUpload = async (files) => {
   isProcessingFile.value = true
   try {
     for (const file of files) {
-        // Image
+        // Image → base64 for preview + sending
         if (file.type.startsWith('image/')) {
             const reader = new FileReader()
             reader.onload = (e) => {
@@ -164,15 +157,14 @@ const handleFileUpload = async (files) => {
             }
             reader.readAsDataURL(file)
         } 
-        // Document (PDF/Text/Doc/Sheet)
+        // Document → keep raw File, backend will parse via busboy
         else {
-            const text = await knowledgeStore.extractText(file) // Now supports DOCX/XLSX
             attachments.value.push({
                 type: 'doc',
                 name: file.name,
-                content: text,
                 size: file.size,
-                mediaType: file.type
+                mediaType: file.type,
+                rawFile: file  // Keep raw File for FormData upload
             })
         }
     }
