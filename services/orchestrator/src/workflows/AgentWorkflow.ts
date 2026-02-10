@@ -204,6 +204,7 @@ ${fileContextPrompt}
                             let resultContent: any;
 
                             if (tool) {
+                                LoggerService.info('agent_executing_tool', { tool: toolName, input: toolInput }, userId);
                                 const executionResult = await tool.execute(toolInput, {
                                     userId,
                                     role: userRole,
@@ -211,6 +212,7 @@ ${fileContextPrompt}
                                     collectionId
                                 });
                                 resultContent = executionResult.success ? executionResult.result : `Error: ${executionResult.error}`;
+                                LoggerService.info('agent_tool_result', { tool: toolName, success: executionResult.success, resultLength: resultContent?.length }, userId);
 
                                 // R2: Tool Provenance Unification
                                 // If search tool returns blocks (JSON), parse them and register their IDs
