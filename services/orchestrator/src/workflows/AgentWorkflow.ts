@@ -291,10 +291,20 @@ ${fileContextPrompt}
                     // R4: Re-inject Citation Reminder
                     // The model might have "forgotten" the system prompt after a long tool loop.
                     // We remind it right before it generates the final answer.
-                    messages.push({
-                        role: 'system',
-                        content: 'Reminder: If you use any evidence blocks (Files or Search), you MUST cite them using <cite>ID</cite> tags. Do not invent citations.'
-                    });
+                    // FIX: Attach to the USER message (tool_result) because Bedrock Converse doesn't allow 'system' in messages list.
+                    const lastMsg = messages[messages.length - 1];
+                    if (lastMsg && lastMsg.role === 'user') {
+                        // lastMsg is the tool_result message we just pushed above
+                        // It has content: [{ type: 'tool_result', ... }]
+                        if (Array.isArray(lastMsg.content)) {
+                            // Append a text block to the content array
+                            // Bedrock Converse allows mixing tool_result and text in one user turn
+                            lastMsg.content.push({
+                                type: 'text',
+                                text: '\n\nReminder: If you use any evidence blocks (Files or Search), you MUST cite them using <cite>ID</cite> tags. Do not invent citations.'
+                            });
+                        }
+                    }
 
                 } else {
                     // ... (Final Answer Logic) ...

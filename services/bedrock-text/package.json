@@ -9,7 +9,7 @@
         "build": "tsc"
     },
     "dependencies": {
-        "@aws-sdk/client-bedrock-runtime": "^3.438.0",
+        "@aws-sdk/client-bedrock-runtime": "^3.986.0",
         "@types/jsonwebtoken": "^9.0.10",
         "cors": "^2.8.5",
         "dotenv": "^16.3.1",
