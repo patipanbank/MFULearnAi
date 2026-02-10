@@ -292,7 +292,6 @@ const closeEvidenceViewer = () => {
               :user-avatar-url="authStore.profilePicture"
               :t="t"
               @copy="handleCopyMessage"
-              @view-evidence="handleViewEvidence"
             />
           </TransitionGroup>
           

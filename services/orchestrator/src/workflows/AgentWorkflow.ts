@@ -59,13 +59,10 @@ export class AgentWorkflow {
 
             // PRE-RAG REMOVED: Defaulting variables for downstream compatibility
             const currentIntent = 'QUERY';
-            const ragSources: Array<{ id: string, name: string }> = [];
             const ragMaxScore = 0;
 
             // 1.3.5 Attached Files Context (ChatGPT-Level Scoped Injection)
             let fileContextPrompt = '';
-            let validCitationIds = new Set<string>(); // Scope for Validation
-            let injectedEvidence: Array<{ id: string, fileName: string, fileId?: string, page?: number, bbox?: any }> = []; // LOCK 1: Manifest
             let nativeDocBlocks: Array<{ type: 'document', format: string, name: string, data: string }> = []; // Enhancement 2: Native Document Blocks
 
             if (fileParses.length > 0) {
@@ -93,29 +90,17 @@ export class AgentWorkflow {
                     }
                 }
 
-                // B. Scoped Search (Top 15 Blocks) - Still needed for citation IDs
+                // B. Scoped Search (Top 15 Blocks)
                 const topBlocks = await KnowledgeService.searchLocal(query, fileParsesWithIds, 15);
 
                 if (topBlocks.length > 0) {
-                    fileContextPrompt += `\n\n=== ATTACHED FILE EVIDENCE (TOP MATCHES) ===\n`;
+                    fileContextPrompt += `\n\n=== ATTACHED FILE CONTEXT ===\n`;
                     fileContextPrompt += `The following text blocks are extracted from the attached files. Use them to answer.\n`;
 
                     topBlocks.forEach(block => {
                         const fileName = block.metadata?.fileName || 'unknown_file';
                         const pageInfo = block.metadata?.page ? ` (Page ${block.metadata.page})` : '';
-
-                        // R1: Zero-Trust Protocol - Standardize on XML
-                        fileContextPrompt += `\n<block id="${block.id}">\n[Source: ${fileName}${pageInfo}]\n${block.content}\n</block>\n`;
-                        validCitationIds.add(block.id); // Add to valid scope
-
-                        // LOCK 1: Populate Manifest
-                        injectedEvidence.push({
-                            id: block.id,
-                            fileName: fileName,
-                            fileId: block.metadata?.fileId,
-                            page: block.metadata?.page,
-                            bbox: block.metadata?.bbox
-                        });
+                        fileContextPrompt += `\n[${fileName}${pageInfo}]\n${block.content}\n`;
                     });
                     fileContextPrompt += `\n=== END ATTACHED EVIDENCE ===\n`;
                 }
@@ -140,7 +125,7 @@ export class AgentWorkflow {
 === TRUTH PRIORITY ===
 1. Canonical Memory
 2. Tool Results (Search/Calc)
-3. Attached Files (EVIDENCE)
+3. Attached Files
 4. Internal Knowledge
 
 === CRITICAL RULES ===
@@ -148,13 +133,7 @@ export class AgentWorkflow {
 - Use the 'calculator' tool for any math.
 ${refusalRule}
 - Always start by planning your next step if complex.
-
-=== CITATION RULE (MANDATORY) ===
-- All attached evidence is provided in <block id="ID"> tags.
-- When you use information from EVIDENCE, you MUST cite the Block ID using the tag: <cite>ID</cite>.
-- Example: "Students may declare multiple majors <cite>f1_b3</cite>."
-- Do NOT use footnotes like [1] or (Source). Use ONLY the <cite> tag with the exact ID found in the <block> tag.
-- LOCK 4: If the attached evidence does NOT contain the answer, explicitly say: "The attached documents do not provide this information." Do NOT guess.` });
+- If the attached files or search results do NOT contain the answer, say so clearly. Do NOT guess.` });
 
             // Block 2: Session Context (Changes per session)
             systemBlocks.push({
@@ -273,29 +252,9 @@ ${JSON.stringify(smartContext?.rolling || {}, null, 2)}`
                                 resultContent = executionResult.success ? executionResult.result : `Error: ${executionResult.error}`;
                                 LoggerService.info('agent_tool_result', { tool: toolName, success: executionResult.success, resultLength: resultContent?.length }, userId);
 
-                                // R2: Tool Provenance Unification
-                                // If search tool returns blocks (JSON), parse them and register their IDs
+                                // Search results are used for context but no citation tracking needed
                                 if (toolName === 'search' && executionResult.success) {
-                                    try {
-                                        const searchBlocks = JSON.parse(resultContent);
-                                        if (Array.isArray(searchBlocks)) {
-                                            searchBlocks.forEach((block: any) => {
-                                                if (block.id) {
-                                                    validCitationIds.add(block.id);
-                                                    // Add to manifest
-                                                    injectedEvidence.push({
-                                                        id: block.id,
-                                                        fileName: block.metadata?.fileName || 'Search Result',
-                                                        fileId: block.metadata?.fileId,
-                                                        page: block.metadata?.page,
-                                                        bbox: block.metadata?.bbox
-                                                    });
-                                                }
-                                            });
-                                        }
-                                    } catch (e) {
-                                        // Result might be plain text if legacy or empty
-                                    }
+                                    usedTools.add('search');
                                 }
                             } else {
                                 resultContent = `Error: Tool ${toolName} not found.`;
@@ -317,25 +276,6 @@ ${JSON.stringify(smartContext?.rolling || {}, null, 2)}`
                         }))
                     });
 
-                    // R4: Re-inject Citation Reminder
-                    // The model might have "forgotten" the system prompt after a long tool loop.
-                    // We remind it right before it generates the final answer.
-                    // FIX: Attach to the USER message (tool_result) because Bedrock Converse doesn't allow 'system' in messages list.
-                    const lastMsg = messages[messages.length - 1];
-                    if (lastMsg && lastMsg.role === 'user') {
-                        // lastMsg is the tool_result message we just pushed above
-                        // It has content: [{ type: 'tool_result', ... }]
-                        if (Array.isArray(lastMsg.content)) {
-                            // List the actual valid IDs to constrain the model
-                            const availableIds = Array.from(validCitationIds).join(', ');
-                            // Append a text block to the content array
-                            // Bedrock Converse allows mixing tool_result and text in one user turn
-                            lastMsg.content.push({
-                                type: 'text',
-                                text: `\n\nReminder: If you use any evidence blocks (Files or Search), you MUST cite them using <cite>ID</cite> tags. ONLY use these exact IDs: [${availableIds}]. Do not invent citation IDs.`
-                            });
-                        }
-                    }
 
                 } else {
                     // ... (Final Answer Logic) ...
@@ -353,58 +293,13 @@ ${JSON.stringify(smartContext?.rolling || {}, null, 2)}`
 
                     finalAnswer = textContent;
 
-                    // R4: Enforce Citation Requirement (LOCK 5)
-                    const isDocQuestion = /policy|regulation|guideline|document|file|contract|agreement|budget|fee|deadline|registration|course|gpa|grade/i.test(query);
-                    if (validCitationIds.size > 0 && isDocQuestion && !finalAnswer.includes('<cite>')) {
-                        answerState = 'UNVERIFIED';
-                        finalAnswer = "The attached documents do not provide this information (No citations found).";
-                        // Force break to skip validation logic as it's already failed
+                    // Simplified answer mode logic (no citations)
+                    if (fileContextPrompt) {
                         answerMode = 'file_grounded';
-                        break;
-                    }
-
-                    // --- Phase 2 & 3: Validation and Metadata Calculation ---
-                    if (validCitationIds.size > 0) { // We have file context injected
-                        const validation = this.validateCitations(finalAnswer, validCitationIds);
-                        const hasCitations = validation.coverage > 0;
-
-                        // LOCK 3: Answer Mode Logic (Updated with R3)
-                        if (hasCitations) {
-                            answerMode = 'file_grounded';
-                        } else if (usedTools.has('search')) { // R3: Robust Check
-                            answerMode = 'rag';
-                        } else {
-                            // If we have files but didn't use them, acts as internal/chitchat
-                            answerMode = 'internal';
-                        }
-
-                        // LOCK 2: Answer State Logic (Updated with R4)
-                        if (answerMode === 'file_grounded') {
-                            if (validation.isValid) {
-                                // R4: Bind Confidence to State
-                                if (ragMaxScore < 0.65) {
-                                    answerState = 'PARTIALLY_VERIFIED';
-                                    (explanation as any).confidence_warning = "Low retrieval score.";
-                                } else {
-                                    answerState = 'VERIFIED';
-                                }
-                            } else {
-                                answerState = 'PARTIALLY_VERIFIED';
-
-                                LoggerService.warn('citation_validation_failed', {
-                                    invalidCitations: validation.invalidCitations,
-                                    traceId
-                                }, userId);
-
-                                (explanation as any).citation_warning = "Some citations could not be verified.";
-                                (explanation as any).invalid_citations = validation.invalidCitations;
-                            }
-                            (explanation as any).citation_coverage = validation.coverage;
-                            (explanation as any).citation_details = validation.details; // R1: Sentence-level details
-                        }
-                    } else if (usedTools.has('search')) { // R3: Robust Check
+                        answerState = 'VERIFIED';
+                    } else if (usedTools.has('search')) {
                         answerMode = 'rag';
-                        answerState = 'VERIFIED'; // Assume search tool results are trusted
+                        answerState = 'VERIFIED';
                     }
 
                     break;
@@ -427,11 +322,9 @@ ${JSON.stringify(smartContext?.rolling || {}, null, 2)}`
                     type: 'metadata',
                     metadata: {
                         intent: currentIntent,
-                        answer_mode: answerMode, // LOCK 3
-                        answer_state: answerState, // LOCK 2
-                        injected_evidence: injectedEvidence, // LOCK 1
+                        answer_mode: answerMode,
+                        answer_state: answerState,
                         usedRAG: answerMode !== 'internal',
-                        sources: ragSources, // Note: Search tool results might not populated this yet
                         stepsUsed: steps,
                         totalTokens: totalUsage.total,
                         explanation
@@ -441,7 +334,7 @@ ${JSON.stringify(smartContext?.rolling || {}, null, 2)}`
                 res.write('data: [DONE]\n\n');
                 res.end();
 
-                // 7. Telemetry & Persistence (Same as before)
+                // 7. Telemetry & Persistence
                 const currentMessage = { role: 'user' as const, content: query, timestamp: new Date() };
                 const assistantMessage = {
                     role: 'assistant' as const,
@@ -450,13 +343,9 @@ ${JSON.stringify(smartContext?.rolling || {}, null, 2)}`
                     meta: {
                         intent: currentIntent,
                         stepsUsed: steps,
-                        // R5: Persistence for Citations
                         answer_mode: answerMode,
                         answer_state: answerState,
-                        injected_evidence: injectedEvidence,
-                        items: injectedEvidence, // Legacy support if needed
                         usedRAG: answerMode !== 'internal',
-                        sources: ragSources,
                         confidence,
                         explanation
                     }
@@ -474,69 +363,7 @@ ${JSON.stringify(smartContext?.rolling || {}, null, 2)}`
         }
     }
 
-    private static validateCitations(text: string, validIds: Set<string>): { isValid: boolean, invalidCitations: string[], coverage: number, details: any[] } {
-        // R1: Sentence-Level Citation Binding
-        // 1. Split into sentences (keeping delimiters)
-        const segments = text.split(/([.!?\n]+)/).filter(s => s.trim().length > 0);
-        const sentences: string[] = [];
-        for (let i = 0; i < segments.length; i += 2) {
-            const sent = segments[i];
-            const delim = segments[i + 1] || '';
-            const fullSent = (sent + delim).trim();
-            if (fullSent.length > 0) sentences.push(fullSent);
-        }
 
-        const details: any[] = [];
-        let validSentences = 0;
-        let factualSentences = 0; // heuristic: length > 20
-        const allInvalidCitations = new Set<string>();
-
-        // Fallback if split fails to produce sentences (e.g. no punctuation), treat whole text as one
-        if (sentences.length === 0 && text.trim().length > 0) {
-            sentences.push(text.trim());
-        }
-
-        for (const sent of sentences) {
-            // Heuristic for "factual" sentence that needs citation
-            // R4: Strengthen Factual Heuristic
-            const isFactual = sent.length > 20 || /\b(is|are|was|were|means|defined as|requires|states|according to)\b/i.test(sent);
-            if (isFactual) factualSentences++;
-
-            // Extract all <cite>ID</cite> tags in this sentence
-            const citeRegex = /<cite>(.*?)<\/cite>/g;
-            const matches = [...sent.matchAll(citeRegex)];
-            const citations = matches.map(m => m[1]);
-
-            // Verify against INJECTED ids
-            const invalid = citations.filter(id => !validIds.has(id));
-            invalid.forEach(id => allInvalidCitations.add(id));
-
-            // A sentence is considered "covered" if it has at least one valid citation and NO invalid ones.
-            // (If it has NO citations, it counts as 'not covered' for the metric, but not 'invalid' for strict ID check)
-            const hasValidCitation = citations.length > 0 && invalid.length === 0;
-
-            if (hasValidCitation) {
-                validSentences++;
-            }
-
-            details.push({
-                sentence: sent.substring(0, 100),
-                citations,
-                isValid: hasValidCitation,
-                invalidCitations: invalid
-            });
-        }
-
-        // Coverage metric: Fraction of "factual" sentences that are supported by valid citations
-        const coverage = factualSentences > 0 ? (validSentences / factualSentences) : 1.0;
-
-        return {
-            isValid: allInvalidCitations.size === 0,
-            invalidCitations: Array.from(allInvalidCitations),
-            coverage,
-            details
-        };
-    }
 
     private static async quickIntentCheck(query: string, context?: any): Promise<{ intent: string, usage: { input: number, output: number, total: number } }> {
         // Same implementation but ensuring we call Sonnet

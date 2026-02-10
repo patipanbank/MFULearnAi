@@ -1,6 +1,6 @@
 <script setup>
 import { useMarkdown } from '@/composables/useMarkdown'
-import { ref, computed, onMounted, nextTick, watch } from 'vue'
+import { ref } from 'vue'
 
 const props = defineProps({
   message: { type: Object, required: true },
@@ -9,63 +9,14 @@ const props = defineProps({
   t: { type: Function, required: true }
 })
 
-const emit = defineEmits(['copy', 'view-evidence'])
+const emit = defineEmits(['copy'])
 
 const { render, copyToClipboard } = useMarkdown()
 const copied = ref(false)
 const viewingImage = ref(null)
 const messageRef = ref(null) // Reference to the message container
 
-// Citation Indexing State
-const citationMap = computed(() => {
-    if (!props.message.meta?.injected_evidence) return new Map()
-    
-    const map = new Map()
-    let counter = 1
-    props.message.meta.injected_evidence.forEach(ev => {
-        if (!map.has(ev.id)) {
-            map.set(ev.id, {
-                order: counter++,
-                evidence: ev
-            })
-        }
-    })
-    return map
-})
 
-// Bind citations after render
-const bindCitations = async () => {
-    await nextTick()
-    if (!messageRef.value) return
-
-    const tokens = messageRef.value.querySelectorAll('.citation-token')
-    tokens.forEach(node => {
-        const id = node.dataset.citationId
-        const entry = citationMap.value.get(id)
-        
-        // Remove existing listeners to be safe (though Vue re-renders usually handle this)
-        // With v-html, we are outside Vue's reactivity for these nodes.
-        // Cloning node is a trick to strip listeners, but might be overkill.
-        // Simple onclick assignment is effective here.
-        
-        if (entry) {
-            node.textContent = `[${entry.order}]`
-            node.classList.add('valid')
-            node.onclick = (e) => {
-                e.stopPropagation()
-                emit('view-evidence', entry.evidence)
-            }
-        } else {
-             // Fallback for missing evidence (shouldn't happen with strict backend)
-             node.textContent = `[?]`
-             node.classList.add('invalid')
-             node.title = "Citation source not found"
-        }
-    })
-}
-
-// Watch for content changes to re-bind
-watch(() => props.message.content, bindCitations, { immediate: true })
 
 const viewImage = (src) => {
     viewingImage.value = src
@@ -85,40 +36,8 @@ const formatTime = (timestamp) => {
   return new Date(timestamp).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })
 }
 
-const openSource = async (source) => {
-    if (!source || !source.id) return
-    
-    // Check if we have evidence object for this source in the map
-    // If so, emit view-evidence to open our new viewer
-    // If not (e.g. legacy or internal link), fallback to old behavior
-    
-    // Try to find evidence by fileId matching source.id? 
-    // Usually source object in 'meta.sources' is {id, name}. 
-    // meta.injected_evidence has {id: blockId, fileName...}.
-    // They are different IDs usually (FileID vs BlockID).
-    
-    // For now, keep legacy openSource behavior for the "Source Pills" at bottom.
-    // Or upgrade them? Implementation plan focused on inline citations.
-    // Let's leave Source Pills as is (open in new tab) as a fallback.
-    
-    if (source.canView === false) return
-    try {
-        const token = localStorage.getItem('auth_token')
-        const url = `/api/knowledge/${source.id}/view?token=${token}`
-        window.open(url, '_blank')
-    } catch (e) {
-        console.error('Failed to open source:', e)
-    }
-}
 
-const getFileIcon = (name) => {
-    const ext = name.split('.').pop().toLowerCase()
-    if (['pdf'].includes(ext)) return { icon: '📄', color: '#ef4444', label: 'PDF' }
-    if (['doc', 'docx'].includes(ext)) return { icon: '📝', color: '#3b82f6', label: 'Word' }
-    if (['xls', 'xlsx', 'csv'].includes(ext)) return { icon: '📊', color: '#10b981', label: 'Sheet' }
-    if (['ppt', 'pptx'].includes(ext)) return { icon: '🎬', color: '#f59e0b', label: 'Slide' }
-    return { icon: '📎', color: '#6b7280', label: 'File' }
-}
+
 </script>
 
 <template>
@@ -224,36 +143,7 @@ const getFileIcon = (name) => {
             <span class="text animate-flicker">{{ message.status || t('thinking') }}</span>
           </div>
           
-          <!-- RAG Source Container -->
-          <div v-if="message.meta?.usedRAG" class="sources-container">
-            <span class="sources-label">{{ t('sources') || 'Sources:' }}</span>
-            <div class="sources-list">
-              <div 
-                v-for="source in message.meta.sources" 
-                :key="typeof source === 'object' ? source.id : source"
-                class="source-pill"
-                @click="openSource(source)"
-                :class="{ 
-                    'clickable': typeof source === 'object' && source.canView !== false,
-                    'restricted': typeof source === 'object' && source.canView === false
-                }"
-                :style="typeof source === 'object' && source.canView !== false ? { borderColor: getFileIcon(source.name).color + '40' } : {}"
-              >
-                <span class="source-icon" :style="typeof source === 'object' && source.canView !== false ? { color: getFileIcon(source.name).color } : { color: '#9ca3af' }">
-                    {{ getFileIcon(typeof source === 'object' ? source.name : source).icon }}
-                </span>
-                <span class="source-name">{{ typeof source === 'object' ? source.name : source }}</span>
-                <span v-if="typeof source === 'object' && source.canView === false" class="lock-icon" title="Restricted Access">🔒</span>
-              </div>
-              <!-- Fallback if sources list is empty but usedRAG is true -->
-              <div v-if="!message.meta.sources?.length" class="source-pill plain">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
-                  <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path>
-                </svg>
-                <span>{{ t('answeredFromKnowledgeBase') || 'Knowledge Base' }}</span>
-              </div>
-            </div>
-          </div>
+
           <!-- AI Actions (Copy Button icon only) -->
           <div class="actions" v-if="message.content">
             <button class="btn-icon-copy" @click="handleCopy" :class="{ copied }" :title="t('copy')">
@@ -394,35 +284,7 @@ const getFileIcon = (name) => {
   color: var(--color-text-primary);
 }
 
-/* Citation Token Styles - Global because v-html injects them */
-:global(.citation-token) {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    background: var(--color-bg-secondary);
-    color: var(--color-primary);
-    font-size: 11px;
-    font-weight: 600;
-    min-width: 18px;
-    height: 18px;
-    border-radius: 4px;
-    margin: 0 2px;
-    cursor: pointer;
-    user-select: none;
-    transition: all 0.2s;
-    vertical-align: super;
-}
 
-:global(.citation-token.valid:hover) {
-    background: var(--color-primary);
-    color: white;
-}
-
-:global(.citation-token.invalid) {
-    color: var(--color-text-muted);
-    cursor: not-allowed;
-    background: #f3f4f6;
-}
 
 
 /* Improved Prose (Markdown) */
@@ -491,92 +353,8 @@ const getFileIcon = (name) => {
 .intent-badge-mini.debugging { border-color: #ef4444; color: #ef4444; background: rgba(239, 68, 68, 0.05); }
 .intent-badge-mini.research { border-color: #8b5cf6; color: #8b5cf6; background: rgba(139, 92, 246, 0.05); }
 
-.sources-container {
-    margin-top: 12px;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-}
 
-.sources-label {
-    font-size: 11px;
-    font-weight: 600;
-    color: var(--color-text-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
 
-.sources-list {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-}
-
-.source-pill {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 4px 12px;
-    background: var(--color-bg-secondary);
-    border: 1px solid var(--color-border);
-    border-radius: 20px; /* Fully rounded */
-    font-size: 12px;
-    color: var(--color-text-primary);
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-    max-width: 240px;
-    cursor: default;
-}
-
-.source-pill.clickable {
-    cursor: pointer;
-}
-
-.source-pill.clickable:hover {
-    border-color: var(--color-primary);
-    background: var(--color-bg-tertiary);
-    transform: translateY(-1px);
-    box-shadow: var(--shadow-sm);
-}
-
-.source-pill.plain {
-    color: var(--color-text-muted);
-    font-style: italic;
-}
-
-.source-icon {
-    font-size: 14px;
-    line-height: 1;
-}
-
-.source-name {
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    flex: 1;
-}
-
-.source-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    margin-top: 12px;
-    padding: 4px 10px;
-    background: var(--color-bg-secondary);
-    border: 1px solid var(--color-border);
-    border-radius: 6px;
-    font-size: 11px;
-    color: var(--color-text-muted);
-    transition: all 0.2s;
-}
-
-.source-badge:hover {
-    border-color: var(--color-primary);
-    color: var(--color-text-secondary);
-}
-
-.source-badge svg {
-    color: var(--color-primary);
-}
 
 .actions {
   margin-top: 8px;
