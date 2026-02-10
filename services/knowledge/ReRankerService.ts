@@ -42,11 +42,22 @@ Task:
             });
 
             if (response.data && response.data.content) {
-                const content = response.data.content;
-                const match = content.match(/\[.*\]/);
-                if (match) {
-                    const indices = JSON.parse(match[0]);
-                    return indices.map((idx: number) => candidates[idx]).filter(Boolean);
+                let textContent = '';
+                if (Array.isArray(response.data.content)) {
+                    textContent = response.data.content
+                        .filter((b: any) => b.type === 'text')
+                        .map((b: any) => b.text)
+                        .join('');
+                } else if (typeof response.data.content === 'string') {
+                    textContent = response.data.content;
+                }
+
+                if (textContent) {
+                    const match = textContent.match(/\[.*\]/);
+                    if (match) {
+                        const indices = JSON.parse(match[0]);
+                        return indices.map((idx: number) => candidates[idx]).filter(Boolean);
+                    }
                 }
             }
         } catch (e) {
