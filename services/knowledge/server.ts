@@ -54,10 +54,19 @@ interface UserContext {
 const extractUser = (req: Request): UserContext | null => {
     // ZERO TRUST: Do NOT trust x-user-id headers. Always verify token.
 
-    // Validate Bearer Token
+    // Validate Bearer Token (Header or Query Param fallback for browser embeds)
     const authHeader = req.headers.authorization;
+    let token: string | null = null;
+
     if (authHeader && authHeader.startsWith('Bearer ')) {
-        const token = authHeader.split(' ')[1];
+        token = authHeader.split(' ')[1];
+    } else if (req.query.token && typeof req.query.token === 'string') {
+        // Fallback: Browser embeds (iframe/img) can't send Authorization headers
+        // so the frontend passes the token as ?token= query parameter
+        token = req.query.token;
+    }
+
+    if (token) {
         try {
             // A. Try User Token (HS256 - from Identity Service)
             try {
