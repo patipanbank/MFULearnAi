@@ -5,30 +5,32 @@ export class CalculatorTool extends AgentTool {
     description = 'Perform basic arithmetic operations (add, subtract, multiply, divide).';
     allowedRoles = ['*'];
 
-    schema = `
-<tool_definition>
-    <name>calculator</name>
-    <description>Perform basic arithmetic operations.</description>
-    <parameters>
-        <parameter>
-            <name>operation</name>
-            <type>string</type>
-            <enum>add, subtract, multiply, divide</enum>
-            <description>The operation to perform.</description>
-        </parameter>
-        <parameter>
-            <name>a</name>
-            <type>number</type>
-            <description>First number.</description>
-        </parameter>
-        <parameter>
-            <name>b</name>
-            <type>number</type>
-            <description>Second number.</description>
-        </parameter>
-    </parameters>
-</tool_definition>
-`;
+    // Native JSON Schema for Bedrock/Claude 3.5
+    schemaJSON = {
+        name: 'calculator',
+        description: 'Perform basic arithmetic operations.',
+        inputSchema: {
+            json: {
+                type: 'object',
+                properties: {
+                    operation: {
+                        type: 'string',
+                        enum: ['add', 'subtract', 'multiply', 'divide'],
+                        description: 'The operation to perform.'
+                    },
+                    a: {
+                        type: 'number',
+                        description: 'First number.'
+                    },
+                    b: {
+                        type: 'number',
+                        description: 'Second number.'
+                    }
+                },
+                required: ['operation', 'a', 'b']
+            }
+        }
+    };
 
     async execute(args: any, context: AgentContext): Promise<ToolResult> {
         try {

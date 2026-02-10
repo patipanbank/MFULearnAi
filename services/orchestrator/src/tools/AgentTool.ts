@@ -16,8 +16,11 @@ export abstract class AgentTool {
     abstract description: string;
     abstract allowedRoles: string[];
 
-    // Define schema for prompt generation
-    abstract schema: string;
+    // Native Tool Schema (JSON)
+    abstract schemaJSON: any;
+
+    // Legacy XML Schema (Optional/Deprecated)
+    schema: string = '';
 
     abstract execute(args: any, context: AgentContext): Promise<ToolResult>;
 

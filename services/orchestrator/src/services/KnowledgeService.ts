@@ -64,7 +64,7 @@ export class KnowledgeService {
         } catch (error: any) {
             console.warn('[KnowledgeService] Search failed:', error.message);
         }
-        return { text: '', sources: [] };
+        return { text: '', sources: [], maxScore: 0 };
     }
 
     static async parseFile(buffer: Buffer, filename: string, mimeType: string): Promise<CanonicalIR | null> {

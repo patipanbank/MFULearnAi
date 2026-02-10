@@ -6,19 +6,23 @@ export class SearchTool extends AgentTool {
     description = 'Search the knowledge base for information about the system, documents, or general facts.';
     allowedRoles = ['*'];
 
-    schema = `
-<tool_definition>
-    <name>search</name>
-    <description>Search internal documents and knowledge base.</description>
-    <parameters>
-        <parameter>
-            <name>query</name>
-            <type>string</type>
-            <description>The search query.</description>
-        </parameter>
-    </parameters>
-</tool_definition>
-`;
+    // Native JSON Schema for Bedrock/Claude 3.5
+    schemaJSON = {
+        name: 'search',
+        description: 'Search internal documents and knowledge base.',
+        inputSchema: {
+            json: {
+                type: 'object',
+                properties: {
+                    query: {
+                        type: 'string',
+                        description: 'The search query.'
+                    }
+                },
+                required: ['query']
+            }
+        }
+    };
 
     async execute(args: any, context: AgentContext): Promise<ToolResult> {
         try {

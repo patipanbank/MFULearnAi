@@ -91,19 +91,26 @@ export class BedrockService {
         modelId: string,
         messages: ChatMessage[],
         system?: string,
-        temperature: number = 0.5
-    ): Promise<{ text: string, usage: any }> {
+        temperature: number = 0.5,
+        toolConfig?: any
+    ): Promise<{ text: string, usage: any, stopReason?: string }> {
         try {
+            const requestData: any = {
+                messages,
+                modelId,
+                system,      // Pass system prompt if supported by downstream
+                temperature,  // Pass params
+                stream: false // Hint downstream to not stream (if supported)
+            };
+
+            if (toolConfig) {
+                requestData.toolConfig = toolConfig;
+            }
+
             const response = await axios({
                 method: 'post',
                 url: `${BEDROCK_TEXT_URL}/chat`,
-                data: {
-                    messages,
-                    modelId,
-                    system,      // Pass system prompt if supported by downstream
-                    temperature,  // Pass params
-                    stream: false // Hint downstream to not stream (if supported)
-                },
+                data: requestData,
                 headers: {
                     'Authorization': `Bearer ${TokenService.mint('bedrock', 'write')}`,
                     'x-correlation-id': ContextService.getCorrelationId()
@@ -114,7 +121,20 @@ export class BedrockService {
 
             // Robust content extraction
             let content = '';
-            if (response.data && response.data.content !== undefined) {
+            let stopReason = response.data.stopReason;
+
+            // Handle Tool Use Response (Claude 3.5 Native)
+            if (stopReason === 'tool_use' || (response.data.content && Array.isArray(response.data.content))) {
+                // Return the raw content array if it contains tool_use
+                // downstream AgentWorkflow will parse it
+                if (Array.isArray(response.data.content)) {
+                    // For now, we serialize the content array to string if it's mixed text+tool, 
+                    // BUT AgentWorkflow needs to know. 
+                    // Let's return the raw content object if possible or stringify it carefully.
+                    // Actually, let's keep the existing signature returning string, but if tool_use, return JSON string of content
+                    content = JSON.stringify(response.data.content);
+                }
+            } else if (response.data && response.data.content !== undefined) {
                 content = typeof response.data.content === 'string' ? response.data.content : JSON.stringify(response.data.content);
             } else if (response.data && response.data.text !== undefined) {
                 content = response.data.text;
@@ -136,9 +156,9 @@ export class BedrockService {
                 });
             }
 
-            console.log(`[BedrockService] SendChat Usage Received:`, usage);
+            console.log(`[BedrockService] SendChat Usage Received:`, usage, `StopReason:`, stopReason);
 
-            return { text: content, usage };
+            return { text: content, usage, stopReason };
         } catch (error: any) {
             console.error('[BedrockService] SendChat Error:', error.message, {
                 responseData: error.response?.data
