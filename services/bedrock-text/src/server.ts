@@ -3,8 +3,8 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import {
     BedrockRuntimeClient,
-    InvokeModelWithResponseStreamCommand,
-    InvokeModelCommand
+    ConverseCommand,
+    ConverseStreamCommand
 } from "@aws-sdk/client-bedrock-runtime";
 
 dotenv.config();
@@ -44,81 +44,86 @@ const validateModel = (modelId: string): string => {
 const normalizeMessages = (messages: any[]) => {
     if (!messages || messages.length === 0) return [];
 
-    // Filter out any system messages or invalid messages
+    // Filter out any system messages
     const filtered = messages.filter(m => m && m.role !== 'system');
     if (filtered.length === 0) return [];
 
     const normalized: any[] = [];
 
     // 1. Ensure it starts with 'user'
-    // Find the first user message to start processing from.
     let startIndex = filtered.findIndex(m => m.role === 'user');
     if (startIndex === -1) {
-        // If no user message is found, prepend a dummy user message to ensure the conversation starts correctly.
-        normalized.push({ role: 'user', content: [{ type: 'text', text: '...' }] });
+        normalized.push({ role: 'user', content: [{ text: '...' }] });
         startIndex = 0;
     }
 
     // Process messages from the first valid starting point
     for (let i = startIndex; i < filtered.length; i++) {
         const msg = filtered[i];
-        // Determine the role, ensuring it's either 'user' or 'assistant'
         const role = msg.role === 'user' ? 'user' : 'assistant';
         const content: any[] = [];
 
-        // Handle different content types: string or array of content blocks
+        // Handle different content types
         if (typeof msg.content === 'string' && msg.content.trim()) {
-            content.push({ type: 'text', text: msg.content });
+            content.push({ text: msg.content });
         } else if (Array.isArray(msg.content)) {
-            content.push(...msg.content);
+            // Check for tool_result or tool_use blocks which are valid in Converse
+            // Converse expects: { text: string } | { image: ... } | { toolUse: ... } | { toolResult: ... }
+            // Our internal format might be slightly different, so map carefully.
+            // Internal: { type: 'text', text: '...' } -> Converse: { text: '...' }
+            // Internal: { type: 'tool_use', ... } -> Converse: { toolUse: ... }
+            // Internal: { type: 'tool_result', ... } -> Converse: { toolResult: ... }
+
+            msg.content.forEach((block: any) => {
+                if (block.type === 'text') content.push({ text: block.text });
+                else if (block.type === 'image') content.push({ image: block.source }); // Check format!
+                else if (block.type === 'tool_use') {
+                    content.push({
+                        toolUse: {
+                            toolUseId: block.id || block.toolUseId,
+                            name: block.name,
+                            input: block.input
+                        }
+                    });
+                }
+                else if (block.type === 'tool_result') {
+                    content.push({
+                        toolResult: {
+                            toolUseId: block.toolUseId,
+                            content: block.content // Expects [{ json: ... }]
+                        }
+                    });
+                }
+            });
+        }
+        else if (msg.content && typeof msg.content === 'object' && msg.content.text) {
+            // Handle raw object case
+            content.push({ text: msg.content.text });
         }
 
-        // Add image content if present
+        // Add image content if present as property (legacy)
         if (msg.images) {
             msg.images.forEach((img: any) => {
                 content.push({
-                    type: 'image',
-                    source: { type: 'base64', media_type: img.mediaType, data: img.data }
+                    image: { format: img.mediaType.split('/')[1], source: { bytes: Buffer.from(img.data, 'base64') } }
                 });
             });
         }
 
-        // Skip messages with no content
         if (content.length === 0) continue;
 
-        // Merge consecutive messages from the same role
+        // Merge consecutive messages logic (Converse requires strict alternation)
         if (normalized.length > 0 && normalized[normalized.length - 1].role === role) {
             normalized[normalized.length - 1].content.push(...content);
         } else {
-            // Ensure strict alternation of roles (user, assistant, user, assistant...)
-            // If the current role is the same as the last one, and they are not being merged,
-            // it means the alternation is broken. We should correct it.
-            // For Claude, the sequence must be user, assistant, user, assistant...
-            // If we have user, user, we should merge. If we have assistant, assistant, we should merge.
-            // The logic above handles merging. This part ensures alternation if not merging.
-            // If the last message was 'user' and current is 'user', it means we skipped an assistant.
-            // If the last message was 'assistant' and current is 'assistant', it means we skipped a user.
-            // The current logic implicitly handles this by pushing a new message.
-            // The main goal here is to ensure the final output is strictly alternating.
-            // The merging logic above already handles consecutive same-role messages.
-            // So, if we reach here, it means the roles are alternating correctly or it's the first message.
             normalized.push({ role, content });
         }
-    }
-
-    // 2. Claude 3 requirement: Final message must be 'user'
-    // If it's assistant, it means history ended prematurely or model is being asked to "continue"
-    // For general chat, we strip trailing assistant messages to force a new response.
-    while (normalized.length > 0 && normalized[normalized.length - 1].role !== 'user') {
-        console.warn(`[Bedrock Text] Stripping trailing assistant message from history to satisfy Claude role requirements.`);
-        normalized.pop();
     }
 
     return normalized;
 };
 
 // --- Middleware ---
-// Phase 3: Observability
 const logCorrelation = (req: Request, res: Response, next: any) => {
     const correlationId = req.headers['x-correlation-id'] || 'unknown';
     console.log(`[Bedrock Text] Request ${req.method} ${req.path} [${correlationId}]`);
@@ -135,22 +140,20 @@ const authenticateInternal = (req: Request, res: Response, next: any) => {
     const authHeader = req.headers.authorization;
 
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-        console.warn(`[Bedrock Text] Missing or invalid Authorization header from ${req.ip}`);
         return res.status(401).json({ error: 'Unauthorized: Missing Token' });
     }
 
     const token = authHeader.split(' ')[1];
 
     try {
-        const publicKey = fs.readFileSync(PUBLIC_KEY_PATH); // Cache this in prod?
+        const publicKey = fs.readFileSync(PUBLIC_KEY_PATH);
         const decoded: any = jwt.verify(token, publicKey, { algorithms: ['RS256'] });
 
-        // Scope & Audience Check
         const validAudiences = ['bedrock', 'mfu-bedrock-service'];
         if (!validAudiences.includes(decoded.aud)) throw new Error(`Invalid Audience: ${decoded.aud}`);
         if (!decoded.scope || !decoded.scope.includes('internal:')) throw new Error('Invalid Scope');
 
-        (req as any).user = decoded; // Attach for logging
+        (req as any).user = decoded;
         next();
     } catch (error: any) {
         console.warn(`[Bedrock Text] Token verification failed: ${error.message}`);
@@ -175,7 +178,12 @@ app.post('/api/bedrock/chat', async (req: Request, res: Response) => {
     }
 
     const finalModelId = validateModel(modelId);
-    const systemMessage = messages.find(msg => msg.role === 'system')?.content || '';
+
+    // Extract System Prompt for Converse API
+    const systemContent = messages.find(msg => msg.role === 'system')?.content;
+    const system = systemContent ? [{ text: systemContent }] : undefined;
+
+    // Normalize for Converse
     const formattedMessages = normalizeMessages(messages.filter(msg => msg.role !== 'system'));
 
     if (formattedMessages.length === 0) {
@@ -186,117 +194,89 @@ app.post('/api/bedrock/chat', async (req: Request, res: Response) => {
 
     try {
         if (stream) {
-            // SSE Headers
             res.setHeader('Content-Type', 'text/event-stream');
             res.setHeader('Cache-Control', 'no-cache');
             res.setHeader('Connection', 'keep-alive');
-            res.setHeader('X-Accel-Buffering', 'no');
 
-            const command = new InvokeModelWithResponseStreamCommand({
+            const command = new ConverseStreamCommand({
                 modelId: finalModelId,
-                contentType: "application/json",
-                accept: "application/json",
-                body: JSON.stringify({
-                    anthropic_version: "bedrock-2023-05-31",
-                    max_tokens: 4096,
-                    temperature: 0.7,
-                    system: systemMessage,
-                    messages: formattedMessages
-                })
+                messages: formattedMessages,
+                system,
+                inferenceConfig: { maxTokens: 4096, temperature: 0.5 },
+                toolConfig // Pass tools if present
             });
 
-            const response = await (client as any).send(command);
+            const response = await client.send(command);
 
-            let inputTokens = 0;
-            let outputTokens = 0;
-
-            if (response.body) {
-                for await (const chunk of response.body) {
-                    if (chunk.chunk?.bytes) {
-                        const decoded = new TextDecoder().decode(chunk.chunk.bytes);
-                        const parsed = JSON.parse(decoded);
-
-                        if (parsed.type === 'message_start' && parsed.message?.usage) {
-                            inputTokens = parsed.message.usage.input_tokens || 0;
-                        }
-
-                        if (parsed.type === 'content_block_delta' && parsed.delta?.text) {
-                            res.write(`data: ${JSON.stringify({ text: parsed.delta.text })}\n\n`);
-                        }
-
-                        if (parsed.type === 'message_delta' && parsed.usage) {
-                            outputTokens = parsed.usage.output_tokens || 0;
-                        }
+            if (response.stream) {
+                for await (const chunk of response.stream) {
+                    if (chunk.contentBlockDelta && chunk.contentBlockDelta.delta?.text) {
+                        res.write(`data: ${JSON.stringify({ text: chunk.contentBlockDelta.delta.text })}\n\n`);
+                    }
+                    if (chunk.metadata) {
+                        const usage = chunk.metadata.usage || { inputTokens: 0, outputTokens: 0, totalTokens: 0 };
+                        res.write(`data: ${JSON.stringify({
+                            type: 'usage',
+                            usage: { input: usage.inputTokens, output: usage.outputTokens, total: usage.totalTokens }
+                        })}\n\n`);
                     }
                 }
             }
-
-            const totalTokens = inputTokens + outputTokens;
-            res.write(`data: ${JSON.stringify({
-                type: 'usage',
-                usage: { input: inputTokens, output: outputTokens, total: totalTokens }
-            })}\n\n`);
-
             res.write('data: [DONE]\n\n');
             res.end();
+
         } else {
-            // Synchronous (Non-streaming)
-            const command = new InvokeModelCommand({
+            // Synchronous (Agent Usage)
+            const command = new ConverseCommand({
                 modelId: finalModelId,
-                contentType: "application/json",
-                accept: "application/json",
-                body: JSON.stringify({
-                    anthropic_version: "bedrock-2023-05-31",
-                    max_tokens: 4096,
-                    temperature: 0.7,
-                    system: systemMessage,
-                    messages: formattedMessages
-                })
+                messages: formattedMessages,
+                system,
+                inferenceConfig: { maxTokens: 4096, temperature: 0.5 },
+                toolConfig // Pass tools!
             });
 
-            const response = await (client as any).send(command);
-            const decoded = new TextDecoder().decode(response.body);
-            const data = JSON.parse(decoded);
+            console.log(`[Bedrock Text] Sending ConverseCommand to ${finalModelId}`);
+            const response = await client.send(command);
 
-            // Debug Logging: What is the model actually returning?
-            console.log(`[Bedrock Text] Raw Response Type: ${data.type}, Stop Reason: ${data.stop_reason}`);
-            if (data.content && Array.isArray(data.content)) {
-                console.log(`[Bedrock Text] Block Types: ${data.content.map((b: any) => b.type).join(', ')}`);
+            const outputMessage = response.output?.message;
+            const stopReason = response.stopReason;
+            const usage = response.usage || { inputTokens: 0, outputTokens: 0 };
+
+            console.log(`[Bedrock Text] Converse Success. StopReason: ${stopReason}`);
+
+            // Map Converse Response Content to AgentWorkflow Compatible Format
+            let content: any = [];
+            if (outputMessage?.content) {
+                content = outputMessage.content.map((block: any) => {
+                    if (block.text) return { type: 'text', text: block.text };
+                    if (block.toolUse) return {
+                        type: 'tool_use',
+                        id: block.toolUse.toolUseId,
+                        name: block.toolUse.name,
+                        input: block.toolUse.input,
+                        toolUseId: block.toolUse.toolUseId
+                    };
+                    return block;
+                });
             }
 
-            // Robust Parsing: Claude 3 returns content as an array of blocks
-            let contentText = '';
-            if (Array.isArray(data.content)) {
-                contentText = data.content
-                    .filter((block: any) => block.type === 'text')
-                    .map((block: any) => block.text)
-                    .join('');
-
-                // If it's empty but we have non-text blocks, let's log them specifically
-                if (!contentText && data.content.length > 0) {
-                    console.warn(`[Bedrock Text] Warning: No text blocks, but found blocks of type:`, data.content.map((b: any) => b.type));
-                    console.warn(`[Bedrock Text] Full Raw Data:`, JSON.stringify(data, null, 2));
-                }
-            } else if (typeof data.content === 'string') {
-                contentText = data.content;
-            }
-
-            const usage = data.usage || { input_tokens: 0, output_tokens: 0 };
-            console.log(`[Bedrock Text] Sync Success [${finalModelId}] OutTokens: ${usage.output_tokens}, Reason: ${data.stop_reason}`);
+            // Return JSON compatible with AgentWorkflow's parsing expectations
+            // AgentWorkflow expects { success: true, content: string|array, ... }
+            // We return the content array directly.
 
             res.json({
                 success: true,
-                content: contentText,
-                stopReason: data.stop_reason,
+                content: content,
+                stopReason: stopReason,
                 usage: {
-                    input: usage.input_tokens,
-                    output: usage.output_tokens,
-                    total: usage.input_tokens + usage.output_tokens
+                    input: usage.inputTokens,
+                    output: usage.outputTokens,
+                    total: (usage.inputTokens || 0) + (usage.outputTokens || 0)
                 }
             });
         }
     } catch (e: any) {
-        console.error('[Bedrock Text] Chat error:', e.message);
+        console.error('[Bedrock Text] Chat error:', e);
         if (stream) {
             if (!res.headersSent) res.write(`event: error\ndata: ${JSON.stringify({ error: e.message })}\n\n`);
             res.end();
