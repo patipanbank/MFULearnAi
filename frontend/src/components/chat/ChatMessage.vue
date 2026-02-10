@@ -1,6 +1,6 @@
 <script setup>
 import { useMarkdown } from '@/composables/useMarkdown'
-import { ref } from 'vue'
+import { ref, computed, onMounted, nextTick, watch } from 'vue'
 
 const props = defineProps({
   message: { type: Object, required: true },
@@ -9,11 +9,63 @@ const props = defineProps({
   t: { type: Function, required: true }
 })
 
-const emit = defineEmits(['copy'])
+const emit = defineEmits(['copy', 'view-evidence'])
 
 const { render, copyToClipboard } = useMarkdown()
 const copied = ref(false)
 const viewingImage = ref(null)
+const messageRef = ref(null) // Reference to the message container
+
+// Citation Indexing State
+const citationMap = computed(() => {
+    if (!props.message.meta?.injected_evidence) return new Map()
+    
+    const map = new Map()
+    let counter = 1
+    props.message.meta.injected_evidence.forEach(ev => {
+        if (!map.has(ev.id)) {
+            map.set(ev.id, {
+                order: counter++,
+                evidence: ev
+            })
+        }
+    })
+    return map
+})
+
+// Bind citations after render
+const bindCitations = async () => {
+    await nextTick()
+    if (!messageRef.value) return
+
+    const tokens = messageRef.value.querySelectorAll('.citation-token')
+    tokens.forEach(node => {
+        const id = node.dataset.citationId
+        const entry = citationMap.value.get(id)
+        
+        // Remove existing listeners to be safe (though Vue re-renders usually handle this)
+        // With v-html, we are outside Vue's reactivity for these nodes.
+        // Cloning node is a trick to strip listeners, but might be overkill.
+        // Simple onclick assignment is effective here.
+        
+        if (entry) {
+            node.textContent = `[${entry.order}]`
+            node.classList.add('valid')
+            node.onclick = (e) => {
+                e.stopPropagation()
+                emit('view-evidence', entry.evidence)
+            }
+        } else {
+             // Fallback for missing evidence (shouldn't happen with strict backend)
+             node.textContent = `[?]`
+             node.classList.add('invalid')
+             node.title = "Citation source not found"
+        }
+    })
+}
+
+// Watch for content changes to re-bind
+watch(() => props.message.content, bindCitations, { immediate: true })
 
 const viewImage = (src) => {
     viewingImage.value = src
@@ -34,10 +86,24 @@ const formatTime = (timestamp) => {
 }
 
 const openSource = async (source) => {
-    if (!source || !source.id || source.canView === false) return
+    if (!source || !source.id) return
+    
+    // Check if we have evidence object for this source in the map
+    // If so, emit view-evidence to open our new viewer
+    // If not (e.g. legacy or internal link), fallback to old behavior
+    
+    // Try to find evidence by fileId matching source.id? 
+    // Usually source object in 'meta.sources' is {id, name}. 
+    // meta.injected_evidence has {id: blockId, fileName...}.
+    // They are different IDs usually (FileID vs BlockID).
+    
+    // For now, keep legacy openSource behavior for the "Source Pills" at bottom.
+    // Or upgrade them? Implementation plan focused on inline citations.
+    // Let's leave Source Pills as is (open in new tab) as a fallback.
+    
+    if (source.canView === false) return
     try {
         const token = localStorage.getItem('auth_token')
-        // Directly open the streaming URL in a new tab
         const url = `/api/knowledge/${source.id}/view?token=${token}`
         window.open(url, '_blank')
     } catch (e) {
@@ -146,7 +212,7 @@ const getFileIcon = (name) => {
             </div>
           </div>
           
-          <div class="prose-content prose" v-if="message.content" v-html="render(message.content)"></div>
+          <div ref="messageRef" class="prose-content prose" v-if="message.content" v-html="render(message.content)"></div>
           
           <!-- Typing Indicator / Status (Dynamic) -->
           <div v-if="!message.content || (message.status && message.status !== '')" class="typing-indicator">
@@ -327,6 +393,37 @@ const getFileIcon = (name) => {
   font-weight: 600;
   color: var(--color-text-primary);
 }
+
+/* Citation Token Styles - Global because v-html injects them */
+:global(.citation-token) {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--color-bg-secondary);
+    color: var(--color-primary);
+    font-size: 11px;
+    font-weight: 600;
+    min-width: 18px;
+    height: 18px;
+    border-radius: 4px;
+    margin: 0 2px;
+    cursor: pointer;
+    user-select: none;
+    transition: all 0.2s;
+    vertical-align: super;
+}
+
+:global(.citation-token.valid:hover) {
+    background: var(--color-primary);
+    color: white;
+}
+
+:global(.citation-token.invalid) {
+    color: var(--color-text-muted);
+    cursor: not-allowed;
+    background: #f3f4f6;
+}
+
 
 /* Improved Prose (Markdown) */
 .prose-content {

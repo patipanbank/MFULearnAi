@@ -63,6 +63,7 @@ export interface CanonicalIR {
 }
 
 export interface IRBlock {
+  id: string; // Unique ID for citation (e.g. "f1_b3")
   type: 'text' | 'code' | 'table' | 'image_desc';
   content: string; // Text representation for prompt
   table_data?: { headers: string[]; rows: string[][] }; // Structured data for reuse/debugging
@@ -74,6 +75,9 @@ export interface IRBlock {
     title?: string;
     confidence?: number; // 0-1. >0.85 safe.
     source?: 'text_layer' | 'ocr' | 'garbage_text_fallback';
+    fileName?: string; // Mapped from parent or source
+    fileId?: string;
+    bbox?: [number, number, number, number]; // [x, y, w, h]
   };
 }
 

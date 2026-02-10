@@ -33,12 +33,13 @@ export class SearchTool extends AgentTool {
                 department: context.department || 'General'
             };
 
-            const { text } = await KnowledgeService.search(query, userContext, context.collectionId);
-            if (!text) {
+            const { text, blocks } = await KnowledgeService.search(query, userContext, context.collectionId);
+            if (!text && (!blocks || blocks.length === 0)) {
                 return { success: true, result: "No relevant information found in the knowledge base." };
             }
 
-            return { success: true, result: text };
+            // R2: Return structured blocks so the AgentWorkflow can parse IDs and valid citations
+            return { success: true, result: JSON.stringify(blocks) };
         } catch (error: any) {
             return { success: false, result: null, error: error.message };
         }

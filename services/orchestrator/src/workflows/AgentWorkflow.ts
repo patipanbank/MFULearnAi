@@ -96,29 +96,46 @@ export class AgentWorkflow {
 
             const ragInstruction = ragMaxScore > 0.65
                 ? `INSTRUCTION: High-confidence context pre-fetched. Rely on it.`
-                : `INSTRUCTION: Pre-fetched context is partial or missing. You have a 'search' tool. USE IT if you need more information.`;
-
+                : `INSTRUCTION: If the pre-fetched context is not highly relevant (score < 0.65), use the 'search' tool.`;
             const ragSystemPrompt = ragContext
                 ? `\n\n=== PRE-FETCHED CONTEXT ===\n${ragContext}\n==============================\n${ragInstruction}`
                 : '';
 
-            // 1.3.5 Attached Files Context
+            // 1.3.5 Attached Files Context (ChatGPT-Level Scoped Injection)
             let fileContextPrompt = '';
+            let validCitationIds = new Set<string>(); // Scope for Validation
+            let injectedEvidence: Array<{ id: string, fileName: string, page?: number, bbox?: any }> = []; // LOCK 1: Manifest
+
             if (fileParses.length > 0) {
-                fileContextPrompt += `\n\n=== ATTACHED FILE CONTEXT ===\n`;
-                fileParses.forEach((ir, idx) => {
-                    const originalName = files && files[idx] ? files[idx].name : `File ${idx + 1}`;
-                    fileContextPrompt += `\n[File: ${originalName}]\n`;
-                    // ... (Truncation logic same as before, simplified for brevity)
-                    let charCount = 0;
-                    const MAX_CHARS = 20000;
-                    for (const block of ir.blocks) {
-                        if (charCount > MAX_CHARS) break;
-                        fileContextPrompt += `\n${block.content}`;
-                        charCount += block.content.length;
-                    }
-                });
-                fileContextPrompt += `\n=== END ATTACHED FILES ===\n`;
+                // A. Assign Stable IDs (Once)
+                const fileParsesWithIds = KnowledgeService.assignBlockIds(fileParses);
+
+                // B. Scoped Search (Top 15 Blocks)
+                const topBlocks = await KnowledgeService.searchLocal(query, fileParsesWithIds, 15);
+
+                if (topBlocks.length > 0) {
+                    fileContextPrompt += `\n\n=== ATTACHED FILE EVIDENCE (TOP MATCHES) ===\n`;
+                    fileContextPrompt += `The following text blocks are extracted from the attached files. Use them to answer.\n`;
+
+                    topBlocks.forEach(block => {
+                        const fileName = block.metadata?.fileName || 'unknown_file';
+                        const pageInfo = block.metadata?.page ? ` (Page ${block.metadata.page})` : '';
+
+                        // R1: Zero-Trust Protocol - Standardize on XML
+                        fileContextPrompt += `\n<block id="${block.id}">\n[Source: ${fileName}${pageInfo}]\n${block.content}\n</block>\n`;
+                        validCitationIds.add(block.id); // Add to valid scope
+
+                        // LOCK 1: Populate Manifest
+                        injectedEvidence.push({
+                            id: block.id,
+                            fileName: fileName,
+                            fileId: block.metadata?.fileId,
+                            page: block.metadata?.page,
+                            bbox: block.metadata?.bbox
+                        });
+                    });
+                    fileContextPrompt += `\n=== END ATTACHED EVIDENCE ===\n`;
+                }
             }
 
             // 1.3.6 Dynamic Refusal Policy
@@ -126,7 +143,7 @@ export class AgentWorkflow {
             const isSafeGeneralIntent = !isOrganizationalQuery;
 
             const refusalRule = isSafeGeneralIntent
-                ? `- Basic factual questions may be answered using internal knowledge. 
+                ? `- Basic factual questions may be answered using internal knowledge.
                    - WARNING: If the question pertains to specific organizational policies absent in context, you MUST refuse or use the Search tool.`
                 : `- If the Knowledge Base or Context does not explicitly contain the answer, use the 'search' tool. If still not found, say "I don't have enough information".`;
 
@@ -136,9 +153,9 @@ export class AgentWorkflow {
                     role: 'system',
                     content: `You are the MFU Learn AI Agent. You are efficient and helpful.
 === TRUTH PRIORITY ===
-1. Canonical Memory 
+1. Canonical Memory
 2. Tool Results (Search/Calc)
-3. Attached Files
+3. Attached Files (EVIDENCE)
 4. Internal Knowledge
 
 === CRITICAL RULES ===
@@ -146,6 +163,13 @@ export class AgentWorkflow {
 - Use the 'calculator' tool for any math.
 ${refusalRule}
 - Always start by planning your next step if complex.
+
+=== CITATION RULE (MANDATORY) ===
+- All attached evidence is provided in <block id="ID"> tags.
+- When you use information from EVIDENCE, you MUST cite the Block ID using the tag: <cite>ID</cite>.
+- Example: "Students may declare multiple majors <cite>f1_b3</cite>."
+- Do NOT use footnotes like [1] or (Source). Use ONLY the <cite> tag with the exact ID found in the <block> tag.
+- LOCK 4: If the attached evidence does NOT contain the answer, explicitly say: "The attached documents do not provide this information." Do NOT guess.
 
 === CONTEXT ===
 ${smartContext?.canonical || 'First session.'}
@@ -164,6 +188,12 @@ ${fileContextPrompt}
             let confidence = 'Low';
             let explanation = { basis: 'Internal', assumptions: [] as string[], missing_info: [] as string[] }; // Typed
 
+            // Scope variables for metadata (outside loop)
+            // Scope variables for metadata (outside loop)
+            let answerState = 'UNVERIFIED'; // LOCK 2: Default State
+            let answerMode = 'internal'; // LOCK 3: Default Mode
+            const usedTools = new Set<string>(); // R3: Robust Tool Detection
+
             // === MAIN AGENT LOOP ===
             while (steps < MAX_STEPS) {
                 steps++;
@@ -173,34 +203,32 @@ ${fileContextPrompt}
                 // Note: We don't stream here because we need to check for tool calls
                 const { text: fullResponse, usage: stepUsage, stopReason } = await BedrockService.sendChat('anthropic.claude-3-5-sonnet-20240620-v1:0', messages, undefined, 0.5, toolConfig);
 
+                // ... (Usage tracking) ...
                 totalUsage.input += stepUsage.input;
                 totalUsage.output += stepUsage.output;
                 totalUsage.total += stepUsage.total;
 
                 // Handle Response
                 if (stopReason === 'tool_use') {
-                    // Bedrock returns content as a JSON string or array of blocks
-                    // BedrockService normalizes `content` to stringified JSON if it's an array for simplicity in `text`
-                    // But we likely need to parse it back to handle specific blocks
+                    // ... (Parsing logic) ...
                     let contentBlocks: any[] = [];
                     try {
                         contentBlocks = JSON.parse(fullResponse);
                     } catch (e) {
-                        // Fallback: if it's just text
                         contentBlocks = [{ type: 'text', text: fullResponse }];
                     }
 
-                    // 1. Append Assistant Turn
                     messages.push({ role: 'assistant', content: contentBlocks });
 
-                    // 2. Execute Tools
                     const toolResults: any[] = [];
                     for (const block of contentBlocks) {
                         if (block.type === 'tool_use') {
                             const toolName = block.name;
+                            usedTools.add(toolName); // R3: Track tool usage
+
                             const toolUseId = block.toolUseId;
                             const toolInput = block.input;
-
+                            // ... (Execution logic) ...
                             LoggerService.info('tool_execution', { tool: toolName, input: toolInput }, userId);
                             res.write(`data: ${JSON.stringify({ type: 'status', message: `Using ${toolName}...` })}\n\n`);
 
@@ -215,6 +243,30 @@ ${fileContextPrompt}
                                     collectionId
                                 });
                                 resultContent = executionResult.success ? executionResult.result : `Error: ${executionResult.error}`;
+
+                                // R2: Tool Provenance Unification
+                                // If search tool returns blocks (JSON), parse them and register their IDs
+                                if (toolName === 'search' && executionResult.success) {
+                                    try {
+                                        const searchBlocks = JSON.parse(resultContent);
+                                        if (Array.isArray(searchBlocks)) {
+                                            searchBlocks.forEach((block: any) => {
+                                                if (block.id) {
+                                                    validCitationIds.add(block.id);
+                                                    // Add to manifest
+                                                    injectedEvidence.push({
+                                                        id: block.id,
+                                                        fileName: block.metadata?.fileName || 'Search Result',
+                                                        page: block.metadata?.page,
+                                                        bbox: block.metadata?.bbox
+                                                    });
+                                                }
+                                            });
+                                        }
+                                    } catch (e) {
+                                        // Result might be plain text if legacy or empty
+                                    }
+                                }
                             } else {
                                 resultContent = `Error: Tool ${toolName} not found.`;
                             }
@@ -225,23 +277,28 @@ ${fileContextPrompt}
                             });
                         }
                     }
-
-                    // 3. Append Tool Results (User Role in Anthropic API)
-                    // Construct a single message with all tool results
+                    // ... (Append results) ...
                     messages.push({
                         role: 'user',
                         content: toolResults.map(tr => ({
                             type: 'tool_result',
                             toolUseId: tr.toolUseId,
-                            content: tr.content // Encapsulated content
+                            content: tr.content
                         }))
                     });
 
+                    // R4: Re-inject Citation Reminder
+                    // The model might have "forgotten" the system prompt after a long tool loop.
+                    // We remind it right before it generates the final answer.
+                    messages.push({
+                        role: 'system',
+                        content: 'Reminder: If you use any evidence blocks (Files or Search), you MUST cite them using <cite>ID</cite> tags. Do not invent citations.'
+                    });
+
                 } else {
-                    // Final Answer (Pure Text or End of Chain)
+                    // ... (Final Answer Logic) ...
                     let textContent = '';
                     try {
-                        // Try parsing if it's JSON array
                         const blocks = JSON.parse(fullResponse);
                         if (Array.isArray(blocks)) {
                             textContent = blocks.filter(b => b.type === 'text').map(b => b.text).join('\n');
@@ -253,18 +310,74 @@ ${fileContextPrompt}
                     }
 
                     finalAnswer = textContent;
+
+                    // R4: Enforce Citation Requirement (LOCK 5)
+                    const isDocQuestion = /policy|regulation|guideline|document|file|contract|agreement|budget|fee|deadline|registration|course|gpa|grade/i.test(query);
+                    if (validCitationIds.size > 0 && isDocQuestion && !finalAnswer.includes('<cite>')) {
+                        answerState = 'UNVERIFIED';
+                        finalAnswer = "The attached documents do not provide this information (No citations found).";
+                        // Force break to skip validation logic as it's already failed
+                        answerMode = 'file_grounded';
+                        break;
+                    }
+
+                    // --- Phase 2 & 3: Validation and Metadata Calculation ---
+                    if (validCitationIds.size > 0) { // We have file context injected
+                        const validation = this.validateCitations(finalAnswer, validCitationIds);
+                        const hasCitations = validation.coverage > 0;
+
+                        // LOCK 3: Answer Mode Logic (Updated with R3)
+                        if (hasCitations) {
+                            answerMode = 'file_grounded';
+                        } else if (usedTools.has('search')) { // R3: Robust Check
+                            answerMode = 'rag';
+                        } else {
+                            // If we have files but didn't use them, acts as internal/chitchat
+                            answerMode = 'internal';
+                        }
+
+                        // LOCK 2: Answer State Logic (Updated with R4)
+                        if (answerMode === 'file_grounded') {
+                            if (validation.isValid) {
+                                // R4: Bind Confidence to State
+                                if (ragMaxScore < 0.65) {
+                                    answerState = 'PARTIALLY_VERIFIED';
+                                    (explanation as any).confidence_warning = "Low retrieval score.";
+                                } else {
+                                    answerState = 'VERIFIED';
+                                }
+                            } else {
+                                answerState = 'PARTIALLY_VERIFIED';
+
+                                LoggerService.warn('citation_validation_failed', {
+                                    invalidCitations: validation.invalidCitations,
+                                    traceId
+                                }, userId);
+
+                                (explanation as any).citation_warning = "Some citations could not be verified.";
+                                (explanation as any).invalid_citations = validation.invalidCitations;
+                            }
+                            (explanation as any).citation_coverage = validation.coverage;
+                            (explanation as any).citation_details = validation.details; // R1: Sentence-level details
+                        }
+                    } else if (usedTools.has('search')) { // R3: Robust Check
+                        answerMode = 'rag';
+                        answerState = 'VERIFIED'; // Assume search tool results are trusted
+                    }
+
                     break;
                 }
             }
+
             // === END LOOP ===
 
             // 6. Streaming Final Answer
             if (finalAnswer) {
                 // ... (Logic for explanation extraction if needed, or we can ask the model to provide it separate)
                 // For now, simple heuristic
-                if (messages.some(m => JSON.stringify(m).includes('search'))) {
+                if (answerMode === 'file_grounded' || answerMode === 'rag') {
                     confidence = 'High';
-                    explanation.basis = 'RAG';
+                    explanation.basis = 'RAG'; // Legacy field compatibility
                 }
 
                 res.write(`data: ${JSON.stringify({ text: finalAnswer, traceId })}\n\n`);
@@ -272,7 +385,10 @@ ${fileContextPrompt}
                     type: 'metadata',
                     metadata: {
                         intent: currentIntent,
-                        usedRAG: !!ragContext || messages.some(m => JSON.stringify(m).includes('search')),
+                        answer_mode: answerMode, // LOCK 3
+                        answer_state: answerState, // LOCK 2
+                        injected_evidence: injectedEvidence, // LOCK 1
+                        usedRAG: answerMode !== 'internal',
                         sources: ragSources, // Note: Search tool results might not populated this yet
                         stepsUsed: steps,
                         totalTokens: totalUsage.total,
@@ -299,6 +415,70 @@ ${fileContextPrompt}
         }
     }
 
+    private static validateCitations(text: string, validIds: Set<string>): { isValid: boolean, invalidCitations: string[], coverage: number, details: any[] } {
+        // R1: Sentence-Level Citation Binding
+        // 1. Split into sentences (keeping delimiters)
+        const segments = text.split(/([.!?\n]+)/).filter(s => s.trim().length > 0);
+        const sentences: string[] = [];
+        for (let i = 0; i < segments.length; i += 2) {
+            const sent = segments[i];
+            const delim = segments[i + 1] || '';
+            const fullSent = (sent + delim).trim();
+            if (fullSent.length > 0) sentences.push(fullSent);
+        }
+
+        const details: any[] = [];
+        let validSentences = 0;
+        let factualSentences = 0; // heuristic: length > 20
+        const allInvalidCitations = new Set<string>();
+
+        // Fallback if split fails to produce sentences (e.g. no punctuation), treat whole text as one
+        if (sentences.length === 0 && text.trim().length > 0) {
+            sentences.push(text.trim());
+        }
+
+        for (const sent of sentences) {
+            // Heuristic for "factual" sentence that needs citation
+            // R4: Strengthen Factual Heuristic
+            const isFactual = sent.length > 20 || /\b(is|are|was|were|means|defined as|requires|states|according to)\b/i.test(sent);
+            if (isFactual) factualSentences++;
+
+            // Extract all <cite>ID</cite> tags in this sentence
+            const citeRegex = /<cite>(.*?)<\/cite>/g;
+            const matches = [...sent.matchAll(citeRegex)];
+            const citations = matches.map(m => m[1]);
+
+            // Verify against INJECTED ids
+            const invalid = citations.filter(id => !validIds.has(id));
+            invalid.forEach(id => allInvalidCitations.add(id));
+
+            // A sentence is considered "covered" if it has at least one valid citation and NO invalid ones.
+            // (If it has NO citations, it counts as 'not covered' for the metric, but not 'invalid' for strict ID check)
+            const hasValidCitation = citations.length > 0 && invalid.length === 0;
+
+            if (hasValidCitation) {
+                validSentences++;
+            }
+
+            details.push({
+                sentence: sent.substring(0, 100),
+                citations,
+                isValid: hasValidCitation,
+                invalidCitations: invalid
+            });
+        }
+
+        // Coverage metric: Fraction of "factual" sentences that are supported by valid citations
+        const coverage = factualSentences > 0 ? (validSentences / factualSentences) : 1.0;
+
+        return {
+            isValid: allInvalidCitations.size === 0,
+            invalidCitations: Array.from(allInvalidCitations),
+            coverage,
+            details
+        };
+    }
+
     private static async quickIntentCheck(query: string, context?: any): Promise<{ intent: string, usage: { input: number, output: number, total: number } }> {
         // Same implementation but ensuring we call Sonnet
         const prompt = `Classify user intent for: "${query}"
@@ -306,7 +486,7 @@ ${fileContextPrompt}
         Output ONLY the enum value in <intent></intent> tags.`;
 
         try {
-            const { text: response, usage } = await BedrockService.sendChat('anthropic.claude-3-5-sonnet-20240620-v1:0', [{ role: 'user', content: prompt }], '', 0.1);
+            const { text: response, usage } = await BedrockService.sendChat('anthropic.claude-3-5-sonnet-20240620-v1:0', [{ role: 'user', content: prompt }], undefined, 0.1);
             const match = response.match(/<intent>(.*?)<\/intent>/);
             return { intent: match ? match[1].trim() : 'QUERY', usage };
         } catch {

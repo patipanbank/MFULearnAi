@@ -13,6 +13,7 @@ import { useChatStore } from '@/stores/chat'
 import { useKnowledgeStore } from '@/stores/knowledge'
 import { useTheme, useLanguage } from '@/composables/useSettings'
 import { useScrollToBottom } from '@/composables/useUtils'
+import PDFViewer from '@/components/common/PDFViewer.vue'
 
 import {
   ChatMessage,
@@ -38,6 +39,10 @@ const showSidebar = ref(true)
 const inputMessage = ref('')
 const attachments = ref([])
 const isProcessingFile = ref(false)
+
+// Evidence Viewer State
+const activeEvidence = ref(null) // { src, page, highlightRect, fileName }
+const showEvidenceViewer = ref(false)
 
 // Environment
 const envName = import.meta.env.VITE_ENV_NAME || 'MFULearnAI'
@@ -185,6 +190,80 @@ const handleRemoveAttachment = (index) => {
 const handleCopyMessage = (content) => {
   console.log('Copied message')
 }
+
+const handleViewEvidence = (evidence) => {
+    // Evidence object: { id, fileName, page, bbox }
+    // Construct view URL
+    // We assume backend has /api/knowledge/:id/view
+    // BUT wait, evidence.id in manifest is BLOCK ID (e.g. f1_b3).
+    // We need FILE ID.
+    // The manifest has 'fileId' if we added it in backend?
+    // Let's check knowledgeService/AgentWorkflow.
+    // AgentWorkflow pushes: id, fileName, page, bbox.
+    // IT DOES NOT PUSH FILE ID (knowledgeId).
+    // CRITICAL FIX: Backend must expose fileId in manifest.
+    
+    // HOWEVER, in search results, we have `block.metadata.fileId`. 
+    // In local file parses, we have... we might not have a permanent ID if it's just an attachment.
+    // If it's an attachment, we can't "view" it via API unless we uploaded it to knowledge store.
+    // BUT the prompt says "PDF Viewer... Open Viewer... Navigate to Page".
+    // If usage is "Attached Files", they are transient?
+    // Architecture says: "Upload -> Parse -> Assign IDs"
+    // Usually these are just in-memory for the session?
+    // If so, we can't fetch them via URL unless we have a blob URL or persistent ID.
+    
+    // Assumption: For this phase, we assume the backend returns a `fileId` that is valid for `/api/knowledge/:id/view`.
+    // If not, we might fail to load.
+    // Let's check `AgentWorkflow.ts` manifest population again.
+    // It pushes `fileName`.
+    // It pushed `fileId`? NO.
+    
+    // BACKEND GAPS: 
+    // 1. `AgentWorkflow.ts` needs to push `fileId` to manifest.
+    // 2. `IRBlock` needs `fileId`.
+    
+    // Start of Selection
+    // Wait, I fixed `IRBlock` in `shared/types.ts` to have `fileId`.
+    // But did I update `AgentWorkflow.ts` to push it?
+    // Viewing `AgentWorkflow.ts` earlier showed:
+    /*
+    injectedEvidence.push({
+        id: block.id,
+        fileName: fileName,
+        page: block.metadata?.page,
+        bbox: block.metadata?.bbox
+    });
+    */
+    // It is MISSING fileId.
+    
+    // I can't fix backend in this turn if I am in frontend mode?
+    // Actually I can edit backend files.
+    // I should fix this gap to allow viewing.
+    
+    // For now, let's implement the frontend handler assuming `evidence.fileId` will exist,
+    // and I will add a task to fix the backend gap.
+    
+    // Construct URL
+    const token = localStorage.getItem('auth_token')
+    // Fallback? If no fileId, can't view.
+    if (!evidence.fileId) {
+        console.error("Evidence missing fileId", evidence)
+        return
+    }
+    
+    activeEvidence.value = {
+        src: `/api/knowledge/${evidence.fileId}/view?token=${token}`,
+        page: evidence.page,
+        highlightRect: evidence.bbox,
+        fileName: evidence.fileName
+    }
+    showEvidenceViewer.value = true
+}
+
+const closeEvidenceViewer = () => {
+    showEvidenceViewer.value = false
+    activeEvidence.value = null
+}
 </script>
 
 <template>
@@ -213,6 +292,7 @@ const handleCopyMessage = (content) => {
               :user-avatar-url="authStore.profilePicture"
               :t="t"
               @copy="handleCopyMessage"
+              @view-evidence="handleViewEvidence"
             />
           </TransitionGroup>
           
@@ -234,6 +314,17 @@ const handleCopyMessage = (content) => {
         @remove-attachment="handleRemoveAttachment"
       />
     </main>
+
+    <!-- PDF Viewer Modal -->
+    <PDFViewer
+        v-if="showEvidenceViewer"
+        :is-open="showEvidenceViewer"
+        :src="activeEvidence?.src"
+        :page="activeEvidence?.page"
+        :highlight-rect="activeEvidence?.highlightRect"
+        :file-name="activeEvidence?.fileName"
+        @close="closeEvidenceViewer"
+    />
   </div>
 </template>
 

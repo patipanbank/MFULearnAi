@@ -81,7 +81,7 @@ export class ChatController {
 
         if (isMultipart) {
             const bb = busboy({ headers: req.headers });
-            const filePromises: Promise<void>[] = [];
+            const filePromises: Promise<any>[] = [];
 
             bb.on('field', (name: string, val: string) => {
                 if (name === 'message') message = val;
@@ -97,26 +97,31 @@ export class ChatController {
             // @ts-ignore
             bb.on('file', (name: string, file: any, info: any) => {
                 const mimeType = info.mimeType || info.mime;
-                const promise = new Promise<void>(async (resolve) => {
+                const promise = new Promise<any>(async (resolve) => {
                     const chunks: any[] = [];
                     file.on('data', (d: any) => chunks.push(d));
                     file.on('end', async () => {
                         const buf = Buffer.concat(chunks);
-                        files.push({
+                        const meta = {
                             name: info.filename,
                             mediaType: mimeType,
                             size: buf.length
-                        });
+                        };
                         const ir = await KnowledgeService.parseFile(buf, info.filename, mimeType);
-                        if (ir) fileParses.push(ir);
-                        resolve();
+                        resolve({ meta, ir });
                     });
                 });
                 filePromises.push(promise);
             });
 
             bb.on('close', async () => {
-                await Promise.all(filePromises);
+                const results = await Promise.all(filePromises);
+                results.forEach(res => {
+                    if (res && res.ir) {
+                        files.push(res.meta);
+                        fileParses.push(res.ir);
+                    }
+                });
                 executeAgent(); // Always use Agent
             });
 
