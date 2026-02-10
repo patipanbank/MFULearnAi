@@ -163,8 +163,17 @@ export class KnowledgeService {
      */
     static async searchLocal(query: string, fileParses: CanonicalIR[], limit: number = 15): Promise<CanonicalIR['blocks']> {
         // Text-based relevance heuristic (non-embedding)
+        // Text-based relevance heuristic (non-embedding)
         // In a real system, this would use local vector search or embeddings.
-        const allBlocks = fileParses.flatMap(f => f.blocks.map(b => ({ ...b, fileName: f.metadata?.detected_language || 'file' })));
+        const allBlocks = fileParses.flatMap(f => f.blocks.map(b => ({
+            ...b,
+            // R4: Preserving Metadata
+            metadata: {
+                ...b.metadata,
+                fileName: b.metadata.fileName || f.metadata?.detected_language || 'file',
+                fileId: b.metadata.fileId // Ensure fileId is preserved if present
+            }
+        })));
         if (allBlocks.length === 0) return [];
 
         // In a real production system, you would use Embeddings (Cosine Similarity).

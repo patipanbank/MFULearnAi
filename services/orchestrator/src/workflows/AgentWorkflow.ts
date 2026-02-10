@@ -382,7 +382,24 @@ ${fileContextPrompt}
 
                 // 7. Telemetry & Persistence (Same as before)
                 const currentMessage = { role: 'user' as const, content: query, timestamp: new Date() };
-                const assistantMessage = { role: 'assistant' as const, content: finalAnswer, timestamp: new Date(), meta: { intent: currentIntent, stepsUsed: steps } };
+                const assistantMessage = {
+                    role: 'assistant' as const,
+                    content: finalAnswer,
+                    timestamp: new Date(),
+                    meta: {
+                        intent: currentIntent,
+                        stepsUsed: steps,
+                        // R5: Persistence for Citations
+                        answer_mode: answerMode,
+                        answer_state: answerState,
+                        injected_evidence: injectedEvidence,
+                        items: injectedEvidence, // Legacy support if needed
+                        usedRAG: answerMode !== 'internal',
+                        sources: ragSources,
+                        confidence,
+                        explanation
+                    }
+                };
 
                 await HistoryService.addMessage(userId, sessionId, currentMessage);
                 await HistoryService.addMessage(userId, sessionId, assistantMessage);
