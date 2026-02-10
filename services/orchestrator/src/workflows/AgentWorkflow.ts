@@ -57,49 +57,10 @@ export class AgentWorkflow {
             // 1.1 Load History + Smart Context (Agent Memory)
             const { messages: history, smartContext } = await HistoryService.getContext(userId, sessionId);
 
-            // 1.2 Hybrid RAG Strategy
-            const userContext = { userId, role: userRole, department: userDepartment };
-            const rollingIntent = smartContext?.rolling?.intent;
-
-            // Intent Check with Claude 3.5 Sonnet
-            const intentContext = {
-                last_intent: smartContext?.rolling?.intent?.primary || 'QUERY',
-                last_decisions: smartContext?.rolling?.decisions || [],
-                constraints: smartContext?.rolling?.constraints || []
-            };
-
-            const { intent: currentIntent, usage: intentUsage } = await this.quickIntentCheck(query, intentContext);
-            totalUsage.input += intentUsage.input;
-            totalUsage.output += intentUsage.output;
-            totalUsage.total += intentUsage.total;
-
-            let ragContext = '';
-            let ragSources: Array<{ id: string, name: string }> = [];
-            let ragMaxScore = 0;
-
-            // Hybrid Logic: Pre-fetch ONLY if intent is explicitly about looking up facts
-            // Otherwise, let the Agent decide (Tool Use)
-            const shouldPrefetchRAG = (currentIntent === 'FACT_LOOKUP' || currentIntent === 'RESEARCH');
-
-            if (shouldPrefetchRAG) {
-                res.write(`data: ${JSON.stringify({ type: 'intent', intent: currentIntent })}\n\n`);
-                res.write(`data: ${JSON.stringify({ type: 'status', message: 'Pre-fetching Knowledge...' })}\n\n`);
-                const searchResult = await KnowledgeService.search(query, userContext, collectionId, currentIntent);
-                ragContext = searchResult.text;
-                ragSources = searchResult.sources;
-                ragMaxScore = searchResult.maxScore || 0;
-                LoggerService.info('agent_rag_prefetch', { found: !!ragContext, score: ragMaxScore, intent: currentIntent, traceId }, userId);
-            } else {
-                res.write(`data: ${JSON.stringify({ type: 'intent', intent: currentIntent })}\n\n`);
-                res.write(`data: ${JSON.stringify({ type: 'status', message: 'Thinking...' })}\n\n`);
-            }
-
-            const ragInstruction = ragMaxScore > 0.65
-                ? `INSTRUCTION: High-confidence context pre-fetched. Rely on it.`
-                : `INSTRUCTION: If the pre-fetched context is not highly relevant (score < 0.65), use the 'search' tool.`;
-            const ragSystemPrompt = ragContext
-                ? `\n\n=== PRE-FETCHED CONTEXT ===\n${ragContext}\n==============================\n${ragInstruction}`
-                : '';
+            // PRE-RAG REMOVED: Defaulting variables for downstream compatibility
+            const currentIntent = 'QUERY';
+            const ragSources: Array<{ id: string, name: string }> = [];
+            const ragMaxScore = 0;
 
             // 1.3.5 Attached Files Context (ChatGPT-Level Scoped Injection)
             let fileContextPrompt = '';
@@ -174,7 +135,6 @@ ${refusalRule}
 === CONTEXT ===
 ${smartContext?.canonical || 'First session.'}
 ${JSON.stringify(smartContext?.rolling || {}, null, 2)}
-${ragSystemPrompt}
 ${fileContextPrompt}
 `
                 },
