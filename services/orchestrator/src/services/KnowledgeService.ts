@@ -51,7 +51,7 @@ export class KnowledgeService {
 
                 const sources = Array.from(sourceMap.values());
                 const blocks = response.data.results.map((hit: any, index: number) => ({
-                    id: hit.id || `search_b${index}`, // R4: Deterministic ID
+                    id: hit.id || `search_b${index + 1}`, // R4: Deterministic ID (1-indexed to match LLM counting)
                     content: hit.content,
                     type: 'paragraph',
                     metadata: {

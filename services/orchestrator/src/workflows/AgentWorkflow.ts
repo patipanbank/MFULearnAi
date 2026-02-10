@@ -326,11 +326,13 @@ ${JSON.stringify(smartContext?.rolling || {}, null, 2)}`
                         // lastMsg is the tool_result message we just pushed above
                         // It has content: [{ type: 'tool_result', ... }]
                         if (Array.isArray(lastMsg.content)) {
+                            // List the actual valid IDs to constrain the model
+                            const availableIds = Array.from(validCitationIds).join(', ');
                             // Append a text block to the content array
                             // Bedrock Converse allows mixing tool_result and text in one user turn
                             lastMsg.content.push({
                                 type: 'text',
-                                text: '\n\nReminder: If you use any evidence blocks (Files or Search), you MUST cite them using <cite>ID</cite> tags. Do not invent citations.'
+                                text: `\n\nReminder: If you use any evidence blocks (Files or Search), you MUST cite them using <cite>ID</cite> tags. ONLY use these exact IDs: [${availableIds}]. Do not invent citation IDs.`
                             });
                         }
                     }
