@@ -336,7 +336,7 @@ ${JSON.stringify(rollingContext, null, 2)}
             const { text: rawTitle, usage } = await BedrockService.sendChat(
                 MODELS.FAST,
                 [{ role: 'user', content: prompt }],
-                'You are a creative writer.',
+                'You are a title writer.',
                 0.2
             );
 
