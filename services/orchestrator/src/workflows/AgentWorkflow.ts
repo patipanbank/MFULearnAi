@@ -65,6 +65,7 @@ export class AgentWorkflow {
 
             // 1.3.5 Attached Files — Send directly as native Converse API document blocks
             let nativeDocBlocks: Array<{ type: 'document', format: string, name: string, data: string }> = [];
+            let extractedTextBlocks: Array<{ fileName: string, text: string }> = [];
 
             LoggerService.info('agent_files_received', {
                 filesCount: files?.length || 0,
@@ -78,38 +79,84 @@ export class AgentWorkflow {
 
             if (files && files.length > 0) {
                 const MAX_NATIVE_SIZE = 4.5 * 1024 * 1024; // 4.5MB Converse API limit
+                const MAX_EXTRACTED_TEXT_CHARS = 100_000;    // ~100K chars for context window safety
                 const supportedFormats = ['pdf', 'txt', 'md', 'html', 'csv', 'doc', 'docx', 'xls', 'xlsx'];
 
                 for (const file of files) {
-                    if (file.buffer && file.buffer.length < MAX_NATIVE_SIZE) {
-                        const ext = (file.originalname || file.name || '').split('.').pop()?.toLowerCase() || 'pdf';
-                        if (supportedFormats.includes(ext)) {
-                            // AWS Converse API name rules: alphanumeric, whitespace, hyphens,
-                            // parentheses, square brackets only. NO dots, NO file extension.
-                            const rawName = (file.originalname || file.name || 'document')
-                                .replace(/\.[^.]+$/, '')                      // Strip file extension
-                                .replace(/[^a-zA-Z0-9\s\-\(\)\[\]]/g, ' ')   // Replace invalid chars with space
-                                .replace(/\s+/g, ' ')                         // Collapse consecutive whitespace
-                                .trim()
-                                || 'document';                                // Fallback if empty after sanitization
+                    if (!file.buffer) {
+                        LoggerService.warn('file_no_buffer', { fileName: file.originalname || file.name }, userId);
+                        continue;
+                    }
 
-                            nativeDocBlocks.push({
-                                type: 'document',
-                                format: ext,
-                                name: rawName,
-                                data: Buffer.from(file.buffer).toString('base64')
-                            });
-                            LoggerService.info('native_doc_injected', { fileName: file.originalname || file.name, sanitizedName: rawName, ext, size: file.buffer.length }, userId);
-                        } else {
-                            LoggerService.warn('unsupported_file_format', { fileName: file.originalname || file.name, ext }, userId);
-                        }
+                    const ext = (file.originalname || file.name || '').split('.').pop()?.toLowerCase() || 'pdf';
+                    if (!supportedFormats.includes(ext)) {
+                        LoggerService.warn('unsupported_file_format', { fileName: file.originalname || file.name, ext }, userId);
+                        continue;
+                    }
+
+                    if (file.buffer.length < MAX_NATIVE_SIZE) {
+                        // Small file → native document block (best quality)
+                        const rawName = (file.originalname || file.name || 'document')
+                            .replace(/\.[^.]+$/, '')
+                            .replace(/[^a-zA-Z0-9\s\-\(\)\[\]]/g, ' ')
+                            .replace(/\s+/g, ' ')
+                            .trim()
+                            || 'document';
+
+                        nativeDocBlocks.push({
+                            type: 'document',
+                            format: ext,
+                            name: rawName,
+                            data: Buffer.from(file.buffer).toString('base64')
+                        });
+                        LoggerService.info('native_doc_injected', { fileName: file.originalname || file.name, sanitizedName: rawName, ext, size: file.buffer.length }, userId);
                     } else {
-                        LoggerService.warn('file_too_large_for_native', { fileName: file.originalname || file.name, size: file.buffer?.length }, userId);
+                        // Large file → fallback: extract text via KnowledgeService
+                        LoggerService.info('file_too_large_extracting_text', {
+                            fileName: file.originalname || file.name,
+                            size: file.buffer.length,
+                            limit: MAX_NATIVE_SIZE
+                        }, userId);
+                        safeWrite(`data: ${JSON.stringify({ type: 'status', message: `ไฟล์ ${file.originalname || file.name} ใหญ่เกิน 4.5MB — กำลังดึงข้อความ...` })}\n\n`);
+
+                        try {
+                            const ir = await KnowledgeService.parseFile(
+                                file.buffer,
+                                file.originalname || file.name,
+                                file.mediaType || 'application/pdf'
+                            );
+
+                            if (ir && ir.blocks && ir.blocks.length > 0) {
+                                let fullText = ir.blocks.map((b: any) => b.content).join('\n\n');
+                                if (fullText.length > MAX_EXTRACTED_TEXT_CHARS) {
+                                    fullText = fullText.substring(0, MAX_EXTRACTED_TEXT_CHARS) + '\n\n[... ข้อความถูกตัดเนื่องจากยาวเกินไป ...]';
+                                }
+                                extractedTextBlocks.push({
+                                    fileName: file.originalname || file.name,
+                                    text: fullText
+                                });
+                                LoggerService.info('file_text_extracted', {
+                                    fileName: file.originalname || file.name,
+                                    blocksCount: ir.blocks.length,
+                                    textLength: fullText.length
+                                }, userId);
+                            } else {
+                                LoggerService.warn('file_text_extraction_empty', { fileName: file.originalname || file.name }, userId);
+                            }
+                        } catch (extractError: any) {
+                            LoggerService.error('file_text_extraction_failed', {
+                                fileName: file.originalname || file.name,
+                                error: extractError.message
+                            }, userId);
+                        }
                     }
                 }
             }
 
-            LoggerService.info('agent_native_doc_blocks', { count: nativeDocBlocks.length }, userId);
+            LoggerService.info('agent_doc_blocks_summary', {
+                nativeDocBlocks: nativeDocBlocks.length,
+                extractedTextBlocks: extractedTextBlocks.length
+            }, userId);
 
             // 1.3.6 Dynamic Refusal Policy
             const isOrganizationalQuery = /policy|regulation|guideline|document|files|contract|agreement|budget|contact|email|who is|fee|calendar|schedule|deadline|registration|course|gpa|grade/i.test(query);
@@ -147,10 +194,14 @@ ${smartContext?.canonical || 'First session.'}
 ${JSON.stringify(smartContext?.rolling || {}, null, 2)}`
             });
 
-            // Block 3: Attached file names hint (actual docs are in user message content blocks)
+            // Block 3: Attached file hints
             if (nativeDocBlocks.length > 0) {
                 const fileNames = nativeDocBlocks.map(d => d.name).join(', ');
                 systemBlocks.push({ text: `The user has attached ${nativeDocBlocks.length} document(s): ${fileNames}. They are included as native document blocks in the user message. Read and analyze them to answer the user's question.` });
+            }
+            if (extractedTextBlocks.length > 0) {
+                const fileNames = extractedTextBlocks.map(b => b.fileName).join(', ');
+                systemBlocks.push({ text: `The user has attached ${extractedTextBlocks.length} large file(s): ${fileNames}. The text content has been extracted and is included in the user message. Read and analyze the extracted text to answer the user's question.` });
             }
 
             // Enhancement 3: Guardrails Configuration
@@ -160,10 +211,19 @@ ${JSON.stringify(smartContext?.rolling || {}, null, 2)}`
             } : undefined;
 
             // 1.4 Construct Initial Messages
-            // Enhancement 5: Include native document blocks in user message
+            // Enhancement 5: Include native document blocks and extracted text in user message
             const userContent: any[] = [];
             if (nativeDocBlocks.length > 0) {
                 userContent.push(...nativeDocBlocks);
+            }
+            // Large files: prepend extracted text as labeled text blocks
+            if (extractedTextBlocks.length > 0) {
+                for (const etb of extractedTextBlocks) {
+                    userContent.push({
+                        type: 'text',
+                        text: `=== Extracted content from "${etb.fileName}" ===\n${etb.text}\n=== End of "${etb.fileName}" ===`
+                    });
+                }
             }
             userContent.push({ type: 'text', text: query });
             if (images && images.length > 0) {
