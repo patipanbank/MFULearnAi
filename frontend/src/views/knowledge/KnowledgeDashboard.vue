@@ -144,7 +144,7 @@ const closeCollectionModal = () => {
         v-if="showCollectionModal"
         :collection="editingCollection"
         @close="closeCollectionModal"
-        @success="closeCollectionModal; knowledgeStore.fetchCollections()"
+        @success="() => { closeCollectionModal(); knowledgeStore.fetchCollections() }"
       />
 
       <KnowledgeDetailModal
@@ -206,40 +206,7 @@ const closeCollectionModal = () => {
   font-size: 14px;
 }
 
-.btn-primary {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 16px;
-  background: var(--color-accent);
-  color: white;
-  border: none;
-  border-radius: 8px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: opacity 0.2s;
-}
 
-.btn-primary:hover {
-  opacity: 0.9;
-}
-
-.btn-secondary {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 8px 16px;
-    background: transparent;
-    color: var(--color-text-primary);
-    border: 1px solid var(--color-border);
-    border-radius: 8px;
-    font-weight: 500;
-    cursor: pointer;
-    margin-right: 8px;
-}
-.btn-secondary:hover {
-    background: var(--color-bg-hover);
-}
 
 /* Tabs */
 .tabs {
@@ -287,12 +254,32 @@ const closeCollectionModal = () => {
   overflow-y: auto;
 }
 
-@media (max-width: 640px) {
+@media (max-width: 1024px) {
   .knowledge-dashboard {
       padding: 16px;
   }
+  .dashboard-header {
+    flex-direction: column;
+    gap: 12px;
+    align-items: stretch;
+  }
+  .header-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .header-actions .btn-primary,
+  .header-actions .btn-secondary {
+    flex: 1;
+    min-width: 0;
+    justify-content: center;
+  }
   .dashboard-content {
-      padding: 16px;
+      padding: 12px;
+  }
+  .tab-btn {
+    padding: 8px 16px;
+    font-size: 13px;
   }
 }
 

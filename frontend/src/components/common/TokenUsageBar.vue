@@ -100,4 +100,25 @@ const formatNumber = (num) => {
     border-radius: 2px;
     transition: width 0.5s ease;
 }
+
+@media (max-width: 1024px) {
+    .token-usage-container {
+        justify-content: center;
+        gap: 10px;
+        height: 28px;
+        padding: 0 12px;
+    }
+
+    .token-text {
+        font-size: 10px;
+        letter-spacing: 0.08em;
+        color: var(--color-text-muted);
+    }
+
+    .progress-bg {
+        flex: 1;
+        max-width: 200px;
+        height: 3px;
+    }
+}
 </style>

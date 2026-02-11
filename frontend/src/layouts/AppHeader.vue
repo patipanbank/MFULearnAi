@@ -49,11 +49,14 @@ onMounted(() => {
         <!-- Premium Knowledge Selector -->
         <div v-if="route.path.includes('/chat') && knowledgeStore.collections.length > 0" class="ml-6 flex items-center gap-4" style="display: flex; align-items: center; gap: 16px;">
             <KnowledgeSelector />
-            <!-- Token Usage Bar -->
-            <TokenUsageBar v-if="authStore.user" />
         </div>
     </div>
     
+    <!-- Token Usage Bar - inline on desktop, second row on mobile -->
+    <div v-if="authStore.user && route.path.includes('/chat')" class="token-bar">
+      <TokenUsageBar />
+    </div>
+
     <div class="header-right">
       <div class="user-display">
         <img v-if="userAvatarUrl" :src="userAvatarUrl" class="user-avatar-img" alt="Profile" referrerpolicy="no-referrer" />
@@ -69,10 +72,9 @@ onMounted(() => {
   height: var(--header-height);
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: 12px;
   padding: 0 24px;
   background: var(--color-bg-primary);
-  /* border-bottom: 1px solid var(--color-border); */
   flex-shrink: 0;
   z-index: 40;
   position: relative;
@@ -82,6 +84,8 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 16px;
+  flex: 1;
+  min-width: 0;
 }
 
 .btn-menu {
@@ -92,7 +96,6 @@ onMounted(() => {
   justify-content: center;
   background: transparent;
   border: 1px solid var(--color-border);
-  border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   color: var(--color-text-secondary);
   cursor: pointer;
@@ -100,29 +103,19 @@ onMounted(() => {
   flex-shrink: 0;
 }
 
-@media (max-width: 640px) {
+@media (max-width: 1024px) {
     .btn-menu {
-        width: 100%;
-        height: 100%;
-        aspect-ratio: 1; /* Keep it square-ish if possible, or just fit */
+        width: 36px;
+        height: 36px;
         border: none;
         padding: 0;
+        flex-shrink: 0;
     }
 }
 
 .btn-menu:hover {
   background: var(--color-bg-hover);
   color: var(--color-text-primary);
-}
-
-.app-brand {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.logo-emoji {
-  font-size: 24px;
 }
 
 .app-branding {
@@ -132,18 +125,6 @@ onMounted(() => {
   /* margin-right: 24px; REMOVED to keep it tighter to the left */
 }
 
-.logo-small {
-  width: 32px;
-  height: 32px;
-  flex-shrink: 0;
-}
-
-.header-logo-img {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  border-radius: 50%;
-}
 
 .app-name {
   font-size: 24px;
@@ -213,39 +194,38 @@ onMounted(() => {
 
 
 
-@media (max-width: 640px) {
+@media (max-width: 1024px) {
   .user-name { display: none; }
   
   .chat-header {
-      padding: 0 8px; /* Reduced outer padding */
-      gap: 4px; /* Small gap to separate sections */
+      padding: 0 8px;
+      gap: 0;
+      flex-wrap: wrap;
+      height: auto;
+      min-height: var(--header-height);
+      align-items: center;
+      align-content: center;
   }
 
   .header-left {
-      flex: 1; /* Grows to take up 90% space alongside header-right */
-      width: 90%; /* Logic: 10% hamburger + 80% selector */
-      gap: 8px;
+      flex: 1;
+      gap: 6px;
+      min-width: 0;
+      overflow: visible;
   }
   
   .header-right {
-      flex: 0 0 10%; /* Fixed 10% width */
+      flex-shrink: 0;
       display: flex;
       justify-content: center;
-  }
-
-  /* Hamburger Container */
-  .header-left > .btn-menu {
-      flex: 0 0 10%; /* 10% of the left container? No, 10% of total screen roughly */
-      width: 40px; /* Fallback */
-      min-width: 32px;
   }
 
   /* Knowledge Selector Container */
   .header-left > .ml-6 {
       margin-left: 0 !important;
-      flex: 1; /* Take remaining space (80%) */
-      width: 100%;
+      flex: 1;
       min-width: 0;
+      overflow: visible;
   }
   
   .user-display {
@@ -256,6 +236,20 @@ onMounted(() => {
   .user-avatar {
       width: 32px;
       height: 32px;
+  }
+
+  /* Token bar drops to second row */
+  .token-bar {
+      width: 100%;
+      order: 3;
+      border-top: 1px solid var(--color-border);
+      background: var(--color-bg-secondary);
+  }
+}
+
+@media (max-width: 480px) {
+  .app-branding {
+    display: none;
   }
 }
 </style>

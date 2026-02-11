@@ -69,7 +69,7 @@
     <!-- Edit/Create User Modal -->
     <Teleport to="body">
        <div v-if="showModal" class="modal-overlay" @click.self="closeModal">
-          <div class="knowledge-modal">
+          <div class="modal-card" style="width: 480px; max-width: 90vw;">
              <h2>{{ isEditing ? 'Edit User' : 'Create User' }}</h2>
              
              <div v-if="isEditing" class="user-summary mb-4 p-3 rounded" style="background: var(--color-bg-tertiary);">
@@ -289,151 +289,41 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.page-container {
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  padding: 24px;
-  background: var(--color-bg-primary);
-  color: var(--color-text-primary);
-}
-
-.page-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 24px;
-}
-
-.header-left h1 {
-  font-size: 24px;
-  font-weight: 700;
-  margin: 0 0 4px 0;
-}
-
-.subtitle {
-  color: var(--color-text-muted, #9ca3af);
-  font-size: 14px;
-}
+/* Page-specific styles only — shared styles in main.css */
 
 /* Filters */
 .filters {
   display: flex;
   gap: 8px;
   margin-bottom: 16px;
+  flex-wrap: wrap;
 }
 
 .filter-btn {
   padding: 6px 16px;
   border-radius: 20px;
-  border: 1px solid var(--color-border, #374151);
+  border: 1px solid var(--color-border);
   background: transparent;
-  color: var(--color-text-secondary, #9ca3af);
+  color: var(--color-text-secondary);
   font-size: 13px;
   cursor: pointer;
   transition: all 0.2s;
 }
-
-.filter-btn:hover {
-  background: var(--color-bg-tertiary, #2a2a2a);
-}
-
+.filter-btn:hover { background: var(--color-bg-tertiary); }
 .filter-btn.active {
-  background: var(--color-accent, #3b82f6);
+  background: var(--color-accent);
   color: white;
-  border-color: var(--color-accent, #3b82f6);
+  border-color: var(--color-accent);
 }
 
-/* Buttons */
-.btn-primary {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 16px;
-  background: var(--color-accent, #3b82f6);
-  color: white;
-  border: none;
-  border-radius: 8px;
-  font-weight: 500;
-  cursor: pointer;
-}
-.btn-primary:hover { opacity: 0.9; }
-.btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
-
-.btn-cancel {
-    background: transparent;
-    color: var(--color-text-secondary, #d1d5db);
-    border: 1px solid var(--color-border, #374151);
-    padding: 8px 16px;
-    border-radius: 8px;
-    cursor: pointer;
-}
-.btn-cancel:hover { background: var(--color-bg-tertiary, #2a2a2a); }
-
-.btn-delete {
-    background: rgba(239, 68, 68, 0.1);
-    color: #ef4444;
-    border: 1px solid rgba(239, 68, 68, 0.2);
-    padding: 8px 16px;
-    border-radius: 8px;
-    cursor: pointer;
-}
-.btn-delete:hover { background: rgba(239, 68, 68, 0.2); }
-
-/* Table */
-.table-container {
-  background: var(--color-bg-secondary, #1e1e1e);
-  border: 1px solid var(--color-border, #374151);
-  border-radius: 12px;
-  overflow: hidden;
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-}
-
-.data-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 14px;
-}
-
-.data-table th, .data-table td {
-  padding: 16px;
-  text-align: left;
-  border-bottom: 1px solid var(--color-border, #374151);
-}
-
-.data-table th {
-  color: var(--color-text-muted, #9ca3af);
-  font-weight: 500;
-  font-size: 13px;
-  background: var(--color-bg-tertiary, #252525);
-  text-transform: uppercase;
-}
-
-.clickable-row:hover {
-    background: var(--color-bg-tertiary, #2a2a2a);
-    cursor: pointer;
-}
-
-.empty-row {
-    text-align: center;
-    color: var(--color-text-muted);
-    padding: 32px;
-}
-
-.font-medium { font-weight: 500; }
-.text-muted { color: var(--color-text-muted, #9ca3af); font-size: 13px; }
-.text-secondary { color: var(--color-text-secondary, #e5e7eb); font-size: 13px; } /* Lighter gray */
-.text-date { color: var(--color-text-secondary, #d1d5db); font-size: 13px; }
-
+/* User cell */
 .user-cell {
     display: flex;
     align-items: center;
     gap: 12px;
 }
-.user-info .name { font-weight: 500; color: var(--color-text-primary, white); }
-.user-info .email { font-size: 12px; color: var(--color-text-muted, #9ca3af); }
+.user-info .name { font-weight: 500; color: var(--color-text-primary); }
+.user-info .email { font-size: 12px; color: var(--color-text-muted); }
 
 /* Badges */
 .badge {
@@ -455,40 +345,17 @@ onMounted(() => {
 .status-indicator.active { color: #10b981; }
 .status-indicator.inactive { color: #ef4444; }
 
-/* Modal */
-.modal-overlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(0,0,0,0.6);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 50;
-    backdrop-filter: blur(2px);
+.text-date { color: var(--color-text-secondary); font-size: 13px; }
+.text-secondary { color: var(--color-text-secondary); font-size: 13px; }
+
+/* Table stretches to fill */
+.table-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
 }
 
-.knowledge-modal {
-    background-color: var(--color-bg-card, #202020);
-    padding: 24px;
-    border-radius: 12px;
-    width: 480px;
-    border: 1px solid var(--color-border, #374151);
-    color: var(--color-text-primary, white);
-    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3);
-}
-
-.knowledge-modal h2 { margin-top: 0; font-size: 18px; margin-bottom: 20px; }
-
-.form-group { margin-bottom: 16px; }
-
-.form-group label {
-    display: block;
-    margin-bottom: 8px;
-    font-size: 14px;
-    font-weight: 500;
-    color: var(--color-text-secondary, #e5e7eb);
-}
-
+/* Checkbox */
 .checkbox-group label {
     display: flex;
     align-items: center;
@@ -496,20 +363,30 @@ onMounted(() => {
     cursor: pointer;
 }
 
-.form-group input[type="text"], 
+/* Form row */
+.form-group-row {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.form-group-row .form-group { margin-bottom: 0; }
+.flex-1 { flex: 1; }
+
+/* Modal & Form overrides */
+.form-group input[type="text"],
 .form-group input[type="password"],
 .form-group select {
     width: 100%;
     padding: 10px;
-    border-radius: 6px;
-    border: 1px solid var(--color-border, #4b5563);
-    background: var(--color-bg-tertiary, #2a2a2a);
-    color: var(--color-text-primary, white);
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--color-border);
+    background: var(--color-bg-tertiary);
+    color: var(--color-text-primary);
     font-size: 14px;
 }
 .form-group input:focus, .form-group select:focus {
     outline: none;
-    border-color: var(--color-accent, #3b82f6);
+    border-color: var(--color-accent);
 }
 
 .error { color: #ef4444; font-size: 13px; margin-bottom: 16px; background: rgba(239, 68, 68, 0.1); padding: 8px; border-radius: 4px; }
@@ -521,12 +398,16 @@ onMounted(() => {
     margin-top: 24px;
 }
 
-.form-group-row {
-  display: flex;
-  gap: 12px;
-  margin-bottom: 16px;
+.user-summary { margin-bottom: 16px; }
+
+@media (max-width: 1024px) {
+  .form-group-row {
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .actions {
+    flex-wrap: wrap;
+  }
 }
-.form-group-row .form-group { margin-bottom: 0; }
-.flex-1 { flex: 1; }
-.spacer { flex: 1; }
 </style>

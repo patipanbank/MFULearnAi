@@ -333,4 +333,47 @@ const handleAdminLogin = async () => {
     color: var(--color-primary);
     text-decoration: underline;
 }
+
+/* Mobile Responsive */
+@media (max-width: 640px) {
+  .login-card {
+    padding: 28px 20px;
+    border-radius: 16px;
+    max-width: 100%;
+    margin: 0 16px;
+  }
+
+  .logo-wrapper {
+    width: 80px;
+    height: 80px;
+    margin-bottom: 12px;
+  }
+
+  .app-title {
+    font-size: 22px;
+  }
+
+  .app-subtitle {
+    font-size: 13px;
+  }
+
+  .circle-1 {
+    width: 300px;
+    height: 300px;
+    top: -100px;
+    right: -100px;
+  }
+
+  .circle-2 {
+    width: 200px;
+    height: 200px;
+    bottom: -60px;
+    left: -60px;
+  }
+
+  .circle-3 {
+    width: 100px;
+    height: 100px;
+  }
+}
 </style>

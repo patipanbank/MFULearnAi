@@ -43,7 +43,7 @@
     <!-- Modal -->
     <Teleport to="body">
        <div v-if="showModal" class="modal-overlay" @click.self="closeModal">
-          <div class="knowledge-modal">
+          <div class="modal-card">
              <h2>{{ isEditing ? 'Edit Department' : 'Create Department' }}</h2>
              
              <div class="form-group">
@@ -169,169 +169,27 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.page-container {
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  padding: 24px;
-  background: var(--color-bg-primary, #121212); 
-  color: var(--color-text-primary, #ffffff);
+/* Page-specific styles only — shared styles in main.css */
+
+.text-date {
+    color: var(--color-text-secondary);
+    font-size: 13px;
 }
 
-.page-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 24px;
-}
-
-.header-left h1 {
-  font-size: 24px;
-  font-weight: 700;
-  margin: 0 0 4px 0;
-}
-
-.subtitle {
-  color: var(--color-text-muted, #9ca3af);
-  font-size: 14px;
-}
-
-/* Buttons */
-.btn-primary {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 16px;
-  background: var(--color-accent, #3b82f6);
-  color: white;
-  border: none;
-  border-radius: 8px;
-  font-weight: 500;
-  cursor: pointer;
-}
-.btn-primary:hover { opacity: 0.9; }
-.btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
-
-.btn-cancel {
-    background: transparent;
-    color: var(--color-text-secondary, #d1d5db);
-    border: 1px solid var(--color-border, #374151);
-    padding: 8px 16px;
-    border-radius: 8px;
-    cursor: pointer;
-}
-.btn-cancel:hover { background: var(--color-bg-tertiary, #2a2a2a); }
-
-.btn-delete {
-    background: rgba(239, 68, 68, 0.1);
-    color: #ef4444;
-    border: 1px solid rgba(239, 68, 68, 0.2);
-    padding: 8px 16px;
-    border-radius: 8px;
-    cursor: pointer;
-}
-.btn-delete:hover { background: rgba(239, 68, 68, 0.2); }
-
-/* Table */
-.table-container {
-  background: var(--color-bg-secondary, #1e1e1e);
-  border: 1px solid var(--color-border, #374151);
-  border-radius: 12px;
-  overflow: hidden;
-}
-
-.data-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 14px;
-}
-
-.data-table th, .data-table td {
-  padding: 16px;
-  text-align: left;
-  border-bottom: 1px solid var(--color-border, #374151);
-}
-
-.data-table th {
-  color: var(--color-text-muted, #9ca3af);
-  font-weight: 500;
-  font-size: 13px;
-  background: var(--color-bg-tertiary, #252525);
-  text-transform: uppercase;
-}
-
-.clickable-row:hover {
-    background: var(--color-bg-tertiary, #2a2a2a);
-    cursor: pointer;
-}
-
-.empty-row {
-    text-align: center;
+.btn-icon.delete {
+    background: none;
+    border: none;
     color: var(--color-text-muted);
-    padding: 32px;
-}
-
-.font-medium { font-weight: 500; }
-.text-date { 
-    color: var(--color-text-secondary, #d1d5db); /* Brighter than muted for better visibility */
-    font-size: 13px; 
-}
-
-/* Modal */
-.modal-overlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(0,0,0,0.6);
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 4px;
     display: flex;
     align-items: center;
-    justify-content: center;
-    z-index: 50;
-    backdrop-filter: blur(2px);
 }
-
-.knowledge-modal {
-    background-color: var(--color-bg-card, #202020);
-    padding: 24px;
-    border-radius: 12px;
-    width: 420px;
-    border: 1px solid var(--color-border, #374151);
-    color: var(--color-text-primary, white);
-    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3);
+.btn-icon.delete:hover {
+    color: #ef4444;
+    background: rgba(239, 68, 68, 0.1);
 }
-
-.knowledge-modal h2 { margin-top: 0; font-size: 18px; margin-bottom: 20px; }
-
-.form-group { margin-bottom: 16px; }
-
-.form-group label {
-    display: block;
-    margin-bottom: 8px;
-    font-size: 14px;
-    font-weight: 500;
-    color: var(--color-text-secondary, #e5e7eb);
-}
-
-.form-group input {
-    width: 100%;
-    padding: 10px;
-    border-radius: 6px;
-    border: 1px solid var(--color-border, #4b5563);
-    background: var(--color-bg-tertiary, #2a2a2a);
-    color: var(--color-text-primary, white);
-    font-size: 14px;
-}
-.form-group input:focus {
-    outline: none;
-    border-color: var(--color-accent, #3b82f6);
-}
-
-.hint {
-    font-size: 12px;
-    color: var(--color-text-muted, #9ca3af);
-    margin-top: 4px;
-}
-
-.error { color: #ef4444; font-size: 13px; margin-bottom: 16px; background: rgba(239, 68, 68, 0.1); padding: 8px; border-radius: 4px; }
 
 .actions {
     display: flex;
@@ -340,5 +198,12 @@ onMounted(() => {
     margin-top: 24px;
 }
 
-.spacer { flex: 1; }
+.error {
+    color: #ef4444;
+    font-size: 13px;
+    margin-bottom: 16px;
+    background: rgba(239, 68, 68, 0.1);
+    padding: 8px;
+    border-radius: 4px;
+}
 </style>

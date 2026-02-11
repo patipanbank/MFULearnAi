@@ -284,7 +284,6 @@ onMounted(fetchPrompts);
     flex-direction: column;
     background: var(--color-bg-primary);
     color: var(--color-text-primary);
-    font-family: 'Inter', -apple-system, sans-serif; /* Ensure modern font */
 }
 
 /* --- HEADER --- */
@@ -370,7 +369,7 @@ onMounted(fetchPrompts);
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    background: #1e1e1e; /* Dedicated dark theme for editor area */
+    background: var(--color-bg-card);
 }
 
 /* Editor Toolbar */
@@ -382,8 +381,8 @@ onMounted(fetchPrompts);
 
 .editor-header {
     height: 56px;
-    border-bottom: 1px solid #333;
-    background: #1e1e1e;
+    border-bottom: 1px solid var(--color-border);
+    background: var(--color-bg-card);
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -392,26 +391,26 @@ onMounted(fetchPrompts);
 }
 
 .editor-meta { display: flex; align-items: center; gap: 12px; }
-.preview-title { margin: 0; font-size: 16px; font-weight: 600; color: #fff; }
-.preview-key { font-size: 12px; color: #888; background: #2a2a2a; padding: 2px 6px; border-radius: 4px; }
+.preview-title { margin: 0; font-size: 16px; font-weight: 600; color: var(--color-text-primary); }
+.preview-key { font-size: 12px; color: var(--color-text-muted); background: var(--color-bg-tertiary); padding: 2px 6px; border-radius: 4px; }
 .badge-status.active { font-size: 10px; background: rgba(16,185,129,0.2); color: #34d399; padding: 2px 8px; border-radius: 99px; text-transform: uppercase; font-weight: 700; }
 
 .editor-actions { display: flex; align-items: center; gap: 12px; }
 .btn-text-action { background: none; border: none; font-size: 13px; font-weight: 500; cursor: pointer; }
 .text-success { color: #34d399; } .text-success:hover { text-decoration: underline; }
 .text-danger { color: #f87171; } .text-danger:hover { text-decoration: underline; }
-.divider-vertical { width: 1px; height: 16px; background: #444; }
+.divider-vertical { width: 1px; height: 16px; background: var(--color-border); }
 
 .changelog-bar {
     padding: 8px 20px;
-    background: #252525;
-    border-bottom: 1px solid #333;
+    background: var(--color-bg-tertiary);
+    border-bottom: 1px solid var(--color-border);
 }
 .changelog-input {
-    width: 100%; border: 1px solid #444; background: #1a1a1a; color: #ddd;
+    width: 100%; border: 1px solid var(--color-border); background: var(--color-bg-input); color: var(--color-text-primary);
     padding: 6px 10px; border-radius: 4px; font-size: 12px;
 }
-.changelog-input:focus { border-color: #3b82f6; outline: none; }
+.changelog-input:focus { border-color: var(--color-accent); outline: none; }
 
 .code-wrapper {
     flex: 1;
@@ -420,7 +419,7 @@ onMounted(fetchPrompts);
 }
 .monaco-like-editor {
     width: 100%; height: 100%;
-    background: #1e1e1e; color: #d4d4d4;
+    background: var(--color-bg-card); color: var(--color-text-primary);
     border: none; padding: 24px;
     font-family: 'Consolas', 'Monaco', monospace;
     font-size: 14px; line-height: 1.6;
@@ -430,43 +429,49 @@ onMounted(fetchPrompts);
 /* Empty State */
 .empty-placeholder {
     flex: 1; display: flex; align-items: center; justify-content: center;
-    background: var(--color-bg-primary); /* Use theme bg for empty state */
+    background: var(--color-bg-primary);
 }
 .placeholder-content { text-align: center; color: var(--color-text-muted); }
 
 /* --- RESPONSIVE ADJUSTMENTS --- */
-@media (max-width: 768px) {
+@media (max-width: 1024px) {
     .manager-body { flex-direction: column; overflow-y: auto; }
     .sidebar-list { width: 100%; height: 250px; border-right: none; border-bottom: 1px solid var(--color-border); }
-    .editor-pane { height: 600px; /* Fixed height editor on mobile */ }
+    .editor-pane { height: 600px; }
+
+    .editor-header {
+        height: auto;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+        padding: 12px 16px;
+    }
+
+    .editor-meta {
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .editor-actions {
+        width: 100%;
+        justify-content: flex-end;
+    }
+
+    .manager-header {
+        padding: 0 16px;
+    }
 }
 
-/* --- BUTTONS & UTILS --- */
-.btn-primary { 
-    background: var(--color-accent); color: white; border: none; padding: 8px 16px; border-radius: 6px; 
-    font-weight: 500; font-size: 13px; cursor: pointer; display: inline-flex; align-items: center;
+@media (max-width: 480px) {
+    .sidebar-list { height: 200px; }
+    .editor-pane { height: 500px; }
 }
-.btn-primary:hover { opacity: 0.9; }
-.btn-primary:disabled { opacity: 0.5; }
+
+/* --- PAGE-SPECIFIC UTILS --- */
 .btn-sm { padding: 4px 12px; font-size: 12px; }
-
-.btn-ghost { background: transparent; border: none; color: var(--color-text-secondary); cursor: pointer; }
-.btn-ghost:hover { color: var(--color-text-primary); }
-
 .text-muted { color: var(--color-text-muted); }
 .text-sm { font-size: 13px; }
 
-/* MODAL STYLES */
-.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(2px); z-index: 1000; display: flex; align-items: center; justify-content: center; }
-.modal-card { width: 440px; background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: 12px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.2); overflow: hidden; }
-.modal-header { padding: 16px 20px; border-bottom: 1px solid var(--color-border); display: flex; justify-content: space-between; align-items: center; background: var(--color-bg-tertiary); }
-.modal-header h3 { margin: 0; font-size: 16px; color: var(--color-text-primary); }
-.btn-close { background: none; border: none; font-size: 20px; color: var(--color-text-muted); cursor: pointer; }
-.modal-body { padding: 24px 20px; display: flex; flex-direction: column; gap: 16px; }
+/* Form row for modal */
 .form-row label { display: block; font-size: 13px; font-weight: 500; margin-bottom: 6px; color: var(--color-text-secondary); }
-.input-std { width: 100%; background: var(--color-bg-primary); border: 1px solid var(--color-border); padding: 10px; border-radius: 6px; color: var(--color-text-primary); }
-.input-std:focus { outline: none; border-color: var(--color-accent); }
-.input-area { height: 100px; resize: none; font-family: monospace; }
-.input-hint { font-size: 11px; color: var(--color-text-muted); margin-top: 4px; }
-.modal-actions { padding: 16px 20px; background: var(--color-bg-tertiary); display: flex; justify-content: flex-end; gap: 12px; border-top: 1px solid var(--color-border); }
 </style>
