@@ -267,6 +267,17 @@ export const useChatStore = defineStore('chat', () => {
                                 messages.value[assistantIndex].error = data.error
                             }
 
+                            // 8. Title Update
+                            if (data.type === 'title') {
+                                // Update current session title locally
+                                const session = sessions.value.find(s => s.sessionId === currentSessionId.value)
+                                if (session) {
+                                    if (!session.metadata) session.metadata = {}
+                                    session.metadata.title = data.title
+                                    // Trigger reactivity if needed, usually direct mutation works in Pinia/Vue ref
+                                }
+                            }
+
                             // 7. File Persisted (Real-time update)
                             if (data.type === 'file_uploaded') {
                                 const userMsgIndex = assistantIndex - 1;

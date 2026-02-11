@@ -304,11 +304,11 @@ ${JSON.stringify(rollingContext, null, 2)}
         }
     }
 
-    static async updateTitle(userId: string, sessionId: string, firstMessage: string) {
+    static async updateTitle(userId: string, sessionId: string, firstMessage: string): Promise<string | null> {
         try {
             // Check if title already exists
             const conversation = await Conversation.findOne({ userId, sessionId }).select('metadata.title');
-            if (conversation?.metadata?.title) return;
+            if (conversation?.metadata?.title) return conversation.metadata.title;
 
             const prompt = `Generate a very short, catchy 3-5 word title for a conversation starting with: "${firstMessage}"
             Output ONLY the title string, no quotes or prefix.`;
@@ -326,8 +326,10 @@ ${JSON.stringify(rollingContext, null, 2)}
                 { $set: { 'metadata.title': cleanedTitle } }
             );
             LoggerService.info('conversation_titled', { sessionId, title: cleanedTitle });
+            return cleanedTitle;
         } catch (e) {
             LoggerService.error('Auto-naming failed', e);
+            return null;
         }
     }
 }
