@@ -157,7 +157,13 @@ export class AgentWorkflow {
                             size: file.buffer.length,
                             limit: MAX_NATIVE_SIZE
                         }, userId);
-                        emitProgress('extracting', 20, `ไฟล์ ${fileSizeMB} MB — กำลังดึงข้อความ...`);
+
+                        // Simulated Progress (20% -> 85%) for OCR/Parsing duration
+                        let extractPercent = 20;
+                        const progressTimer = setInterval(() => {
+                            extractPercent = Math.min(extractPercent + 5, 85);
+                            emitProgress('extracting', extractPercent, `ไฟล์ ${fileSizeMB} MB — กำลังดึงข้อความ/OCR (${Math.round(extractPercent)}%)...`);
+                        }, 1000);
 
                         try {
                             const ir = await KnowledgeService.parseFile(
@@ -165,8 +171,9 @@ export class AgentWorkflow {
                                 fileName,
                                 file.mediaType || 'application/pdf'
                             );
+                            clearInterval(progressTimer);
 
-                            emitProgress('extracting', 80, 'กำลังประมวลผลข้อความ...');
+                            emitProgress('extracting', 90, 'ประมวลผลข้อความเสร็จสิ้น...');
 
                             if (ir && ir.blocks && ir.blocks.length > 0) {
                                 let fullText = ir.blocks.map((b: any) => b.content).join('\n\n');
@@ -185,6 +192,7 @@ export class AgentWorkflow {
                                 emitProgress('error', 0, 'ไม่สามารถดึงข้อความได้');
                             }
                         } catch (extractError: any) {
+                            clearInterval(progressTimer);
                             LoggerService.error('file_text_extraction_failed', {
                                 fileName,
                                 error: extractError.message
