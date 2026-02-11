@@ -522,6 +522,12 @@ ${JSON.stringify(smartContext?.rolling || {}, null, 2)}`
                     canonical: '', rolling: { facts: [], intent: { primary: 'QUERY', confidence: 1 }, constraints: [], decisions: [], open_questions: [], confidence_score: 1 },
                     version: 0, hashes: { canonical: '', rolling: '', raw: '' }, lastCanonizedAt: new Date()
                 }).catch((e: any) => LoggerService.error('Background Summary Failed', e));
+
+                // 9. Auto-Title Generation (First Turn Only)
+                if (history.length === 0) {
+                    SummarizationService.updateTitle(userId, sessionId, query)
+                        .catch((e: any) => LoggerService.error('Background Title Gen Failed', e));
+                }
             }
 
         } catch (error: any) {
