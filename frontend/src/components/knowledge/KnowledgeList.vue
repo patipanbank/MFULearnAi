@@ -285,11 +285,6 @@ const handleRetry = async (id) => {
     color: var(--color-text-muted);
 }
 
-.card-actions {
-    position: absolute;
-    top: 16px;
-    right: 16px;
-}
 
 .data-table {
   width: 100%;

@@ -144,7 +144,7 @@ const closeCollectionModal = () => {
         v-if="showCollectionModal"
         :collection="editingCollection"
         @close="closeCollectionModal"
-        @success="closeCollectionModal; knowledgeStore.fetchCollections()"
+        @success="() => { closeCollectionModal(); knowledgeStore.fetchCollections() }"
       />
 
       <KnowledgeDetailModal
@@ -206,40 +206,7 @@ const closeCollectionModal = () => {
   font-size: 14px;
 }
 
-.btn-primary {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 16px;
-  background: var(--color-accent);
-  color: white;
-  border: none;
-  border-radius: 8px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: opacity 0.2s;
-}
 
-.btn-primary:hover {
-  opacity: 0.9;
-}
-
-.btn-secondary {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 8px 16px;
-    background: transparent;
-    color: var(--color-text-primary);
-    border: 1px solid var(--color-border);
-    border-radius: 8px;
-    font-weight: 500;
-    cursor: pointer;
-    margin-right: 8px;
-}
-.btn-secondary:hover {
-    background: var(--color-bg-hover);
-}
 
 /* Tabs */
 .tabs {

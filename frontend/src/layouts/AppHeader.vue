@@ -92,7 +92,6 @@ onMounted(() => {
   justify-content: center;
   background: transparent;
   border: 1px solid var(--color-border);
-  border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   color: var(--color-text-secondary);
   cursor: pointer;
@@ -115,16 +114,6 @@ onMounted(() => {
   color: var(--color-text-primary);
 }
 
-.app-brand {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.logo-emoji {
-  font-size: 24px;
-}
-
 .app-branding {
   display: flex;
   align-items: center;
@@ -132,18 +121,6 @@ onMounted(() => {
   /* margin-right: 24px; REMOVED to keep it tighter to the left */
 }
 
-.logo-small {
-  width: 32px;
-  height: 32px;
-  flex-shrink: 0;
-}
-
-.header-logo-img {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  border-radius: 50%;
-}
 
 .app-name {
   font-size: 24px;

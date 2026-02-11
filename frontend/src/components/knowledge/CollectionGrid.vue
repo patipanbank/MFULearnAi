@@ -5,9 +5,7 @@ import { useLanguage } from '@/composables/useSettings'
 
 const knowledgeStore = useKnowledgeStore()
 const { t } = useLanguage()
-const authStore = useKnowledgeStore().$state.authStore || useAuthStore() // Ensure we get auth info. Actually easier to import useAuthStore directly as we did in other files.
 
-// Just standard import
 import { useAuthStore } from '@/stores/auth'
 const auth = useAuthStore()
 
@@ -118,6 +116,7 @@ h3 {
     line-height: 1.4;
     display: -webkit-box;
     -webkit-line-clamp: 2;
+    line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
 }
