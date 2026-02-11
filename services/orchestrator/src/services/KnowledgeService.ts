@@ -90,7 +90,10 @@ export class KnowledgeService {
             formData.append('file', buffer, { filename, contentType: mimeType });
 
             const parseRes = await axios.post(`${KNOWLEDGE_URL}/parse`, formData, {
-                headers: formData.getHeaders(),
+                headers: {
+                    ...formData.getHeaders(),
+                    'Authorization': `Bearer ${TokenService.mint('knowledge', 'write')}`
+                },
                 maxBodyLength: Infinity,
                 maxContentLength: Infinity
             });
