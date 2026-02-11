@@ -313,12 +313,27 @@ ${JSON.stringify(rollingContext, null, 2)}
             const prompt = `Generate a very short, catchy 3-5 word title for a conversation starting with: "${firstMessage}"
             Output ONLY the title string, no quotes or prefix.`;
 
-            const { text: title } = await BedrockService.sendChat(
+            const { text: rawTitle } = await BedrockService.sendChat(
                 MODELS.FAST,
                 [{ role: 'user', content: prompt }],
                 'You are a creative writer.',
                 0.7
             );
+
+            let title = rawTitle;
+            try {
+                // Attempt to parse if it looks like JSON
+                if (title.trim().startsWith('[') || title.trim().startsWith('{')) {
+                    const parsed = JSON.parse(title);
+                    if (Array.isArray(parsed) && parsed.length > 0 && parsed[0].text) {
+                        title = parsed[0].text;
+                    } else if (parsed && parsed.text) {
+                        title = parsed.text;
+                    }
+                }
+            } catch (e) {
+                // Not JSON, use as is
+            }
 
             const cleanedTitle = title.replace(/["']/g, '').trim();
             await Conversation.updateOne(
