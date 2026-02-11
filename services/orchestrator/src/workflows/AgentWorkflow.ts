@@ -74,10 +74,19 @@ export class AgentWorkflow {
                     if (file.buffer && file.buffer.length < MAX_NATIVE_SIZE) {
                         const ext = (file.originalname || file.name || '').split('.').pop()?.toLowerCase() || 'pdf';
                         if (supportedFormats.includes(ext)) {
+                            // AWS Converse API name rules: alphanumeric, whitespace, hyphens,
+                            // parentheses, square brackets only. NO dots, NO file extension.
+                            const rawName = (file.originalname || file.name || 'document')
+                                .replace(/\.[^.]+$/, '')                      // Strip file extension
+                                .replace(/[^a-zA-Z0-9\s\-\(\)\[\]]/g, ' ')   // Replace invalid chars with space
+                                .replace(/\s+/g, ' ')                         // Collapse consecutive whitespace
+                                .trim()
+                                || 'document';                                // Fallback if empty after sanitization
+
                             nativeDocBlocks.push({
                                 type: 'document',
                                 format: ext,
-                                name: (file.originalname || file.name || 'document').replace(/[^a-zA-Z0-9._-]/g, '_'),
+                                name: rawName,
                                 data: Buffer.from(file.buffer).toString('base64')
                             });
                             LoggerService.info('native_doc_injected', { fileName: file.originalname || file.name, size: file.buffer.length }, userId);
