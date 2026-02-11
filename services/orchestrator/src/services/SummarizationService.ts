@@ -243,16 +243,18 @@ New Messages:
 ${newMessages.map(m => `${m.role}: ${m.content}`).join('\n')}
 `;
 
+        let response = '';
         try {
-            const { text: response, usage } = await BedrockService.sendChat(
+            const { text, usage } = await BedrockService.sendChat(
                 MODELS.FAST,
                 [{ role: 'user', content: prompt }],
                 SummarizationService.ROLLING_PROMPT,
                 0.1
             );
+            response = text;
 
             if (usage) {
-                LoggerService.info('chat_completion', {
+                await LoggerService.info('chat_completion', {
                     tokens: usage,
                     model: MODELS.FAST,
                     action: 'rolling_summary',
@@ -282,7 +284,7 @@ ${newMessages.map(m => `${m.role}: ${m.content}`).join('\n')}
             };
 
         } catch (e: any) {
-            LoggerService.warn('Rolling Summary Parse Failed - Falling back to current context', { error: e.message });
+            LoggerService.warn('Rolling Summary Parse Failed - Falling back to current context', { error: e.message, response });
             return currentRolling;
         }
     }
@@ -308,9 +310,9 @@ ${JSON.stringify(rollingContext, null, 2)}
             );
 
             if (usage) {
-                LoggerService.info('chat_completion', {
+                await LoggerService.info('chat_completion', {
                     tokens: usage,
-                    model: MODELS.FAST,
+                    model: MODELS.PRIMARY,
                     action: 'canonization',
                     isBackground: true
                 });
@@ -339,7 +341,7 @@ ${JSON.stringify(rollingContext, null, 2)}
             );
 
             if (usage) {
-                LoggerService.info('chat_completion', {
+                await LoggerService.info('chat_completion', {
                     tokens: usage,
                     model: MODELS.FAST,
                     action: 'title_generation',

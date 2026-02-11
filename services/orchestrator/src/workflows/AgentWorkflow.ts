@@ -518,7 +518,7 @@ ${JSON.stringify(smartContext?.rolling || {}, null, 2)}`
                 await HistoryService.saveToPersistentStorage(userId, sessionId, [currentMessage, assistantMessage], { totalTokens: totalUsage.total }, process.env.ENV_TYPE || 'TEST', MODELS.PRIMARY);
 
                 // Log Token Usage for Dashboard
-                LoggerService.info('chat_completion', {
+                await LoggerService.info('chat_completion', {
                     tokens: totalUsage,
                     model: MODELS.PRIMARY,
                     steps,

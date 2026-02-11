@@ -29,8 +29,9 @@ const fetchUsage = async () => {
 
 // Watch for manual triggers from other components (like ChatStore)
 watch(() => authStore.tokenUpdateTrigger, () => {
-    console.log('[TokenUsageBar] Manual refresh triggered')
-    fetchUsage()
+    console.log('[TokenUsageBar] Manual refresh triggered - waiting for persistence...')
+    // Small delay to ensure background tasks and DB persistence are complete
+    setTimeout(fetchUsage, 2000)
 })
 
 onMounted(() => {
