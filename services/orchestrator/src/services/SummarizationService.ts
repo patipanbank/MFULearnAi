@@ -306,42 +306,21 @@ ${JSON.stringify(rollingContext, null, 2)}
 
     static async updateTitle(userId: string, sessionId: string, firstMessage: string) {
         try {
-            // Check if title already exists (and is not a placeholder)
+            // Check if title already exists
             const conversation = await Conversation.findOne({ userId, sessionId }).select('metadata.title');
-            const currentTitle = conversation?.metadata?.title;
+            if (conversation?.metadata?.title) return;
 
-            // Allow overwriting if title is missing or generic
-            const isPlaceholder = !currentTitle || ['new chat', 'new conversation', 'untitled'].includes(currentTitle.toLowerCase());
+            const prompt = `Generate a very short, catchy 3-5 word title for a conversation starting with: "${firstMessage}"
+            Output ONLY the title string, no quotes or prefix.`;
 
-            if (!isPlaceholder) {
-                LoggerService.info('title_update_skipped', { sessionId, reason: 'existing_title', title: currentTitle });
-                return;
-            }
+            const { text: title } = await BedrockService.sendChat(
+                MODELS.FAST,
+                [{ role: 'user', content: prompt }],
+                'You are a creative writer.',
+                0.7
+            );
 
-            // Fallback title (first 50 chars)
-            const fallbackTitle = firstMessage.substring(0, 50).replace(/\n/g, ' ').trim() || 'New Conversation';
-
-            let cleanedTitle = fallbackTitle;
-
-            try {
-                const prompt = `Generate a very short, catchy 3-5 word title for a conversation starting with: "${firstMessage.substring(0, 500)}"
-                Output ONLY the title string, no quotes or prefix.`;
-
-                const { text: title } = await BedrockService.sendChat(
-                    MODELS.FAST,
-                    [{ role: 'user', content: prompt }],
-                    'You are a creative writer.',
-                    0.7
-                );
-
-                if (title && title.length > 2) {
-                    cleanedTitle = title.replace(/["']/g, '').trim();
-                }
-            } catch (llmError) {
-                LoggerService.warn('Auto-naming LLM failed, using fallback', { sessionId, error: llmError });
-                // cleanedTitle remains fallbackTitle
-            }
-
+            const cleanedTitle = title.replace(/["']/g, '').trim();
             await Conversation.updateOne(
                 { userId, sessionId },
                 { $set: { 'metadata.title': cleanedTitle } }
