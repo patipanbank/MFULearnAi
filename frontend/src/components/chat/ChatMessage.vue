@@ -56,6 +56,7 @@ const downloadAttachment = async (att) => {
             window.URL.revokeObjectURL(url);
         } catch (error) {
             console.error('Download failed', error);
+            alert('Download failed. ' + (error.response?.data?.error || 'Access Denied or Server Error'));
         }
     } else if (att.url) {
         window.open(att.url, '_blank');

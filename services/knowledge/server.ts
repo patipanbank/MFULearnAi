@@ -100,9 +100,14 @@ const extractUser = (req: Request): UserContext | null => {
                     return null;
                 }
 
+                // Internal Token: Check if impersonating a user via header
+                // Trusted services (Orchestrator) pass x-user-id to scoped operations
+                const impersonatedUserId = req.headers['x-user-id'] as string;
+                const impersonatedRole = req.headers['x-role'] as string;
+
                 return {
-                    userId: decodedInternal.sub || 'service:orchestrator', // Use 'sub' as userId
-                    role: 'admin', // Internal calls are privileged (Mapped from scope?)
+                    userId: impersonatedUserId || decodedInternal.sub || 'service:orchestrator',
+                    role: impersonatedRole || 'admin',
                     department: 'Global'
                 };
             }

@@ -183,8 +183,11 @@ export class ChatController {
 
         // Security check: Key ownership
         if (!key.startsWith(`${userId}/`)) {
+            console.warn(`[ChatController] Access Denied: User ${userId} tried to access ${key}`);
             return res.status(403).json({ error: 'Access denied' });
         }
+
+        console.log(`[ChatController] Downloading attachment: ${key} for user ${userId}`);
 
         try {
             await ChatAttachmentService.streamAttachment(key, res, userId, req.user.role || 'student');
