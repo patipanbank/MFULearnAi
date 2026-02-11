@@ -12,10 +12,12 @@ const type = ref('personal')
 const loading = ref(false)
 const error = ref(null)
 
-const isAdmin = authStore.role === 'admin'
+const uploadProgress = ref(0)
+const uploadStage = ref('')
 
 const handleFileChange = (e) => {
     file.value = e.target.files[0]
+    uploadProgress.value = 0
 }
 
 const handleUpload = async () => {
@@ -23,14 +25,20 @@ const handleUpload = async () => {
     
     loading.value = true
     error.value = null
+    uploadProgress.value = 0
+    uploadStage.value = 'Uploading...'
     
     try {
-        await knowledgeStore.uploadKnowledge(file.value, type.value)
+        await knowledgeStore.uploadKnowledge(file.value, type.value, (percent) => {
+            uploadProgress.value = percent
+            if (percent === 100) uploadStage.value = 'Processing...'
+        })
         emit('success')
     } catch (e) {
         error.value = e.message
     } finally {
         loading.value = false
+        uploadStage.value = ''
     }
 }
 </script>
@@ -57,12 +65,23 @@ const handleUpload = async () => {
           <p class="hint" v-if="type === 'public'">Visible to everyone in the university.</p>
        </div>
 
+       <!-- Progress Bar -->
+       <div v-if="loading" class="upload-progress-container">
+           <div class="upload-info">
+               <span>{{ uploadStage }}</span>
+               <span>{{ uploadProgress }}%</span>
+           </div>
+           <div class="upload-track">
+               <div class="upload-fill" :style="{ width: uploadProgress + '%' }"></div>
+           </div>
+       </div>
+
        <div v-if="error" class="error">{{ error }}</div>
 
        <div class="actions">
            <button class="btn-cancel" @click="emit('close')">Cancel</button>
            <button class="btn-primary" @click="handleUpload" :disabled="!file || loading">
-               {{ loading ? 'Uploading...' : 'Upload' }}
+               {{ loading ? 'Processing...' : 'Upload' }}
            </button>
        </div>
     </div>
@@ -116,6 +135,36 @@ select, input {
     font-size: 12px;
     color: var(--color-text-muted);
     margin-top: 4px;
+}
+
+/* Upload Progress */
+.upload-progress-container {
+    margin-bottom: 16px;
+    background: var(--color-bg-secondary);
+    padding: 10px;
+    border-radius: 6px;
+    border: 1px solid var(--color-border);
+}
+
+.upload-info {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    margin-bottom: 6px;
+    color: var(--color-text-primary);
+}
+
+.upload-track {
+    height: 6px;
+    background: var(--color-bg-tertiary);
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.upload-fill {
+    height: 100%;
+    background: var(--color-accent);
+    transition: width 0.3s ease;
 }
 
 .actions {

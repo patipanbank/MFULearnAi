@@ -232,7 +232,26 @@ export const useChatStore = defineStore('chat', () => {
                                 messages.value[assistantIndex].meta = data.metadata
                             }
 
-                            // 5. Error from backend (e.g. Bedrock failure)
+                            // 5. File Processing Progress
+                            if (data.type === 'file_progress') {
+                                // Initialize fileProgress object if missing
+                                if (!messages.value[assistantIndex].fileProgress) {
+                                    messages.value[assistantIndex].fileProgress = {}
+                                }
+                                // Store progress by file index or name
+                                messages.value[assistantIndex].fileProgress = {
+                                    currentFile: data.fileName,
+                                    currentindex: data.fileIndex,
+                                    totalFiles: data.totalFiles,
+                                    stage: data.stage,
+                                    percent: data.percent,
+                                    detail: data.detail
+                                }
+                                // Also update status text for legacy compatibility / simple view
+                                messages.value[assistantIndex].status = data.detail || `Processing ${data.fileName}...`
+                            }
+
+                            // 6. Error from backend (e.g. Bedrock failure)
                             if (data.error) {
                                 console.error('[ChatStore] Backend reported error:', data.error)
                                 const errorMsg = `\n\n**Error**: ${data.error}`

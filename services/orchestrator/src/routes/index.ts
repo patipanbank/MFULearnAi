@@ -19,6 +19,7 @@ const checkAuth = authenticateToken(JWT_SECRET);
 // Chat Routes
 router.post('/chat', checkAuth, RateLimiter.limit, ChatController.chat);
 router.get('/chat/models', checkAuth, ChatController.getModels);
+router.get('/chat/attachment/*', checkAuth, ChatController.downloadAttachment);
 router.get('/chat/:sessionId', checkAuth, ChatController.getHistory); // order matters, :sessionId vs models usually handled by express correctly if fixed path is first
 router.get('/chat', checkAuth, ChatController.listSessions);
 router.delete('/chat/:sessionId', checkAuth, ChatController.clearSession);

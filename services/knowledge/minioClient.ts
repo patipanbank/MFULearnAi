@@ -26,13 +26,20 @@ export const initMinio = async () => {
         } else {
             await minioClient.makeBucket(MINIO_BUCKET, 'us-east-1');
             console.log(`[MinIO] Bucket '${MINIO_BUCKET}' created.`);
-
-            // Set policy to download if needed (public) or keep private
-            // For now, keep private or use presigned URLs. 
-            // If we need public download:
-            // const policy = { ... };
-            // await minioClient.setBucketPolicy(MINIO_BUCKET, JSON.stringify(policy));
         }
+
+        const CHAT_BUCKET = 'chat-attachments';
+        const chatExists = await minioClient.bucketExists(CHAT_BUCKET);
+        if (!chatExists) {
+            await minioClient.makeBucket(CHAT_BUCKET, 'us-east-1');
+            console.log(`[MinIO] Bucket '${CHAT_BUCKET}' created.`);
+        }
+
+        // Set policy to download if needed (public) or keep private
+        // For now, keep private or use presigned URLs. 
+        // If we need public download:
+        // const policy = { ... };
+        // await minioClient.setBucketPolicy(MINIO_BUCKET, JSON.stringify(policy));
     } catch (err) {
         console.error('[MinIO] Initialization failed:', err);
     }

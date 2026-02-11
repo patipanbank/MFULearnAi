@@ -4,6 +4,7 @@ import { KnowledgeService } from '../services/KnowledgeService';
 import { BedrockService } from '../services/BedrockService';
 import { LoggerService } from '../services/LoggerService';
 import { SummarizationService } from '../services/SummarizationService';
+import { ChatAttachmentService } from '../services/ChatAttachmentService';
 import { CalculatorTool } from '../tools/CalculatorTool';
 import { SearchTool } from '../tools/SearchTool';
 import { MODELS, AGENT_CONFIG } from '../config/models';
@@ -66,6 +67,8 @@ export class AgentWorkflow {
             // 1.3.5 Attached Files — Send directly as native Converse API document blocks
             let nativeDocBlocks: Array<{ type: 'document', format: string, name: string, data: string }> = [];
             let extractedTextBlocks: Array<{ fileName: string, text: string }> = [];
+            // Track Uploads for Persistence (Concurrent)
+            let uploadPromises: Promise<any>[] = [];
 
             LoggerService.info('agent_files_received', {
                 filesCount: files?.length || 0,
@@ -82,21 +85,57 @@ export class AgentWorkflow {
                 const MAX_EXTRACTED_TEXT_CHARS = 100_000;    // ~100K chars for context window safety
                 const supportedFormats = ['pdf', 'txt', 'md', 'html', 'csv', 'doc', 'docx', 'xls', 'xlsx'];
 
-                for (const file of files) {
+                // (uploadPromises is defined at top scope)
+
+                const totalFiles = files.length;
+                for (let fi = 0; fi < files.length; fi++) {
+                    const file = files[fi];
+                    const fileName = file.originalname || file.name || 'file';
+                    const fileSizeMB = ((file.buffer?.length || 0) / (1024 * 1024)).toFixed(1);
+
+                    // Progress helper
+                    const emitProgress = (stage: string, percent: number, detail?: string) => {
+                        safeWrite(`data: ${JSON.stringify({
+                            type: 'file_progress',
+                            fileName,
+                            fileIndex: fi,
+                            totalFiles,
+                            stage,
+                            percent: Math.round(percent),
+                            detail: detail || ''
+                        })}\n\n`);
+                    };
+
+                    emitProgress('preparing', 5, `${fileSizeMB} MB`);
+
                     if (!file.buffer) {
-                        LoggerService.warn('file_no_buffer', { fileName: file.originalname || file.name }, userId);
+                        LoggerService.warn('file_no_buffer', { fileName }, userId);
+                        emitProgress('error', 0, 'ไม่พบข้อมูลไฟล์');
                         continue;
                     }
 
-                    const ext = (file.originalname || file.name || '').split('.').pop()?.toLowerCase() || 'pdf';
+                    const ext = (fileName).split('.').pop()?.toLowerCase() || 'pdf';
                     if (!supportedFormats.includes(ext)) {
-                        LoggerService.warn('unsupported_file_format', { fileName: file.originalname || file.name, ext }, userId);
+                        LoggerService.warn('unsupported_file_format', { fileName, ext }, userId);
+                        emitProgress('error', 0, `ไม่รองรับไฟล์ .${ext}`);
                         continue;
                     }
+
+                    // Start Upload (Fire & Forget promise, collected later)
+                    uploadPromises.push(
+                        ChatAttachmentService.uploadFile(file.buffer, fileName, file.mediaType || 'application/pdf', userId)
+                            .then(meta => ({ ...meta, fileType: ext }))
+                            .catch(err => {
+                                LoggerService.warn('file_upload_background_failed', { fileName, error: err.message }, userId);
+                                return null;
+                            })
+                    );
 
                     if (file.buffer.length < MAX_NATIVE_SIZE) {
                         // Small file → native document block (best quality)
-                        const rawName = (file.originalname || file.name || 'document')
+                        emitProgress('encoding', 50, 'กำลังเข้ารหัสเอกสาร...');
+
+                        const rawName = (fileName)
                             .replace(/\.[^.]+$/, '')
                             .replace(/[^a-zA-Z0-9\s\-\(\)\[\]]/g, ' ')
                             .replace(/\s+/g, ' ')
@@ -109,45 +148,48 @@ export class AgentWorkflow {
                             name: rawName,
                             data: Buffer.from(file.buffer).toString('base64')
                         });
-                        LoggerService.info('native_doc_injected', { fileName: file.originalname || file.name, sanitizedName: rawName, ext, size: file.buffer.length }, userId);
+                        LoggerService.info('native_doc_injected', { fileName, sanitizedName: rawName, ext, size: file.buffer.length }, userId);
+                        emitProgress('done', 100, 'พร้อมส่ง');
                     } else {
                         // Large file → fallback: extract text via KnowledgeService
                         LoggerService.info('file_too_large_extracting_text', {
-                            fileName: file.originalname || file.name,
+                            fileName,
                             size: file.buffer.length,
                             limit: MAX_NATIVE_SIZE
                         }, userId);
-                        safeWrite(`data: ${JSON.stringify({ type: 'status', message: `ไฟล์ ${file.originalname || file.name} ใหญ่เกิน 4.5MB — กำลังดึงข้อความ...` })}\n\n`);
+                        emitProgress('extracting', 20, `ไฟล์ ${fileSizeMB} MB — กำลังดึงข้อความ...`);
 
                         try {
                             const ir = await KnowledgeService.parseFile(
                                 file.buffer,
-                                file.originalname || file.name,
+                                fileName,
                                 file.mediaType || 'application/pdf'
                             );
+
+                            emitProgress('extracting', 80, 'กำลังประมวลผลข้อความ...');
 
                             if (ir && ir.blocks && ir.blocks.length > 0) {
                                 let fullText = ir.blocks.map((b: any) => b.content).join('\n\n');
                                 if (fullText.length > MAX_EXTRACTED_TEXT_CHARS) {
                                     fullText = fullText.substring(0, MAX_EXTRACTED_TEXT_CHARS) + '\n\n[... ข้อความถูกตัดเนื่องจากยาวเกินไป ...]';
                                 }
-                                extractedTextBlocks.push({
-                                    fileName: file.originalname || file.name,
-                                    text: fullText
-                                });
+                                extractedTextBlocks.push({ fileName, text: fullText });
                                 LoggerService.info('file_text_extracted', {
-                                    fileName: file.originalname || file.name,
+                                    fileName,
                                     blocksCount: ir.blocks.length,
                                     textLength: fullText.length
                                 }, userId);
+                                emitProgress('done', 100, `ดึงข้อความสำเร็จ (${ir.blocks.length} blocks)`);
                             } else {
-                                LoggerService.warn('file_text_extraction_empty', { fileName: file.originalname || file.name }, userId);
+                                LoggerService.warn('file_text_extraction_empty', { fileName }, userId);
+                                emitProgress('error', 0, 'ไม่สามารถดึงข้อความได้');
                             }
                         } catch (extractError: any) {
                             LoggerService.error('file_text_extraction_failed', {
-                                fileName: file.originalname || file.name,
+                                fileName,
                                 error: extractError.message
                             }, userId);
+                            emitProgress('error', 0, 'การดึงข้อความล้มเหลว');
                         }
                     }
                 }
@@ -426,7 +468,21 @@ ${JSON.stringify(smartContext?.rolling || {}, null, 2)}`
                 if (!res.writableEnded) res.end();
 
                 // 7. Telemetry & Persistence
-                const currentMessage = { role: 'user' as const, content: query, timestamp: new Date() };
+
+                // Await uploads
+                const uploadedAttachments: any[] = [];
+                if (uploadPromises.length > 0) {
+                    const results = await Promise.all(uploadPromises);
+                    results.forEach(r => {
+                        if (r) uploadedAttachments.push(r);
+                    });
+                }
+
+                const currentMessage: any = { role: 'user', content: query, timestamp: new Date() };
+                if (uploadedAttachments.length > 0) {
+                    currentMessage.attachments = uploadedAttachments;
+                }
+
                 const assistantMessage = {
                     role: 'assistant' as const,
                     content: finalAnswer,

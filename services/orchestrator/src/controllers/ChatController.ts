@@ -6,6 +6,7 @@ import { BedrockService } from '../services/BedrockService';
 import { Conversation } from '../models/Conversation';
 import { LoggerService } from '../services/LoggerService';
 import { ContextService } from '../services/ContextService';
+import { ChatAttachmentService } from '../services/ChatAttachmentService';
 
 export class ChatController {
     static async chat(req: any, res: Response) {
@@ -172,6 +173,24 @@ export class ChatController {
             res.json({ success: true });
         } catch (error) {
             res.status(500).json({ error: 'Failed to clear session' });
+        }
+    }
+    static async downloadAttachment(req: any, res: Response) {
+        const key = req.params[0]; // wildcard used in route
+        const userId = req.user.userId;
+
+        if (!key) return res.status(400).json({ error: 'Key required' });
+
+        // Security check: Key ownership
+        if (!key.startsWith(`${userId}/`)) {
+            return res.status(403).json({ error: 'Access denied' });
+        }
+
+        try {
+            await ChatAttachmentService.streamAttachment(key, res, userId, req.user.role || 'student');
+        } catch (error: any) {
+            console.error('Download Error:', error.message);
+            if (!res.headersSent) res.status(500).json({ error: 'Download failed' });
         }
     }
 }

@@ -36,6 +36,32 @@ const formatTime = (timestamp) => {
   return new Date(timestamp).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })
 }
 
+const openAttachment = (att) => {
+    if (att.key) {
+        // Use secure proxy endpoint (persistent)
+        // Ensure we handle the path correctly.
+        // The API is likely hosted at /api relative to frontend or configured base.
+        // If frontend has axios base URL, we might need that. 
+        // But usually relative /api works if proxied.
+        // We'll use a relative path assuming same domain or proxy.
+        // If att.key starts with slash, remove it. (It shouldn't)
+        const url = `/api/chat/attachment/${att.key}`;
+        window.open(url, '_blank');
+    } else if (att.url) {
+        window.open(att.url, '_blank');
+    } else {
+        console.warn('No key or URL for attachment', att);
+    }
+}
+
+const formatBytes = (bytes) => {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+}
+
 
 
 </script>
@@ -68,6 +94,22 @@ const formatTime = (timestamp) => {
                         </svg>
                     </div>
                     <span class="file-name" :title="file.name">{{ file.name }}</span>
+                </div>
+            </div>
+
+            <!-- Persisted Attachments (History) -->
+            <div v-if="message.attachments && message.attachments.length > 0" class="message-files outside">
+                <div v-for="(att, index) in message.attachments" :key="index" class="msg-file clickable" @click="openAttachment(att)" :title="att.fileName">
+                    <div class="file-icon">
+                         <span v-if="att.mimeType && att.mimeType.includes('image')">📷</span>
+                         <span v-else-if="att.mimeType && (att.mimeType.includes('pdf') || att.fileName.endsWith('.pdf'))">📄</span>
+                         <span v-else-if="att.mimeType && (att.mimeType.includes('sheet') || att.mimeType.includes('excel'))">📊</span>
+                         <span v-else>📎</span>
+                    </div>
+                    <div class="file-info-stack">
+                        <span class="file-name">{{ att.fileName }}</span>
+                        <span class="file-size">{{ formatBytes(att.fileSize) }}</span>
+                    </div>
                 </div>
             </div>
 
@@ -133,8 +175,20 @@ const formatTime = (timestamp) => {
           
           <div ref="messageRef" class="prose-content prose" v-if="message.content" v-html="render(message.content)"></div>
           
+          <!-- File Processing Progress (Replaces typing indicator when active) -->
+          <div v-if="message.fileProgress && message.fileProgress.percent < 100" class="file-progress-container">
+             <div class="progress-info">
+                <span class="file-name"><span class="icon">📄</span> {{ message.fileProgress.currentFile }}</span>
+                <span class="percent">{{ message.fileProgress.percent }}%</span>
+             </div>
+             <div class="progress-bar-track">
+                <div class="progress-bar-fill" :style="{ width: message.fileProgress.percent + '%' }"></div>
+             </div>
+             <div class="progress-detail">{{ message.fileProgress.detail }}</div>
+          </div>
+          
           <!-- Typing Indicator / Status (Dynamic) -->
-          <div v-if="!message.content || (message.status && message.status !== '')" class="typing-indicator">
+          <div v-else-if="!message.content || (message.status && message.status !== '')" class="typing-indicator">
             <div class="dots" v-if="!message.content">
               <span></span>
               <span></span>
@@ -498,11 +552,30 @@ const formatTime = (timestamp) => {
     border-radius: 8px;
     padding: 8px 12px;
     gap: 8px;
-    max-width: 200px;
+    max-width: 250px;
+}
+
+.msg-file.clickable {
+    cursor: pointer;
+    transition: background 0.2s, border-color 0.2s;
+}
+
+.msg-file.clickable:hover {
+    background: var(--color-bg-tertiary);
+    border-color: var(--color-primary-light, #a5b4fc);
 }
 
 .msg-file .file-icon {
     color: var(--color-text-muted);
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+}
+
+.file-info-stack {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
 }
 
 .msg-file .file-name {
@@ -511,6 +584,12 @@ const formatTime = (timestamp) => {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    font-weight: 500;
+}
+
+.msg-file .file-size {
+    font-size: 11px;
+    color: var(--color-text-muted);
 }
 
 .msg-image {
@@ -614,5 +693,45 @@ const formatTime = (timestamp) => {
 
 .confidence-badge:hover .explanation-tooltip {
     display: block;
+}
+
+/* File Progress Bar */
+.file-progress-container {
+    margin: 8px 0;
+    padding: 12px;
+    background: var(--color-bg-secondary);
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    width: 280px;
+    font-size: 13px;
+}
+
+.progress-info {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 6px;
+    font-weight: 500;
+    color: var(--color-text-primary);
+}
+
+.progress-info .icon { margin-right: 6px; }
+
+.progress-bar-track {
+    height: 6px;
+    background: var(--color-bg-tertiary);
+    border-radius: 3px;
+    overflow: hidden;
+    margin-bottom: 6px;
+}
+
+.progress-bar-fill {
+    height: 100%;
+    background: var(--color-accent);
+    transition: width 0.3s ease;
+}
+
+.progress-detail {
+    font-size: 12px;
+    color: var(--color-text-muted);
 }
 </style>

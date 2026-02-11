@@ -90,7 +90,7 @@ export const useKnowledgeStore = defineStore('knowledge', () => {
         return await fetchKnowledge({ requestStatus: 'pending' })
     }
 
-    async function uploadKnowledge(file, type) {
+    async function uploadKnowledge(file, type, onProgress) {
         loading.value = true
         try {
             const formData = new FormData()
@@ -101,6 +101,12 @@ export const useKnowledgeStore = defineStore('knowledge', () => {
                 headers: {
                     ...getHeaders().headers,
                     'Content-Type': 'multipart/form-data'
+                },
+                onUploadProgress: (progressEvent) => {
+                    if (onProgress && progressEvent.total) {
+                        const percent = Math.round((progressEvent.loaded * 100) / progressEvent.total)
+                        onProgress(percent)
+                    }
                 }
             })
             await fetchKnowledge() // Refresh list

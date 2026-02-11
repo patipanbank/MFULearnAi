@@ -722,6 +722,109 @@ app.get('/api/knowledge/collections/:id', async (req: Request, res: Response) =>
     }
 });
 
+// 6. STORAGE UPLOAD (Chat Attachments)
+import { v4 as uuidv4 } from 'uuid';
+
+app.post('/api/storage/upload', async (req: any, res: Response) => {
+    const user = extractUser(req);
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+
+    const bb = busboy({ headers: req.headers });
+    const CHAT_BUCKET = 'chat-attachments';
+
+    let uploadPromise: Promise<any> | null = null;
+    let fileInfo: any = null;
+    let hasFile = false;
+
+    bb.on('file', (name, file, info) => {
+        hasFile = true;
+        const { filename, mimeType } = info;
+        // Key: {userId}/{date}/{uuid}-{filename}
+        const dateStr = new Date().toISOString().split('T')[0];
+        const safeName = filename.replace(/[^a-zA-Z0-9.-]/g, '_');
+        const s3Key = `${user.userId}/${dateStr}/${uuidv4()}-${safeName}`;
+
+        fileInfo = {
+            originalName: Buffer.from(filename, 'latin1').toString('utf8'), // Fix encoding
+            mimeType,
+            s3Key
+        };
+
+        // Stream to MinIO
+        uploadPromise = minioClient.putObject(CHAT_BUCKET, s3Key, file, undefined, {
+            'Content-Type': mimeType,
+            'x-amz-meta-original-name': filename,
+            'x-amz-meta-owner': user.userId
+        });
+    });
+
+    bb.on('close', async () => {
+        if (!hasFile) {
+            return res.status(400).json({ error: 'No file uploaded' });
+        }
+
+        try {
+            const objInfo = await uploadPromise; // Wait for MinIO finish
+
+            // Generate Presigned URL for immediate preview (optional, valid for 1 hour)
+            const previewUrl = await minioClient.presignedGetObject(CHAT_BUCKET, fileInfo.s3Key, 3600);
+
+            res.json({
+                success: true,
+                data: {
+                    key: fileInfo.s3Key,
+                    fileName: fileInfo.originalName,
+                    mimeType: fileInfo.mimeType,
+                    url: previewUrl,
+                    bucket: CHAT_BUCKET,
+                    etag: objInfo?.etag
+                }
+            });
+
+        } catch (e: any) {
+            console.error('Storage Upload Failed:', e);
+            res.status(500).json({ error: 'Upload failed: ' + e.message });
+        }
+    });
+
+    req.pipe(bb);
+});
+
+
+
+app.get('/api/storage/file/*', async (req: any, res: Response) => {
+    try {
+        const user = extractUser(req);
+        if (!user) return res.status(401).json({ error: 'Unauthorized' });
+
+        // Extract Key from wildcard
+        const key = req.params[0];
+        if (!key) return res.status(400).json({ error: 'Key required' });
+
+        // Security: Ensure key belongs to user
+        // Key format: {userId}/{date}/{uuid}-{filename}
+        if (!key.startsWith(`${user.userId}/`)) {
+            console.warn(`[Storage] Access Denied: User ${user.userId} tried to access ${key}`);
+            return res.status(403).json({ error: 'Access denied' });
+        }
+
+        const dataStream = await minioClient.getObject('chat-attachments', key);
+        try {
+            const stat = await minioClient.statObject('chat-attachments', key);
+            if (stat.metaData['content-type']) {
+                res.setHeader('Content-Type', stat.metaData['content-type']);
+            }
+            res.setHeader('Content-Length', stat.size);
+        } catch (e) {
+            // Ignore stat error
+        }
+        dataStream.pipe(res);
+    } catch (e: any) {
+        console.error('Storage Download Failed:', e);
+        res.status(500).json({ error: 'Download failed' });
+    }
+});
+
 // 6. SEARCH (RAG) - PHASE 5: INTENT-AWARE
 import { ReRankerService } from './ReRankerService';
 

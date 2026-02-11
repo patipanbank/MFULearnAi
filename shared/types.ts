@@ -36,6 +36,15 @@ export interface ChatMessage {
     size: number;
     content?: string;
   }>;
+  attachments?: Array<{
+    fileName: string;
+    fileSize: number;
+    mimeType: string;
+    key: string;           // MinIO/S3 key
+    url?: string;          // Signed URL (temporary)
+    fileType: string;      // pdf, doc, etc.
+    preview?: string;      // extracted text preview
+  }>;
   native_files?: NativeFileBlock[];  // Enhancement 2/5: Files sent directly to Bedrock Converse API
   isImageGeneration?: boolean;
   meta?: {
