@@ -104,7 +104,17 @@ const formatBytes = (bytes) => {
                             <polyline points="14 2 14 8 20 8"></polyline>
                         </svg>
                     </div>
-                    <span class="file-name" :title="file.name">{{ file.name }}</span>
+                    <div class="file-info-stack">
+                        <span class="file-name" :title="file.name">{{ file.name }}</span>
+                        <!-- Embedded Progress Bar -->
+                        <div v-if="message.fileProgress && message.fileProgress.currentFile === file.name" class="embedded-progress">
+                             <div class="progress-bar-track small">
+                                <div class="progress-bar-fill" :style="{ width: message.fileProgress.percent + '%' }"></div>
+                             </div>
+                             <span class="progress-text">{{ message.fileProgress.percent }}% - {{ message.fileProgress.detail }}</span>
+                        </div>
+                        <div v-else class="file-size">Uploading...</div>
+                    </div>
                 </div>
             </div>
 
@@ -122,18 +132,6 @@ const formatBytes = (bytes) => {
                         <span class="file-size">{{ formatBytes(att.fileSize) }}</span>
                     </div>
                 </div>
-            </div>
-
-            <!-- File Processing Progress (User Side) -->
-            <div v-if="message.fileProgress && message.fileProgress.percent < 100" class="file-progress-container user-side">
-                 <div class="progress-info">
-                    <span class="file-name"><span class="icon">📄</span> {{ message.fileProgress.currentFile }}</span>
-                    <span class="percent">{{ message.fileProgress.percent }}%</span>
-                 </div>
-                 <div class="progress-bar-track">
-                    <div class="progress-bar-fill" :style="{ width: message.fileProgress.percent + '%' }"></div>
-                 </div>
-                 <div class="progress-detail">{{ message.fileProgress.detail }}</div>
             </div>
 
             <div class="bubble user">
@@ -746,5 +744,28 @@ const formatBytes = (bytes) => {
 .progress-detail {
     font-size: 12px;
     color: var(--color-text-muted);
+}
+
+/* Embedded Progress Bar */
+.embedded-progress {
+    width: 100%;
+}
+
+.progress-bar-track.small {
+    height: 4px;
+    background: var(--color-bg-tertiary);
+    border-radius: 2px;
+    overflow: hidden;
+    margin-top: 4px;
+}
+
+.progress-text {
+    font-size: 10px;
+    color: var(--color-text-muted);
+    margin-top: 2px;
+    display: block;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 </style>

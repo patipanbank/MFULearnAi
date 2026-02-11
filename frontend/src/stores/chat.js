@@ -255,8 +255,8 @@ export const useChatStore = defineStore('chat', () => {
                                     }
                                 }
 
-                                // Legacy/Fallback: If we still want to show status text on assistant
-                                messages.value[assistantIndex].status = data.detail || `Processing ${data.fileName}...`
+                                // Legacy/Fallback: Status text removed as per user request (UI Consolidation)
+                                // messages.value[assistantIndex].status = data.detail || `Processing ${data.fileName}...`
                             }
 
                             // 6. Error from backend (e.g. Bedrock failure)
