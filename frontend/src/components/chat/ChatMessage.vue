@@ -129,7 +129,14 @@ const formatBytes = (bytes) => {
                     </div>
                     <div class="file-info-stack">
                         <span class="file-name">{{ att.fileName }}</span>
-                        <span class="file-size">{{ formatBytes(att.fileSize) }}</span>
+                        <!-- Embedded Progress Bar (Shared with persist attachment if processing continues) -->
+                        <div v-if="message.fileProgress && message.fileProgress.currentFile === att.fileName" class="embedded-progress">
+                             <div class="progress-bar-track small">
+                                <div class="progress-bar-fill" :style="{ width: message.fileProgress.percent + '%' }"></div>
+                             </div>
+                             <span class="progress-text">{{ message.fileProgress.percent }}% - {{ message.fileProgress.detail }}</span>
+                        </div>
+                        <div v-else class="file-size">{{ formatBytes(att.fileSize) }}</div>
                     </div>
                 </div>
             </div>
