@@ -66,6 +66,16 @@ export class AgentWorkflow {
             // 1.3.5 Attached Files — Send directly as native Converse API document blocks
             let nativeDocBlocks: Array<{ type: 'document', format: string, name: string, data: string }> = [];
 
+            LoggerService.info('agent_files_received', {
+                filesCount: files?.length || 0,
+                fileDetails: (files || []).map((f: any) => ({
+                    name: f.originalname || f.name,
+                    size: f.size,
+                    hasBuffer: !!f.buffer,
+                    bufferLength: f.buffer?.length
+                }))
+            }, userId);
+
             if (files && files.length > 0) {
                 const MAX_NATIVE_SIZE = 4.5 * 1024 * 1024; // 4.5MB Converse API limit
                 const supportedFormats = ['pdf', 'txt', 'md', 'html', 'csv', 'doc', 'docx', 'xls', 'xlsx'];
@@ -89,7 +99,7 @@ export class AgentWorkflow {
                                 name: rawName,
                                 data: Buffer.from(file.buffer).toString('base64')
                             });
-                            LoggerService.info('native_doc_injected', { fileName: file.originalname || file.name, size: file.buffer.length }, userId);
+                            LoggerService.info('native_doc_injected', { fileName: file.originalname || file.name, sanitizedName: rawName, ext, size: file.buffer.length }, userId);
                         } else {
                             LoggerService.warn('unsupported_file_format', { fileName: file.originalname || file.name, ext }, userId);
                         }
@@ -98,6 +108,8 @@ export class AgentWorkflow {
                     }
                 }
             }
+
+            LoggerService.info('agent_native_doc_blocks', { count: nativeDocBlocks.length }, userId);
 
             // 1.3.6 Dynamic Refusal Policy
             const isOrganizationalQuery = /policy|regulation|guideline|document|files|contract|agreement|budget|contact|email|who is|fee|calendar|schedule|deadline|registration|course|gpa|grade/i.test(query);
@@ -196,6 +208,21 @@ ${JSON.stringify(smartContext?.rolling || {}, null, 2)}`
 
                 steps++;
                 LoggerService.info('agent_step', { step: steps, sessionId, traceId }, userId);
+
+                // Diagnostic: log message structure before sending (only on step 1)
+                if (steps === 1) {
+                    const msgStructure = messages.map((m: any, i: number) => ({
+                        idx: i,
+                        role: m.role,
+                        contentType: typeof m.content,
+                        isArray: Array.isArray(m.content),
+                        blockTypes: Array.isArray(m.content)
+                            ? m.content.map((b: any) => b.type || Object.keys(b)[0])
+                            : undefined,
+                        contentLength: typeof m.content === 'string' ? m.content.length : undefined
+                    }));
+                    console.log(`[AgentWorkflow] Messages structure before sendChat:`, JSON.stringify(msgStructure));
+                }
 
                 const { text: fullResponse, usage: stepUsage, stopReason } = await BedrockService.sendChat(
                     MODELS.PRIMARY,

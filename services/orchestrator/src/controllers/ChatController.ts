@@ -68,6 +68,7 @@ export class ChatController {
 
             // @ts-ignore
             bb.on('file', (name: string, file: any, info: any) => {
+                console.log(`[ChatController] busboy FILE event: fieldName="${name}", filename="${info.filename}", mimeType="${info.mimeType}"`);
                 const mimeType = info.mimeType || info.mime;
                 const promise = new Promise<any>(async (resolve) => {
                     const chunks: any[] = [];
@@ -92,6 +93,7 @@ export class ChatController {
                 results.forEach(f => {
                     if (f) files.push(f);
                 });
+                console.log(`[ChatController] busboy CLOSE: files=${files.length}, filePromises=${filePromises.length}, fileDetails=${JSON.stringify(files.map(f => ({ name: f.name, size: f.size, hasBuffer: !!f.buffer })))}`);
                 executeAgent(); // Always use Agent
             });
 
