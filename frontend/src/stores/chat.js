@@ -233,21 +233,29 @@ export const useChatStore = defineStore('chat', () => {
                             }
 
                             // 5. File Processing Progress
+                            // 5. File Processing Progress
                             if (data.type === 'file_progress') {
-                                // Initialize fileProgress object if missing
-                                if (!messages.value[assistantIndex].fileProgress) {
-                                    messages.value[assistantIndex].fileProgress = {}
+                                // Target the USER message (preceding the assistant)
+                                const userMsgIndex = assistantIndex - 1;
+                                if (userMsgIndex >= 0 && messages.value[userMsgIndex].role === 'user') {
+                                    const userMsg = messages.value[userMsgIndex];
+
+                                    // Initialize fileProgress object if missing
+                                    if (!userMsg.fileProgress) {
+                                        userMsg.fileProgress = {}
+                                    }
+                                    // Store progress by file index or name
+                                    userMsg.fileProgress = {
+                                        currentFile: data.fileName,
+                                        currentindex: data.fileIndex,
+                                        totalFiles: data.totalFiles,
+                                        stage: data.stage,
+                                        percent: data.percent,
+                                        detail: data.detail
+                                    }
                                 }
-                                // Store progress by file index or name
-                                messages.value[assistantIndex].fileProgress = {
-                                    currentFile: data.fileName,
-                                    currentindex: data.fileIndex,
-                                    totalFiles: data.totalFiles,
-                                    stage: data.stage,
-                                    percent: data.percent,
-                                    detail: data.detail
-                                }
-                                // Also update status text for legacy compatibility / simple view
+
+                                // Legacy/Fallback: If we still want to show status text on assistant
                                 messages.value[assistantIndex].status = data.detail || `Processing ${data.fileName}...`
                             }
 
@@ -257,6 +265,31 @@ export const useChatStore = defineStore('chat', () => {
                                 const errorMsg = `\n\n**Error**: ${data.error}`
                                 messages.value[assistantIndex].content += errorMsg
                                 messages.value[assistantIndex].error = data.error
+                            }
+
+                            // 7. File Persisted (Real-time update)
+                            if (data.type === 'file_uploaded') {
+                                const userMsgIndex = assistantIndex - 1;
+                                if (userMsgIndex >= 0 && messages.value[userMsgIndex].role === 'user') {
+                                    const userMsg = messages.value[userMsgIndex];
+
+                                    if (!userMsg.attachments) userMsg.attachments = [];
+
+                                    // avoid duplicates
+                                    const exists = userMsg.attachments.some(a => a.fileName === data.fileName);
+                                    if (!exists) {
+                                        userMsg.attachments.push({
+                                            ...data.metadata,
+                                            fileName: data.fileName || data.metadata.fileName,
+                                            fileSize: data.metadata.size || data.metadata.fileSize
+                                        });
+                                    }
+
+                                    // Remove from temporary files list to avoid double display
+                                    if (userMsg.files) {
+                                        userMsg.files = userMsg.files.filter(f => f.name !== data.fileName);
+                                    }
+                                }
                             }
                         } catch (e) {
                             // Ignore parse errors for partial chunks

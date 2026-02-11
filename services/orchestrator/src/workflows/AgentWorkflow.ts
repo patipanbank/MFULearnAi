@@ -124,7 +124,15 @@ export class AgentWorkflow {
                     // Start Upload (Fire & Forget promise, collected later)
                     uploadPromises.push(
                         ChatAttachmentService.uploadFile(file.buffer, fileName, file.mediaType || 'application/pdf', userId)
-                            .then(meta => ({ ...meta, fileType: ext }))
+                            .then(meta => {
+                                // Emit event for frontend to show clickable link immediately
+                                safeWrite(`data: ${JSON.stringify({
+                                    type: 'file_uploaded',
+                                    fileName,
+                                    metadata: meta
+                                })}\n\n`);
+                                return { ...meta, fileType: ext };
+                            })
                             .catch(err => {
                                 LoggerService.warn('file_upload_background_failed', { fileName, error: err.message }, userId);
                                 return null;

@@ -1,6 +1,7 @@
 <script setup>
 import { useMarkdown } from '@/composables/useMarkdown'
 import { ref } from 'vue'
+import api from '@/utils/api'
 
 const props = defineProps({
   message: { type: Object, required: true },
@@ -36,17 +37,26 @@ const formatTime = (timestamp) => {
   return new Date(timestamp).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })
 }
 
-const openAttachment = (att) => {
+const downloadAttachment = async (att) => {
     if (att.key) {
-        // Use secure proxy endpoint (persistent)
-        // Ensure we handle the path correctly.
-        // The API is likely hosted at /api relative to frontend or configured base.
-        // If frontend has axios base URL, we might need that. 
-        // But usually relative /api works if proxied.
-        // We'll use a relative path assuming same domain or proxy.
-        // If att.key starts with slash, remove it. (It shouldn't)
-        const url = `/api/chat/attachment/${att.key}`;
-        window.open(url, '_blank');
+        try {
+            // Use api.get to ensure Auth header is sent
+            const response = await api.get(`/chat/attachment/${att.key}`, { responseType: 'blob' });
+            
+            // Create download link
+            const url = window.URL.createObjectURL(new Blob([response.data], { type: response.headers['content-type'] }));
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', att.fileName || 'download'); // Browser will use header if available, but this helps fallbacks
+            document.body.appendChild(link);
+            link.click();
+            
+            // Cleanup
+            link.parentNode.removeChild(link);
+            window.URL.revokeObjectURL(url);
+        } catch (error) {
+            console.error('Download failed', error);
+        }
     } else if (att.url) {
         window.open(att.url, '_blank');
     } else {
@@ -99,7 +109,7 @@ const formatBytes = (bytes) => {
 
             <!-- Persisted Attachments (History) -->
             <div v-if="message.attachments && message.attachments.length > 0" class="message-files outside">
-                <div v-for="(att, index) in message.attachments" :key="index" class="msg-file clickable" @click="openAttachment(att)" :title="att.fileName">
+                <div v-for="(att, index) in message.attachments" :key="index" class="msg-file clickable" @click="downloadAttachment(att)" :title="att.fileName">
                     <div class="file-icon">
                          <span v-if="att.mimeType && att.mimeType.includes('image')">📷</span>
                          <span v-else-if="att.mimeType && (att.mimeType.includes('pdf') || att.fileName.endsWith('.pdf'))">📄</span>
@@ -111,6 +121,18 @@ const formatBytes = (bytes) => {
                         <span class="file-size">{{ formatBytes(att.fileSize) }}</span>
                     </div>
                 </div>
+            </div>
+
+            <!-- File Processing Progress (User Side) -->
+            <div v-if="message.fileProgress && message.fileProgress.percent < 100" class="file-progress-container user-side">
+                 <div class="progress-info">
+                    <span class="file-name"><span class="icon">📄</span> {{ message.fileProgress.currentFile }}</span>
+                    <span class="percent">{{ message.fileProgress.percent }}%</span>
+                 </div>
+                 <div class="progress-bar-track">
+                    <div class="progress-bar-fill" :style="{ width: message.fileProgress.percent + '%' }"></div>
+                 </div>
+                 <div class="progress-detail">{{ message.fileProgress.detail }}</div>
             </div>
 
             <div class="bubble user">
@@ -175,17 +197,7 @@ const formatBytes = (bytes) => {
           
           <div ref="messageRef" class="prose-content prose" v-if="message.content" v-html="render(message.content)"></div>
           
-          <!-- File Processing Progress (Replaces typing indicator when active) -->
-          <div v-if="message.fileProgress && message.fileProgress.percent < 100" class="file-progress-container">
-             <div class="progress-info">
-                <span class="file-name"><span class="icon">📄</span> {{ message.fileProgress.currentFile }}</span>
-                <span class="percent">{{ message.fileProgress.percent }}%</span>
-             </div>
-             <div class="progress-bar-track">
-                <div class="progress-bar-fill" :style="{ width: message.fileProgress.percent + '%' }"></div>
-             </div>
-             <div class="progress-detail">{{ message.fileProgress.detail }}</div>
-          </div>
+
           
           <!-- Typing Indicator / Status (Dynamic) -->
           <div v-else-if="!message.content || (message.status && message.status !== '')" class="typing-indicator">
