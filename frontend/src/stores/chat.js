@@ -314,7 +314,10 @@ export const useChatStore = defineStore('chat', () => {
             messages.value[assistantIndex].error = true
         } finally {
             isStreaming.value = false
-            console.log('[ChatStore] Stream finished')
+            // Trigger token usage update on frontend
+            const authStore = (await import('./auth')).useAuthStore()
+            authStore.tokenUpdateTrigger++
+            console.log('[ChatStore] Stream finished and token update triggered')
         }
     }
 

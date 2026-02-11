@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import axios from 'axios'
 import { useAuthStore } from '@/stores/auth'
 
@@ -26,6 +26,12 @@ const fetchUsage = async () => {
         console.error('Failed to fetch token usage:', error)
     }
 }
+
+// Watch for manual triggers from other components (like ChatStore)
+watch(() => authStore.tokenUpdateTrigger, () => {
+    console.log('[TokenUsageBar] Manual refresh triggered')
+    fetchUsage()
+})
 
 onMounted(() => {
     fetchUsage()

@@ -6,6 +6,7 @@ export const useAuthStore = defineStore('auth', () => {
     const user = ref(null)
     const token = ref(null)
     const isLoading = ref(false)
+    const tokenUpdateTrigger = ref(0)
 
     const isAuthenticated = computed(() => !!token.value)
     const userRole = computed(() => user.value?.role || 'guest')
@@ -118,6 +119,7 @@ export const useAuthStore = defineStore('auth', () => {
         department,
         profilePicture,
         displayName,
+        tokenUpdateTrigger,
         init,
         setAuth,
         logout,
