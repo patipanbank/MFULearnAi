@@ -91,15 +91,15 @@ const normalizeMessages = (messages: any[]) => {
                 else if (block.type === 'image') content.push({ image: block.source });
                 // Enhancement 2: Native Document Support
                 else if (block.type === 'document') {
+                    const docBytes = typeof block.data === 'string'
+                        ? Buffer.from(block.data, 'base64')
+                        : block.data;
+                    console.log(`[Bedrock Text] Document block found: name="${block.name}", format="${block.format}", dataSize=${docBytes?.length || 0} bytes`);
                     content.push({
                         document: {
                             format: block.format || 'pdf',
                             name: block.name || 'document',
-                            source: {
-                                bytes: typeof block.data === 'string'
-                                    ? Buffer.from(block.data, 'base64')
-                                    : block.data
-                            }
+                            source: { bytes: docBytes }
                         }
                     });
                 }
@@ -323,9 +323,24 @@ app.post('/api/bedrock/chat', async (req: Request, res: Response) => {
             if (guardrailConfig) converseInput.guardrailConfig = guardrailConfig;
             if (additionalModelRequestFields) converseInput.additionalModelRequestFields = additionalModelRequestFields;
 
-            const command = new ConverseCommand(converseInput);
+            // Diagnostic: log document blocks in request
+            const docBlockCount = formattedMessages.reduce((sum: number, m: any) => {
+                if (!Array.isArray(m.content)) return sum;
+                return sum + m.content.filter((c: any) => c.document).length;
+            }, 0);
+            console.log(`[Bedrock Text] Sending ConverseCommand to ${finalModelId}, docBlocks=${docBlockCount}, messageCount=${formattedMessages.length}`);
+            if (docBlockCount > 0) {
+                formattedMessages.forEach((m: any, idx: number) => {
+                    if (!Array.isArray(m.content)) return;
+                    m.content.forEach((c: any, cIdx: number) => {
+                        if (c.document) {
+                            console.log(`[Bedrock Text]   msg[${idx}].content[${cIdx}]: document name="${c.document.name}", format="${c.document.format}", bytesLength=${c.document.source?.bytes?.length || 0}`);
+                        }
+                    });
+                });
+            }
 
-            console.log(`[Bedrock Text] Sending ConverseCommand to ${finalModelId}`);
+            const command = new ConverseCommand(converseInput);
             const response = await client.send(command);
 
             const outputMessage = response.output?.message;

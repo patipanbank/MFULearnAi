@@ -119,7 +119,15 @@ export class BedrockService {
         // Retry loop with exponential backoff
         for (let attempt = 0; attempt <= RETRY_CONFIG.maxRetries; attempt++) {
             try {
-                LoggerService.info('bedrock_sendchat', { modelId, attempt, hasTools: !!toolConfig });
+                // Diagnostic: count doc blocks in messages for logging
+                const docBlockCount = messages.reduce((sum: number, m: any) => {
+                    if (Array.isArray(m.content)) {
+                        return sum + m.content.filter((b: any) => b.type === 'document').length;
+                    }
+                    return sum;
+                }, 0);
+
+                LoggerService.info('bedrock_sendchat', { modelId, attempt, hasTools: !!toolConfig, docBlocks: docBlockCount });
 
                 const response = await axios({
                     method: 'post',
@@ -130,7 +138,9 @@ export class BedrockService {
                         'x-correlation-id': ContextService.getCorrelationId()
                     },
                     responseType: 'json',
-                    timeout: 60000
+                    timeout: 120000,            // Increase timeout for large file payloads
+                    maxBodyLength: Infinity,     // Prevent silent truncation of large base64 payloads
+                    maxContentLength: Infinity
                 });
 
                 // Robust content extraction
