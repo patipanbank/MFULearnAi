@@ -244,12 +244,21 @@ ${newMessages.map(m => `${m.role}: ${m.content}`).join('\n')}
 `;
 
         try {
-            const { text: response } = await BedrockService.sendChat(
+            const { text: response, usage } = await BedrockService.sendChat(
                 MODELS.FAST,
                 [{ role: 'user', content: prompt }],
                 SummarizationService.ROLLING_PROMPT,
                 0.1
             );
+
+            if (usage) {
+                LoggerService.info('chat_completion', {
+                    tokens: usage,
+                    model: MODELS.FAST,
+                    action: 'rolling_summary',
+                    isBackground: true
+                });
+            }
 
             // Robust SENTINEL Parsing
             const jsonMatch = response.match(/<json>([\s\S]*?)<\/json>/);
@@ -291,12 +300,21 @@ ${JSON.stringify(rollingContext, null, 2)}
 `;
 
         try {
-            const { text: response } = await BedrockService.sendChat(
+            const { text: response, usage } = await BedrockService.sendChat(
                 MODELS.FAST,
                 [{ role: 'user', content: prompt }],
                 SummarizationService.CANONIZATION_PROMPT,
                 0.1
             );
+
+            if (usage) {
+                LoggerService.info('chat_completion', {
+                    tokens: usage,
+                    model: MODELS.FAST,
+                    action: 'canonization',
+                    isBackground: true
+                });
+            }
             return response.trim();
         } catch (e) {
             LoggerService.error('Canonization LLM call failed', e);
@@ -313,12 +331,21 @@ ${JSON.stringify(rollingContext, null, 2)}
             const prompt = `Generate a very short, catchy 3-5 word title for a conversation starting with: "${firstMessage}"
             Output ONLY the title string, no quotes or prefix.`;
 
-            const { text: rawTitle } = await BedrockService.sendChat(
+            const { text: rawTitle, usage } = await BedrockService.sendChat(
                 MODELS.FAST,
                 [{ role: 'user', content: prompt }],
                 'You are a creative writer.',
                 0.7
             );
+
+            if (usage) {
+                LoggerService.info('chat_completion', {
+                    tokens: usage,
+                    model: MODELS.FAST,
+                    action: 'title_generation',
+                    isBackground: true
+                });
+            }
 
             let title = rawTitle;
             try {

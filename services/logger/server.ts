@@ -271,13 +271,15 @@ app.get('/api/logs/stats', async (req: Request, res: Response) => {
 // --- Usage Dashboard Stats (Tokens, Users) ---
 app.get('/api/logs/usage', async (req: Request, res: Response) => {
     try {
+        const TZ_OFFSET = 7 * 60 * 60 * 1000;
         const now = new Date();
-        const startOfDay = new Date(now);
-        startOfDay.setHours(0, 0, 0, 0);
+        const bangkokNow = new Date(now.getTime() + TZ_OFFSET);
 
-        const sevenDaysAgo = new Date(now);
+        const startOfDay = new Date(bangkokNow.getUTCFullYear(), bangkokNow.getUTCMonth(), bangkokNow.getUTCDate());
+        const startOfDayUTC = new Date(startOfDay.getTime() - TZ_OFFSET);
+
+        const sevenDaysAgo = new Date(startOfDayUTC);
         sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-        sevenDaysAgo.setHours(0, 0, 0, 0);
 
         // 1. Total & Today
         const [totalStats, todayStats] = await Promise.all([
@@ -286,7 +288,7 @@ app.get('/api/logs/usage', async (req: Request, res: Response) => {
                 { $group: { _id: null, totalTokens: { $sum: "$details.tokens.total" }, totalRequests: { $sum: 1 } } }
             ]),
             LogEntry.aggregate([
-                { $match: { action: 'chat_completion', environment: ENV_TYPE, timestamp: { $gte: startOfDay } } },
+                { $match: { action: 'chat_completion', environment: ENV_TYPE, timestamp: { $gte: startOfDayUTC } } },
                 {
                     $group: {
                         _id: null,
@@ -303,7 +305,7 @@ app.get('/api/logs/usage', async (req: Request, res: Response) => {
             { $match: { action: 'chat_completion', environment: ENV_TYPE, timestamp: { $gte: sevenDaysAgo } } },
             {
                 $group: {
-                    _id: { $dateToString: { format: "%Y-%m-%d", date: "$timestamp" } },
+                    _id: { $dateToString: { format: "%Y-%m-%d", date: "$timestamp", timezone: "+07:00" } },
                     tokens: { $sum: "$details.tokens.total" },
                     requests: { $sum: 1 },
                     users: { $addToSet: "$userId" }
@@ -355,9 +357,10 @@ app.get('/api/logs/usage/me', async (req: Request, res: Response) => {
         const { userId } = req.query;
         if (!userId) return res.status(400).json({ error: 'User ID required' });
 
+        const TZ_OFFSET = 7 * 60 * 60 * 1000;
         const now = new Date();
-        const startOfDay = new Date(now);
-        startOfDay.setHours(0, 0, 0, 0);
+        const bangkokNow = new Date(now.getTime() + TZ_OFFSET);
+        const startOfDayUTC = new Date(new Date(bangkokNow.getUTCFullYear(), bangkokNow.getUTCMonth(), bangkokNow.getUTCDate()).getTime() - TZ_OFFSET);
 
         // Aggregate User Stats
         const [userTotal, userToday] = await Promise.all([
@@ -393,7 +396,7 @@ app.get('/api/logs/usage/me', async (req: Request, res: Response) => {
                         action: { $in: ['chat_completion', 'agent_reliability_telemetry'] },
                         environment: ENV_TYPE,
                         userId: userId,
-                        timestamp: { $gte: startOfDay }
+                        timestamp: { $gte: startOfDayUTC }
                     }
                 },
                 {

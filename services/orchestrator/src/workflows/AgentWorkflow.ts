@@ -517,6 +517,15 @@ ${JSON.stringify(smartContext?.rolling || {}, null, 2)}`
                 await HistoryService.addMessage(userId, sessionId, assistantMessage);
                 await HistoryService.saveToPersistentStorage(userId, sessionId, [currentMessage, assistantMessage], { totalTokens: totalUsage.total }, process.env.ENV_TYPE || 'TEST', MODELS.PRIMARY);
 
+                // Log Token Usage for Dashboard
+                LoggerService.info('chat_completion', {
+                    tokens: totalUsage,
+                    model: MODELS.PRIMARY,
+                    steps,
+                    sessionId,
+                    traceId
+                }, userId);
+
                 // 8. Background Summarization (fire-and-forget)
                 SummarizationService.runUpdate(userId, sessionId, [currentMessage, assistantMessage], smartContext || {
                     canonical: '', rolling: { facts: [], intent: { primary: 'QUERY', confidence: 1 }, constraints: [], decisions: [], open_questions: [], confidence_score: 1 },
