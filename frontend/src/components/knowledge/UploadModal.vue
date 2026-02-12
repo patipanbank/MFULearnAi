@@ -6,7 +6,6 @@ import { useAuthStore } from '@/stores/auth'
 const emit = defineEmits(['close', 'success'])
 const knowledgeStore = useKnowledgeStore()
 const authStore = useAuthStore()
-const isAdmin = authStore.role === 'admin'
 
 const file = ref(null)
 const type = ref('personal')
@@ -46,7 +45,7 @@ const handleUpload = async () => {
 
 <template>
   <div class="modal-overlay" @click.self="emit('close')">
-    <div class="modal-card">
+    <div class="knowledge-modal">
        <h2>Upload Knowledge</h2>
        
        <div class="form-group">
@@ -90,10 +89,18 @@ const handleUpload = async () => {
 </template>
 
 <style scoped>
-/* Uses global .modal-overlay from main.css */
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+}
 
-.modal-card {
-    background-color: var(--color-bg-card);
+.knowledge-modal {
+    background-color: var(--color-bg-card, #202020);
     padding: 24px;
     border-radius: 12px;
     width: 400px;

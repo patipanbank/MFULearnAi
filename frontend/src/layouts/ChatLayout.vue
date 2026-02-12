@@ -18,7 +18,7 @@ const userName = computed(() => authStore.displayName || t('guest'))
 const userInitial = computed(() => authStore.displayName?.charAt(0)?.toUpperCase() || 'U')
 
 const checkMobile = () => {
-  isMobile.value = window.innerWidth < 1024
+  isMobile.value = window.innerWidth < 768
   if (!isMobile.value) {
     isSidebarOpen.value = false // Reset on desktop
   }

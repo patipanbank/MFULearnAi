@@ -241,7 +241,7 @@ const handleRetry = async (id) => {
 
 .mobile-only { display: none; }
 
-@media (max-width: 1024px) {
+@media (max-width: 768px) {
     .desktop-only { display: none; }
     .mobile-only { display: flex; flex-direction: column; gap: 12px; }
 }
@@ -285,6 +285,11 @@ const handleRetry = async (id) => {
     color: var(--color-text-muted);
 }
 
+.card-actions {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+}
 
 .data-table {
   width: 100%;

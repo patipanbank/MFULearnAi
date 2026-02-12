@@ -269,33 +269,4 @@ const close = () => {
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-
-@media (max-width: 640px) {
-    .pdf-modal-container {
-        width: 100vw;
-        height: 100vh;
-        border-radius: 0;
-    }
-
-    .pdf-header {
-        padding: 0 10px;
-        flex-wrap: wrap;
-        height: auto;
-        min-height: 44px;
-        gap: 4px;
-        padding-top: 6px;
-        padding-bottom: 6px;
-    }
-
-    .file-name {
-        max-width: 120px;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-    }
-
-    .pdf-body {
-        padding: 8px;
-    }
-}
 </style>

@@ -489,42 +489,12 @@ onUnmounted(() => {
 .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
 .custom-scrollbar::-webkit-scrollbar-thumb { background: var(--color-border); border-radius: 4px; }
 
-@media (max-width: 1024px) {
+@media (max-width: 768px) {
     .dropdown-menu {
         width: 90%;
         max-width: 320px;
         left: 50% !important;
         transform: translateX(-50%) !important;
-    }
-}
-
-@media (max-width: 640px) {
-    .selector-trigger {
-        padding: 4px 8px;
-        gap: 6px;
-        border-radius: 8px;
-    }
-
-    .selector-icon {
-        width: 24px;
-        height: 24px;
-        border-radius: 6px;
-    }
-
-    .selector-icon svg {
-        width: 12px;
-        height: 12px;
-    }
-
-    .label-main {
-        font-size: 12px;
-    }
-
-    .dropdown-menu {
-        width: 95vw;
-        max-width: none;
-        left: 2.5vw !important;
-        transform: none !important;
     }
 }
 </style>

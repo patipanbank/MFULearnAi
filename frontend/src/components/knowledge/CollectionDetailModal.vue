@@ -93,7 +93,7 @@ const handleRemove = async (knowledgeId) => {
 
 <template>
   <div class="modal-overlay" @click="$emit('close')">
-    <div class="modal-card" @click.stop>
+    <div class="collection-modal" @click.stop>
       <div class="modal-header">
         <div class="header-content">
             <h3>{{ collection.name }}</h3>
@@ -154,9 +154,21 @@ const handleRemove = async (knowledgeId) => {
 </template>
 
 <style scoped>
-/* Uses global .modal-overlay from main.css */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  backdrop-filter: blur(4px);
+}
 
-.modal-card {
+.collection-modal {
   background: var(--color-bg-card);
   padding: 0;
   border-radius: 12px;

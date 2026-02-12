@@ -61,24 +61,4 @@ p {
   font-size: 16px;
   color: var(--color-text-secondary);
 }
-
-@media (max-width: 640px) {
-  .welcome {
-    padding: 24px 16px;
-  }
-
-  .logo-large {
-    width: 80px;
-    height: 80px;
-    margin-bottom: 16px;
-  }
-
-  h1 {
-    font-size: 22px;
-  }
-
-  p {
-    font-size: 14px;
-  }
-}
 </style>

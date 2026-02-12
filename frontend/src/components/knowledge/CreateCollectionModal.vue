@@ -74,7 +74,7 @@ const handleDelete = async () => {
 
 <template>
   <div class="modal-overlay" @click.self="emit('close')">
-    <div class="modal-card">
+    <div class="knowledge-modal">
        <h2>{{ isEditMode ? 'Edit Collection' : 'New Collection' }}</h2>
        
        <div class="form-group">
@@ -110,10 +110,18 @@ const handleDelete = async () => {
 </template>
 
 <style scoped>
-/* Uses global .modal-overlay from main.css */
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+}
 
-.modal-card {
-    background-color: var(--color-bg-card);
+.knowledge-modal {
+    background-color: var(--color-bg-card, #202020);
     padding: 24px;
     border-radius: 12px;
     width: 400px;

@@ -40,7 +40,7 @@ const toggleReadMode = () => showReadMode.value = !showReadMode.value
 
 <template>
   <div class="modal-overlay" @click="$emit('close')">
-    <div class="modal-card" @click.stop>
+    <div class="knowledge-modal" @click.stop>
       <div class="modal-header">
         <h3>Knowledge Details</h3>
         <button class="close-btn" @click="$emit('close')">×</button>
@@ -145,9 +145,21 @@ const toggleReadMode = () => showReadMode.value = !showReadMode.value
 </template>
 
 <style scoped>
-/* Uses global .modal-overlay from main.css */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1100;
+  backdrop-filter: blur(4px);
+}
 
-.modal-card {
+.knowledge-modal {
   background: var(--color-bg-card);
   padding: 24px;
   border-radius: 12px;
