@@ -47,10 +47,12 @@ onMounted(() => {
       </div>
       
         <!-- Premium Knowledge Selector -->
-        <div v-if="route.path.includes('/chat') && knowledgeStore.collections.length > 0" class="ml-6 flex items-center gap-4" style="display: flex; align-items: center; gap: 16px;">
+        <div v-if="route.path.includes('/chat') && knowledgeStore.collections.length > 0" class="knowledge-container">
             <KnowledgeSelector />
             <!-- Token Usage Bar -->
-            <TokenUsageBar v-if="authStore.user" />
+            <div class="hidden-mobile">
+                <TokenUsageBar v-if="authStore.user" />
+            </div>
         </div>
     </div>
     
@@ -72,16 +74,18 @@ onMounted(() => {
   justify-content: space-between;
   padding: 0 24px;
   background: var(--color-bg-primary);
-  /* border-bottom: 1px solid var(--color-border); */
   flex-shrink: 0;
   z-index: 40;
   position: relative;
+  width: 100%;
 }
 
 .header-left {
   display: flex;
   align-items: center;
   gap: 16px;
+  flex: 1;
+  min-width: 0; /* Allow flex children to shrink */
 }
 
 .btn-menu {
@@ -92,7 +96,6 @@ onMounted(() => {
   justify-content: center;
   background: transparent;
   border: 1px solid var(--color-border);
-  border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   color: var(--color-text-secondary);
   cursor: pointer;
@@ -100,49 +103,16 @@ onMounted(() => {
   flex-shrink: 0;
 }
 
-@media (max-width: 640px) {
-    .btn-menu {
-        width: 100%;
-        height: 100%;
-        aspect-ratio: 1; /* Keep it square-ish if possible, or just fit */
-        border: none;
-        padding: 0;
-    }
-}
-
 .btn-menu:hover {
   background: var(--color-bg-hover);
   color: var(--color-text-primary);
-}
-
-.app-brand {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.logo-emoji {
-  font-size: 24px;
 }
 
 .app-branding {
   display: flex;
   align-items: center;
   gap: 12px;
-  /* margin-right: 24px; REMOVED to keep it tighter to the left */
-}
-
-.logo-small {
-  width: 32px;
-  height: 32px;
   flex-shrink: 0;
-}
-
-.header-logo-img {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  border-radius: 50%;
 }
 
 .app-name {
@@ -158,7 +128,7 @@ onMounted(() => {
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
-  color: transparent; /* Fallback */
+  color: transparent;
 }
 
 .ai-gradient {
@@ -166,12 +136,23 @@ onMounted(() => {
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
-  color: transparent; /* Fallback */
+  color: transparent;
+}
+
+.knowledge-container {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-left: 24px;
+    flex: 0 1 auto;
+    min-width: 0;
 }
 
 .header-right {
   display: flex;
   align-items: center;
+  flex-shrink: 0;
+  padding-left: 16px;
 }
 
 .user-display {
@@ -211,52 +192,49 @@ onMounted(() => {
   padding-right: 4px;
 }
 
-
+/* Helper to hide elements on mobile */
+.hidden-mobile {
+    display: flex;
+}
 
 @media (max-width: 640px) {
-  .user-name { display: none; }
-  
   .chat-header {
-      padding: 0 8px; /* Reduced outer padding */
-      gap: 4px; /* Small gap to separate sections */
-  }
-
-  .header-left {
-      flex: 1; /* Grows to take up 90% space alongside header-right */
-      width: 90%; /* Logic: 10% hamburger + 80% selector */
+      padding: 0 12px;
       gap: 8px;
   }
+
+  .btn-menu {
+      border: none;
+      padding: 0;
+      width: 40px;
+  }
+
+  /* Hide Branding text on mobile to save space */
+  .app-name {
+      display: none;
+  }
   
-  .header-right {
-      flex: 0 0 10%; /* Fixed 10% width */
-      display: flex;
-      justify-content: center;
+  /* Reset margins and gaps for the container */
+  .knowledge-container {
+      margin-left: 0;
+      gap: 8px;
+      flex: 1; /* Let it grow to fill space */
+      max-width: 100%;
   }
 
-  /* Hamburger Container */
-  .header-left > .btn-menu {
-      flex: 0 0 10%; /* 10% of the left container? No, 10% of total screen roughly */
-      width: 40px; /* Fallback */
-      min-width: 32px;
+  /* Hide Token Usage on mobile */
+  .hidden-mobile {
+      display: none;
   }
 
-  /* Knowledge Selector Container */
-  .header-left > .ml-6 {
-      margin-left: 0 !important;
-      flex: 0 1 auto; /* Allow shrinking but don't force grow */
-      width: auto;
-      max-width: 150px; /* Constrain width on mobile specifically */
-      min-width: 0;
+  .user-name { 
+      display: none; 
   }
   
   .user-display {
       padding: 0;
       border: none;
       background: transparent;
-  }
-  .user-avatar {
-      width: 32px;
-      height: 32px;
   }
 }
 </style>
