@@ -190,6 +190,20 @@ onMounted(() => {
   padding-right: 4px;
 }
 
+@media (max-width: 1024px) {
+  .user-name {
+      display: none;
+  }
+  
+  .app-name {
+      font-size: 20px;
+  }
+  
+  .knowledge-container {
+      margin-left: 12px;
+  }
+}
+
 @media (max-width: 640px) {
   .chat-header {
       padding: 0 8px; /* Minimize padding */

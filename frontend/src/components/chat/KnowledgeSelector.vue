@@ -314,17 +314,16 @@ onUnmounted(() => {
     max-width: 100%; /* DO NOT hardcode pixels on desktop if flex is sufficient, but keeping for safety in other contexts */
 }
 
-@media (max-width: 640px) {
+@media (max-width: 1024px) {
     .label-main {
         font-size: 13px;
-        /* Width is handled by flex parent constraints */
     }
 }
 
 .mobile-label { display: none; }
 .desktop-label { display: block; }
 
-@media (max-width: 640px) {
+@media (max-width: 1024px) {
     .mobile-label { display: block; }
     .desktop-label { display: none; }
 }

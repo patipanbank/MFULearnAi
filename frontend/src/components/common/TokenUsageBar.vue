@@ -105,7 +105,7 @@ const formatNumber = (num) => {
     transition: width 0.5s ease;
 }
 
-@media (max-width: 640px) {
+@media (max-width: 1024px) {
     .token-usage-container {
         padding: 0;
         gap: 4px;
