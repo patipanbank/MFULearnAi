@@ -57,7 +57,9 @@ const formatNumber = (num) => {
 <template>
   <div class="token-usage-container" :title="`Used ${formatNumber(usage.today.tokens)} tokens today (Soft Limit: ${formatNumber(DAILY_LIMIT)})`">
     <div class="token-text">
-        TOKEN {{ formatNumber(usage.today.tokens) }}/{{ formatNumber(DAILY_LIMIT) }}
+        <span class="token-label">TOKEN </span>
+        <span class="token-value">{{ formatNumber(usage.today.tokens) }}</span>
+        <span class="token-limit">/{{ formatNumber(DAILY_LIMIT) }}</span>
     </div>
     
     <div class="progress-bg">
@@ -84,6 +86,8 @@ const formatNumber = (num) => {
     color: var(--color-text-secondary); /* Muted text */
     white-space: nowrap;
     letter-spacing: 0.05em;
+    display: flex;
+    gap: 2px;
 }
 
 .progress-bg {
@@ -99,5 +103,30 @@ const formatNumber = (num) => {
     background: var(--color-accent);
     border-radius: 2px;
     transition: width 0.5s ease;
+}
+
+@media (max-width: 640px) {
+    .token-usage-container {
+        padding: 0;
+        gap: 4px;
+        height: auto;
+    }
+    
+    .token-label,
+    .token-limit {
+        display: none;
+    }
+    
+    .progress-bg {
+        display: none; /* Hide progress bar on mobile to save space */
+    }
+    
+    .token-value {
+        font-size: 10px;
+        background: var(--color-bg-tertiary);
+        padding: 2px 6px;
+        border-radius: 4px;
+        color: var(--color-text-primary);
+    }
 }
 </style>

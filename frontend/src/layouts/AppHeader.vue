@@ -50,9 +50,7 @@ onMounted(() => {
         <div v-if="route.path.includes('/chat') && knowledgeStore.collections.length > 0" class="knowledge-container">
             <KnowledgeSelector />
             <!-- Token Usage Bar -->
-            <div class="hidden-mobile">
-                <TokenUsageBar v-if="authStore.user" />
-            </div>
+            <TokenUsageBar v-if="authStore.user" />
         </div>
     </div>
     
@@ -192,39 +190,38 @@ onMounted(() => {
   padding-right: 4px;
 }
 
-/* Helper to hide elements on mobile */
-.hidden-mobile {
-    display: flex;
-}
-
 @media (max-width: 640px) {
   .chat-header {
-      padding: 0 12px;
-      gap: 8px;
+      padding: 0 8px; /* Minimize padding */
+      gap: 4px;
   }
 
   .btn-menu {
       border: none;
       padding: 0;
-      width: 40px;
+      width: 32px; /* Shrink button space */
   }
 
-  /* Hide Branding text on mobile to save space */
+  .app-branding {
+      gap: 4px;
+  }
+
   .app-name {
-      display: none;
+      display: block; /* Show name */
+      font-size: 16px; /* Smaller font */
   }
   
-  /* Reset margins and gaps for the container */
+  /* Container adjustments */
   .knowledge-container {
-      margin-left: 0;
+      margin-left: 8px; /* Small gap */
       gap: 8px;
-      flex: 1; /* Let it grow to fill space */
-      max-width: 100%;
+      flex: 1; 
+      min-width: 0;
+      justify-content: flex-end; /* Push items to align nicely if space allows */
   }
-
-  /* Hide Token Usage on mobile */
-  .hidden-mobile {
-      display: none;
+  
+  .header-right {
+      padding-left: 8px;
   }
 
   .user-name { 
