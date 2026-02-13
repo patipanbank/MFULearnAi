@@ -112,21 +112,34 @@ const formatNumber = (num) => {
         height: auto;
     }
     
-    .token-label,
-    .token-limit {
+    .token-label {
         display: none;
+    }
+    
+    /* Show limit on mobile now */
+    .token-limit {
+        display: block;
+        opacity: 0.7;
     }
     
     .progress-bg {
         display: none; /* Hide progress bar on mobile to save space */
     }
     
-    .token-value {
+    /* Apply badge style to the whole text container */
+    .token-text {
         font-size: 10px;
         background: var(--color-bg-tertiary);
         padding: 2px 6px;
         border-radius: 4px;
         color: var(--color-text-primary);
+    }
+
+    .token-value {
+        /* Reset individual style */
+        background: none;
+        padding: 0;
+        color: inherit;
     }
 }
 </style>
