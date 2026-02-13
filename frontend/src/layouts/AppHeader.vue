@@ -243,8 +243,9 @@ onMounted(() => {
   /* Knowledge Selector Container */
   .header-left > .ml-6 {
       margin-left: 0 !important;
-      flex: 1; /* Take remaining space (80%) */
-      width: 100%;
+      flex: 0 1 auto; /* Allow shrinking but don't force grow */
+      width: auto;
+      max-width: 150px; /* Constrain width on mobile specifically */
       min-width: 0;
   }
   
