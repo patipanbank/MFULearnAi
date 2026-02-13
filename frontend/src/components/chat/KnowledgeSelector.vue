@@ -6,7 +6,7 @@ import { useLanguage } from '@/composables/useSettings'
 
 const chatStore = useChatStore()
 const knowledgeStore = useKnowledgeStore()
-const { t } = useLanguage()
+const { t, lang } = useLanguage()
 
 const isOpen = ref(false)
 const searchQuery = ref('')
@@ -18,6 +18,15 @@ const currentCollectionName = computed(() => {
     if (!chatStore.currentCollectionId) return t('defaultCollection')
     const col = knowledgeStore.collections.find(c => c._id === chatStore.currentCollectionId)
     return col ? col.name : t('defaultCollection')
+})
+
+const mobileLabel = computed(() => {
+    const full = currentCollectionName.value
+    // Shorten default names
+    if (full.includes('Default Collection') || full.includes('คอลเลกชันมาตรฐาน')) {
+        return lang.value === 'th' ? 'ค่าเริ่มต้น' : 'Default'
+    }
+    return full
 })
 
 const currentIcon = computed(() => {
@@ -120,7 +129,8 @@ onUnmounted(() => {
             </div>
 
             <div class="label-wrapper">
-                <span class="label-main">{{ currentCollectionName }}</span>
+                <span class="label-main desktop-label">{{ currentCollectionName }}</span>
+                <span class="label-main mobile-label">{{ mobileLabel }}</span>
             </div>
 
             <svg 
@@ -309,6 +319,14 @@ onUnmounted(() => {
         font-size: 13px;
         /* Width is handled by flex parent constraints */
     }
+}
+
+.mobile-label { display: none; }
+.desktop-label { display: block; }
+
+@media (max-width: 640px) {
+    .mobile-label { display: block; }
+    .desktop-label { display: none; }
 }
 
 .chevron {
