@@ -191,10 +191,6 @@ onMounted(() => {
 }
 
 @media (max-width: 1024px) {
-  .user-name {
-      display: none;
-  }
-  
   .app-name {
       font-size: 20px;
   }
