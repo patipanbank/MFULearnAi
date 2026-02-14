@@ -71,6 +71,7 @@ onMounted(() => {
   align-items: center;
   justify-content: space-between;
   padding: 0 24px;
+  padding-top: env(safe-area-inset-top, 0px);
   background: var(--color-bg-primary);
   /* border-bottom: 1px solid var(--color-border); */
   flex-shrink: 0;
@@ -233,6 +234,16 @@ onMounted(() => {
   .user-avatar {
       width: 32px;
       height: 32px;
+  }
+
+  .app-branding .app-name {
+      font-size: 18px;
+  }
+}
+
+@media (max-width: 400px) {
+  .app-branding {
+      display: none;
   }
 }
 </style>

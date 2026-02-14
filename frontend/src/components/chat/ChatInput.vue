@@ -152,6 +152,7 @@ defineExpose({
 <style scoped>
 .input-area {
   padding: 16px 24px 24px;
+  padding-bottom: max(24px, env(safe-area-inset-bottom, 24px));
   /* border-top: 1px solid var(--color-border); */
   background: var(--color-bg-primary);
 }
@@ -391,6 +392,7 @@ defineExpose({
 @media (max-width: 768px) {
   .input-area {
     padding: 12px 16px 20px;
+    padding-bottom: max(20px, env(safe-area-inset-bottom, 20px));
   }
   
   .input-row {
@@ -400,6 +402,17 @@ defineExpose({
   .btn-attach, .btn-send {
     width: 36px;
     height: 36px;
+  }
+
+  .input-footer {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+
+  .disclaimer {
+    text-align: left;
+    font-size: 10px;
   }
 }
 </style>

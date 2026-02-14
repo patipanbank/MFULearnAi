@@ -176,6 +176,7 @@ const handleDeleteSession = async (sessionId) => {
   top: 0;
   left: 0;
   height: 100vh;
+  height: 100dvh;
   width: 280px; /* Full width sidebar on mobile */
   transform: translateX(-100%);
   transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -357,6 +358,7 @@ const handleDeleteSession = async (sessionId) => {
 .sidebar-footer {
   border-top: 1px solid var(--color-border);
   padding: 16px;
+  padding-bottom: max(16px, env(safe-area-inset-bottom, 16px));
   background-color: var(--color-bg-primary); 
   flex-shrink: 0;
 }
