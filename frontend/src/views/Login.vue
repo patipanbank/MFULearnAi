@@ -65,7 +65,7 @@ const handleAdminLogin = async () => {
 </script>
 
 <template>
-  <div class="login-container" :style="{ '--bg-image': `url(${currentBg})` }">
+  <div class="login-container" :style="{ '--bg-image': `url(${currentBg})`, '--overlay-gradient': overlayGradient }">
     <div class="login-card fade-in">
       <!-- Logo & Title -->
       <div class="login-header">
@@ -166,19 +166,6 @@ const handleAdminLogin = async () => {
   transform: scale(1.05);
   z-index: 0;
   transition: background-image 0.5s ease-in-out;
-}
-
-/* Theme Awareness */
-:root {
-  --overlay-gradient: linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)); /* Default Dark */
-}
-
-:root[data-theme='light'] {
-  --overlay-gradient: linear-gradient(rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0.3)); /* Light Mode */
-}
-
-:root[data-theme='dark'] {
-  --overlay-gradient: linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)); /* Dark Mode */
 }
 
 .login-card {
