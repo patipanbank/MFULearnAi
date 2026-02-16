@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { useLanguage } from '@/composables/useSettings'
+import { useLanguage, useTheme } from '@/composables/useSettings'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth' // Assuming auth store exists
 import axios from 'axios'
@@ -158,14 +158,27 @@ const handleAdminLogin = async () => {
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
-  /* Dim (Dark Overlay via Linear Gradient) combined with Image Variable */
-  background-image: linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)), var(--bg-image); 
-  /* Blur */
-  filter: blur(8px);
+  /* Dim (Dark Overlay) or Lighten (White Overlay) based on theme */
+  background-image: var(--overlay-gradient), var(--bg-image); 
+  /* Blur (Reduced) */
+  filter: blur(4px);
   /* Scale up slightly to hide blurred edges */
   transform: scale(1.05);
   z-index: 0;
   transition: background-image 0.5s ease-in-out;
+}
+
+/* Theme Awareness */
+:root {
+  --overlay-gradient: linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)); /* Default Dark */
+}
+
+:root[data-theme='light'] {
+  --overlay-gradient: linear-gradient(rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0.3)); /* Light Mode */
+}
+
+:root[data-theme='dark'] {
+  --overlay-gradient: linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)); /* Dark Mode */
 }
 
 .login-card {
