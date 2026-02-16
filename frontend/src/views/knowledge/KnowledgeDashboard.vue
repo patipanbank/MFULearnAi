@@ -144,7 +144,7 @@ const closeCollectionModal = () => {
         v-if="showCollectionModal"
         :collection="editingCollection"
         @close="closeCollectionModal"
-        @success="closeCollectionModal; knowledgeStore.fetchCollections()"
+        @success="closeCollectionModal(); knowledgeStore.fetchCollections()"
       />
 
       <KnowledgeDetailModal
