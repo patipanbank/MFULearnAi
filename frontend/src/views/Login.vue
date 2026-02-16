@@ -1,10 +1,16 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useLanguage } from '@/composables/useSettings'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth' // Assuming auth store exists
 import axios from 'axios'
 import dindinLogo from '@/assets/dindin-ai.png' // Import explicitly to ensure Vite handles it
+
+// Import background images
+import bg0600 from '@/assets/0600.jpg'
+import bg1200 from '@/assets/1200.jpg'
+import bg1600 from '@/assets/1600.jpg'
+import bg1900 from '@/assets/1900.jpg'
 
 const { t } = useLanguage()
 const route = useRoute()
@@ -13,6 +19,17 @@ const authStore = useAuthStore()
 
 const envName = import.meta.env.VITE_ENV_NAME || 'MFULearnAI'
 // const envType = import.meta.env.VITE_ENV_TYPE || 'TEST' // Staging badge removed
+
+// Background Image Logic
+const getBackgroundImage = () => {
+    const hour = new Date().getHours()
+    if (hour >= 6 && hour < 12) return bg0600
+    if (hour >= 12 && hour < 16) return bg1200
+    if (hour >= 16 && hour < 19) return bg1600
+    return bg1900
+}
+
+const currentBg = ref(getBackgroundImage())
 
 // Admin Login Logic
 const isAdminMode = computed(() => route.query.mode === 'admin')
@@ -48,7 +65,7 @@ const handleAdminLogin = async () => {
 </script>
 
 <template>
-  <div class="login-container">
+  <div class="login-container" :style="{ backgroundImage: `url(${currentBg})` }">
     <div class="login-card fade-in">
       <!-- Logo & Title -->
       <div class="login-header">
@@ -123,9 +140,13 @@ const handleAdminLogin = async () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--color-bg-dark);
+  background-color: var(--color-bg-dark); /* Fallback */
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
   position: relative;
   overflow: hidden;
+  transition: background-image 0.5s ease-in-out;
 }
 
 .login-card {
