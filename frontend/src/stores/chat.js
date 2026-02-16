@@ -88,6 +88,26 @@ export const useChatStore = defineStore('chat', () => {
         }
     }
 
+    // AbortController for cancelling requests
+    let abortController = null
+
+    // Stop generation
+    function stopGeneration() {
+        if (abortController) {
+            abortController.abort()
+            abortController = null
+            isStreaming.value = false
+
+            // Optional: Add a system message or mark last message as stopped
+            if (messages.value.length > 0) {
+                const lastMsg = messages.value[messages.value.length - 1]
+                if (lastMsg.role === 'assistant' && !lastMsg.content) {
+                    lastMsg.content = '*(Stopped by user)*'
+                }
+            }
+        }
+    }
+
     // Send message with streaming
     async function sendMessage(content, modelId = null, images = [], files = [], mode = 'chat') {
         if ((!content.trim() && images.length === 0 && files.length === 0) || isStreaming.value) return
@@ -111,6 +131,10 @@ export const useChatStore = defineStore('chat', () => {
         })
 
         isStreaming.value = true
+
+        // Reset and create new AbortController
+        if (abortController) abortController.abort()
+        abortController = new AbortController()
 
         // Update session title with first message content locally so it appears in sidebar
         const userMessages = messages.value.filter(m => m.role === 'user')
@@ -185,7 +209,8 @@ export const useChatStore = defineStore('chat', () => {
                     // 'Content-Type': 'multipart/form-data', // Browser sets boundary automatically
                     'Authorization': `Bearer ${token}`
                 },
-                body: formData
+                body: formData,
+                signal: abortController.signal
             })
 
             if (!response.ok) {
@@ -309,11 +334,17 @@ export const useChatStore = defineStore('chat', () => {
                 }
             }
         } catch (error) {
-            console.error('[ChatStore] Stream error:', error)
-            messages.value[assistantIndex].content += `\n\n**System Error**: ${error.message}`
-            messages.value[assistantIndex].error = true
+            if (error.name === 'AbortError') {
+                console.log('[ChatStore] Stream Aborted')
+                // No error message needed for user abort
+            } else {
+                console.error('[ChatStore] Stream error:', error)
+                messages.value[assistantIndex].content += `\n\n**System Error**: ${error.message}`
+                messages.value[assistantIndex].error = true
+            }
         } finally {
             isStreaming.value = false
+            abortController = null // Clear controller
             // Trigger token usage update on frontend
             const authStore = (await import('./auth')).useAuthStore()
             authStore.tokenUpdateTrigger++
@@ -325,6 +356,7 @@ export const useChatStore = defineStore('chat', () => {
     function resetSession() {
         currentSessionId.value = null
         messages.value = []
+        abortController = null
     }
 
     // Clear current session (delete using current ID)
@@ -370,6 +402,7 @@ export const useChatStore = defineStore('chat', () => {
         loadSessions,
         fetchModels,
         sendMessage,
+        stopGeneration,
         clearSession,
         deleteSession
     }

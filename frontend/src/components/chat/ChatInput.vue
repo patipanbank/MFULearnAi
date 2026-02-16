@@ -9,10 +9,11 @@ const props = defineProps({
   attachments: { type: Array, default: () => [] },
   disabled: { type: Boolean, default: false },
   loading: { type: Boolean, default: false },
+  streaming: { type: Boolean, default: false },
   t: { type: Function, required: true }
 })
 
-const emit = defineEmits(['update:modelValue', 'send', 'upload', 'remove-attachment'])
+const emit = defineEmits(['update:modelValue', 'send', 'upload', 'remove-attachment', 'stop'])
 
 const fileInputRef = ref(null)
 const inputValue = ref(props.modelValue)
@@ -28,6 +29,10 @@ const handleKeydown = (e) => {
 }
 
 const handleSend = () => {
+  if (props.streaming) {
+    emit('stop')
+    return
+  }
   if (!inputValue.value.trim() || props.disabled || props.loading) return
   emit('send', inputValue.value)
   inputValue.value = ''
@@ -98,7 +103,7 @@ defineExpose({
               class="btn-attach" 
               @click="handleFileClick"
               :title="t('uploadFile')"
-              :disabled="disabled"
+              :disabled="disabled || streaming"
             >
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
@@ -118,22 +123,25 @@ defineExpose({
               v-model="inputValue"
               class="chat-input"
               :placeholder="t('typeMessage')"
-              :disabled="disabled || loading"
+              :disabled="disabled || loading || streaming"
               @keydown="handleKeydown"
               rows="1"
             ></textarea>
             
-            <!-- Send Button -->
+            <!-- Send/Stop Button -->
             <button 
               class="btn-send"
-              :class="{ active: inputValue.trim() || (attachments && attachments.length > 0) }"
-              :disabled="disabled || loading || (!inputValue.trim() && (!attachments || attachments.length === 0))"
+              :class="{ active: inputValue.trim() || (attachments && attachments.length > 0) || streaming }"
+              :disabled="(disabled && !streaming) || (loading) || (!inputValue.trim() && (!attachments || attachments.length === 0) && !streaming)"
               @click="handleSend"
             >
-              <svg v-if="!loading" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+              <div v-if="loading" class="spinner"></div>
+              <svg v-else-if="streaming" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                <rect x="6" y="6" width="12" height="12" rx="2" ry="2"></rect>
+              </svg>
+              <svg v-else width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
               </svg>
-              <div v-else class="spinner"></div>
             </button>
           </div>
       </div>

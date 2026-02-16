@@ -140,6 +140,10 @@ const handleLogout = () => {
   router.push('/login')
 }
 
+const handleStop = () => {
+  chatStore.stopGeneration()
+}
+
 const handleFileUpload = async (files) => {
   isProcessingFile.value = true
   try {
@@ -298,9 +302,11 @@ const closeEvidenceViewer = () => {
         v-model="inputMessage"
         :attachments="attachments"
         :disabled="chatStore.isStreaming"
-        :loading="chatStore.isStreaming || isProcessingFile"
+        :loading="isProcessingFile"
+        :streaming="chatStore.isStreaming"
         :t="t"
         @send="handleSendMessage"
+        @stop="handleStop"
         @upload="handleFileUpload"
         @remove-attachment="handleRemoveAttachment"
       />
