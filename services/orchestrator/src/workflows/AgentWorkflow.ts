@@ -499,7 +499,7 @@ ${JSON.stringify(smartContext?.rolling || {}, null, 2)}`
                     explanation.basis = 'RAG'; // Legacy field compatibility
                 }
 
-                safeWrite(`data: ${JSON.stringify({ text: finalAnswer, traceId })}\n\n`);
+                // safeWrite(`data: ${JSON.stringify({ text: finalAnswer, traceId })}\n\n`); // REMOVED to prevent double streaming
                 safeWrite(`data: ${JSON.stringify({
                     type: 'metadata',
                     metadata: {
