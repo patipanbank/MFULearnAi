@@ -71,13 +71,7 @@ const overlayGradient = computed(() => {
         : 'linear-gradient(rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0.3))'
 })
 
-// Theme Handling
-const { isDark } = useTheme()
-const overlayGradient = computed(() => {
-    return isDark.value 
-        ? 'linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4))' 
-        : 'linear-gradient(rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0.3))'
-})
+
 </script>
 
 <template>
