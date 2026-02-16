@@ -19,17 +19,34 @@ function sleep(ms: number): Promise<void> {
 }
 
 export class BedrockService {
-    static async streamChat(
-        messages: ChatMessage[],
+    /**
+     * Generator that yields streaming events from Bedrock (via the proxy).
+     * Supports ToolConfig and Guardrails.
+     */
+    static async *streamChatGenerator(
         modelId: string,
-        res: Response,
-        onComplete: (fullText: string, usage: any) => void
-    ) {
+        messages: ChatMessage[],
+        system?: string | Array<{ text: string }>,
+        temperature: number = 0.5,
+        toolConfig?: any,
+        guardrailConfig?: any
+    ): AsyncGenerator<any, void, unknown> {
+        const requestData: any = {
+            messages,
+            modelId,
+            system,
+            temperature,
+            stream: true
+        };
+
+        if (toolConfig) requestData.toolConfig = toolConfig;
+        if (guardrailConfig) requestData.guardrailConfig = guardrailConfig;
+
         try {
             const response = await axios({
                 method: 'post',
                 url: `${BEDROCK_TEXT_URL}/chat`,
-                data: { messages, modelId },
+                data: requestData,
                 headers: {
                     'Authorization': `Bearer ${TokenService.mint('bedrock', 'write')}`,
                     'x-correlation-id': ContextService.getCorrelationId()
@@ -38,52 +55,67 @@ export class BedrockService {
                 timeout: 120000
             });
 
-            let fullResponseText = '';
-            let tokenUsage = { input: 0, output: 0, total: 0 };
-
+            const stream = response.data;
             let buffer = '';
-            response.data.on('data', (chunk: Buffer) => {
-                buffer += chunk.toString();
-                let params = buffer.split('\n');
-                buffer = params.pop() || '';
 
-                for (const line of params) {
-                    if (line.trim().startsWith('data: ')) {
-                        const dataStr = line.replace('data: ', '').trim();
-                        if (dataStr === '[DONE]') continue;
-                        try {
-                            const data = JSON.parse(dataStr);
-                            if (data.text) fullResponseText += data.text;
-                            if (data.type === 'usage' && data.usage) {
-                                tokenUsage = data.usage;
-                            }
-                        } catch (e) {
-                            // Partial JSON — skip
-                        }
+            for await (const chunk of stream) {
+                buffer += chunk.toString();
+                let lines = buffer.split('\n');
+                buffer = lines.pop() || '';
+
+                for (const line of lines) {
+                    const trimmed = line.trim();
+                    if (!trimmed.startsWith('data: ')) continue;
+
+                    const dataStr = trimmed.replace('data: ', '').trim();
+                    if (dataStr === '[DONE]') continue;
+
+                    try {
+                        const data = JSON.parse(dataStr);
+                        yield data;
+                    } catch (e) {
+                        // ignore partial JSON
                     }
                 }
-                res.write(chunk);
-            });
-
-            response.data.on('end', () => {
-                res.end();
-                onComplete(fullResponseText, tokenUsage);
-            });
-
-            response.data.on('error', (err: Error) => {
-                LoggerService.error('bedrock_stream_error', { error: err.message });
-                if (!res.headersSent) res.write(`event: error\ndata: ${JSON.stringify({ error: err.message })}\n\n`);
-                res.end();
-            });
-
-        } catch (error: any) {
-            LoggerService.error('bedrock_stream_request_error', { error: error.message });
-            if (!res.headersSent && typeof res.status === 'function') {
-                res.status(500).json({ error: 'Upstream Model Error' });
-            } else if (!res.headersSent) {
-                res.write(`data: ${JSON.stringify({ error: 'Upstream Model Error', message: error.message })}\n\n`);
-                res.end();
             }
+        } catch (error: any) {
+            LoggerService.error('bedrock_stream_gen_error', { error: error.message });
+            throw error;
+        }
+    }
+
+    // Legacy method kept for backward compatibility (rewrite to use generator if needed)
+    static async streamChat(
+        messages: ChatMessage[],
+        modelId: string,
+        res: Response,
+        onComplete: (fullText: string, usage: any) => void
+    ) {
+        // ... (Referencing original implementation if we want to keep it, 
+        // usually we can just deprecate it or replace it. 
+        // For minimal breakage, I'll keep the signature but use the generator internally 
+        // or just leave it alone since it's unused by AgentWorkflow currently.)
+        // But to save space, let's replace it with the new one or keep it as is?
+        // The user prompted: "Update BedrockService.ts...".
+        // I will keep the old one but mark deprecated? 
+        // Actually, the file content I saw has it lines 22-88. I will replace it.
+        try {
+            const generator = this.streamChatGenerator(modelId, messages, undefined, 0.5);
+            let fullText = '';
+            let usage = { input: 0, output: 0, total: 0 };
+
+            for await (const event of generator) {
+                if (event.text) {
+                    fullText += event.text;
+                    res.write(`data: ${JSON.stringify({ text: event.text })}\n\n`);
+                }
+                if (event.type === 'usage') usage = event.usage;
+            }
+            res.end();
+            onComplete(fullText, usage);
+        } catch (err: any) {
+            if (!res.headersSent) res.write(`data: ${JSON.stringify({ error: err.message })}\n\n`);
+            res.end();
         }
     }
 

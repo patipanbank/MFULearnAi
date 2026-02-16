@@ -19,7 +19,8 @@ const AVAILABLE_TOOLS = [
 export class AgentWorkflow {
     static async run(req: Request, res: Response) {
         const { userId, message, sessionId, collectionId, userRole, userDepartment, images, files } = (req as any).userContext;
-        return this.execute(userId, sessionId, message, userRole, userDepartment, collectionId, res, images, files);
+        const enableStream = req.query.stream !== 'false';
+        return this.execute(userId, sessionId, message, userRole, userDepartment, collectionId, res, images, files, enableStream);
     }
 
     static async execute(
@@ -31,7 +32,8 @@ export class AgentWorkflow {
         collectionId: string | undefined,
         res: Response,
         images: any[] = [],
-        files: any[] = []
+        files: any[] = [],
+        enableStream: boolean = true
     ) {
         const query = message;
         const traceId = (global as any).crypto ? (global as any).crypto.randomUUID() : require('crypto').randomUUID();
@@ -57,18 +59,103 @@ export class AgentWorkflow {
             if (!clientDisconnected && !res.writableEnded) res.write(data);
         };
 
+        // Declare variables at function scope (not inside loop)
         const totalUsage = { input: 0, output: 0, total: 0 };
+        let steps = 0;
+        let stopReason = '';
+        let fullResponse = '';
+        let answerMode = 'internal';
+        let answerState = 'UNVERIFIED';
+        let finalAnswer = '';
+        let confidence: string = 'Medium';
+        let explanation: { basis: string; assumptions: string[]; missing_info: string[] } = {
+            basis: 'Internal',
+            assumptions: [],
+            missing_info: []
+        };
+        let contentBlocks: any[] = [];
+        let uploadPromises: Promise<any>[] = [];
+        let usedTools = new Set<string>();
+
         LoggerService.info('agent_workflow_start', { traceId, userId, message }, userId);
 
         try {
+            // Helper: Clean duplicate consecutive user messages from history
+            const cleanupDuplicateMessages = (messages: any[]): any[] => {
+                if (!messages || messages.length === 0) return [];
+
+                const cleaned: any[] = [];
+                let prevMessage: any = null;
+
+                for (const msg of messages) {
+                    // Skip if duplicate user message (same role, same content, within 60 seconds)
+                    if (prevMessage &&
+                        prevMessage.role === 'user' &&
+                        msg.role === 'user' &&
+                        prevMessage.content === msg.content &&
+                        msg.timestamp && prevMessage.timestamp) {
+
+                        const timeDiff = new Date(msg.timestamp).getTime() - new Date(prevMessage.timestamp).getTime();
+
+                        if (timeDiff < 60000) { // Within 60 seconds
+                            LoggerService.info('history_duplicate_skipped', {
+                                content: msg.content.substring(0, 50),
+                                timeDiff
+                            }, userId);
+                            continue; // Skip this duplicate
+                        }
+                    }
+
+                    cleaned.push(msg);
+                    prevMessage = msg;
+                }
+
+                if (cleaned.length < messages.length) {
+                    LoggerService.info('history_cleaned', {
+                        original: messages.length,
+                        cleaned: cleaned.length,
+                        removed: messages.length - cleaned.length
+                    }, userId);
+                }
+
+                return cleaned;
+            };
+
             // 1.1 Load History + Smart Context (Agent Memory)
-            const { messages: history, smartContext } = await HistoryService.getContext(userId, sessionId);
+            const { messages: rawHistory, smartContext } = await HistoryService.getContext(userId, sessionId);
+            const history = cleanupDuplicateMessages(rawHistory);
+
+            // 1.2 Save User Message Immediately (Prevent Data Loss)
+            // Check if this exact message was already saved (prevent duplicates on retry/regenerate)
+            const lastMessage = history.length > 0 ? history[history.length - 1] : null;
+            const isDuplicate = lastMessage &&
+                lastMessage.role === 'user' &&
+                lastMessage.content === query &&
+                lastMessage.timestamp &&
+                (new Date().getTime() - new Date(lastMessage.timestamp).getTime()) < 5000; // Within 5 seconds
+
+            if (!isDuplicate) {
+                const initialUserMessage: any = {
+                    role: 'user',
+                    content: query,
+                    timestamp: new Date(),
+                    attachments: files?.map((f: any) => ({
+                        fileName: f.originalname || f.name,
+                        fileSize: f.size,
+                        mediaType: f.mediaType || f.mimetype
+                    }))
+                };
+
+                await HistoryService.addMessage(userId, sessionId, initialUserMessage);
+                HistoryService.saveToPersistentStorage(userId, sessionId, [initialUserMessage], { totalTokens: 0 }, process.env.ENV_TYPE || 'TEST', MODELS.PRIMARY)
+                    .catch(err => LoggerService.warn('initial_msg_save_failed', { error: err.message }, userId));
+            } else {
+                LoggerService.info('user_message_duplicate_skipped', { query: query.substring(0, 50) }, userId);
+            }
 
             // 1.3.5 Attached Files — Send directly as native Converse API document blocks
             let nativeDocBlocks: Array<{ type: 'document', format: string, name: string, data: string }> = [];
             let extractedTextBlocks: Array<{ fileName: string, text: string }> = [];
-            // Track Uploads for Persistence (Concurrent)
-            let uploadPromises: Promise<any>[] = [];
 
             LoggerService.info('agent_files_received', {
                 filesCount: files?.length || 0,
@@ -84,8 +171,6 @@ export class AgentWorkflow {
                 const MAX_NATIVE_SIZE = 4.5 * 1024 * 1024; // 4.5MB Converse API limit
                 const MAX_EXTRACTED_TEXT_CHARS = 100_000;    // ~100K chars for context window safety
                 const supportedFormats = ['pdf', 'txt', 'md', 'html', 'csv', 'doc', 'docx', 'xls', 'xlsx'];
-
-                // (uploadPromises is defined at top scope)
 
                 const totalFiles = files.length;
                 for (let fi = 0; fi < files.length; fi++) {
@@ -125,7 +210,6 @@ export class AgentWorkflow {
                     uploadPromises.push(
                         ChatAttachmentService.uploadFile(file.buffer, fileName, file.mediaType || 'application/pdf', userId)
                             .then(meta => {
-                                // Emit event for frontend to show clickable link immediately
                                 safeWrite(`data: ${JSON.stringify({
                                     type: 'file_uploaded',
                                     fileName,
@@ -166,7 +250,6 @@ export class AgentWorkflow {
                             limit: MAX_NATIVE_SIZE
                         }, userId);
 
-                        // Simulated Progress (20% -> 85%) for OCR/Parsing duration
                         let extractPercent = 20;
                         const progressTimer = setInterval(() => {
                             extractPercent = Math.min(extractPercent + 5, 85);
@@ -226,7 +309,6 @@ export class AgentWorkflow {
                 : `- If the Knowledge Base or Context does not explicitly contain the answer, you MUST use the 'search' tool to find it. Do NOT say "I don't have enough information" without searching first.`;
 
             // Enhancement 4: Multi-Block System Prompts
-            // Split the system prompt into logical blocks for better compartmentalization and caching
             const systemBlocks: Array<{ text: string }> = [];
 
             // Block 1: Persona & Core Rules (Static - great for caching)
@@ -269,12 +351,10 @@ ${JSON.stringify(smartContext?.rolling || {}, null, 2)}`
             } : undefined;
 
             // 1.4 Construct Initial Messages
-            // Enhancement 5: Include native document blocks and extracted text in user message
             const userContent: any[] = [];
             if (nativeDocBlocks.length > 0) {
                 userContent.push(...nativeDocBlocks);
             }
-            // Large files: prepend extracted text as labeled text blocks
             if (extractedTextBlocks.length > 0) {
                 for (const etb of extractedTextBlocks) {
                     userContent.push({
@@ -289,23 +369,19 @@ ${JSON.stringify(smartContext?.rolling || {}, null, 2)}`
             }
 
             let messages: any[] = [
-                {
-                    role: 'system',
-                    content: systemBlocks  // Enhancement 4: Array of blocks
-                },
                 ...history.slice(-10).map(m => ({ role: m.role, content: m.content, images: m.images })),
                 { role: 'user', content: userContent }
             ];
 
-            let steps = 0;
-            let finalAnswer = '';
+            // Reset variables for this execution (already declared at top scope)
+            steps = 0;
+            finalAnswer = '';
             const startTime = Date.now();
-            let confidence = 'Low';
-            let explanation = { basis: 'Internal', assumptions: [] as string[], missing_info: [] as string[] };
-
-            let answerState = 'UNVERIFIED';
-            let answerMode = 'internal';
-            const usedTools = new Set<string>();
+            confidence = 'Medium';
+            explanation = { basis: 'Internal', assumptions: [], missing_info: [] };
+            answerState = 'UNVERIFIED';
+            answerMode = 'internal';
+            usedTools.clear();
 
             // === MAIN AGENT LOOP ===
             while (steps < AGENT_CONFIG.MAX_STEPS) {
@@ -321,6 +397,19 @@ ${JSON.stringify(smartContext?.rolling || {}, null, 2)}`
                 // Client disconnected — stop processing
                 if (clientDisconnected) {
                     LoggerService.info('agent_client_disconnected', { steps, traceId }, userId);
+
+                    const stoppedMessage = {
+                        role: 'assistant' as const,
+                        content: '*(Conversation stopped by user)*',
+                        timestamp: new Date(),
+                        meta: {
+                            stepsUsed: steps,
+                            stopReason: 'user_abort'
+                        }
+                    };
+                    await HistoryService.addMessage(userId, sessionId, stoppedMessage);
+                    await HistoryService.saveToPersistentStorage(userId, sessionId, [stoppedMessage], { totalTokens: totalUsage.total }, process.env.ENV_TYPE || 'TEST', MODELS.PRIMARY);
+
                     return;
                 }
 
@@ -335,21 +424,176 @@ ${JSON.stringify(smartContext?.rolling || {}, null, 2)}`
                         contentType: typeof m.content,
                         isArray: Array.isArray(m.content),
                         blockTypes: Array.isArray(m.content)
-                            ? m.content.map((b: any) => b.type || Object.keys(b)[0])
+                            ? m.content.map((b: any) => b?.type || (b ? Object.keys(b)[0] : 'unknown'))
                             : undefined,
-                        contentLength: typeof m.content === 'string' ? m.content.length : undefined
+                        contentLength: typeof m.content === 'string' ? m.content.length : undefined,
+                        contentPreview: Array.isArray(m.content)
+                            ? m.content.map((b: any) => ({
+                                type: b?.type,
+                                hasText: !!b?.text,
+                                hasToolUse: !!b?.toolUse,
+                                hasToolResult: !!b?.toolResult,
+                                toolUseId: b?.toolUseId
+                            }))
+                            : typeof m.content === 'string' ? m.content.substring(0, 100) : undefined
                     }));
-                    console.log(`[AgentWorkflow] Messages structure before sendChat:`, JSON.stringify(msgStructure));
+                    LoggerService.info('agent_messages_structure', {
+                        totalMessages: messages.length,
+                        structure: msgStructure
+                    }, userId);
                 }
 
-                const { text: fullResponse, usage: stepUsage, stopReason } = await BedrockService.sendChat(
+                // Reset per-step variables
+                let stepUsage = { input: 0, output: 0, total: 0 };
+                contentBlocks = [];
+                fullResponse = '';
+                stopReason = '';
+
+                // Buffer for constructing blocks from stream
+                let currentBlock: any = null;
+                let currentBlockIndex = -1;
+
+                const stream = BedrockService.streamChatGenerator(
                     MODELS.PRIMARY,
                     messages,
-                    undefined,
+                    systemBlocks,
                     0.5,
                     toolConfig,
                     guardrailConfig
                 );
+
+                let chunkCount = 0;
+
+                // === FIXED STREAMING LOGIC ===
+                try {
+                    // Bedrock Service sends events as: { type: '...', ... }
+                    for await (const chunk of stream) {
+                        // Safety check: skip if chunk is null/undefined
+                        if (!chunk) {
+                            LoggerService.warn('stream_chunk_null', { step: steps, chunkCount }, userId);
+                            continue;
+                        }
+
+                        chunkCount++;
+
+                        // Debug first few chunks
+                        if (steps === 1 && chunkCount <= 3) {
+                            LoggerService.info('stream_chunk_debug', {
+                                chunkNum: chunkCount,
+                                type: chunk.type,
+                                keys: Object.keys(chunk).slice(0, 10),
+                                hasText: !!chunk.text,
+                                hasDelta: !!chunk.delta,
+                                fullChunk: JSON.stringify(chunk).substring(0, 200)
+                            }, userId);
+                        }
+
+                        // 1. Message Start Event
+                        if (chunk.type === 'message_start') {
+                            if (chunk.message?.usage) {
+                                stepUsage.input += (chunk.message.usage.inputTokens || 0);
+                            }
+                        }
+
+                        // 2. Content Block Start Event
+                        else if (chunk.type === 'content_block_start') {
+                            currentBlockIndex = chunk.index;
+                            const start = chunk.start;
+
+                            // Initialize block based on type
+                            if (start.start?.toolUse) {
+                                currentBlock = {
+                                    type: 'tool_use',
+                                    id: start.start.toolUse.toolUseId,
+                                    name: start.start.toolUse.name,
+                                    input: '', // Will accumulate JSON string
+                                    toolUseId: start.start.toolUse.toolUseId
+                                };
+                            } else {
+                                currentBlock = {
+                                    type: 'text',
+                                    text: ''
+                                };
+                            }
+
+                            contentBlocks[currentBlockIndex] = currentBlock;
+                        }
+
+                        // 3. Content Block Delta Event
+                        else if (chunk.type === 'content_block_delta') {
+                            // Bedrock Service provides chunk.text as convenience
+                            if (chunk.text) {
+                                if (currentBlock && currentBlock.type === 'text') {
+                                    currentBlock.text += chunk.text;
+                                }
+                                fullResponse += chunk.text;
+
+                                // STREAM TO CLIENT
+                                if (enableStream) {
+                                    safeWrite(`data: ${JSON.stringify({ type: 'token', text: chunk.text })}\n\n`);
+                                }
+                            }
+                            // Tool use input accumulation
+                            else if (chunk.delta?.toolUse?.input) {
+                                if (currentBlock && currentBlock.type === 'tool_use') {
+                                    currentBlock.input += chunk.delta.toolUse.input;
+                                }
+                            }
+                        }
+
+                        // 4. Content Block Stop Event
+                        else if (chunk.type === 'content_block_stop') {
+                            // Parse tool input JSON if needed
+                            if (currentBlock && currentBlock.type === 'tool_use') {
+                                try {
+                                    if (typeof currentBlock.input === 'string') {
+                                        currentBlock.input = JSON.parse(currentBlock.input);
+                                    }
+                                } catch (e) {
+                                    LoggerService.warn('tool_input_parse_error', {
+                                        tool: currentBlock.name,
+                                        input: currentBlock.input
+                                    }, userId);
+                                }
+                            }
+                            currentBlock = null;
+                            currentBlockIndex = -1;
+                        }
+
+                        // 5. Message Stop Event
+                        else if (chunk.type === 'message_stop') {
+                            stopReason = chunk.stopReason;
+                        }
+
+                        // 6. Usage Metadata Event
+                        else if (chunk.type === 'usage') {
+                            if (chunk.usage) {
+                                stepUsage.input = chunk.usage.input || stepUsage.input;
+                                stepUsage.output = chunk.usage.output || 0;
+                                stepUsage.total = chunk.usage.total || (stepUsage.input + stepUsage.output);
+                            }
+                        }
+                    }
+
+                } catch (streamError: any) {
+                    LoggerService.error('stream_processing_error', {
+                        step: steps,
+                        chunkCount,
+                        error: streamError.message,
+                        stack: streamError.stack,
+                        name: streamError.name,
+                        code: streamError.code
+                    }, userId);
+                    throw streamError; // Re-throw to be caught by outer try-catch
+                }
+
+                LoggerService.info('stream_complete', {
+                    step: steps,
+                    totalChunks: chunkCount,
+                    contentBlocks: contentBlocks.length,
+                    fullResponseLength: fullResponse.length,
+                    stopReason
+                }, userId);
 
                 LoggerService.info('agent_model_response', {
                     step: steps,
@@ -358,55 +602,78 @@ ${JSON.stringify(smartContext?.rolling || {}, null, 2)}`
                     rawResponsePreview: fullResponse?.substring(0, 200)
                 }, userId);
 
-                // ... (Usage tracking) ...
+                // Update total usage
                 totalUsage.input += stepUsage.input;
                 totalUsage.output += stepUsage.output;
                 totalUsage.total += stepUsage.total;
 
                 // Handle Response
                 if (stopReason === 'tool_use') {
-                    LoggerService.info('agent_tool_use_detected', { step: steps }, userId);
-                    // ... (Parsing logic) ...
-                    let contentBlocks: any[] = [];
-                    try {
-                        contentBlocks = JSON.parse(fullResponse);
-                    } catch (e) {
-                        contentBlocks = [{ type: 'text', text: fullResponse }];
-                    }
+                    const toolBlocks = contentBlocks.filter(b => !!b && b.type === 'tool_use');
+                    LoggerService.info('agent_tool_use_detected', {
+                        step: steps,
+                        toolCount: toolBlocks.length,
+                        tools: toolBlocks.map(b => ({ name: b.name, id: b.id || b.toolUseId }))
+                    }, userId);
 
                     messages.push({ role: 'assistant', content: contentBlocks });
 
                     const toolResults: any[] = [];
                     for (const block of contentBlocks) {
+                        if (!block) continue;
                         if (block.type === 'tool_use') {
                             const toolName = block.name;
-                            usedTools.add(toolName); // R3: Track tool usage
-
-                            const toolUseId = block.toolUseId;
+                            const toolUseId = block.toolUseId || block.id;
                             const toolInput = block.input;
-                            // ... (Execution logic) ...
-                            LoggerService.info('tool_execution', { tool: toolName, input: toolInput }, userId);
+
+                            usedTools.add(toolName);
+
+                            LoggerService.info('tool_execution_start', {
+                                tool: toolName,
+                                toolUseId,
+                                input: toolInput
+                            }, userId);
                             safeWrite(`data: ${JSON.stringify({ type: 'status', message: `Using ${toolName}...` })}\n\n`);
 
                             const tool = allowedTools.find(t => t.schemaJSON.name === toolName);
                             let resultContent: any;
 
                             if (tool) {
-                                LoggerService.info('agent_executing_tool', { tool: toolName, input: toolInput }, userId);
-                                const executionResult = await tool.execute(toolInput, {
-                                    userId,
-                                    role: userRole,
-                                    department: userDepartment,
-                                    collectionId
-                                });
-                                resultContent = executionResult.success ? executionResult.result : `Error: ${executionResult.error}`;
-                                LoggerService.info('agent_tool_result', { tool: toolName, success: executionResult.success, resultLength: resultContent?.length }, userId);
+                                try {
+                                    LoggerService.info('agent_executing_tool', {
+                                        tool: toolName,
+                                        input: toolInput,
+                                        context: { userId, role: userRole, department: userDepartment, collectionId }
+                                    }, userId);
 
-                                // Search results are used for context but no citation tracking needed
-                                if (toolName === 'search' && executionResult.success) {
-                                    usedTools.add('search');
+                                    const executionResult = await tool.execute(toolInput, {
+                                        userId,
+                                        role: userRole,
+                                        department: userDepartment,
+                                        collectionId
+                                    });
+
+                                    resultContent = executionResult.success ? executionResult.result : `Error: ${executionResult.error}`;
+
+                                    LoggerService.info('agent_tool_result', {
+                                        tool: toolName,
+                                        success: executionResult.success,
+                                        resultLength: resultContent?.length,
+                                        resultPreview: typeof resultContent === 'string'
+                                            ? resultContent.substring(0, 200)
+                                            : JSON.stringify(resultContent).substring(0, 200)
+                                    }, userId);
+                                } catch (toolError: any) {
+                                    LoggerService.error('tool_execution_error', {
+                                        tool: toolName,
+                                        error: toolError.message,
+                                        stack: toolError.stack,
+                                        code: toolError.code
+                                    }, userId);
+                                    resultContent = `Error: ${toolError.message}`;
                                 }
                             } else {
+                                LoggerService.warn('tool_not_found', { toolName, availableTools: allowedTools.map(t => t.schemaJSON.name) }, userId);
                                 resultContent = `Error: Tool ${toolName} not found.`;
                             }
 
@@ -416,7 +683,18 @@ ${JSON.stringify(smartContext?.rolling || {}, null, 2)}`
                             });
                         }
                     }
-                    // ... (Append results) ...
+
+                    // Log tool results before sending back to model
+                    LoggerService.info('tool_results_prepared', {
+                        step: steps,
+                        resultCount: toolResults.length,
+                        results: toolResults.map(tr => ({
+                            toolUseId: tr.toolUseId,
+                            contentType: tr.content[0].json ? 'json' : 'unknown',
+                            resultPreview: JSON.stringify(tr.content[0]).substring(0, 200)
+                        }))
+                    }, userId);
+
                     messages.push({
                         role: 'user',
                         content: toolResults.map(tr => ({
@@ -426,30 +704,35 @@ ${JSON.stringify(smartContext?.rolling || {}, null, 2)}`
                         }))
                     });
 
-
                 } else {
-                    // ... (Final Answer Logic) ...
+                    // Final Answer
                     let textContent = '';
-                    try {
-                        const blocks = JSON.parse(fullResponse);
-                        if (Array.isArray(blocks)) {
-                            textContent = blocks.filter(b => b.type === 'text').map(b => b.text).join('\n');
-                        } else {
-                            textContent = fullResponse;
-                        }
-                    } catch {
+
+                    if (contentBlocks.length > 0) {
+                        textContent = contentBlocks.filter(b => !!b && b.type === 'text').map(b => b.text).join('\n');
+                    } else {
+                        // Fallback if contentBlocks wasn't populated (shouldn't happen with fixed streaming)
                         textContent = fullResponse;
                     }
 
                     finalAnswer = textContent;
 
-                    // Simplified answer mode logic (no citations)
-                    if (nativeDocBlocks.length > 0) {
+                    // Determine answer mode
+                    if (nativeDocBlocks.length > 0 || extractedTextBlocks.length > 0) {
                         answerMode = 'file_grounded';
                         answerState = 'VERIFIED';
+                        confidence = 'High';
+                        explanation = { basis: 'Attached Files', assumptions: [], missing_info: [] };
                     } else if (usedTools.has('search')) {
                         answerMode = 'rag';
                         answerState = 'VERIFIED';
+                        confidence = 'High';
+                        explanation = { basis: 'RAG Search', assumptions: [], missing_info: [] };
+                    } else {
+                        answerMode = 'internal';
+                        answerState = 'UNVERIFIED';
+                        confidence = 'Medium';
+                        explanation = { basis: 'Internal Knowledge', assumptions: [], missing_info: [] };
                     }
 
                     break;
@@ -460,14 +743,11 @@ ${JSON.stringify(smartContext?.rolling || {}, null, 2)}`
 
             // 6. Streaming Final Answer
             if (finalAnswer) {
-                // ... (Logic for explanation extraction if needed, or we can ask the model to provide it separate)
-                // For now, simple heuristic
-                if (answerMode === 'file_grounded' || answerMode === 'rag') {
-                    confidence = 'High';
-                    explanation.basis = 'RAG'; // Legacy field compatibility
+                // If NOT streaming, send the full text now
+                if (!enableStream) {
+                    safeWrite(`data: ${JSON.stringify({ text: finalAnswer, traceId })}\n\n`);
                 }
 
-                safeWrite(`data: ${JSON.stringify({ text: finalAnswer, traceId })}\n\n`);
                 safeWrite(`data: ${JSON.stringify({
                     type: 'metadata',
                     metadata: {
@@ -476,6 +756,7 @@ ${JSON.stringify(smartContext?.rolling || {}, null, 2)}`
                         usedRAG: answerMode !== 'internal',
                         stepsUsed: steps,
                         totalTokens: totalUsage.total,
+                        confidence,
                         explanation
                     }
                 })}\n\n`);
@@ -494,11 +775,6 @@ ${JSON.stringify(smartContext?.rolling || {}, null, 2)}`
                     });
                 }
 
-                const currentMessage: any = { role: 'user', content: query, timestamp: new Date() };
-                if (uploadedAttachments.length > 0) {
-                    currentMessage.attachments = uploadedAttachments;
-                }
-
                 const assistantMessage = {
                     role: 'assistant' as const,
                     content: finalAnswer,
@@ -513,9 +789,8 @@ ${JSON.stringify(smartContext?.rolling || {}, null, 2)}`
                     }
                 };
 
-                await HistoryService.addMessage(userId, sessionId, currentMessage);
                 await HistoryService.addMessage(userId, sessionId, assistantMessage);
-                await HistoryService.saveToPersistentStorage(userId, sessionId, [currentMessage, assistantMessage], { totalTokens: totalUsage.total }, process.env.ENV_TYPE || 'TEST', MODELS.PRIMARY);
+                await HistoryService.saveToPersistentStorage(userId, sessionId, [assistantMessage], { totalTokens: totalUsage.total }, process.env.ENV_TYPE || 'TEST', MODELS.PRIMARY);
 
                 // Log Token Usage for Dashboard
                 await LoggerService.info('chat_completion', {
@@ -527,12 +802,13 @@ ${JSON.stringify(smartContext?.rolling || {}, null, 2)}`
                 }, userId);
 
                 // 8. Background Summarization (fire-and-forget)
-                SummarizationService.runUpdate(userId, sessionId, [currentMessage, assistantMessage], smartContext || {
+                // Note: We don't re-save user message since it was saved at start
+                SummarizationService.runUpdate(userId, sessionId, [assistantMessage], smartContext || {
                     canonical: '', rolling: { facts: [], intent: { primary: 'QUERY', confidence: 1 }, constraints: [], decisions: [], open_questions: [], confidence_score: 1 },
                     version: 0, hashes: { canonical: '', rolling: '', raw: '' }, lastCanonizedAt: new Date()
                 }).catch((e: any) => LoggerService.error('Background Summary Failed', e));
 
-                // 9. Auto-Title Generation (First Turn Only) - Moved before stream end
+                // 9. Auto-Title Generation (First Turn Only)
                 if (history.length === 0) {
                     try {
                         const newTitle = await SummarizationService.updateTitle(userId, sessionId, query);
@@ -546,9 +822,35 @@ ${JSON.stringify(smartContext?.rolling || {}, null, 2)}`
             }
 
         } catch (error: any) {
-            LoggerService.error('Agent Workflow Error', { error: error.message, stack: error.stack, traceId });
+            LoggerService.error('Agent Workflow Error', {
+                error: error.message,
+                stack: error.stack,
+                name: error.name,
+                cause: error.cause,
+                traceId
+            }, userId);
+
+            // Log detailed error info
+            console.error('[AgentWorkflow] Detailed Error:', {
+                message: error.message,
+                stack: error.stack,
+                name: error.name,
+                code: error.code,
+                statusCode: error.statusCode,
+                response: error.response?.data,
+                config: error.config ? {
+                    url: error.config.url,
+                    method: error.config.method
+                } : undefined
+            });
+
             if (!clientDisconnected && !res.writableEnded) {
-                safeWrite(`data: ${JSON.stringify({ error: 'Agent workflow failed', traceId })}\n\n`);
+                safeWrite(`data: ${JSON.stringify({
+                    type: 'error',
+                    error: 'Agent workflow failed',
+                    message: error.message,
+                    traceId
+                })}\n\n`);
                 res.end();
             }
         }
