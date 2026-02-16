@@ -127,8 +127,8 @@ const extractUser = (req: Request): UserContext | null => {
                             department: 'Global'
                         };
                     } catch (err: any) {
-                         console.warn(`[Knowledge] Internal Token verification failed: ${err.message}`);
-                         return null;
+                        console.warn(`[Knowledge] Internal Token verification failed: ${err.message}`);
+                        return null;
                     }
                 } else {
                     console.warn('[Knowledge] RS256 Token received but Public Key not found');
@@ -251,7 +251,7 @@ app.post('/api/knowledge', async (req: any, res: Response) => {
         // If size is unknown, it internally uses multipart upload.
         uploadPromise = minioClient.putObject(MINIO_BUCKET, s3Key, file, undefined, {
             'Content-Type': mimeType,
-            'x-amz-meta-original-name': filename
+            'x-amz-meta-original-name': encodeURIComponent(fileInfo.originalName)
         });
     });
 
@@ -786,7 +786,7 @@ app.post('/api/storage/upload', async (req: any, res: Response) => {
         // Stream to MinIO
         uploadPromise = minioClient.putObject(CHAT_BUCKET, s3Key, file, undefined, {
             'Content-Type': mimeType,
-            'x-amz-meta-original-name': filename,
+            'x-amz-meta-original-name': encodeURIComponent(fileInfo.originalName),
             'x-amz-meta-owner': user.userId
         });
     });

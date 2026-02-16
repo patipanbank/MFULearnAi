@@ -80,13 +80,24 @@ export const processKnowledgeJob = async (job: Job) => {
             const pdfDocument = await loadingTask.promise;
             const numPages = pdfDocument.numPages;
 
-            for (let i = 1; i <= numPages; i++) {
-                const page = await pdfDocument.getPage(i);
-                const textContent = await page.getTextContent();
-                const pageText = textContent.items.map((item: any) => item.str).join(' ');
+            // Suppress PDF.js warnings (e.g. TT: undefined function)
+            const originalWarn = console.warn;
+            console.warn = (...args) => {
+                if (args[0] && typeof args[0] === 'string' && args[0].includes('TT: undefined function')) return;
+                originalWarn.apply(console, args);
+            };
 
-                pages.push({ text: pageText, pageNumber: i });
-                fullText += pageText + '\n\n';
+            try {
+                for (let i = 1; i <= numPages; i++) {
+                    const page = await pdfDocument.getPage(i);
+                    const textContent = await page.getTextContent();
+                    const pageText = textContent.items.map((item: any) => item.str).join(' ');
+
+                    pages.push({ text: pageText, pageNumber: i });
+                    fullText += pageText + '\n\n';
+                }
+            } finally {
+                console.warn = originalWarn; // Restore
             }
 
             // OCR FALLBACK CHECK
