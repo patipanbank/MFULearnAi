@@ -65,7 +65,7 @@ const handleAdminLogin = async () => {
 </script>
 
 <template>
-  <div class="login-container" :style="{ backgroundImage: `linear-gradient(rgba(255, 255, 255, 0.6), rgba(255, 255, 255, 0.6)), url(${currentBg})` }">
+  <div class="login-container" :style="{ backgroundImage: `linear-gradient(rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0.3)), url(${currentBg})` }">
     <div class="login-card fade-in">
       <!-- Logo & Title -->
       <div class="login-header">
