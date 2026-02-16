@@ -292,10 +292,60 @@ app.post('/api/bedrock/chat', async (req: Request, res: Response) => {
             const response = await client.send(command);
 
             if (response.stream) {
+                let currentToolUse: any = null;
+
                 for await (const chunk of response.stream) {
-                    if (chunk.contentBlockDelta && chunk.contentBlockDelta.delta?.text) {
-                        res.write(`data: ${JSON.stringify({ text: chunk.contentBlockDelta.delta.text })}\n\n`);
+                    // 1. Content Block Start (Tool Use or Msg)
+                    if (chunk.contentBlockStart) {
+                        const start = chunk.contentBlockStart.start;
+                        if (start?.toolUse) {
+                            currentToolUse = {
+                                toolUseId: start.toolUse.toolUseId,
+                                name: start.toolUse.name,
+                                input: ''
+                            };
+                            res.write(`data: ${JSON.stringify({
+                                type: 'content_block_start',
+                                toolUse: start.toolUse,
+                                index: chunk.contentBlockStart.contentBlockIndex
+                            })}\n\n`);
+                        }
                     }
+
+                    // 2. Content Block Delta (Text or Tool Input)
+                    if (chunk.contentBlockDelta) {
+                        const delta = chunk.contentBlockDelta.delta;
+                        if (delta?.text) {
+                            // Backwards compatibility + typed event
+                            res.write(`data: ${JSON.stringify({ text: delta.text })}\n\n`);
+                            res.write(`data: ${JSON.stringify({ type: 'text_delta', text: delta.text })}\n\n`);
+                        }
+                        if (delta?.toolUse && delta.toolUse.input) {
+                            if (currentToolUse) currentToolUse.input += delta.toolUse.input;
+                            res.write(`data: ${JSON.stringify({
+                                type: 'input_delta',
+                                input: delta.toolUse.input
+                            })}\n\n`);
+                        }
+                    }
+
+                    // 3. Content Block Stop
+                    if (chunk.contentBlockStop) {
+                        res.write(`data: ${JSON.stringify({
+                            type: 'content_block_stop',
+                            index: chunk.contentBlockStop.contentBlockIndex
+                        })}\n\n`);
+                    }
+
+                    // 4. Message Stop
+                    if (chunk.messageStop) {
+                        res.write(`data: ${JSON.stringify({
+                            type: 'message_stop',
+                            stopReason: chunk.messageStop.stopReason
+                        })}\n\n`);
+                    }
+
+                    // 5. Metadata / Usage
                     if (chunk.metadata) {
                         const usage = chunk.metadata.usage || { inputTokens: 0, outputTokens: 0, totalTokens: 0 };
                         const cacheUsage = (chunk.metadata as any).cacheUsage || null;

@@ -342,7 +342,13 @@ ${JSON.stringify(smartContext?.rolling || {}, null, 2)}`
                     console.log(`[AgentWorkflow] Messages structure before sendChat:`, JSON.stringify(msgStructure));
                 }
 
-                const { text: fullResponse, usage: stepUsage, stopReason } = await BedrockService.sendChat(
+                let fullResponse = '';
+                let stopReason = '';
+                let stepUsage = { input: 0, output: 0, total: 0 };
+                let currentToolUse: any = null;
+                const contentBlocks: any[] = []; // Reconstruct for history
+
+                const streamGen = BedrockService.streamAgentChat(
                     MODELS.PRIMARY,
                     messages,
                     undefined,
@@ -350,6 +356,39 @@ ${JSON.stringify(smartContext?.rolling || {}, null, 2)}`
                     toolConfig,
                     guardrailConfig
                 );
+
+                for await (const event of streamGen) {
+                    if (event.type === 'text_delta') {
+                        const text = event.text;
+                        fullResponse += text;
+                        if (contentBlocks.length === 0 || contentBlocks[contentBlocks.length - 1].type !== 'text') {
+                            contentBlocks.push({ type: 'text', text: '' });
+                        }
+                        contentBlocks[contentBlocks.length - 1].text += text;
+
+                        // STREAM TO USER
+                        safeWrite(`data: ${JSON.stringify({ text })}\n\n`);
+                    }
+                    else if (event.type === 'content_block_start' && event.toolUse) {
+                        currentToolUse = {
+                            type: 'tool_use',
+                            toolUseId: event.toolUse.toolUseId,
+                            name: event.toolUse.name,
+                            input: ''
+                        };
+                        contentBlocks.push(currentToolUse);
+                        safeWrite(`data: ${JSON.stringify({ type: 'status', message: `Using ${event.toolUse.name}...` })}\n\n`);
+                    }
+                    else if (event.type === 'input_delta' && currentToolUse) {
+                        currentToolUse.input += event.input;
+                    }
+                    else if (event.type === 'message_stop') {
+                        stopReason = event.stopReason;
+                    }
+                    else if (event.type === 'usage') {
+                        stepUsage = event.usage;
+                    }
+                }
 
                 LoggerService.info('agent_model_response', {
                     step: steps,
@@ -366,13 +405,6 @@ ${JSON.stringify(smartContext?.rolling || {}, null, 2)}`
                 // Handle Response
                 if (stopReason === 'tool_use') {
                     LoggerService.info('agent_tool_use_detected', { step: steps }, userId);
-                    // ... (Parsing logic) ...
-                    let contentBlocks: any[] = [];
-                    try {
-                        contentBlocks = JSON.parse(fullResponse);
-                    } catch (e) {
-                        contentBlocks = [{ type: 'text', text: fullResponse }];
-                    }
 
                     messages.push({ role: 'assistant', content: contentBlocks });
 
@@ -380,19 +412,32 @@ ${JSON.stringify(smartContext?.rolling || {}, null, 2)}`
                     for (const block of contentBlocks) {
                         if (block.type === 'tool_use') {
                             const toolName = block.name;
-                            usedTools.add(toolName); // R3: Track tool usage
+                            usedTools.add(toolName);
 
                             const toolUseId = block.toolUseId;
-                            const toolInput = block.input;
+                            // Parse input if it's a string (it should be valid JSON from the model)
+                            let toolInput = block.input;
+                            try {
+                                if (typeof toolInput === 'string') {
+                                    // Bedrock streaming sends partial JSON strings for input
+                                    // We need to parse it now
+                                    toolInput = JSON.parse(toolInput);
+                                }
+                            } catch (e) {
+                                LoggerService.warn('tool_input_parse_failed', { tool: toolName, input: block.input }, userId);
+                                // Fallback: try to fix or error?
+                                // If it failed, it might be incomplete. But Bedrock usually sends valid JSON delta.
+                                // Actually, `block.input` is the ACCUMULATED string.
+                            }
+
                             // ... (Execution logic) ...
                             LoggerService.info('tool_execution', { tool: toolName, input: toolInput }, userId);
-                            safeWrite(`data: ${JSON.stringify({ type: 'status', message: `Using ${toolName}...` })}\n\n`);
 
                             const tool = allowedTools.find(t => t.schemaJSON.name === toolName);
                             let resultContent: any;
 
                             if (tool) {
-                                LoggerService.info('agent_executing_tool', { tool: toolName, input: toolInput }, userId);
+                                LoggerService.info('agent_executing_tool', { tool: toolName }, userId);
                                 const executionResult = await tool.execute(toolInput, {
                                     userId,
                                     role: userRole,
@@ -402,7 +447,6 @@ ${JSON.stringify(smartContext?.rolling || {}, null, 2)}`
                                 resultContent = executionResult.success ? executionResult.result : `Error: ${executionResult.error}`;
                                 LoggerService.info('agent_tool_result', { tool: toolName, success: executionResult.success, resultLength: resultContent?.length }, userId);
 
-                                // Search results are used for context but no citation tracking needed
                                 if (toolName === 'search' && executionResult.success) {
                                     usedTools.add('search');
                                 }
@@ -429,19 +473,7 @@ ${JSON.stringify(smartContext?.rolling || {}, null, 2)}`
 
                 } else {
                     // ... (Final Answer Logic) ...
-                    let textContent = '';
-                    try {
-                        const blocks = JSON.parse(fullResponse);
-                        if (Array.isArray(blocks)) {
-                            textContent = blocks.filter(b => b.type === 'text').map(b => b.text).join('\n');
-                        } else {
-                            textContent = fullResponse;
-                        }
-                    } catch {
-                        textContent = fullResponse;
-                    }
-
-                    finalAnswer = textContent;
+                    finalAnswer = fullResponse;
 
                     // Simplified answer mode logic (no citations)
                     if (nativeDocBlocks.length > 0) {

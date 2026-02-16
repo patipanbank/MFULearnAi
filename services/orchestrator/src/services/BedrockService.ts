@@ -199,8 +199,89 @@ export class BedrockService {
             }
         }
 
-        // Should never reach here, but TypeScript needs it
-        throw new Error('Bedrock sendChat: max retries exceeded');
+    }
+}
+
+    /**
+     * Streams chat response as an AsyncGenerator, yielding structured events.
+     * Useful for Agentic workflows that need to intercept tool use.
+     */
+    static async * streamAgentChat(
+    modelId: string,
+    messages: ChatMessage[],
+    system ?: string | Array<{ text: string }>,
+    temperature: number = 0.5,
+    toolConfig ?: any,
+    guardrailConfig ?: any
+): AsyncGenerator < any, void, unknown > {
+    const requestData: any = {
+        messages,
+        modelId,
+        system,
+        temperature,
+        stream: true // Explicitly enable streaming
+    };
+
+    if(toolConfig) requestData.toolConfig = toolConfig;
+    if(guardrailConfig) requestData.guardrailConfig = guardrailConfig;
+
+    try {
+        // Diagnostic: count doc blocks
+        const docBlockCount = messages.reduce((sum: number, m: any) => {
+            if (Array.isArray(m.content)) {
+                return sum + m.content.filter((b: any) => b.type === 'document').length;
+            }
+            return sum;
+        }, 0);
+        LoggerService.info('bedrock_stream_agent_chat', { modelId, hasTools: !!toolConfig, docBlocks: docBlockCount });
+
+        const response = await axios({
+            method: 'post',
+            url: `${BEDROCK_TEXT_URL}/chat`,
+            data: requestData,
+            headers: {
+                'Authorization': `Bearer ${TokenService.mint('bedrock', 'write')}`,
+                'x-correlation-id': ContextService.getCorrelationId()
+            },
+            responseType: 'stream',
+            timeout: 120000
+        });
+
+        const stream = response.data;
+        let buffer = '';
+
+        for await (const chunk of stream) {
+        buffer += chunk.toString();
+        let params = buffer.split('\n');
+        buffer = params.pop() || '';
+
+        for(const line of params) {
+            if (line.trim().startsWith('data: ')) {
+                const dataStr = line.replace('data: ', '').trim();
+                if (dataStr === '[DONE]') continue;
+                try {
+                    const data = JSON.parse(dataStr);
+                    yield data;
+                } catch (e) {
+                    // Partial JSON — skip
+                }
+            } else if (line.trim().startsWith('event: error')) {
+                // Next line should be data with error
+            }
+        }
+    }
+             // Process any remaining buffer
+            if(buffer.trim().startsWith('data: ')) {
+    const dataStr = buffer.replace('data: ', '').trim();
+    if(dataStr !== '[DONE]') {
+        try { yield JSON.parse(dataStr); } catch (e) { }
+    }
+}
+
+        } catch (error: any) {
+    LoggerService.error('bedrock_stream_agent_error', { error: error.message });
+    throw error; // Let AgentWorkflow handle
+}
     }
 }
 
