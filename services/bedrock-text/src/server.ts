@@ -13,15 +13,6 @@ const app = express();
 app.use(express.json({ limit: '50mb' }));
 app.use(cors());
 
-// Global Error Handlers for Debugging
-process.on('uncaughtException', (err) => {
-    console.error('[Bedrock Text] Uncaught Exception:', err);
-});
-
-process.on('unhandledRejection', (reason, promise) => {
-    console.error('[Bedrock Text] Unhandled Rejection at:', promise, 'reason:', reason);
-});
-
 const PORT = process.env.PORT || 5001;
 const ENV_TYPE = process.env.ENV_TYPE || 'TEST';
 
@@ -96,8 +87,6 @@ const normalizeMessages = (messages: any[]) => {
             // Internal: { type: 'tool_result', ... } -> Converse: { toolResult: ... }
 
             msg.content.forEach((block: any) => {
-                if (!block) return;
-
                 if (block.type === 'text') content.push({ text: block.text });
                 else if (block.type === 'image') content.push({ image: block.source });
                 // Enhancement 2: Native Document Support
@@ -220,23 +209,9 @@ app.use(authenticateInternal);
 // --- Routes ---
 
 app.post('/api/bedrock/chat', async (req: Request, res: Response) => {
-    const { messages, modelId, toolConfig, guardrailConfig: reqGuardrailConfig, system: reqSystem } = req.body;
+    const { messages, modelId, toolConfig, guardrailConfig: reqGuardrailConfig } = req.body;
 
-    console.log('[Bedrock Text] RAW Messages Before Normalization:');
-    if (messages && Array.isArray(messages)) {
-        messages.forEach((msg: any, i: number) => {
-            console.log(`  [${i}] role=${msg.role}, contentType=${typeof msg.content}, isArray=${Array.isArray(msg.content)}`);
-            if (Array.isArray(msg.content)) {
-                msg.content.forEach((block: any, bi: number) => {
-                    if (block) {
-                        console.log(`    [${i}.${bi}] type=${block.type}, keys=${Object.keys(block).join(',')}`);
-                    } else {
-                        console.log(`    [${i}.${bi}] NULL/UNDEFINED BLOCK`);
-                    }
-                });
-            }
-        });
-    }
+    console.log(`[Bedrock Text] Incoming Chat Request: ${messages?.length} messages. Tools: ${toolConfig ? 'YES' : 'NO'}`);
     if (toolConfig) {
         console.log(`[Bedrock Text] Tool Config:`, JSON.stringify(toolConfig).substring(0, 200) + '...');
     }
@@ -248,47 +223,20 @@ app.post('/api/bedrock/chat', async (req: Request, res: Response) => {
     const finalModelId = validateModel(modelId);
 
     // Enhancement 4: Multi-Block System Prompts
-    // Priority: 1. req.body.system 2. messages.find(role==system)
+    // System prompt can now be a string OR an array of { text: string } blocks
+    const systemMsg = messages.find(msg => msg.role === 'system');
     let system: any[] | undefined;
-
-    if (reqSystem) {
-        console.log('[Bedrock Text] Found system prompt in request BODY');
-        if (Array.isArray(reqSystem)) {
-            system = reqSystem.map((block: any) => (
+    if (systemMsg) {
+        if (Array.isArray(systemMsg.content)) {
+            // Already structured as blocks: [{ text: '...' }, { text: '...' }]
+            system = systemMsg.content.map((block: any) => (
                 typeof block === 'string' ? { text: block } : block
             ));
-        } else if (typeof reqSystem === 'string') {
-            system = [{ text: reqSystem }];
+        } else if (typeof systemMsg.content === 'string') {
+            system = [{ text: systemMsg.content }];
         }
     }
 
-    // Fallback: Check messages for role='system' (Legacy support)
-    if (!system) {
-        const systemMsg = messages.find((msg: any) => msg.role === 'system');
-        if (systemMsg) {
-            console.log('[Bedrock Text] Found system prompt in MESSAGES (Legacy)');
-            if (Array.isArray(systemMsg.content)) {
-                system = systemMsg.content.map((block: any) => (
-                    typeof block === 'string' ? { text: block } : block
-                ));
-            } else if (typeof systemMsg.content === 'string') {
-                system = [{ text: systemMsg.content }];
-            }
-        }
-    }
-
-    if (!system) {
-        console.warn('[Bedrock Text] WARNING: No system prompt found!');
-    } else {
-        console.log(`[Bedrock Text] System Prompt Configured: ${system.length} blocks`);
-    }
-
-    // Normalize for Converse
-    // Explicitly confirm if system messages are being filtered
-    const preFilterCount = messages.length;
-    const formattedMessages = normalizeMessages(messages.filter(msg => msg.role !== 'system'));
-
-    console.log(`[Bedrock Text] Messages after normalization: ${formattedMessages.length} (Original: ${preFilterCount})`);
     // Enhancement 3: Guardrails - merge env config with request config
     let guardrailConfig: any = undefined;
     if (reqGuardrailConfig) {
@@ -300,23 +248,8 @@ app.post('/api/bedrock/chat', async (req: Request, res: Response) => {
         };
     }
 
-    console.log('[Bedrock Text] Normalized Messages Summary:');
-    formattedMessages.forEach((msg: any, i: number) => {
-        const contentBlockCount = Array.isArray(msg.content) ? msg.content.length : 1;
-        const contentTypes = Array.isArray(msg.content)
-            ? msg.content.map((b: any) => {
-                if (b.text) return `text(${b.text.substring(0, 50)}...)`;
-                if (b.image) return 'image';
-                if (b.document) return `document(${b.document.name})`;
-                if (b.toolUse) return `toolUse(${b.toolUse.name})`;
-                if (b.toolResult) return `toolResult(${b.toolResult.toolUseId})`;
-                return 'unknown';
-            })
-            : [`text(${msg.content?.substring(0, 50)}...)`];
-        console.log(`  [${i}] ${msg.role}: ${contentBlockCount} blocks -> ${contentTypes.join(', ')}`);
-    });
-
-    // (formattedMessages already declared above)
+    // Normalize for Converse
+    const formattedMessages = normalizeMessages(messages.filter(msg => msg.role !== 'system'));
 
     if (formattedMessages.length === 0) {
         return res.status(400).json({ error: 'No valid user/assistant messages found after normalization' });
@@ -347,60 +280,36 @@ app.post('/api/bedrock/chat', async (req: Request, res: Response) => {
             const streamCommandInput: any = {
                 modelId: finalModelId,
                 messages: formattedMessages,
-                inferenceConfig: { maxTokens: 4096, temperature: 0.5 }
+                system,
+                inferenceConfig: { maxTokens: 4096, temperature: 0.5 },
+                toolConfig
             };
-            if (system) streamCommandInput.system = system;
-            if (toolConfig) streamCommandInput.toolConfig = toolConfig;
             if (guardrailConfig) streamCommandInput.guardrailConfig = guardrailConfig;
             if (additionalModelRequestFields) streamCommandInput.additionalModelRequestFields = additionalModelRequestFields;
 
             const command = new ConverseStreamCommand(streamCommandInput);
 
-            try {
-                const response = await client.send(command);
+            const response = await client.send(command);
 
-                if (response.stream) {
-                    for await (const chunk of response.stream) {
-                        // Forward all event types to client
-                        if (chunk.messageStart) {
-                            res.write(`data: ${JSON.stringify({ type: 'message_start', message: chunk.messageStart })}\n\n`);
-                        }
-                        if (chunk.contentBlockStart) {
-                            res.write(`data: ${JSON.stringify({ type: 'content_block_start', start: chunk.contentBlockStart, index: chunk.contentBlockStart.contentBlockIndex })}\n\n`);
-                        }
-                        if (chunk.contentBlockDelta) {
-                            const delta = chunk.contentBlockDelta.delta;
-                            if (delta?.text) {
-                                res.write(`data: ${JSON.stringify({ type: 'content_block_delta', index: chunk.contentBlockDelta.contentBlockIndex, delta: { text: delta.text }, text: delta.text })}\n\n`);
-                            } else if (delta?.toolUse) {
-                                res.write(`data: ${JSON.stringify({ type: 'content_block_delta', index: chunk.contentBlockDelta.contentBlockIndex, delta: { toolUse: delta.toolUse } })}\n\n`);
-                            }
-                        }
-                        if (chunk.contentBlockStop) {
-                            res.write(`data: ${JSON.stringify({ type: 'content_block_stop', index: chunk.contentBlockStop.contentBlockIndex })}\n\n`);
-                        }
-                        if (chunk.messageStop) {
-                            res.write(`data: ${JSON.stringify({ type: 'message_stop', stopReason: chunk.messageStop.stopReason, additionalModelResponseFields: chunk.messageStop.additionalModelResponseFields })}\n\n`);
-                        }
-                        if (chunk.metadata) {
-                            const usage = chunk.metadata.usage || { inputTokens: 0, outputTokens: 0, totalTokens: 0 };
-                            const cacheUsage = (chunk.metadata as any).cacheUsage || null;
-                            const usagePayload: any = {
-                                type: 'usage',
-                                usage: { input: usage.inputTokens, output: usage.outputTokens, total: usage.totalTokens }
-                            };
-                            if (cacheUsage) usagePayload.cacheUsage = cacheUsage;
-                            res.write(`data: ${JSON.stringify(usagePayload)}\n\n`);
-                        }
+            if (response.stream) {
+                for await (const chunk of response.stream) {
+                    if (chunk.contentBlockDelta && chunk.contentBlockDelta.delta?.text) {
+                        res.write(`data: ${JSON.stringify({ text: chunk.contentBlockDelta.delta.text })}\n\n`);
+                    }
+                    if (chunk.metadata) {
+                        const usage = chunk.metadata.usage || { inputTokens: 0, outputTokens: 0, totalTokens: 0 };
+                        const cacheUsage = (chunk.metadata as any).cacheUsage || null;
+                        const usagePayload: any = {
+                            type: 'usage',
+                            usage: { input: usage.inputTokens, output: usage.outputTokens, total: usage.totalTokens }
+                        };
+                        if (cacheUsage) usagePayload.cacheUsage = cacheUsage;
+                        res.write(`data: ${JSON.stringify(usagePayload)}\n\n`);
                     }
                 }
-                res.write('data: [DONE]\n\n');
-                res.end();
-            } catch (streamError: any) {
-                console.error('[Bedrock Text] Stream Loop Error:', streamError);
-                if (!res.headersSent) res.write(`event: error\ndata: ${JSON.stringify({ error: streamError.message })}\n\n`);
-                res.end();
             }
+            res.write('data: [DONE]\n\n');
+            res.end();
 
         } else {
             // Synchronous (Agent Usage)
