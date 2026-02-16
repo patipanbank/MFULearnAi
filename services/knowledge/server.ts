@@ -68,59 +68,79 @@ const extractUser = (req: Request): UserContext | null => {
 
     if (token) {
         try {
-            // A. Try User Token (HS256 - from Identity Service)
-            try {
-                const decodedUser: any = jwt.verify(token, JWT_SECRET, { algorithms: ['HS256'] });
-                if (decodedUser && decodedUser.userId) {
-                    return {
-                        userId: decodedUser.userId,
-                        role: decodedUser.role || 'student',
-                        department: decodedUser.department || 'General'
-                    };
-                }
-            } catch (err: any) {
-                // Debugging: Log why HS256 failed (likely secret mismatch if "invalid signature")
-                if (err.message === 'invalid signature') {
-                    console.warn('[Knowledge] User Token verification failed: invalid signature. POTENTIAL CONFIG ISSUE: Check JWT_SECRET mismatch between Identity and Knowledge services.');
-                } else if (err.message === 'jwt expired') {
-                    console.warn('[Knowledge] User Token verification failed: token expired.');
-                }
-                // Otherwise query might be an Internal Token (RS256), so we continue to B.
+            // 1. Decode without verification to check Header (Algorithm)
+            const decodedUntrusted = jwt.decode(token, { complete: true });
+            if (!decodedUntrusted || !decodedUntrusted.header) {
+                console.warn('[Knowledge] Token decode failed or invalid structure');
+                return null;
             }
 
-            // B. Try Internal Token (RS256 - from Orchestrator)
-            const fs = require('fs');
-            // Check if key file exists
-            if (fs.existsSync(PUBLIC_KEY_PATH)) {
-                const publicKey = fs.readFileSync(PUBLIC_KEY_PATH);
-                const decodedInternal: any = jwt.verify(token, publicKey, { algorithms: ['RS256'] });
+            const alg = decodedUntrusted.header.alg;
 
-                // STRICT VERIFICATION
-                // 1. Check Audience (Use Service ID)
-                if (decodedInternal.aud !== 'mfu-knowledge-service') {
-                    console.warn('[Knowledge] Invalid audience:', decodedInternal.aud);
+            // 2. Route Verification based on Algorithm
+            if (alg === 'HS256') {
+                // --- A. USER TOKEN (Identity Service) ---
+                try {
+                    const decodedUser: any = jwt.verify(token, JWT_SECRET, { algorithms: ['HS256'] });
+                    if (decodedUser && decodedUser.userId) {
+                        return {
+                            userId: decodedUser.userId,
+                            role: decodedUser.role || 'student',
+                            department: decodedUser.department || 'General'
+                        };
+                    }
+                } catch (err: any) {
+                    if (err.message === 'jwt expired') {
+                        console.warn(`[Knowledge] User Token expired. ExpiredAt: ${err.expiredAt}`);
+                    } else {
+                        console.warn(`[Knowledge] User Token verification failed: ${err.message}`);
+                    }
+                    // Do NOT fallback to RS256 if HS256 failed.
                     return null;
                 }
+            } else if (alg === 'RS256') {
+                // --- B. INTERNAL TOKEN (Orchestrator/Service) ---
+                const fs = require('fs');
+                if (fs.existsSync(PUBLIC_KEY_PATH)) {
+                    try {
+                        const publicKey = fs.readFileSync(PUBLIC_KEY_PATH);
+                        const decodedInternal: any = jwt.verify(token, publicKey, { algorithms: ['RS256'] });
 
-                // 2. Check Type
-                if (decodedInternal.typ !== 'internal-jwt') {
-                    console.warn('[Knowledge] Invalid token type:', decodedInternal.typ);
+                        // STRICT VERIFICATION
+                        if (decodedInternal.aud !== 'mfu-knowledge-service') {
+                            console.warn('[Knowledge] Invalid audience:', decodedInternal.aud);
+                            return null;
+                        }
+
+                        if (decodedInternal.typ !== 'internal-jwt') {
+                            console.warn('[Knowledge] Invalid token type:', decodedInternal.typ);
+                            return null;
+                        }
+
+                        // Check impersonation headers
+                        const impersonatedUserId = req.headers['x-user-id'] as string;
+                        const impersonatedRole = req.headers['x-role'] as string;
+
+                        return {
+                            userId: impersonatedUserId || decodedInternal.sub || 'service:orchestrator',
+                            role: impersonatedRole || 'admin',
+                            department: 'Global'
+                        };
+                    } catch (err: any) {
+                         console.warn(`[Knowledge] Internal Token verification failed: ${err.message}`);
+                         return null;
+                    }
+                } else {
+                    console.warn('[Knowledge] RS256 Token received but Public Key not found');
                     return null;
                 }
-
-                // Internal Token: Check if impersonating a user via header
-                // Trusted services (Orchestrator) pass x-user-id to scoped operations
-                const impersonatedUserId = req.headers['x-user-id'] as string;
-                const impersonatedRole = req.headers['x-role'] as string;
-
-                return {
-                    userId: impersonatedUserId || decodedInternal.sub || 'service:orchestrator',
-                    role: impersonatedRole || 'admin',
-                    department: 'Global'
-                };
+            } else {
+                console.warn(`[Knowledge] Unsupported token algorithm: ${alg}`);
+                return null;
             }
+
         } catch (e) {
-            console.warn(`[Knowledge] Token verification failed: ${e instanceof Error ? e.message : 'Unknown'}`);
+            console.warn(`[Knowledge] Token processing error: ${e instanceof Error ? e.message : 'Unknown'}`);
         }
     }
     return null;
