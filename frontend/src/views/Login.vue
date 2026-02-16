@@ -65,7 +65,7 @@ const handleAdminLogin = async () => {
 </script>
 
 <template>
-  <div class="login-container" :style="{ backgroundImage: `url(${currentBg})` }">
+  <div class="login-container" :style="{ '--bg-image': `url(${currentBg})` }">
     <div class="login-card fade-in">
       <!-- Logo & Title -->
       <div class="login-header">
@@ -140,12 +140,31 @@ const handleAdminLogin = async () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: var(--color-bg-dark); /* Fallback */
+  /* Background handled by ::before to isolate blur */
+  background-color: var(--color-bg-dark);
+  position: relative;
+  overflow: hidden;
+}
+
+/* Background Image & Effects (Blur + Dim) */
+.login-container::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  /* Image */
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
-  position: relative;
-  overflow: hidden;
+  /* Dim (Dark Overlay via Linear Gradient) combined with Image Variable */
+  background-image: linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)), var(--bg-image); 
+  /* Blur */
+  filter: blur(8px);
+  /* Scale up slightly to hide blurred edges */
+  transform: scale(1.05);
+  z-index: 0;
   transition: background-image 0.5s ease-in-out;
 }
 
