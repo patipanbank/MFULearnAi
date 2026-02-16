@@ -78,7 +78,15 @@ const extractUser = (req: Request): UserContext | null => {
                         department: decodedUser.department || 'General'
                     };
                 }
-            } catch (ignore) { /* Not a user token, verify as internal */ }
+            } catch (err: any) {
+                // Debugging: Log why HS256 failed (likely secret mismatch if "invalid signature")
+                if (err.message === 'invalid signature') {
+                    console.warn('[Knowledge] User Token verification failed: invalid signature. POTENTIAL CONFIG ISSUE: Check JWT_SECRET mismatch between Identity and Knowledge services.');
+                } else if (err.message === 'jwt expired') {
+                    console.warn('[Knowledge] User Token verification failed: token expired.');
+                }
+                // Otherwise query might be an Internal Token (RS256), so we continue to B.
+            }
 
             // B. Try Internal Token (RS256 - from Orchestrator)
             const fs = require('fs');

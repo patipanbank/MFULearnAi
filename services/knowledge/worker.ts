@@ -154,7 +154,16 @@ export const processKnowledgeJob = async (job: Job) => {
         }
 
         fullText = fullText.replace(/\s+/g, ' ').trim();
-        if (!fullText) throw new Error('Extracted text is empty');
+        if (!fullText) {
+            const msg = 'File contains no extractable text. Please ensure the file is not empty and contains readable text (or use OCR for images).';
+            console.warn(`[Worker] Job ${job.id}: ${msg}`);
+            await Knowledge.findByIdAndUpdate(knowledgeId, {
+                processingStatus: 'failed',
+                errorReason: msg,
+                processingStage: 'completed'
+            });
+            return; // Mark job as done (do not retry)
+        }
 
         // Calculate Hash
         const hash = crypto.createHash('sha256').update(fullText).digest('hex');
