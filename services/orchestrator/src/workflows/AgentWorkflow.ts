@@ -416,19 +416,15 @@ ${JSON.stringify(smartContext?.rolling || {}, null, 2)}`
 
                             const toolUseId = block.toolUseId;
                             // Parse input if it's a string (it should be valid JSON from the model)
-                            let toolInput = block.input;
-                            try {
-                                if (typeof toolInput === 'string') {
-                                    // Bedrock streaming sends partial JSON strings for input
-                                    // We need to parse it now
-                                    toolInput = JSON.parse(toolInput);
+                            if (typeof block.input === 'string') {
+                                try {
+                                    block.input = JSON.parse(block.input);
+                                } catch (e) {
+                                    LoggerService.warn('tool_input_parse_failed_in_history', { tool: toolName, input: block.input }, userId);
                                 }
-                            } catch (e) {
-                                LoggerService.warn('tool_input_parse_failed', { tool: toolName, input: block.input }, userId);
-                                // Fallback: try to fix or error?
-                                // If it failed, it might be incomplete. But Bedrock usually sends valid JSON delta.
-                                // Actually, `block.input` is the ACCUMULATED string.
                             }
+
+                            const toolInput = block.input;
 
                             // ... (Execution logic) ...
                             LoggerService.info('tool_execution', { tool: toolName, input: toolInput }, userId);
