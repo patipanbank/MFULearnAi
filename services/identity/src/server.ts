@@ -204,13 +204,26 @@ app.get('/api/auth/me', authenticateUser, async (req: any, res: Response) => {
 });
 
 // 4. Refresh Token
-app.post('/api/auth/refresh', authenticateUser, async (req: any, res: Response) => {
+app.post('/api/auth/refresh', async (req: any, res: Response) => {
     try {
-        const user = await User.findById(req.user.userId);
-        if (!user || !user.isActive) return res.status(401).json({ error: 'Invalid user' });
+        const authHeader = req.headers['authorization'];
+        const token = authHeader && authHeader.split(' ')[1];
+        if (!token) return res.status(401).json({ error: 'No token' });
 
-        const token = generateToken(user);
-        res.json({ token });
+        // Verify token properly BUT ignore expiration (we want to refresh expired ones!)
+        jwt.verify(token, JWT_SECRET, { ignoreExpiration: true }, async (err: any, decoded: any) => {
+            if (err) return res.status(403).json({ error: 'Invalid token signature' });
+
+            // Check if user still exists and is active
+            const user = await User.findById(decoded.userId);
+            if (!user || !user.isActive) return res.status(401).json({ error: 'Invalid user or account disabled' });
+
+            // Optionally: Check if token is TOO old (e.g. > 7 days) if you stored "iat"
+            // But for now, if signature is valid, we issue a fresh one.
+
+            const newToken = generateToken(user);
+            res.json({ token: newToken });
+        });
     } catch (e) {
         res.status(500).json({ error: 'Server Error' });
     }

@@ -24,13 +24,53 @@ api.interceptors.request.use(
 // Response interceptor - handle auth errors
 api.interceptors.response.use(
     (response) => response,
-    (error) => {
-        if (error.response?.status === 401) {
-            // Clear auth and redirect to login
+    async (error) => {
+        const originalRequest = error.config
+
+        // If 401 and not already retrying
+        if (error.response?.status === 401 && !originalRequest._retry) {
+            originalRequest._retry = true
+
+            try {
+                // Attempt Refresh
+                // distinct axios instance to avoid infinite loop if refresh fails
+                const token = localStorage.getItem('auth_token')
+                if (!token) throw new Error('No token to refresh')
+
+                const { data } = await axios.post(`${api.defaults.baseURL}/auth/refresh`, {}, {
+                    headers: { Authorization: `Bearer ${token}` }
+                })
+
+                if (data.token) {
+                    // Update Local Storage
+                    localStorage.setItem('auth_token', data.token)
+
+                    // Update Store (if accessible, or relies on localStorage reactivity/reload)
+                    // Ideally we import store, but circular dependency risk. 
+                    // Let's just update headers and retry.
+
+                    api.defaults.headers.common['Authorization'] = `Bearer ${data.token}`
+                    originalRequest.headers['Authorization'] = `Bearer ${data.token}`
+
+                    return api(originalRequest)
+                }
+            } catch (refreshError) {
+                console.error('Session expired, refresh failed:', refreshError)
+                // Logout
+                localStorage.removeItem('auth_token')
+                localStorage.removeItem('user_info')
+                window.location.href = '/login'
+                return Promise.reject(refreshError)
+            }
+        }
+
+        // If not 401 or refresh failed (already handled above but generic fallback)
+        if (error.response?.status === 401 && originalRequest._retry) {
             localStorage.removeItem('auth_token')
             localStorage.removeItem('user_info')
             window.location.href = '/login'
         }
+
         return Promise.reject(error)
     }
 )
