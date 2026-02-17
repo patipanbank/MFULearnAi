@@ -232,7 +232,12 @@ export const useChatStore = defineStore('chat', () => {
             }
 
             // Only process events for this trace
-            if (data.traceId !== traceId) return
+            if (data.traceId !== traceId) {
+                console.warn(`[ChatStore] Dropping event ${data.type} (traceId mismatch): expected ${traceId}, got ${data.traceId}`)
+                return
+            }
+
+            console.log(`[ChatStore] Processing event: ${data.type}`)
 
             // Helper: ensure agentEvents array exists
             const ensureEvents = () => {
