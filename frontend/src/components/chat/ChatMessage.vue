@@ -1140,7 +1140,7 @@ const formatBytes = (bytes) => {
     max-height: 500px;
     transform: translateY(0);
 }
-</style>
+
 
 
 /* === Agent Flow Redesign (Round 5 - Visual Polish) === */
