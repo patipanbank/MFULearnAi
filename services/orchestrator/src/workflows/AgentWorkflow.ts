@@ -66,10 +66,21 @@ export class AgentWorkflow {
         } : undefined;
 
         res.setHeader('Content-Type', 'text/event-stream');
-        res.setHeader('Cache-Control', 'no-cache');
+        res.setHeader('Cache-Control', 'no-cache, no-transform');
         res.setHeader('Connection', 'keep-alive');
         res.setHeader('X-Accel-Buffering', 'no'); // Disable nginx proxy buffering
-        res.flushHeaders(); // Force headers to be sent immediately — prevents Node.js buffering
+        res.flushHeaders(); // Send headers immediately
+
+        // Disable Nagle's algorithm — send each write() as a separate TCP packet immediately
+        // This is THE critical fix for real-time SSE delivery
+        const socket = (res as any).socket || (res as any).connection;
+        if (socket && typeof socket.setNoDelay === 'function') {
+            socket.setNoDelay(true);
+        }
+        // Ensure the response stream isn't corked (batching writes)
+        if (typeof (res as any).uncork === 'function') {
+            (res as any).uncork();
+        }
 
         // Client disconnect detection for SSE
         let clientDisconnected = false;
@@ -79,9 +90,9 @@ export class AgentWorkflow {
         const safeWrite = (data: string) => {
             if (!clientDisconnected && !res.writableEnded) {
                 res.write(data);
-                // Force flush to prevent event buffering (critical for real-time SSE)
+                // Force flush at multiple levels
                 if (typeof (res as any).flush === 'function') {
-                    (res as any).flush();
+                    (res as any).flush(); // compression middleware flush
                 }
             }
         };
