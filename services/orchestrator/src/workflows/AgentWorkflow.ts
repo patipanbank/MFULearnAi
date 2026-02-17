@@ -45,6 +45,7 @@ interface AgentContext {
     collectionId?: string;
     images: any[];
     files: any[];
+    traceId?: string;
 }
 
 interface WorkflowState {
@@ -71,7 +72,7 @@ export class AgentWorkflow {
 
     private constructor(ctx: AgentContext) {
         this.ctx = ctx;
-        const traceId = crypto.randomUUID();
+        const traceId = ctx.traceId || crypto.randomUUID();
         this.state = {
             traceId,
             steps: 0,
@@ -105,10 +106,11 @@ export class AgentWorkflow {
         userDepartment: string,
         collectionId: string | undefined,
         images: any[] = [],
-        files: any[] = []
+        files: any[] = [],
+        traceId?: string
     ): Promise<{ traceId: string }> {
         const workflow = new AgentWorkflow({
-            userId, sessionId, message, userRole, userDepartment, collectionId, images, files
+            userId, sessionId, message, userRole, userDepartment, collectionId, images, files, traceId
         });
         return workflow.run();
     }

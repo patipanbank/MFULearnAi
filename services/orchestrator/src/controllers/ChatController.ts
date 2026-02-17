@@ -53,7 +53,8 @@ export class ChatController {
                         req.user.department,
                         collectionId,
                         images,
-                        files
+                        files,
+                        traceId // Pass the traceId we just sent to client
                     ).catch((err: any) => {
                         LoggerService.error('agent_workflow_error', { error: err.message, stack: err.stack });
                     });
