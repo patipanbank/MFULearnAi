@@ -223,7 +223,7 @@ export class BedrockService {
         temperature: number = 0.5,
         toolConfig?: any,
         guardrailConfig?: any
-    ): Promise<{ text: string, usage: any, stopReason?: string }> {
+    ): Promise<{ text: string, content: any[], usage: any, stopReason?: string }> {
         const requestData: any = {
             messages,
             modelId,
@@ -249,7 +249,9 @@ export class BedrockService {
                 maxContentLength: Infinity
             });
 
+            // Accumulators
             let fullText = '';
+            let contentBlocks: any[] = []; // Store structured blocks (text or tool_use)
             let tokenUsage = { input: 0, output: 0, total: 0 };
             let stopReason: string | undefined;
             let buffer = '';
@@ -258,7 +260,7 @@ export class BedrockService {
                 response.data.on('data', (chunk: Buffer) => {
                     buffer += chunk.toString();
                     const lines = buffer.split('\n');
-                    buffer = lines.pop() || ''; // Keep incomplete last line in buffer
+                    buffer = lines.pop() || '';
 
                     for (const line of lines) {
                         const trimmed = line.trim();
@@ -269,16 +271,51 @@ export class BedrockService {
 
                         try {
                             const data = JSON.parse(dataStr);
-                            if (data.text) {
-                                fullText += data.text;
-                                onDelta(data.text);
+
+                            // 1. Text Delta (Standard text streaming)
+                            if (data.type === 'text_delta' || data.text) {
+                                const text = data.text || '';
+                                fullText += text;
+
+                                // Ensure content block exists for text
+                                const idx = data.index || 0;
+                                if (!contentBlocks[idx]) contentBlocks[idx] = { type: 'text', text: '' };
+                                if (contentBlocks[idx].type === 'text') {
+                                    contentBlocks[idx].text += text;
+                                }
+
+                                onDelta(text);
                             }
+
+                            // 2. Tool Use Start
+                            if (data.type === 'content_block_start' && data.toolUse) {
+                                const idx = data.index || 0;
+                                contentBlocks[idx] = {
+                                    type: 'tool_use',
+                                    toolUseId: data.toolUse.toolUseId,
+                                    name: data.toolUse.name,
+                                    input: '' // Will be built via input_delta
+                                };
+                            }
+
+                            // 3. Tool Input Delta
+                            if (data.type === 'input_delta' && data.input) {
+                                const idx = data.index || 0;
+                                if (contentBlocks[idx] && contentBlocks[idx].type === 'tool_use') {
+                                    contentBlocks[idx].input += data.input;
+                                }
+                            }
+
+                            // 4. Stop Reason
+                            if (data.type === 'message_stop' || data.stopReason) {
+                                stopReason = data.stopReason || stopReason;
+                            }
+
+                            // 5. Usage
                             if (data.type === 'usage' && data.usage) {
                                 tokenUsage = data.usage;
                             }
-                            if (data.stopReason) {
-                                stopReason = data.stopReason;
-                            }
+
                         } catch (e) {
                             // Partial JSON — safe to skip
                         }
@@ -286,7 +323,18 @@ export class BedrockService {
                 });
 
                 response.data.on('end', () => {
-                    resolve({ text: fullText, usage: tokenUsage, stopReason });
+                    // Post-process tool inputs (parse JSON)
+                    contentBlocks.forEach(block => {
+                        if (block.type === 'tool_use' && typeof block.input === 'string') {
+                            try {
+                                block.input = JSON.parse(block.input);
+                            } catch (e) {
+                                console.warn('[BedrockService] Failed to parse tool input JSON', block.input);
+                            }
+                        }
+                    });
+
+                    resolve({ text: fullText, content: contentBlocks, usage: tokenUsage, stopReason });
                 });
 
                 response.data.on('error', (err: Error) => {

@@ -292,10 +292,50 @@ app.post('/api/bedrock/chat', async (req: Request, res: Response) => {
             const response = await client.send(command);
 
             if (response.stream) {
+                let currentBlockIndex = 0;
+
                 for await (const chunk of response.stream) {
-                    if (chunk.contentBlockDelta && chunk.contentBlockDelta.delta?.text) {
-                        res.write(`data: ${JSON.stringify({ text: chunk.contentBlockDelta.delta.text })}\n\n`);
+                    // 1. Content Block Start (Tool Use or Text)
+                    if (chunk.contentBlockStart) {
+                        const start = chunk.contentBlockStart;
+                        currentBlockIndex = start.contentBlockIndex || 0;
+
+                        if (start.start?.toolUse) {
+                            // Notify client/orchestrator that a tool use block is starting
+                            res.write(`data: ${JSON.stringify({
+                                type: 'content_block_start',
+                                index: currentBlockIndex,
+                                toolUse: start.start.toolUse
+                            })}\n\n`);
+                        }
                     }
+
+                    // 2. Content Block Delta (Text or Tool Input)
+                    if (chunk.contentBlockDelta) {
+                        const delta = chunk.contentBlockDelta.delta;
+                        if (delta?.text) {
+                            res.write(`data: ${JSON.stringify({
+                                type: 'text_delta',
+                                text: delta.text,
+                                index: currentBlockIndex // Helpful if multiple blocks
+                            })}\n\n`);
+                        }
+                        if (delta?.toolUse) {
+                            res.write(`data: ${JSON.stringify({
+                                type: 'input_delta',
+                                input: delta.toolUse.input,
+                                index: currentBlockIndex
+                            })}\n\n`);
+                        }
+                    }
+
+                    // 3. Message Stop (Stop Reason)
+                    if (chunk.messageStop) {
+                        const stopReason = chunk.messageStop.stopReason;
+                        res.write(`data: ${JSON.stringify({ type: 'message_stop', stopReason })}\n\n`);
+                    }
+
+                    // 4. Metadata (Usage)
                     if (chunk.metadata) {
                         const usage = chunk.metadata.usage || { inputTokens: 0, outputTokens: 0, totalTokens: 0 };
                         const cacheUsage = (chunk.metadata as any).cacheUsage || null;

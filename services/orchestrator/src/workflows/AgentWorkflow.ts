@@ -367,10 +367,13 @@ ${JSON.stringify(smartContext?.rolling || {}, null, 2)}`
 
                 const stepStartTime = Date.now();
 
-                const { text: fullResponse, usage: stepUsage, stopReason } = await BedrockService.sendChat(
+                const { text: fullResponse, content: contentBlocks, usage: stepUsage, stopReason } = await BedrockService.streamChatSSE(
                     MODELS.PRIMARY,
                     messages,
-                    undefined,
+                    (delta) => {
+                        // Stream text to client immediately
+                        emitEvent(EVENT.ANSWER_DELTA, { delta });
+                    },
                     0.5,
                     toolConfig,
                     guardrailConfig
@@ -403,21 +406,19 @@ ${JSON.stringify(smartContext?.rolling || {}, null, 2)}`
                 // Handle Response
                 if (stopReason === 'tool_use') {
                     LoggerService.info('agent_tool_use_detected', { step: steps }, userId);
-                    let contentBlocks: any[] = [];
-                    try {
-                        contentBlocks = JSON.parse(fullResponse);
-                    } catch (e) {
-                        contentBlocks = [{ type: 'text', text: fullResponse }];
-                    }
 
-                    messages.push({ role: 'assistant', content: contentBlocks });
+                    // Robust content handling from stream structure
+                    const toolUseBlocks = contentBlocks || [{ type: 'text', text: fullResponse }];
+
+                    messages.push({ role: 'assistant', content: toolUseBlocks });
 
                     const toolResults: any[] = [];
-                    for (const block of contentBlocks) {
+                    for (const block of toolUseBlocks) {
                         if (block.type === 'tool_use') {
                             const toolName = block.name;
                             usedTools.add(toolName);
 
+                            // streamChatSSE parses input JSON automatically in end handler
                             const toolUseId = block.toolUseId;
                             const toolInput = block.input;
 
@@ -489,7 +490,7 @@ ${JSON.stringify(smartContext?.rolling || {}, null, 2)}`
 
                 } else {
                     // === FINAL ANSWER ===
-                    // Determine answer mode before streaming
+                    // Determine answer mode 
                     if (nativeDocBlocks.length > 0) {
                         answerMode = 'file_grounded';
                         answerState = 'VERIFIED';
@@ -498,35 +499,16 @@ ${JSON.stringify(smartContext?.rolling || {}, null, 2)}`
                         answerState = 'VERIFIED';
                     }
 
-                    // ▸ EVENT: answer_start
+                    // ▸ EVENT: answer_start (Late emission, but useful for metadata)
                     emitEvent(EVENT.ANSWER_START, { answerMode });
 
-                    // Parse the content from the synchronous response
-                    let textContent = '';
-                    try {
-                        const blocks = JSON.parse(fullResponse);
-                        if (Array.isArray(blocks)) {
-                            textContent = blocks.filter(b => b.type === 'text').map(b => b.text).join('\n');
-                        } else {
-                            textContent = fullResponse;
-                        }
-                    } catch {
-                        textContent = fullResponse;
-                    }
+                    // Add content to messages history
+                    messages.push({ role: 'assistant', content: fullResponse });
 
-                    finalAnswer = textContent;
+                    finalAnswer = fullResponse;
 
-                    // Stream the final answer token-by-token via simulated chunks
-                    // Break text into small chunks for progressive rendering
-                    const CHUNK_SIZE = 12; // Characters per chunk — balance between speed and smoothness
-                    for (let i = 0; i < finalAnswer.length; i += CHUNK_SIZE) {
-                        const delta = finalAnswer.substring(i, i + CHUNK_SIZE);
-                        emitEvent(EVENT.ANSWER_DELTA, { delta });
-                        // Tiny delay to prevent browser buffer coalescing (only if large text)
-                        if (finalAnswer.length > 200 && i % (CHUNK_SIZE * 10) === 0 && i > 0) {
-                            await new Promise(r => setTimeout(r, 1));
-                        }
-                    }
+                    // Note: We already streamed the delta events via streamChatSSE callback
+                    // So we don't need the simulated loop here.
 
                     // ▸ EVENT: answer_done
                     emitEvent(EVENT.ANSWER_DONE, { fullLength: finalAnswer.length });
