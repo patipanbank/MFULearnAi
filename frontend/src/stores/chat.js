@@ -188,6 +188,29 @@ export const useChatStore = defineStore('chat', () => {
             throw new Error('Socket.IO not connected — please refresh the page')
         }
 
+        // Ensure socket is connected before sending request
+        // This prevents the backend from emitting events to a room we haven't joined yet
+        if (!socket.connected) {
+            console.log('[ChatStore] Socket not connected, waiting for connection...')
+            await new Promise((resolve, reject) => {
+                const timeout = setTimeout(() => {
+                    reject(new Error('Socket connection timeout'))
+                }, 5000)
+
+                socket.once('connect', () => {
+                    clearTimeout(timeout)
+                    console.log('[ChatStore] Socket connected, proceeding...')
+                    resolve()
+                })
+
+                // If it fails to connect
+                socket.once('connect_error', (err) => {
+                    clearTimeout(timeout)
+                    reject(new Error(`Socket connection failed: ${err.message}`))
+                })
+            })
+        }
+
         // Buffer events in case they arrive before fetch returns traceId
         const eventBuffer = []
         let traceId = null
