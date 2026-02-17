@@ -288,13 +288,14 @@ const formatBytes = (bytes) => {
           </div>
           
           
-          <!-- ══ Agent Flow (Redesigned) ══ -->
+          <!-- ══ Agent Flow (Redesigned Round 3) ══ -->
           <div v-if="showAgentFlow" class="agent-flow-container">
-            <!-- Collapsed Header -->
-            <button 
+            <!-- Collapsed Header (DIV instead of BUTTON to avoid global styles) -->
+            <div 
                 class="agent-flow-header" 
                 @click="toggleFlow"
-                :class="{ active: flowExpanded }"
+                role="button"
+                tabindex="0"
             >
                 <div class="header-left">
                     <span class="icon-indicator">
@@ -305,11 +306,11 @@ const formatBytes = (bytes) => {
                              <polyline points="9 18 15 12 9 6"></polyline>
                         </svg>
                     </span>
-                    <span class="status-text">
+                    <span class="status-text no-wrap">
                         {{ agentSummary?.isComplete ? 'Thoughts' : 'Working...' }}
                     </span>
                 </div>
-            </button>
+            </div>
 
             <!-- Expanded Content -->
             <div v-if="flowExpanded" class="agent-flow-content">
