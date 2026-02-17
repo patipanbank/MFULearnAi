@@ -312,37 +312,57 @@ const formatBytes = (bytes) => {
                 </div>
             </div>
 
-            <!-- Expanded Content -->
+            <!-- Expanded Content: Vertical Timeline -->
             <div v-if="flowExpanded" class="agent-flow-content">
-                <div v-for="(evt, idx) in timelineEvents" :key="idx" class="flow-item">
-                    <!-- Thinking (Step 1, etc.) -->
-                    <div v-if="evt.type === 'thinking'" class="flow-step text-step">
-                        <div class="step-title">
-                            <span class="icon">Thinking (Step {{ evt.step }})</span>
-                        </div>
-                        <div class="step-body markdown-body">{{ evt.message }}</div>
-                    </div>
-
-                    <!-- Tool Use -->
-                    <div v-else-if="evt.type === 'tool_start'" class="flow-step tool-step">
-                        <div class="step-title">
-                            <span class="icon">Executing Tool</span>
-                        </div>
-                        <div class="step-body code-font">
-                            > {{ evt.toolName }}
+                <div v-for="(evt, idx) in timelineEvents" :key="idx" class="timeline-item">
+                    <!-- Timeline Connector -->
+                    <div class="timeline-marker">
+                        <div class="timeline-line" v-if="idx < timelineEvents.length - 1"></div>
+                        <div class="timeline-dot" :class="evt.type">
+                            <span v-if="evt.type === 'thinking'">💭</span>
+                            <span v-else-if="evt.type === 'tool_start'">⚡</span>
+                            <span v-else-if="evt.type === 'tool_complete'">✅</span>
+                            <span v-else>•</span>
                         </div>
                     </div>
 
-                    <!-- Tool Complete -->
-                    <div v-else-if="evt.type === 'tool_complete'" class="flow-step tool-result">
-                        <div class="step-body fade-text">
-                            Result: {{ evt.success ? 'Success' : 'Failed' }}
+                    <!-- Content Block -->
+                    <div class="timeline-body">
+                        <!-- Thinking -->
+                        <div v-if="evt.type === 'thinking'" class="content-block thinking">
+                            <div class="block-header">Thinking Process (Step {{ evt.step }})</div>
+                            <div class="block-text markdown-body">{{ evt.message }}</div>
+                        </div>
+
+                        <!-- Tool Use -->
+                        <div v-else-if="evt.type === 'tool_start'" class="content-block tool-use">
+                            <div class="block-header">Running Tool</div>
+                            <div class="tool-command">
+                                <span class="cmd-prompt">></span> {{ evt.toolName }}
+                            </div>
+                        </div>
+
+                        <!-- Tool Result -->
+                        <div v-else-if="evt.type === 'tool_complete'" class="content-block tool-result">
+                            <div class="result-status" :class="{ success: evt.success, error: !evt.success }">
+                                {{ evt.success ? 'Completed' : 'Failed' }}
+                            </div>
+                            <div v-if="evt.resultPreview" class="result-preview">
+                                {{ evt.resultPreview.substring(0, 100) }}...
+                            </div>
                         </div>
                     </div>
-                    
-                     <!-- Streaming Thinking Indicator inside box -->
-                    <div v-if="!agentSummary?.isComplete && isStreaming" class="flow-step">
-                        <div class="step-body fade-text">Processing...</div>
+                </div>
+
+                <!-- Live Indicator (at bottom) -->
+                <div v-if="!agentSummary?.isComplete && isStreaming" class="timeline-item">
+                    <div class="timeline-marker">
+                        <div class="timeline-dot pulse">⏳</div>
+                    </div>
+                    <div class="timeline-body">
+                         <div class="content-block thinking">
+                            <div class="block-text fade-text">Processing...</div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1087,135 +1107,168 @@ const formatBytes = (bytes) => {
 </style>
 
 
-/* === Agent Flow Redesign (Round 3 - Fix Layout) === */
+/* === Agent Flow Redesign (Round 4 - Vertical Timeline) === */
 .agent-flow-container {
     margin-bottom: 12px;
-    width: 100%; /* Ensure full width */
+    width: 100%;
+    display: flex;
+    flex-direction: column;
 }
 
+/* Header (Retain from Round 3) */
 .agent-flow-header {
-    appearance: none; /* Remove native button styles */
-    -webkit-appearance: none;
-    background: transparent; 
-    border: none; 
-    padding: 6px 0;
+    appearance: none; -webkit-appearance: none;
+    background: transparent; border: none; padding: 6px 0;
     cursor: pointer;
-    display: flex; 
-    align-items: center;
+    display: flex; align-items: center;
     color: var(--color-text-muted);
     font-size: 13px; font-weight: 500;
     transition: color 0.2s;
     outline: none;
     width: 100%;
-    text-align: left;
+    user-select: none;
 }
 .agent-flow-header:hover { color: var(--color-text-primary); }
+.header-left { display: flex; align-items: center; gap: 8px; width: 100%; overflow: hidden; }
+.status-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 13px;}
 
-.header-left { 
-    display: flex; 
-    align-items: center; 
-    gap: 8px; 
-    width: 100%;
-}
-.icon-indicator { 
-    display: flex; 
-    align-items: center; 
-    flex-shrink: 0; 
-}
-
+/* Timeline Container */
 .agent-flow-content {
-    margin-top: 4px;
-    display: flex; 
-    flex-direction: column; 
-    gap: 16px; 
-    padding-left: 0; /* Remove indent to use full width, maybe indent items instead? */
-    
-    /* Fixed Height & Scroll */
-    max-height: 300px;
-    overflow-y: auto;
-    overflow-x: hidden;
-    
-    /* Scrollbar Styling */
+    margin-top: 8px;
+    display: flex; flex-direction: column; 
+    gap: 0; /* Gap handled by items for line continuity */
+    padding-left: 2px; /* Slight offset */
+    max-height: 350px;
+    overflow-y: auto; overflow-x: hidden;
     scrollbar-width: thin;
     scrollbar-color: var(--color-border) transparent;
+    padding-bottom: 8px;
 }
 
-.agent-flow-content::-webkit-scrollbar { width: 4px; }
-.agent-flow-content::-webkit-scrollbar-track { background: transparent; }
-.agent-flow-content::-webkit-scrollbar-thumb { background: var(--color-border); border-radius: 4px; }
-
-.flow-item {
-    animation: flowStepEnter 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+.timeline-item {
+    display: flex;
+    gap: 12px;
+    position: relative;
+    padding-bottom: 16px; /* Space between steps */
+    animation: flowStepEnter 0.3s cubic-bezier(0.2, 0.9, 0.3, 1) forwards;
     opacity: 0;
-    transform: translateY(10px);
-    width: 100%;
-    /* Add slight indent to items */
-    padding-left: 24px; 
-    box-sizing: border-box;
+    transform: translateY(5px);
+}
+/* Stagger animation */
+.timeline-item:nth-child(1) { animation-delay: 0.05s; }
+.timeline-item:nth-child(2) { animation-delay: 0.1s; }
+.timeline-item:nth-child(n+3) { animation-delay: 0.15s; }
+
+/* Timeline Marker (Left Side) */
+.timeline-marker {
+    display: flex; flex-direction: column; align-items: center;
+    width: 20px; flex-shrink: 0;
+    position: relative;
+}
+.timeline-dot {
+    width: 20px; height: 20px;
+    border-radius: 50%;
+    background: var(--color-bg-secondary);
+    border: 1px solid var(--color-border);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px;
+    z-index: 2; /* On top of line */
+}
+.timeline-dot.tool_start { background: #e0f2fe; border-color: #7dd3fc; color: #0284c7; }
+.timeline-dot.thinking { background: #f3f4f6; border-color: #d1d5db; }
+.timeline-dot.pulse { animation: pulse 1.5s infinite; border-color: var(--color-primary); color: var(--color-primary); }
+
+.timeline-line {
+    position: absolute;
+    top: 20px; bottom: -16px; /* Connect to next item */
+    width: 2px;
+    background: var(--color-border);
+    opacity: 0.5;
+    z-index: 1;
+}
+/* Hide line for last item */
+.timeline-item:last-child .timeline-line { display: none; }
+
+/* Content Body (Right Side) */
+.timeline-body {
+    flex: 1;
+    min-width: 0;
+    padding-top: 0; /* Align with dot */
 }
 
-.flow-step { 
-    font-size: 14px; 
-    color: var(--color-text-secondary);
-    width: 100%;
+.content-block {
+    background: transparent;
+}
+.content-block.tool-use {
+    background: var(--color-bg-tertiary);
+    border-radius: 8px;
+    padding: 8px 12px;
+    border: 1px solid var(--color-border);
 }
 
-.step-title {
-    font-weight: 600;
-    margin-bottom: 6px;
+.block-header {
     font-size: 11px;
+    font-weight: 600;
     color: var(--color-text-muted);
+    margin-bottom: 4px;
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    display: flex; 
-    align-items: center; 
-    gap: 6px;
-    opacity: 0.9;
-    white-space: nowrap; /* Prevent "Thinking (Step 1)" from breaking */
 }
 
-.step-title .icon {
-    /* Ensure icon isn't forcing breaks */
-    display: inline-block;
-}
-
-.step-body.markdown-body {
-    white-space: pre-wrap;
+.block-text.markdown-body {
+    font-size: 14px;
     line-height: 1.6;
     color: var(--color-text-secondary);
-    font-size: 14px;
-    /* Ensure text doesn't overflow */
-    word-break: break-word; 
+    white-space: pre-wrap;
+    word-break: break-word;
 }
+.block-text.fade-text { font-style: italic; color: var(--color-text-muted); font-size: 13px; }
 
-.step-body.code-font {
-    font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
-    background: var(--color-bg-secondary);
-    padding: 10px 14px;
-    border-radius: 8px;
+.tool-command {
+    font-family: 'Menlo', monospace;
     font-size: 12px;
-    border: none; 
     color: var(--color-text-primary);
-    width: 100%;
-    box-sizing: border-box;
+    display: flex; align-items: flex-start; gap: 6px;
 }
+.cmd-prompt { color: var(--color-primary); font-weight: bold; }
 
-.step-body.fade-text {
-    font-size: 13px;
+.result-status {
+    font-size: 12px; font-weight: 500;
+    display: inline-block;
+    padding: 2px 8px; border-radius: 12px;
+    margin-bottom: 4px;
+}
+.result-status.success { background: #dcfce7; color: #166534; }
+.result-status.error { background: #fee2e2; color: #991b1b; }
+
+.result-preview {
+    font-size: 12px;
     color: var(--color-text-muted);
     font-style: italic;
+    border-left: 2px solid var(--color-border);
+    padding-left: 8px;
+    margin-top: 4px;
 }
 
 @keyframes flowStepEnter {
-    from { opacity: 0; transform: translateY(10px); }
+    from { opacity: 0; transform: translateY(5px); }
     to { opacity: 1; transform: translateY(0); }
 }
+@keyframes pulse {
+    0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(var(--color-primary-rgb), 0.4); }
+    70% { transform: scale(1.1); box-shadow: 0 0 0 6px rgba(var(--color-primary-rgb), 0); }
+    100% { transform: scale(1); }
+}
+
+/* Scrollbar */
+.agent-flow-content::-webkit-scrollbar { width: 4px; }
+.agent-flow-content::-webkit-scrollbar-track { background: transparent; }
+.agent-flow-content::-webkit-scrollbar-thumb { background: var(--color-border); border-radius: 4px; }
 
 /* Responsive */
 @media (max-width: 768px) {
     .agent-flow-content {
         max-height: 250px; /* Slightly smaller on mobile */
-        padding-left: 14px; /* Less indent */
     }
     .step-body.markdown-body { font-size: 13px; }
 }
