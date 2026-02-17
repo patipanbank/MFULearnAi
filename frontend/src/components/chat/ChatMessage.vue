@@ -1193,4 +1193,49 @@ const formatBytes = (bytes) => {
         max-height: 350px;
     }
 }
+
+/* === Dark Mode Support === */
+/* Using :global to target the theme attribute on html/body if it's outside scoped */
+:global([data-theme="dark"]) .glass-card {
+    background: rgba(30, 30, 30, 0.6);
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+:global([data-theme="dark"]) .glass-card.thinking-card {
+    background: rgba(30, 30, 30, 0.6);
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+:global([data-theme="dark"]) .glass-card.tool-card {
+    background: #171717; /* Even darker for tool */
+    border-color: #404040;
+}
+
+:global([data-theme="dark"]) .glass-card.result-card {
+    background: rgba(40, 40, 40, 0.6);
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+:global([data-theme="dark"]) .timeline-icon {
+    background: #1f1f1f;
+    border-color: #404040;
+}
+
+:global([data-theme="dark"]) .timeline-icon.thinking {
+    background: #1f1f1f;
+    color: #9ca3af;
+}
+
+/* Ensure text visibility in dark mode */
+:global([data-theme="dark"]) .card-body.markdown-body {
+    color: #e5e7eb;
+}
+
+:global([data-theme="dark"]) .result-preview-text {
+    color: #d1d5db;
+}
+
+:global([data-theme="dark"]) .timeline-line {
+    background: #404040;
+}
 </style>
