@@ -1200,12 +1200,12 @@ const formatBytes = (bytes) => {
 :global(html[data-theme="dark"]) .glass-card {
     background: rgba(30, 41, 59, 0.95) !important; /* Slate-800, almost opaque */
     border-color: rgba(51, 65, 85, 0.8) !important; /* Slate-700 */
-    color: #f8fafc !important; /* Slate-50 - High Contrast */
+    color: #ffffff !important; /* Pure White - Maximum Contrast */
 }
 
 :global(html[data-theme="dark"]) .glass-card.thinking-card {
     background: rgba(30, 41, 59, 0.95) !important;
-    border-color: #334155 !important;
+    border-color: #475569 !important; /* Slate-600 */
     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
 }
 
@@ -1222,65 +1222,65 @@ const formatBytes = (bytes) => {
 
 :global(html[data-theme="dark"]) .timeline-icon {
     background: #1e293b !important; /* Slate-800 */
-    border-color: #334155 !important; /* Slate-700 */
-    color: #cbd5e1 !important; /* Slate-300 */
+    border-color: #475569 !important; /* Slate-600 */
+    color: #e2e8f0 !important; /* Slate-200 */
 }
 
 :global(html[data-theme="dark"]) .timeline-icon.thinking {
     background: #1e293b !important;
-    color: #94a3b8 !important;
+    color: #cbd5e1 !important; /* Slate-300 */
 }
 
 /* Ensure text visibility in dark mode */
 :global(html[data-theme="dark"]) .card-header {
-    color: #cbd5e1 !important; /* Slate-300 */
+    color: #e2e8f0 !important; /* Slate-200 (Bright Gray) */
 }
 
 :global(html[data-theme="dark"]) .header-title {
-    color: #f8fafc !important; /* Slate-50 */
+    color: #ffffff !important; /* Pure White */
     font-weight: 700;
 }
 
 :global(html[data-theme="dark"]) .card-body.markdown-body {
-    color: #f8fafc !important; /* Slate-50 */
+    color: #ffffff !important; /* Pure White */
 }
 
 :global(html[data-theme="dark"]) .card-body.markdown-body p,
 :global(html[data-theme="dark"]) .card-body.markdown-body li,
 :global(html[data-theme="dark"]) .card-body.markdown-body span,
 :global(html[data-theme="dark"]) .card-body.markdown-body strong {
-    color: #f8fafc !important;
+    color: #ffffff !important;
 }
 
 :global(html[data-theme="dark"]) .card-body.markdown-body code {
     background: rgba(0, 0, 0, 0.3) !important;
-    border: 1px solid #334155 !important;
-    color: #e2e8f0 !important;
+    border: 1px solid #475569 !important;
+    color: #f1f5f9 !important; /* Slate-100 */
 }
 
 :global(html[data-theme="dark"]) .tool-command-box {
-    color: #f8fafc !important;
+    color: #ffffff !important;
     font-weight: 500;
 }
 
 :global(html[data-theme="dark"]) .result-preview-text {
-    color: #e2e8f0 !important; /* Slate-200 */
+    color: #f1f5f9 !important; /* Slate-100 */
 }
 
 :global(html[data-theme="dark"]) .timeline-line {
-    background: #334155 !important; /* Slate-700 */
+    background: #475569 !important; /* Slate-600 */
 }
 
 :global(html[data-theme="dark"]) .status-text {
-    color: #f8fafc !important;
+    color: #ffffff !important;
 }
 
 :global(html[data-theme="dark"]) .agent-flow-header:hover .status-text {
     color: #ffffff !important;
-    text-shadow: 0 0 10px rgba(255,255,255,0.3);
+    text-shadow: 0 0 10px rgba(255,255,255,0.5);
 }
 
 :global(html[data-theme="dark"]) .fade-text {
-    color: #94a3b8 !important;
+    color: #cbd5e1 !important; /* Slate-300 */
 }
 </style>
