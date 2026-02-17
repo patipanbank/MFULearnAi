@@ -1,6 +1,8 @@
 import { defineStore } from 'pinia'
 import { ref, computed, watch } from 'vue'
 import api from '../utils/api'
+import { getSocket } from '../services/socket.js'
+import { useAuthStore } from './auth'
 
 export const useChatStore = defineStore('chat', () => {
     const messages = ref([])
@@ -41,7 +43,7 @@ export const useChatStore = defineStore('chat', () => {
                     availableModels.value = data.models
                 }
             } else if (response.status === 401 || response.status === 403) {
-                const authStore = (await import('./auth')).useAuthStore()
+                const authStore = useAuthStore()
                 authStore.logout()
             }
         } catch (error) {
@@ -179,7 +181,7 @@ export const useChatStore = defineStore('chat', () => {
         })
 
         // ── Fix: Setup Socket Listener BEFORE Request to prevent Race Condition ──
-        const { getSocket } = await import('../services/socket.js')
+        // Static import used
         const socket = getSocket()
 
         if (!socket) {
@@ -201,7 +203,7 @@ export const useChatStore = defineStore('chat', () => {
         const handleEvent = (data) => {
             // If we don't have traceId yet, buffer it
             if (!traceId) {
-                console.log('[ChatStore] Buffering event', data.type)
+                // console.log('[ChatStore] Buffering event', data.type)
                 eventBuffer.push(data)
                 return
             }
@@ -385,7 +387,7 @@ export const useChatStore = defineStore('chat', () => {
                 socket.off('agent:event', handleEvent)
 
                 if (response.status === 401 || response.status === 403) {
-                    const authStore = (await import('./auth')).useAuthStore()
+                    const authStore = useAuthStore()
                     authStore.logout()
                     return
                 }
@@ -443,7 +445,7 @@ export const useChatStore = defineStore('chat', () => {
             isStreaming.value = false
             abortController = null
             // Trigger token usage update on frontend
-            const authStore = (await import('./auth')).useAuthStore()
+            const authStore = useAuthStore()
             authStore.tokenUpdateTrigger++
             console.log('[ChatStore] Finished and token update triggered')
         }
