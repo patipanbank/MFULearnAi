@@ -1,4 +1,4 @@
-import axios from '../config/axios';
+import axios from 'axios';
 
 const LOGGER_URL = process.env.LOGGER_URL || 'http://localhost:6000/api/logs';
 const ENV_TYPE = process.env.ENV_TYPE || 'TEST';
@@ -26,6 +26,13 @@ export class LoggerService {
         context: any,
         userId?: string
     ) {
+        // Always output to console for immediate visibility
+        if (level === 'error' || level === 'warn') {
+            console.error(`[LoggerService:${level.toUpperCase()}] ${action}`, context);
+        } else {
+            console.log(`[LoggerService:${level.toUpperCase()}] ${action}`, context);
+        }
+
         if (this.isCircuitOpen()) return; // Circuit is open — skip
 
         try {
