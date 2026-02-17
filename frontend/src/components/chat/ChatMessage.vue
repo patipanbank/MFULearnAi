@@ -1086,32 +1086,48 @@ const formatBytes = (bytes) => {
 </style>
 
 
-/* === Agent Flow Redesign (Round 2) === */
+/* === Agent Flow Redesign (Round 3 - Fix Layout) === */
 .agent-flow-container {
     margin-bottom: 12px;
-    /* Removed border-left */
-    /* Removed padding-left to make it flush */
+    width: 100%; /* Ensure full width */
 }
 
 .agent-flow-header {
-    background: none; border: none; padding: 4px 0;
+    appearance: none; /* Remove native button styles */
+    -webkit-appearance: none;
+    background: transparent; 
+    border: none; 
+    padding: 6px 0;
     cursor: pointer;
-    display: flex; align-items: center;
+    display: flex; 
+    align-items: center;
     color: var(--color-text-muted);
     font-size: 13px; font-weight: 500;
     transition: color 0.2s;
     outline: none;
-    width: 100%; /* Full width for click target */
+    width: 100%;
+    text-align: left;
 }
 .agent-flow-header:hover { color: var(--color-text-primary); }
 
-.header-left { display: flex; align-items: center; gap: 6px; }
-.icon-indicator { display: flex; align-items: center; }
+.header-left { 
+    display: flex; 
+    align-items: center; 
+    gap: 8px; 
+    width: 100%;
+}
+.icon-indicator { 
+    display: flex; 
+    align-items: center; 
+    flex-shrink: 0; 
+}
 
 .agent-flow-content {
-    margin-top: 8px;
-    display: flex; flex-direction: column; gap: 16px; /* Increased gap for better readability */
-    padding-left: 22px; /* Indent to align with text, not icon */
+    margin-top: 4px;
+    display: flex; 
+    flex-direction: column; 
+    gap: 16px; 
+    padding-left: 0; /* Remove indent to use full width, maybe indent items instead? */
     
     /* Fixed Height & Scroll */
     max-height: 300px;
@@ -1131,26 +1147,35 @@ const formatBytes = (bytes) => {
     animation: flowStepEnter 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
     opacity: 0;
     transform: translateY(10px);
+    width: 100%;
+    /* Add slight indent to items */
+    padding-left: 24px; 
+    box-sizing: border-box;
 }
 
-/* Stagger animation based on child index (approximate) */
-.flow-item:nth-child(1) { animation-delay: 0.05s; }
-.flow-item:nth-child(2) { animation-delay: 0.1s; }
-.flow-item:nth-child(3) { animation-delay: 0.15s; }
-.flow-item:nth-child(4) { animation-delay: 0.2s; }
-.flow-item:nth-child(n+5) { animation-delay: 0.25s; }
-
-.flow-step { font-size: 14px; color: var(--color-text-secondary); }
+.flow-step { 
+    font-size: 14px; 
+    color: var(--color-text-secondary);
+    width: 100%;
+}
 
 .step-title {
     font-weight: 600;
-    margin-bottom: 4px;
+    margin-bottom: 6px;
     font-size: 11px;
     color: var(--color-text-muted);
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    display: flex; align-items: center; gap: 6px;
-    opacity: 0.8;
+    display: flex; 
+    align-items: center; 
+    gap: 6px;
+    opacity: 0.9;
+    white-space: nowrap; /* Prevent "Thinking (Step 1)" from breaking */
+}
+
+.step-title .icon {
+    /* Ensure icon isn't forcing breaks */
+    display: inline-block;
 }
 
 .step-body.markdown-body {
@@ -1158,17 +1183,20 @@ const formatBytes = (bytes) => {
     line-height: 1.6;
     color: var(--color-text-secondary);
     font-size: 14px;
+    /* Ensure text doesn't overflow */
+    word-break: break-word; 
 }
 
 .step-body.code-font {
     font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
     background: var(--color-bg-secondary);
-    padding: 8px 12px;
+    padding: 10px 14px;
     border-radius: 8px;
     font-size: 12px;
-    /* Blend with background, but distinct enough for code */
     border: none; 
     color: var(--color-text-primary);
+    width: 100%;
+    box-sizing: border-box;
 }
 
 .step-body.fade-text {
