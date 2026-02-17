@@ -1,5 +1,5 @@
-import { Request, Response } from 'express';
 import { HistoryService } from '../services/HistoryService';
+import { AgentEventStore } from '../services/AgentEventStore';
 import { KnowledgeService } from '../services/KnowledgeService';
 import { BedrockService } from '../services/BedrockService';
 import { LoggerService } from '../services/LoggerService';
@@ -37,11 +37,11 @@ const EVENT = {
 } as const;
 
 export class AgentWorkflow {
-    static async run(req: Request, res: Response) {
-        const { userId, message, sessionId, collectionId, userRole, userDepartment, images, files } = (req as any).userContext;
-        return this.execute(userId, sessionId, message, userRole, userDepartment, collectionId, res, images, files);
-    }
-
+    /**
+     * Execute the agent workflow.
+     * Events are emitted via Socket.IO (AgentEventStore).
+     * Returns { traceId, finalAnswer, metadata } for the caller.
+     */
     static async execute(
         userId: string,
         sessionId: string,
@@ -49,10 +49,9 @@ export class AgentWorkflow {
         userRole: string,
         userDepartment: string,
         collectionId: string | undefined,
-        res: Response,
         images: any[] = [],
         files: any[] = []
-    ) {
+    ): Promise<{ traceId: string }> {
         const query = message;
         const traceId = (global as any).crypto ? (global as any).crypto.randomUUID() : require('crypto').randomUUID();
         const workflowStartTime = Date.now();
@@ -65,74 +64,20 @@ export class AgentWorkflow {
             }))
         } : undefined;
 
-        res.setHeader('Content-Type', 'text/event-stream');
-        res.setHeader('Cache-Control', 'no-cache, no-transform');
-        res.setHeader('Connection', 'keep-alive');
-        res.setHeader('X-Accel-Buffering', 'no'); // Disable nginx proxy buffering
-        res.flushHeaders(); // Send headers immediately
-
-        // Disable Nagle's algorithm — send each write() as a separate TCP packet immediately
-        const socket = (res as any).socket || (res as any).connection;
-        if (socket && typeof socket.setNoDelay === 'function') {
-            socket.setNoDelay(true);
-        }
-        // Ensure the response stream isn't corked (batching writes)
-        if (typeof (res as any).uncork === 'function') {
-            (res as any).uncork();
-        }
-
-        // ── Proxy Buffer Flush Padding ──
-        // Many reverse proxies (Apache, IIS, university proxies) buffer the first 4KB-16KB
-        // before forwarding. By sending a large SSE comment (ignored by parsers), we force
-        // the proxy to flush its buffer. Subsequent events will then stream through immediately.
-        const PROXY_PADDING_SIZE = 16 * 1024; // 16KB — exceeds most proxy buffer thresholds
-        const padding = `: ${'-'.repeat(PROXY_PADDING_SIZE)}\n\n`;
-        res.write(padding);
-
-        // Client disconnect detection for SSE
-        let clientDisconnected = false;
-        const req = (res as any).req;
-        if (req) req.on('close', () => { clientDisconnected = true; });
-
-        const safeWrite = (data: string) => {
-            if (!clientDisconnected && !res.writableEnded) {
-                res.write(data);
-                // Force flush at multiple levels
-                if (typeof (res as any).flush === 'function') {
-                    (res as any).flush(); // compression middleware flush
-                }
-            }
-        };
-
-        // ── Helper: Emit structured SSE event ──
-        const eventLog: any[] = [];
+        // ── Socket.IO Event Emitter (replaces SSE) ──
+        const store = new AgentEventStore(userId, traceId);
         const emitEvent = (type: string, payload: Record<string, any> = {}) => {
-            const now = new Date();
-            const event = { type, ...payload, timestamp: now.toISOString() };
-            console.log(`[SSE_EMIT] ${now.toISOString()} | type=${type}`);
-            safeWrite(`data: ${JSON.stringify(event)}\n\n`);
-            // Store in eventLog for MongoDB persistence (skip high-frequency deltas)
-            if (type !== EVENT.ANSWER_DELTA) {
-                eventLog.push(event);
-            }
+            store.emit(type, payload);
         };
+
+        // Client disconnect detection via Socket.IO
+        let clientDisconnected = false;
 
         const totalUsage = { input: 0, output: 0, total: 0 };
         LoggerService.info('agent_workflow_start', { traceId, userId, message }, userId);
 
         // ▸ EVENT: agent_start
         emitEvent(EVENT.AGENT_START, { traceId, sessionId });
-
-        // ── Heartbeat Timer ──
-        // Send a ping every 2 seconds to keep connection active and force buffer flush
-        // during long idle periods (e.g. tool execution, LLM generation)
-        let heartbeatInterval: NodeJS.Timeout | null = setInterval(() => {
-            if (!clientDisconnected && !res.writableEnded) {
-                // SSE comment (ignored by client parser) but forces data flow
-                res.write(': ping\n\n');
-                if (typeof (res as any).flush === 'function') (res as any).flush();
-            }
-        }, 2000);
 
         try {
             // 1.1 Load History + Smart Context (Agent Memory)
@@ -175,15 +120,14 @@ export class AgentWorkflow {
 
                     // Progress helper
                     const emitProgress = (stage: string, percent: number, detail?: string) => {
-                        safeWrite(`data: ${JSON.stringify({
-                            type: EVENT.FILE_PROGRESS,
+                        emitEvent(EVENT.FILE_PROGRESS, {
                             fileName,
                             fileIndex: fi,
                             totalFiles,
                             stage,
                             percent: Math.round(percent),
                             detail: detail || ''
-                        })}\n\n`);
+                        });
                     };
 
                     emitProgress('preparing', 5, `${fileSizeMB} MB`);
@@ -206,11 +150,7 @@ export class AgentWorkflow {
                         ChatAttachmentService.uploadFile(file.buffer, fileName, file.mediaType || 'application/pdf', userId)
                             .then(meta => {
                                 // Emit event for frontend to show clickable link immediately
-                                safeWrite(`data: ${JSON.stringify({
-                                    type: EVENT.FILE_UPLOADED,
-                                    fileName,
-                                    metadata: meta
-                                })}\n\n`);
+                                emitEvent(EVENT.FILE_UPLOADED, { fileName, metadata: meta });
                                 return { ...meta, fileType: ext };
                             })
                             .catch(err => {
@@ -398,7 +338,7 @@ ${JSON.stringify(smartContext?.rolling || {}, null, 2)}`
                 // Client disconnected — stop processing
                 if (clientDisconnected) {
                     LoggerService.info('agent_client_disconnected', { steps, traceId }, userId);
-                    return;
+                    return { traceId };
                 }
 
                 steps++;
@@ -627,12 +567,8 @@ ${JSON.stringify(smartContext?.rolling || {}, null, 2)}`
                     answerMode
                 });
 
-                // Clear status and close stream
+                // Clear status
                 emitEvent(EVENT.STATUS, { message: '' });
-                safeWrite('data: [DONE]\n\n');
-                // Clear heartbeat timer
-                if (heartbeatInterval) clearInterval(heartbeatInterval);
-                if (!res.writableEnded) res.end();
 
                 // 7. Telemetry & Persistence
 
@@ -663,7 +599,7 @@ ${JSON.stringify(smartContext?.rolling || {}, null, 2)}`
                         explanation
                     },
                     // Persist agent event flow to MongoDB (excluding high-frequency deltas)
-                    agentEvents: eventLog.map(e => ({
+                    agentEvents: store.getEventLog().map((e: any) => ({
                         type: e.type,
                         step: e.step,
                         toolName: e.toolName,
@@ -704,7 +640,7 @@ ${JSON.stringify(smartContext?.rolling || {}, null, 2)}`
                     try {
                         const newTitle = await SummarizationService.updateTitle(userId, sessionId, query);
                         if (newTitle) {
-                            safeWrite(`data: ${JSON.stringify({ type: EVENT.TITLE, title: newTitle })}\n\n`);
+                            emitEvent(EVENT.TITLE, { title: newTitle });
                         }
                     } catch (e: any) {
                         LoggerService.error('Title Gen Failed', e);
@@ -714,11 +650,10 @@ ${JSON.stringify(smartContext?.rolling || {}, null, 2)}`
 
         } catch (error: any) {
             LoggerService.error('Agent Workflow Error', { error: error.message, stack: error.stack, traceId });
-            if (!clientDisconnected && !res.writableEnded) {
-                safeWrite(`data: ${JSON.stringify({ error: 'Agent workflow failed', traceId })}\n\n`);
-                res.end();
-            }
+            emitEvent('error', { error: 'Agent workflow failed', traceId });
         }
+
+        return { traceId };
     }
 
 }

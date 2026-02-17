@@ -1,12 +1,15 @@
 import express from 'express';
+import { createServer } from 'http';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import { connectDB } from './config/db';
 import routes from './routes';
+import { setupSocketIO } from './socket';
 
 dotenv.config();
 
 const app = express();
+const httpServer = createServer(app);
 const PORT = process.env.PORT || 8080;
 const ENV_TYPE = process.env.ENV_TYPE || 'TEST';
 const RATE_LIMIT = ENV_TYPE === 'PROD' ? 30 : 100;
@@ -51,7 +54,10 @@ app.get('/health', (req, res) => res.json({
     rateLimit: RATE_LIMIT
 }));
 
-// Start Server
-app.listen(PORT, () => {
+// Initialize Socket.IO (must be after app setup, before listen)
+const io = setupSocketIO(httpServer);
+
+// Start Server — use httpServer instead of app.listen for Socket.IO
+httpServer.listen(PORT, () => {
     console.log(`[Orchestrator] Server running on port ${PORT} (${ENV_TYPE})`);
 });

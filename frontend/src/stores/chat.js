@@ -111,7 +111,7 @@ export const useChatStore = defineStore('chat', () => {
         }
     }
 
-    // Send message with streaming
+    // Send message with Socket.IO real-time events
     async function sendMessage(content, modelId = null, images = [], files = [], mode = 'chat') {
         if ((!content.trim() && images.length === 0 && files.length === 0) || isStreaming.value) return
 
@@ -190,10 +190,7 @@ export const useChatStore = defineStore('chat', () => {
             if (currentCollectionId.value) formData.append('collectionId', currentCollectionId.value)
             formData.append('mode', mode) // Add mode ('chat' or 'agent')
 
-            // Append Images (If any - handling legacy base64 logic or new File logic?)
-            // If images are base64 strings (existing logic), pass as JSON string? 
-            // Or assume specific handling.
-            // Existing logic: images is array of { data: base64, mediaType: ... }
+            // Append Images
             if (images && images.length > 0) {
                 formData.append('images', JSON.stringify(images))
             }
@@ -207,10 +204,10 @@ export const useChatStore = defineStore('chat', () => {
                 })
             }
 
+            // POST returns { traceId, sessionId } immediately (no streaming)
             const response = await fetch('/api/chat', {
                 method: 'POST',
                 headers: {
-                    // 'Content-Type': 'multipart/form-data', // Browser sets boundary automatically
                     'Authorization': `Bearer ${token}`
                 },
                 body: formData,
@@ -228,182 +225,189 @@ export const useChatStore = defineStore('chat', () => {
                 throw new Error(`Server Error ${response.status}: ${errText}`)
             }
 
-            const reader = response.body.getReader()
-            const decoder = new TextDecoder()
+            const { traceId, sessionId: returnedSessionId } = await response.json()
+            console.log(`[ChatStore] Got traceId=${traceId}, sessionId=${returnedSessionId}`)
 
-            while (true) {
-                const { done, value } = await reader.read()
-                if (done) break
+            // Update sessionId if server assigned a new one
+            if (returnedSessionId && returnedSessionId !== currentSessionId.value) {
+                currentSessionId.value = returnedSessionId
+            }
 
-                const chunk = decoder.decode(value, { stream: true })
-                console.log(`[SSE_RECV] ${new Date().toISOString()} | chunk_length=${chunk.length}`)
+            // ── Listen for real-time events via Socket.IO ──
+            const { getSocket } = await import('../services/socket.js')
+            const socket = getSocket()
 
-                const lines = chunk.split('\n')
-                for (const line of lines) {
-                    if (line.startsWith('data:')) {
-                        const dataStr = line.replace('data:', '').trim()
-                        if (!dataStr || dataStr === '[DONE]') continue
+            if (!socket) {
+                throw new Error('Socket.IO not connected — please refresh the page')
+            }
 
-                        try {
-                            const data = JSON.parse(dataStr)
-                            console.log(`[SSE_EVENT] ${new Date().toISOString()} | type=${data.type} | backend_ts=${data.timestamp}`)
+            // Create a promise that resolves when agent completes
+            await new Promise((resolve, reject) => {
+                const handleEvent = (data) => {
+                    // Only process events for this trace
+                    if (data.traceId !== traceId) return
 
-                            // Helper: ensure agentEvents array exists
-                            const ensureEvents = () => {
-                                if (!messages.value[assistantIndex].agentEvents) {
-                                    messages.value[assistantIndex].agentEvents = []
-                                }
-                            }
-
-                            // ══ NEW: Structured Agent Flow Events ══
-
-                            // Agent lifecycle events (stored in timeline)
-                            if (['agent_start', 'context_loaded', 'agent_step', 'thinking',
-                                'answer_start', 'answer_done', 'step_usage', 'agent_complete'].includes(data.type)) {
-                                ensureEvents()
-                                messages.value[assistantIndex].agentEvents.push({
-                                    type: data.type,
-                                    ...data,
-                                    receivedAt: Date.now()
-                                })
-                            }
-
-                            // Tool events (stored in timeline with details)
-                            if (data.type === 'tool_start') {
-                                ensureEvents()
-                                messages.value[assistantIndex].agentEvents.push({
-                                    type: 'tool_start',
-                                    toolName: data.toolName,
-                                    input: data.input,
-                                    step: data.step,
-                                    receivedAt: Date.now()
-                                })
-                            }
-
-                            if (data.type === 'tool_complete') {
-                                ensureEvents()
-                                messages.value[assistantIndex].agentEvents.push({
-                                    type: 'tool_complete',
-                                    toolName: data.toolName,
-                                    success: data.success,
-                                    resultPreview: data.resultPreview,
-                                    durationMs: data.durationMs,
-                                    step: data.step,
-                                    receivedAt: Date.now()
-                                })
-                            }
-
-                            // ══ Answer Streaming (Token-by-token) ══
-                            if (data.type === 'answer_delta') {
-                                messages.value[assistantIndex].content += data.delta
-                            }
-
-                            // ══ BACKWARD COMPATIBLE: Bulk text (legacy/fallback) ══
-                            if (data.text && !data.type) {
-                                messages.value[assistantIndex].content += data.text
-                            }
-
-                            // 2. Status Updates (e.g. "Executing tool...")
-                            if (data.type === 'status') {
-                                messages.value[assistantIndex].status = data.message
-                            }
-
-                            // ══ Thinking status (show in UI as status) ══
-                            if (data.type === 'thinking') {
-                                messages.value[assistantIndex].status = data.message
-                            }
-
-                            // 3. Intent Detection
-                            if (data.type === 'intent') {
-                                messages.value[assistantIndex].intent = data.intent
-                            }
-
-                            // 4. Final Metadata (e.g. usedRAG, tokenPressure)
-                            if (data.type === 'metadata') {
-                                messages.value[assistantIndex].meta = data.metadata
-                            }
-
-                            // 5. File Processing Progress
-                            if (data.type === 'file_progress') {
-                                const userMsgIndex = assistantIndex - 1;
-                                if (userMsgIndex >= 0 && messages.value[userMsgIndex].role === 'user') {
-                                    const userMsg = messages.value[userMsgIndex];
-
-                                    if (!userMsg.fileProgress) {
-                                        userMsg.fileProgress = {}
-                                    }
-                                    userMsg.fileProgress = {
-                                        currentFile: data.fileName,
-                                        currentindex: data.fileIndex,
-                                        totalFiles: data.totalFiles,
-                                        stage: data.stage,
-                                        percent: data.percent,
-                                        detail: data.detail
-                                    }
-                                }
-                            }
-
-                            // 6. Error from backend
-                            if (data.error) {
-                                console.error('[ChatStore] Backend reported error:', data.error)
-                                const errorMsg = `\n\n**Error**: ${data.error}`
-                                messages.value[assistantIndex].content += errorMsg
-                                messages.value[assistantIndex].error = data.error
-                            }
-
-                            // 7. Title Update
-                            if (data.type === 'title') {
-                                const session = sessions.value.find(s => s.sessionId === currentSessionId.value)
-                                if (session) {
-                                    if (!session.metadata) session.metadata = {}
-                                    session.metadata.title = data.title
-                                }
-                            }
-
-                            // 8. File Persisted (Real-time update)
-                            if (data.type === 'file_uploaded') {
-                                const userMsgIndex = assistantIndex - 1;
-                                if (userMsgIndex >= 0 && messages.value[userMsgIndex].role === 'user') {
-                                    const userMsg = messages.value[userMsgIndex];
-
-                                    if (!userMsg.attachments) userMsg.attachments = [];
-
-                                    const exists = userMsg.attachments.some(a => a.fileName === data.fileName);
-                                    if (!exists) {
-                                        userMsg.attachments.push({
-                                            ...data.metadata,
-                                            fileName: data.fileName || data.metadata.fileName,
-                                            fileSize: data.metadata.size || data.metadata.fileSize
-                                        });
-                                    }
-
-                                    if (userMsg.files) {
-                                        userMsg.files = userMsg.files.filter(f => f.name !== data.fileName);
-                                    }
-                                }
-                            }
-                        } catch (e) {
-                            // Ignore parse errors for partial chunks
+                    // Helper: ensure agentEvents array exists
+                    const ensureEvents = () => {
+                        if (!messages.value[assistantIndex].agentEvents) {
+                            messages.value[assistantIndex].agentEvents = []
                         }
                     }
+
+                    // ══ Agent Flow Events ══
+                    if (['agent_start', 'context_loaded', 'agent_step', 'thinking',
+                        'answer_start', 'answer_done', 'step_usage', 'agent_complete'].includes(data.type)) {
+                        ensureEvents()
+                        messages.value[assistantIndex].agentEvents.push({
+                            type: data.type,
+                            ...data,
+                            receivedAt: Date.now()
+                        })
+                    }
+
+                    // Tool events
+                    if (data.type === 'tool_start') {
+                        ensureEvents()
+                        messages.value[assistantIndex].agentEvents.push({
+                            type: 'tool_start',
+                            toolName: data.toolName,
+                            input: data.input,
+                            step: data.step,
+                            receivedAt: Date.now()
+                        })
+                    }
+
+                    if (data.type === 'tool_complete') {
+                        ensureEvents()
+                        messages.value[assistantIndex].agentEvents.push({
+                            type: 'tool_complete',
+                            toolName: data.toolName,
+                            success: data.success,
+                            resultPreview: data.resultPreview,
+                            durationMs: data.durationMs,
+                            step: data.step,
+                            receivedAt: Date.now()
+                        })
+                    }
+
+                    // ══ Answer Streaming (Token-by-token) ══
+                    if (data.type === 'answer_delta') {
+                        messages.value[assistantIndex].content += data.delta
+                    }
+
+                    // Status Updates
+                    if (data.type === 'status') {
+                        messages.value[assistantIndex].status = data.message
+                    }
+
+                    // Thinking status
+                    if (data.type === 'thinking') {
+                        messages.value[assistantIndex].status = data.message
+                    }
+
+                    // Intent Detection
+                    if (data.type === 'intent') {
+                        messages.value[assistantIndex].intent = data.intent
+                    }
+
+                    // Final Metadata
+                    if (data.type === 'metadata') {
+                        messages.value[assistantIndex].meta = data.metadata
+                    }
+
+                    // File Processing Progress
+                    if (data.type === 'file_progress') {
+                        const userMsgIndex = assistantIndex - 1;
+                        if (userMsgIndex >= 0 && messages.value[userMsgIndex].role === 'user') {
+                            const userMsg = messages.value[userMsgIndex];
+                            if (!userMsg.fileProgress) userMsg.fileProgress = {}
+                            userMsg.fileProgress = {
+                                currentFile: data.fileName,
+                                currentindex: data.fileIndex,
+                                totalFiles: data.totalFiles,
+                                stage: data.stage,
+                                percent: data.percent,
+                                detail: data.detail
+                            }
+                        }
+                    }
+
+                    // Error from backend
+                    if (data.type === 'error' || data.error) {
+                        console.error('[ChatStore] Backend reported error:', data.error)
+                        const errorMsg = `\n\n**Error**: ${data.error}`
+                        messages.value[assistantIndex].content += errorMsg
+                        messages.value[assistantIndex].error = data.error
+                    }
+
+                    // Title Update
+                    if (data.type === 'title') {
+                        const session = sessions.value.find(s => s.sessionId === currentSessionId.value)
+                        if (session) {
+                            if (!session.metadata) session.metadata = {}
+                            session.metadata.title = data.title
+                        }
+                    }
+
+                    // File Persisted
+                    if (data.type === 'file_uploaded') {
+                        const userMsgIndex = assistantIndex - 1;
+                        if (userMsgIndex >= 0 && messages.value[userMsgIndex].role === 'user') {
+                            const userMsg = messages.value[userMsgIndex];
+                            if (!userMsg.attachments) userMsg.attachments = [];
+                            const exists = userMsg.attachments.some(a => a.fileName === data.fileName);
+                            if (!exists) {
+                                userMsg.attachments.push({
+                                    ...data.metadata,
+                                    fileName: data.fileName || data.metadata?.fileName,
+                                    fileSize: data.metadata?.size || data.metadata?.fileSize
+                                });
+                            }
+                            if (userMsg.files) {
+                                userMsg.files = userMsg.files.filter(f => f.name !== data.fileName);
+                            }
+                        }
+                    }
+
+                    // ══ Completion: resolve the promise ══
+                    if (data.type === 'agent_complete') {
+                        socket.off('agent:event', handleEvent)
+                        resolve()
+                    }
                 }
-            }
+
+                // Register Socket.IO listener
+                socket.on('agent:event', handleEvent)
+
+                // Timeout safety: if no completion after 5 min, cleanup
+                const timeout = setTimeout(() => {
+                    socket.off('agent:event', handleEvent)
+                    reject(new Error('Agent workflow timed out'))
+                }, 5 * 60 * 1000)
+
+                // Cleanup on abort
+                abortController.signal.addEventListener('abort', () => {
+                    socket.off('agent:event', handleEvent)
+                    clearTimeout(timeout)
+                    resolve() // Don't reject on user abort
+                })
+            })
+
         } catch (error) {
             if (error.name === 'AbortError') {
-                console.log('[ChatStore] Stream Aborted')
-                // No error message needed for user abort
+                console.log('[ChatStore] Request Aborted')
             } else {
-                console.error('[ChatStore] Stream error:', error)
+                console.error('[ChatStore] Error:', error)
                 messages.value[assistantIndex].content += `\n\n**System Error**: ${error.message}`
                 messages.value[assistantIndex].error = true
             }
         } finally {
             isStreaming.value = false
-            abortController = null // Clear controller
+            abortController = null
             // Trigger token usage update on frontend
             const authStore = (await import('./auth')).useAuthStore()
             authStore.tokenUpdateTrigger++
-            console.log('[ChatStore] Stream finished and token update triggered')
+            console.log('[ChatStore] Finished and token update triggered')
         }
     }
 

@@ -27,13 +27,24 @@ export class ChatController {
         const correlationId = (req.headers['x-correlation-id'] as string) || 'unknown';
 
         const executeAgent = () => {
-            ContextService.run({ correlationId }, () => {
+            ContextService.run({ correlationId }, async () => {
                 const actualSessionId = sessionId || `session-${Date.now()}`;
                 if (!message && (!images || images.length === 0) && (!files || files.length === 0)) {
                     return res.status(400).json({ error: 'Message or attachment is required' });
                 }
 
-                import('../workflows/AgentWorkflow').then(({ AgentWorkflow }) => {
+                try {
+                    const { AgentWorkflow } = await import('../workflows/AgentWorkflow');
+
+                    // Generate traceId and return immediately
+                    const traceId = (global as any).crypto
+                        ? (global as any).crypto.randomUUID()
+                        : require('crypto').randomUUID();
+
+                    // Return traceId to client immediately (JSON, not SSE)
+                    res.json({ traceId, sessionId: actualSessionId });
+
+                    // Start workflow in background (fire-and-forget)
                     AgentWorkflow.execute(
                         userId,
                         actualSessionId,
@@ -41,14 +52,15 @@ export class ChatController {
                         req.user.role,
                         req.user.department,
                         collectionId,
-                        res,
                         images,
                         files
                     ).catch((err: any) => {
                         LoggerService.error('agent_workflow_error', { error: err.message, stack: err.stack });
-                        if (!res.headersSent) res.status(500).json({ error: 'Agent Error' });
                     });
-                });
+                } catch (err: any) {
+                    LoggerService.error('agent_workflow_init_error', { error: err.message });
+                    if (!res.headersSent) res.status(500).json({ error: 'Agent Error' });
+                }
             });
         };
 
