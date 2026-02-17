@@ -8,7 +8,7 @@ import { ChatAttachmentService } from '../services/ChatAttachmentService';
 import { CalculatorTool } from '../tools/CalculatorTool';
 import { SearchTool } from '../tools/SearchTool';
 import { MODELS, AGENT_CONFIG } from '../config/models';
-
+import * as crypto from 'crypto';
 
 // Whitelist of tools for the Agent
 const AVAILABLE_TOOLS = [
@@ -36,11 +36,67 @@ const EVENT = {
     TITLE: 'title',
 } as const;
 
+interface AgentContext {
+    userId: string;
+    sessionId: string;
+    message: string;
+    userRole: string;
+    userDepartment: string;
+    collectionId?: string;
+    images: any[];
+    files: any[];
+}
+
+interface WorkflowState {
+    traceId: string;
+    steps: number;
+    totalUsage: { input: 0, output: 0, total: 0 };
+    usedTools: Set<string>;
+    answerMode: string;
+    answerState: string;
+    startTime: number;
+    finalAnswer: string;
+    history: any[];
+    smartContext: any;
+    nativeDocBlocks: any[];
+    extractedTextBlocks: any[];
+    uploadPromises: Promise<any>[];
+    clientDisconnected: boolean;
+    messages: any[];
+}
+
 export class AgentWorkflow {
+    private ctx: AgentContext;
+    private state: WorkflowState;
+    private store: AgentEventStore;
+
+    private constructor(ctx: AgentContext) {
+        this.ctx = ctx;
+        const traceId = crypto.randomUUID();
+        this.state = {
+            traceId,
+            steps: 0,
+            totalUsage: { input: 0, output: 0, total: 0 },
+            usedTools: new Set<string>(),
+            answerMode: 'internal',
+            answerState: 'UNVERIFIED',
+            startTime: Date.now(),
+            finalAnswer: '',
+            history: [],
+            smartContext: null,
+            nativeDocBlocks: [],
+            extractedTextBlocks: [],
+            uploadPromises: [],
+            clientDisconnected: false,
+            messages: []
+        };
+
+        // Initialize Event Store
+        this.store = new AgentEventStore(ctx.userId, traceId);
+    }
+
     /**
-     * Execute the agent workflow.
-     * Events are emitted via Socket.IO (AgentEventStore).
-     * Returns { traceId, finalAnswer, metadata } for the caller.
+     * Public Entry Point
      */
     static async execute(
         userId: string,
@@ -52,204 +108,185 @@ export class AgentWorkflow {
         images: any[] = [],
         files: any[] = []
     ): Promise<{ traceId: string }> {
-        const query = message;
-        const traceId = (global as any).crypto ? (global as any).crypto.randomUUID() : require('crypto').randomUUID();
-        const workflowStartTime = Date.now();
+        const workflow = new AgentWorkflow({
+            userId, sessionId, message, userRole, userDepartment, collectionId, images, files
+        });
+        return workflow.run();
+    }
 
-        // Prepare Tool Config for Bedrock
-        const allowedTools = AVAILABLE_TOOLS.filter(t => t.isAllowed(userRole));
-        const toolConfig = allowedTools.length > 0 ? {
-            tools: allowedTools.map(t => ({
-                toolSpec: t.schemaJSON
-            }))
-        } : undefined;
+    private emit(type: string, payload: Record<string, any> = {}) {
+        this.store.emit(type, payload);
+    }
 
-        // ── Socket.IO Event Emitter (replaces SSE) ──
-        const store = new AgentEventStore(userId, traceId);
-        const emitEvent = (type: string, payload: Record<string, any> = {}) => {
-            store.emit(type, payload);
-        };
+    private async run(): Promise<{ traceId: string }> {
+        LoggerService.info('agent_workflow_start', {
+            traceId: this.state.traceId,
+            userId: this.ctx.userId,
+            message: this.ctx.message
+        }, this.ctx.userId);
 
-        // Client disconnect detection via Socket.IO
-        let clientDisconnected = false;
-
-        const totalUsage = { input: 0, output: 0, total: 0 };
-        LoggerService.info('agent_workflow_start', { traceId, userId, message }, userId);
-
-        // ▸ EVENT: agent_start
-        emitEvent(EVENT.AGENT_START, { traceId, sessionId });
+        this.emit(EVENT.AGENT_START, {
+            traceId: this.state.traceId,
+            sessionId: this.ctx.sessionId
+        });
 
         try {
-            // 1.1 Load History + Smart Context (Agent Memory)
-            emitEvent(EVENT.STATUS, { message: 'กำลังโหลดบริบทการสนทนา...' });
-            const { messages: history, smartContext } = await HistoryService.getContext(userId, sessionId);
+            // 1. Load Context & Files
+            await this.loadContext();
+            await this.processFiles();
 
-            // ▸ EVENT: context_loaded
-            emitEvent(EVENT.CONTEXT_LOADED, {
-                historyCount: history.length,
-                hasSmartContext: !!smartContext,
-                smartContextVersion: smartContext?.version || 0
+            // 2. Build Prompt & Initial Messages
+            this.buildInitialMessages();
+
+            // 3. Main Agent Loop
+            await this.agentLoop();
+
+            // 4. Finalize & Persist
+            await this.finalize();
+
+        } catch (error: any) {
+            LoggerService.error('Agent Workflow Error', {
+                error: error.message,
+                stack: error.stack,
+                traceId: this.state.traceId
             });
+            this.emit('error', { error: 'Agent workflow failed', traceId: this.state.traceId });
+        }
 
-            // 1.3.5 Attached Files — Send directly as native Converse API document blocks
-            let nativeDocBlocks: Array<{ type: 'document', format: string, name: string, data: string }> = [];
-            let extractedTextBlocks: Array<{ fileName: string, text: string }> = [];
-            // Track Uploads for Persistence (Concurrent)
-            let uploadPromises: Promise<any>[] = [];
+        return { traceId: this.state.traceId };
+    }
 
-            LoggerService.info('agent_files_received', {
-                filesCount: files?.length || 0,
-                fileDetails: (files || []).map((f: any) => ({
-                    name: f.originalname || f.name,
-                    size: f.size,
-                    hasBuffer: !!f.buffer,
-                    bufferLength: f.buffer?.length
-                }))
-            }, userId);
+    /**
+     * 1. Load History & Smart Context
+     */
+    private async loadContext() {
+        this.emit(EVENT.STATUS, { message: 'กำลังโหลดบริบทการสนทนา...' });
+        const { messages: history, smartContext } = await HistoryService.getContext(
+            this.ctx.userId,
+            this.ctx.sessionId
+        );
+        this.state.history = history;
+        this.state.smartContext = smartContext;
 
-            if (files && files.length > 0) {
-                const MAX_NATIVE_SIZE = 4.5 * 1024 * 1024; // 4.5MB Converse API limit
-                const MAX_EXTRACTED_TEXT_CHARS = 100_000;    // ~100K chars for context window safety
-                const supportedFormats = ['pdf', 'txt', 'md', 'html', 'csv', 'doc', 'docx', 'xls', 'xlsx'];
+        this.emit(EVENT.CONTEXT_LOADED, {
+            historyCount: history.length,
+            hasSmartContext: !!smartContext,
+            smartContextVersion: smartContext?.version || 0
+        });
+    }
 
-                const totalFiles = files.length;
-                for (let fi = 0; fi < files.length; fi++) {
-                    const file = files[fi];
-                    const fileName = file.originalname || file.name || 'file';
-                    const fileSizeMB = ((file.buffer?.length || 0) / (1024 * 1024)).toFixed(1);
+    /**
+     * 2. Process Files (Native Docs & Text Extraction)
+     */
+    private async processFiles() {
+        const { files, userId } = this.ctx;
+        if (!files || files.length === 0) return;
 
-                    // Progress helper
-                    const emitProgress = (stage: string, percent: number, detail?: string) => {
-                        emitEvent(EVENT.FILE_PROGRESS, {
-                            fileName,
-                            fileIndex: fi,
-                            totalFiles,
-                            stage,
-                            percent: Math.round(percent),
-                            detail: detail || ''
-                        });
-                    };
+        LoggerService.info('agent_files_received', {
+            filesCount: files.length,
+            fileDetails: files.map((f: any) => ({
+                name: f.originalname || f.name,
+                size: f.size,
+                hasBuffer: !!f.buffer
+            }))
+        }, userId);
 
-                    emitProgress('preparing', 5, `${fileSizeMB} MB`);
+        const MAX_NATIVE_SIZE = 4.5 * 1024 * 1024;
+        const MAX_EXTRACTED_TEXT_CHARS = 100_000;
+        const supportedFormats = ['pdf', 'txt', 'md', 'html', 'csv', 'doc', 'docx', 'xls', 'xlsx'];
+        const totalFiles = files.length;
 
-                    if (!file.buffer) {
-                        LoggerService.warn('file_no_buffer', { fileName }, userId);
-                        emitProgress('error', 0, 'ไม่พบข้อมูลไฟล์');
-                        continue;
-                    }
+        for (let fi = 0; fi < files.length; fi++) {
+            const file = files[fi];
+            const fileName = file.originalname || file.name || 'file';
+            const fileSizeMB = ((file.buffer?.length || 0) / (1024 * 1024)).toFixed(1);
 
-                    const ext = (fileName).split('.').pop()?.toLowerCase() || 'pdf';
-                    if (!supportedFormats.includes(ext)) {
-                        LoggerService.warn('unsupported_file_format', { fileName, ext }, userId);
-                        emitProgress('error', 0, `ไม่รองรับไฟล์ .${ext}`);
-                        continue;
-                    }
+            const emitProgress = (stage: string, percent: number, detail?: string) => {
+                this.emit(EVENT.FILE_PROGRESS, {
+                    fileName, fileIndex: fi, totalFiles, stage, percent, detail: detail || ''
+                });
+            };
 
-                    // Start Upload (Fire & Forget promise, collected later)
-                    uploadPromises.push(
-                        ChatAttachmentService.uploadFile(file.buffer, fileName, file.mediaType || 'application/pdf', userId)
-                            .then(meta => {
-                                // Emit event for frontend to show clickable link immediately
-                                emitEvent(EVENT.FILE_UPLOADED, { fileName, metadata: meta });
-                                return { ...meta, fileType: ext };
-                            })
-                            .catch(err => {
-                                LoggerService.warn('file_upload_background_failed', { fileName, error: err.message }, userId);
-                                return null;
-                            })
-                    );
+            emitProgress('preparing', 5, `${fileSizeMB} MB`);
 
-                    if (file.buffer.length < MAX_NATIVE_SIZE) {
-                        // Small file → native document block (best quality)
-                        emitProgress('encoding', 50, 'กำลังเข้ารหัสเอกสาร...');
-
-                        const rawName = (fileName)
-                            .replace(/\.[^.]+$/, '')
-                            .replace(/[^a-zA-Z0-9\s\-\(\)\[\]]/g, ' ')
-                            .replace(/\s+/g, ' ')
-                            .trim()
-                            || 'document';
-
-                        nativeDocBlocks.push({
-                            type: 'document',
-                            format: ext,
-                            name: rawName,
-                            data: Buffer.from(file.buffer).toString('base64')
-                        });
-                        LoggerService.info('native_doc_injected', { fileName, sanitizedName: rawName, ext, size: file.buffer.length }, userId);
-                        emitProgress('done', 100, 'พร้อมส่ง');
-                    } else {
-                        // Large file → fallback: extract text via KnowledgeService
-                        LoggerService.info('file_too_large_extracting_text', {
-                            fileName,
-                            size: file.buffer.length,
-                            limit: MAX_NATIVE_SIZE
-                        }, userId);
-
-                        let extractPercent = 20;
-                        const progressTimer = setInterval(() => {
-                            extractPercent = Math.min(extractPercent + 5, 85);
-                            emitProgress('extracting', extractPercent, `ไฟล์ ${fileSizeMB} MB — กำลังดึงข้อความ/OCR (${Math.round(extractPercent)}%)...`);
-                        }, 1000);
-
-                        try {
-                            const ir = await KnowledgeService.parseFile(
-                                file.buffer,
-                                fileName,
-                                file.mediaType || 'application/pdf'
-                            );
-                            clearInterval(progressTimer);
-
-                            emitProgress('extracting', 90, 'ประมวลผลข้อความเสร็จสิ้น...');
-
-                            if (ir && ir.blocks && ir.blocks.length > 0) {
-                                let fullText = ir.blocks.map((b: any) => b.content).join('\n\n');
-                                if (fullText.length > MAX_EXTRACTED_TEXT_CHARS) {
-                                    fullText = fullText.substring(0, MAX_EXTRACTED_TEXT_CHARS) + '\n\n[... ข้อความถูกตัดเนื่องจากยาวเกินไป ...]';
-                                }
-                                extractedTextBlocks.push({ fileName, text: fullText });
-                                LoggerService.info('file_text_extracted', {
-                                    fileName,
-                                    blocksCount: ir.blocks.length,
-                                    textLength: fullText.length
-                                }, userId);
-                                emitProgress('done', 100, `ดึงข้อความสำเร็จ (${ir.blocks.length} blocks)`);
-                            } else {
-                                LoggerService.warn('file_text_extraction_empty', { fileName }, userId);
-                                emitProgress('error', 0, 'ไม่สามารถดึงข้อความได้');
-                            }
-                        } catch (extractError: any) {
-                            clearInterval(progressTimer);
-                            LoggerService.error('file_text_extraction_failed', {
-                                fileName,
-                                error: extractError.message
-                            }, userId);
-                            emitProgress('error', 0, 'การดึงข้อความล้มเหลว');
-                        }
-                    }
-                }
+            if (!file.buffer) {
+                emitProgress('error', 0, 'ไม่พบข้อมูลไฟล์');
+                continue;
             }
 
-            LoggerService.info('agent_doc_blocks_summary', {
-                nativeDocBlocks: nativeDocBlocks.length,
-                extractedTextBlocks: extractedTextBlocks.length
-            }, userId);
+            const ext = (fileName).split('.').pop()?.toLowerCase() || 'pdf';
+            if (!supportedFormats.includes(ext)) {
+                emitProgress('error', 0, `ไม่รองรับไฟล์ .${ext}`);
+                continue;
+            }
 
-            // 1.3.6 Dynamic Refusal Policy
-            const isOrganizationalQuery = /policy|regulation|guideline|document|files|contract|agreement|budget|contact|email|who is|fee|calendar|schedule|deadline|registration|course|gpa|grade/i.test(query);
-            const isSafeGeneralIntent = !isOrganizationalQuery;
+            // Start background upload
+            this.state.uploadPromises.push(
+                ChatAttachmentService.uploadFile(file.buffer, fileName, file.mediaType || 'application/pdf', userId)
+                    .then(meta => {
+                        this.emit(EVENT.FILE_UPLOADED, { fileName, metadata: meta });
+                        return { ...meta, fileType: ext };
+                    })
+                    .catch(err => {
+                        LoggerService.warn('file_upload_background_failed', { fileName, error: err.message }, userId);
+                        return null;
+                    })
+            );
 
-            const refusalRule = isSafeGeneralIntent
-                ? `- Basic factual questions may be answered using internal knowledge.
-                   - WARNING: If the question pertains to specific organizational policies absent in context, you MUST use the Search tool.`
-                : `- If the Knowledge Base or Context does not explicitly contain the answer, you MUST use the 'search' tool to find it. Do NOT say "I don't have enough information" without searching first.`;
+            if (file.buffer.length < MAX_NATIVE_SIZE) {
+                // Native Block
+                emitProgress('encoding', 50, 'กำลังเข้ารหัสเอกสาร...');
+                const rawName = this.sanitizeFileName(fileName);
 
-            // Enhancement 4: Multi-Block System Prompts
-            const systemBlocks: Array<{ text: string }> = [];
+                this.state.nativeDocBlocks.push({
+                    type: 'document',
+                    format: ext,
+                    name: rawName,
+                    data: Buffer.from(file.buffer).toString('base64')
+                });
 
-            // Block 1: Persona & Core Rules (Static - great for caching)
-            systemBlocks.push({
-                text: `You are the MFU Learn AI Agent. You are efficient and helpful.
+                emitProgress('done', 100, 'พร้อมส่ง');
+            } else {
+                // Large File Extraction
+                emitProgress('extracting', 20, `กำลังดึงข้อความ (${fileSizeMB} MB)...`);
+
+                try {
+                    const ir = await KnowledgeService.parseFile(file.buffer, fileName, file.mediaType || 'application/pdf');
+
+                    if (ir && ir.blocks && ir.blocks.length > 0) {
+                        let fullText = ir.blocks.map((b: any) => b.content).join('\n\n');
+                        if (fullText.length > MAX_EXTRACTED_TEXT_CHARS) {
+                            fullText = fullText.substring(0, MAX_EXTRACTED_TEXT_CHARS) + '\n\n[... Truncated ...]';
+                        }
+                        this.state.extractedTextBlocks.push({ fileName, text: fullText });
+                        emitProgress('done', 100, `ดึงข้อความสำเร็จ`);
+                    } else {
+                        emitProgress('error', 0, 'ไม่สามารถดึงข้อความได้');
+                    }
+                } catch (e: any) {
+                    emitProgress('error', 0, 'การดึงข้อความล้มเหลว');
+                }
+            }
+        }
+    }
+
+    /**
+     * 3. Build System Prompt & Messages
+     */
+    private buildInitialMessages() {
+        const { message, images } = this.ctx;
+        const { smartContext, nativeDocBlocks, extractedTextBlocks, history } = this.state;
+
+        // --- Logic: Refusal & Policy ---
+        const isOrganizationalQuery = /policy|regulation|guideline|document|files|contract|agreement|budget|contact|email|who is|fee|calendar|schedule|deadline|registration|course|gpa|grade/i.test(message);
+        const refusalRule = !isOrganizationalQuery
+            ? `- Basic factual questions may be answered using internal knowledge.\n- WARNING: If the question pertains to specific organizational policies absent in context, you MUST use the Search tool.`
+            : `- If the Knowledge Base or Context does not explicitly contain the answer, you MUST use the 'search' tool to find it. Do NOT say "I don't have enough information" without searching first.`;
+
+        // --- Block 1: Persona & Rules ---
+        const systemBlocks: Array<{ text: string }> = [];
+        systemBlocks.push({
+            text: `You are the MFU Learn AI Agent. You are efficient and helpful.
 === TRUTH PRIORITY ===
 1. Canonical Memory
 2. Tool Results (Search/Calc)
@@ -261,381 +298,315 @@ export class AgentWorkflow {
 - Use the 'calculator' tool for any math.
 ${refusalRule}
 - Always start by planning your next step if complex.
-- If the attached files or search results do NOT contain the answer, say so clearly. Do NOT guess.` });
+- If the attached files or search results do NOT contain the answer, say so clearly. Do NOT guess.`
+        });
 
-            // Block 2: Session Context (Changes per session)
-            systemBlocks.push({
-                text: `=== SESSION CONTEXT ===
+        // --- Block 2: Session Context ---
+        systemBlocks.push({
+            text: `=== SESSION CONTEXT ===
 ${smartContext?.canonical || 'First session.'}
 ${JSON.stringify(smartContext?.rolling || {}, null, 2)}`
-            });
+        });
 
-            // Block 3: Attached file hints
-            if (nativeDocBlocks.length > 0) {
-                const fileNames = nativeDocBlocks.map(d => d.name).join(', ');
-                systemBlocks.push({ text: `The user has attached ${nativeDocBlocks.length} document(s): ${fileNames}. They are included as native document blocks in the user message. Read and analyze them to answer the user's question.` });
-            }
-            if (extractedTextBlocks.length > 0) {
-                const fileNames = extractedTextBlocks.map(b => b.fileName).join(', ');
-                systemBlocks.push({ text: `The user has attached ${extractedTextBlocks.length} large file(s): ${fileNames}. The text content has been extracted and is included in the user message. Read and analyze the extracted text to answer the user's question.` });
-            }
-
-            // Enhancement 3: Guardrails Configuration
-            const guardrailConfig = process.env.BEDROCK_GUARDRAIL_ID ? {
-                guardrailIdentifier: process.env.BEDROCK_GUARDRAIL_ID,
-                guardrailVersion: process.env.BEDROCK_GUARDRAIL_VERSION || 'DRAFT'
-            } : undefined;
-
-            // 1.4 Construct Initial Messages
-            const userContent: any[] = [];
-            if (nativeDocBlocks.length > 0) {
-                userContent.push(...nativeDocBlocks);
-            }
-            if (extractedTextBlocks.length > 0) {
-                for (const etb of extractedTextBlocks) {
-                    userContent.push({
-                        type: 'text',
-                        text: `=== Extracted content from "${etb.fileName}" ===\n${etb.text}\n=== End of "${etb.fileName}" ===`
-                    });
-                }
-            }
-            userContent.push({ type: 'text', text: query });
-            if (images && images.length > 0) {
-                userContent.push(...images.map((img: any) => ({ type: 'image', source: img })));
-            }
-
-            let messages: any[] = [
-                {
-                    role: 'system',
-                    content: systemBlocks  // Enhancement 4: Array of blocks
-                },
-                ...history.slice(-10).map(m => ({ role: m.role, content: m.content, images: m.images })),
-                { role: 'user', content: userContent }
-            ];
-
-            let steps = 0;
-            let finalAnswer = '';
-            const startTime = Date.now();
-            let confidence = 'Low';
-            let explanation = { basis: 'Internal', assumptions: [] as string[], missing_info: [] as string[] };
-
-            let answerState = 'UNVERIFIED';
-            let answerMode = 'internal';
-            const usedTools = new Set<string>();
-
-            // === MAIN AGENT LOOP ===
-            while (steps < AGENT_CONFIG.MAX_STEPS) {
-                // Wall-clock timeout protection
-                if (Date.now() - startTime > AGENT_CONFIG.MAX_WALL_MS) {
-                    LoggerService.warn('agent_timeout', { steps, elapsed: Date.now() - startTime, traceId }, userId);
-                    finalAnswer = 'ขออภัยครับ คำขอใช้เวลาเกินกำหนด กรุณาลองถามใหม่อีกครั้ง';
-                    answerMode = 'internal';
-                    answerState = 'TIMEOUT';
-                    emitEvent(EVENT.STATUS, { message: 'หมดเวลาดำเนินการ' });
-                    break;
-                }
-
-                // Client disconnected — stop processing
-                if (clientDisconnected) {
-                    LoggerService.info('agent_client_disconnected', { steps, traceId }, userId);
-                    return { traceId };
-                }
-
-                steps++;
-                LoggerService.info('agent_step', { step: steps, sessionId, traceId }, userId);
-
-                // ▸ EVENT: agent_step
-                emitEvent(EVENT.AGENT_STEP, { step: steps, maxSteps: AGENT_CONFIG.MAX_STEPS });
-
-                // Diagnostic: log message structure before sending (only on step 1)
-                if (steps === 1) {
-                    const msgStructure = messages.map((m: any, i: number) => ({
-                        idx: i,
-                        role: m.role,
-                        contentType: typeof m.content,
-                        isArray: Array.isArray(m.content),
-                        blockTypes: Array.isArray(m.content)
-                            ? m.content.map((b: any) => b.type || Object.keys(b)[0])
-                            : undefined,
-                        contentLength: typeof m.content === 'string' ? m.content.length : undefined
-                    }));
-                    console.log(`[AgentWorkflow] Messages structure before sendChat:`, JSON.stringify(msgStructure));
-                }
-
-                // ▸ EVENT: thinking
-                emitEvent(EVENT.THINKING, { step: steps, message: `กำลังวิเคราะห์... (ขั้นตอนที่ ${steps})` });
-
-                const stepStartTime = Date.now();
-
-                const { text: fullResponse, content: contentBlocks, usage: stepUsage, stopReason } = await BedrockService.streamChatSSE(
-                    MODELS.PRIMARY,
-                    messages,
-                    (delta) => {
-                        // Stream text to client immediately
-                        emitEvent(EVENT.ANSWER_DELTA, { delta });
-                    },
-                    0.5,
-                    toolConfig,
-                    guardrailConfig
-                );
-
-                const stepDurationMs = Date.now() - stepStartTime;
-
-                LoggerService.info('agent_model_response', {
-                    step: steps,
-                    stopReason,
-                    responseLength: fullResponse?.length,
-                    rawResponsePreview: fullResponse?.substring(0, 200),
-                    durationMs: stepDurationMs
-                }, userId);
-
-                // ... (Usage tracking) ...
-                totalUsage.input += stepUsage.input;
-                totalUsage.output += stepUsage.output;
-                totalUsage.total += stepUsage.total;
-
-                // ▸ EVENT: step_usage
-                emitEvent(EVENT.STEP_USAGE, {
-                    step: steps,
-                    input: stepUsage.input,
-                    output: stepUsage.output,
-                    total: stepUsage.total,
-                    durationMs: stepDurationMs
-                });
-
-                // Handle Response
-                if (stopReason === 'tool_use') {
-                    LoggerService.info('agent_tool_use_detected', { step: steps }, userId);
-
-                    // Robust content handling from stream structure
-                    const toolUseBlocks = contentBlocks || [{ type: 'text', text: fullResponse }];
-
-                    messages.push({ role: 'assistant', content: toolUseBlocks });
-
-                    const toolResults: any[] = [];
-                    for (const block of toolUseBlocks) {
-                        if (block.type === 'tool_use') {
-                            const toolName = block.name;
-                            usedTools.add(toolName);
-
-                            // streamChatSSE parses input JSON automatically in end handler
-                            const toolUseId = block.toolUseId;
-                            const toolInput = block.input;
-
-                            LoggerService.info('tool_execution', { tool: toolName, input: toolInput }, userId);
-
-                            // ▸ EVENT: tool_start
-                            emitEvent(EVENT.TOOL_START, {
-                                toolName,
-                                input: toolInput,
-                                step: steps
-                            });
-                            emitEvent(EVENT.STATUS, { message: `🔧 Using ${toolName}...` });
-
-                            const toolStartTime = Date.now();
-                            const tool = allowedTools.find(t => t.schemaJSON.name === toolName);
-                            let resultContent: any;
-                            let toolSuccess = false;
-
-                            if (tool) {
-                                LoggerService.info('agent_executing_tool', { tool: toolName, input: toolInput }, userId);
-                                const executionResult = await tool.execute(toolInput, {
-                                    userId,
-                                    role: userRole,
-                                    department: userDepartment,
-                                    collectionId
-                                });
-                                resultContent = executionResult.success ? executionResult.result : `Error: ${executionResult.error}`;
-                                toolSuccess = executionResult.success;
-                                LoggerService.info('agent_tool_result', { tool: toolName, success: executionResult.success, resultLength: resultContent?.length }, userId);
-
-                                if (toolName === 'search' && executionResult.success) {
-                                    usedTools.add('search');
-                                }
-                            } else {
-                                resultContent = `Error: Tool ${toolName} not found.`;
-                            }
-
-                            const toolDurationMs = Date.now() - toolStartTime;
-
-                            // ▸ EVENT: tool_complete
-                            const resultPreview = typeof resultContent === 'string'
-                                ? resultContent.substring(0, 300)
-                                : JSON.stringify(resultContent).substring(0, 300);
-
-                            emitEvent(EVENT.TOOL_COMPLETE, {
-                                toolName,
-                                success: toolSuccess,
-                                resultPreview,
-                                durationMs: toolDurationMs,
-                                step: steps
-                            });
-
-                            toolResults.push({
-                                toolUseId: toolUseId,
-                                content: [{ json: { result: resultContent } }]
-                            });
-                        }
-                    }
-                    // Append tool results
-                    messages.push({
-                        role: 'user',
-                        content: toolResults.map(tr => ({
-                            type: 'tool_result',
-                            toolUseId: tr.toolUseId,
-                            content: tr.content
-                        }))
-                    });
-
-
-                } else {
-                    // === FINAL ANSWER ===
-                    // Determine answer mode 
-                    if (nativeDocBlocks.length > 0) {
-                        answerMode = 'file_grounded';
-                        answerState = 'VERIFIED';
-                    } else if (usedTools.has('search')) {
-                        answerMode = 'rag';
-                        answerState = 'VERIFIED';
-                    }
-
-                    // ▸ EVENT: answer_start (Late emission, but useful for metadata)
-                    emitEvent(EVENT.ANSWER_START, { answerMode });
-
-                    // Add content to messages history
-                    messages.push({ role: 'assistant', content: fullResponse });
-
-                    finalAnswer = fullResponse;
-
-                    // Note: We already streamed the delta events via streamChatSSE callback
-                    // So we don't need the simulated loop here.
-
-                    // ▸ EVENT: answer_done
-                    emitEvent(EVENT.ANSWER_DONE, { fullLength: finalAnswer.length });
-
-                    break;
-                }
-            }
-
-            // === END LOOP ===
-
-            // 6. Emit final metadata & completion events
-            if (finalAnswer) {
-                if (answerMode === 'file_grounded' || answerMode === 'rag') {
-                    confidence = 'High';
-                    explanation.basis = 'RAG';
-                }
-
-                const totalDurationMs = Date.now() - workflowStartTime;
-
-                // ▸ EVENT: metadata (backward compatible)
-                emitEvent(EVENT.METADATA, {
-                    metadata: {
-                        answer_mode: answerMode,
-                        answer_state: answerState,
-                        usedRAG: answerMode !== 'internal',
-                        stepsUsed: steps,
-                        totalTokens: totalUsage.total,
-                        explanation
-                    }
-                });
-
-                // ▸ EVENT: agent_complete
-                emitEvent(EVENT.AGENT_COMPLETE, {
-                    totalSteps: steps,
-                    totalTokens: totalUsage.total,
-                    durationMs: totalDurationMs,
-                    toolsUsed: Array.from(usedTools),
-                    answerMode
-                });
-
-                // Clear status
-                emitEvent(EVENT.STATUS, { message: '' });
-
-                // 7. Telemetry & Persistence
-
-                // Await uploads
-                const uploadedAttachments: any[] = [];
-                if (uploadPromises.length > 0) {
-                    const results = await Promise.all(uploadPromises);
-                    results.forEach(r => {
-                        if (r) uploadedAttachments.push(r);
-                    });
-                }
-
-                const currentMessage: any = { role: 'user', content: query, timestamp: new Date() };
-                if (uploadedAttachments.length > 0) {
-                    currentMessage.attachments = uploadedAttachments;
-                }
-
-                const assistantMessage = {
-                    role: 'assistant' as const,
-                    content: finalAnswer,
-                    timestamp: new Date(),
-                    meta: {
-                        stepsUsed: steps,
-                        answer_mode: answerMode,
-                        answer_state: answerState,
-                        usedRAG: answerMode !== 'internal',
-                        confidence,
-                        explanation
-                    },
-                    // Persist agent event flow to MongoDB (excluding high-frequency deltas)
-                    agentEvents: store.getEventLog().map((e: any) => ({
-                        type: e.type,
-                        step: e.step,
-                        toolName: e.toolName,
-                        input: e.input,
-                        resultPreview: e.resultPreview,
-                        success: e.success,
-                        durationMs: e.durationMs,
-                        message: e.message,
-                        answerMode: e.answerMode,
-                        totalSteps: e.totalSteps,
-                        totalTokens: e.totalTokens,
-                        tokens: e.total ? { input: e.input, output: e.output, total: e.total } : undefined,
-                        timestamp: new Date(e.timestamp)
-                    }))
-                };
-
-                await HistoryService.addMessage(userId, sessionId, currentMessage);
-                await HistoryService.addMessage(userId, sessionId, assistantMessage);
-                await HistoryService.saveToPersistentStorage(userId, sessionId, [currentMessage, assistantMessage], { totalTokens: totalUsage.total }, process.env.ENV_TYPE || 'TEST', MODELS.PRIMARY);
-
-                // Log Token Usage for Dashboard
-                await LoggerService.info('chat_completion', {
-                    tokens: totalUsage,
-                    model: MODELS.PRIMARY,
-                    steps,
-                    sessionId,
-                    traceId
-                }, userId);
-
-                // 8. Background Summarization (fire-and-forget)
-                SummarizationService.runUpdate(userId, sessionId, [currentMessage, assistantMessage], smartContext || {
-                    canonical: '', rolling: { facts: [], intent: { primary: 'QUERY', confidence: 1 }, constraints: [], decisions: [], open_questions: [], confidence_score: 1 },
-                    version: 0, hashes: { canonical: '', rolling: '', raw: '' }, lastCanonizedAt: new Date()
-                }).catch((e: any) => LoggerService.error('Background Summary Failed', e));
-
-                // 9. Auto-Title Generation (First Turn Only)
-                if (history.length === 0) {
-                    try {
-                        const newTitle = await SummarizationService.updateTitle(userId, sessionId, query);
-                        if (newTitle) {
-                            emitEvent(EVENT.TITLE, { title: newTitle });
-                        }
-                    } catch (e: any) {
-                        LoggerService.error('Title Gen Failed', e);
-                    }
-                }
-            }
-
-        } catch (error: any) {
-            LoggerService.error('Agent Workflow Error', { error: error.message, stack: error.stack, traceId });
-            emitEvent('error', { error: 'Agent workflow failed', traceId });
+        // --- Block 3: File Hints ---
+        if (nativeDocBlocks.length > 0) {
+            const names = nativeDocBlocks.map(d => d.name).join(', ');
+            systemBlocks.push({ text: `The user has attached ${nativeDocBlocks.length} document(s): ${names}. They are included as native document blocks. Read them to answer.` });
+        }
+        if (extractedTextBlocks.length > 0) {
+            const names = extractedTextBlocks.map(b => b.fileName).join(', ');
+            systemBlocks.push({ text: `The user has attached ${extractedTextBlocks.length} large file(s): ${names}. The text has been extracted and included in the user message.` });
         }
 
-        return { traceId };
+        // --- Construct User Content ---
+        const userContent: any[] = [];
+        if (nativeDocBlocks.length > 0) userContent.push(...nativeDocBlocks);
+
+        for (const etb of extractedTextBlocks) {
+            userContent.push({
+                type: 'text',
+                text: `=== Extracted content from "${etb.fileName}" ===\n${etb.text}\n=== End of "${etb.fileName}" ===`
+            });
+        }
+
+        userContent.push({ type: 'text', text: message });
+
+        if (images && images.length > 0) {
+            userContent.push(...images.map((img: any) => ({ type: 'image', source: img })));
+        }
+
+        // --- Final Message Stack ---
+        this.state.messages = [
+            { role: 'system', content: systemBlocks },
+            ...history.slice(-10).map(m => ({ role: m.role, content: m.content, images: m.images })),
+            { role: 'user', content: userContent }
+        ];
     }
 
+    /**
+     * 4. Main Agent Loop
+     */
+    private async agentLoop() {
+        const { userRole } = this.ctx;
+        const allowedTools = AVAILABLE_TOOLS.filter(t => t.isAllowed(userRole));
+        const toolConfig = allowedTools.length > 0 ? {
+            tools: allowedTools.map(t => ({ toolSpec: t.schemaJSON }))
+        } : undefined;
+
+        const guardrailConfig = process.env.BEDROCK_GUARDRAIL_ID ? {
+            guardrailIdentifier: process.env.BEDROCK_GUARDRAIL_ID,
+            guardrailVersion: process.env.BEDROCK_GUARDRAIL_VERSION || 'DRAFT'
+        } : undefined;
+
+        while (this.state.steps < AGENT_CONFIG.MAX_STEPS) {
+            // Check Timeout
+            if (Date.now() - this.state.startTime > AGENT_CONFIG.MAX_WALL_MS) {
+                this.handleTimeout();
+                break;
+            }
+            if (this.state.clientDisconnected) return;
+
+            this.state.steps++;
+            this.emit(EVENT.AGENT_STEP, { step: this.state.steps, maxSteps: AGENT_CONFIG.MAX_STEPS });
+            this.emit(EVENT.THINKING, { step: this.state.steps, message: `กำลังวิเคราะห์... (ขั้นตอนที่ ${this.state.steps})` });
+
+            LoggerService.info('agent_step', { step: this.state.steps, traceId: this.state.traceId }, this.ctx.userId);
+
+            const stepStartTime = Date.now();
+
+            // --- STREAMING CALL ---
+            const { text: fullResponse, content: contentBlocks, usage: stepUsage, stopReason } = await BedrockService.streamChatSSE(
+                MODELS.PRIMARY,
+                this.state.messages,
+                (delta) => {
+                    this.emit(EVENT.ANSWER_DELTA, { delta });
+                },
+                0.5,
+                toolConfig,
+                guardrailConfig
+            );
+
+            // Update Usage
+            const stepDurationMs = Date.now() - stepStartTime;
+            this.updateUsage(stepUsage, stepDurationMs);
+
+            // Logic: Tool Use vs Final Answer
+            if (stopReason === 'tool_use') {
+                await this.handleToolExecution(fullResponse, contentBlocks, allowedTools);
+            } else {
+                // Final Answer
+                this.handleFinalAnswer(fullResponse);
+                break;
+            }
+        }
+    }
+
+    private async handleToolExecution(fullResponse: string, contentBlocks: any[], allowedTools: any[]) {
+        const toolUseBlocks = contentBlocks && contentBlocks.length > 0
+            ? contentBlocks
+            : [{ type: 'text', text: fullResponse }];
+
+        // Add Assistant Response to History
+        this.state.messages.push({ role: 'assistant', content: toolUseBlocks });
+
+        const toolResults: any[] = [];
+
+        for (const block of toolUseBlocks) {
+            if (block.type !== 'tool_use') continue;
+
+            const { name: toolName, input: toolInput, toolUseId } = block;
+            this.state.usedTools.add(toolName);
+
+            LoggerService.info('tool_execution', { tool: toolName, input: toolInput }, this.ctx.userId);
+
+            this.emit(EVENT.TOOL_START, { toolName, input: toolInput, step: this.state.steps });
+            this.emit(EVENT.STATUS, { message: `🔧 Using ${toolName}...` });
+
+            // Execute Tool
+            const start = Date.now();
+            const tool = allowedTools.find(t => t.schemaJSON.name === toolName);
+            let result: any;
+            let success = false;
+
+            if (tool) {
+                const exec = await tool.execute(toolInput, {
+                    userId: this.ctx.userId,
+                    role: this.ctx.userRole,
+                    department: this.ctx.userDepartment,
+                    collectionId: this.ctx.collectionId
+                });
+                result = exec.success ? exec.result : `Error: ${exec.error}`;
+                success = exec.success;
+                if (toolName === 'search' && success) this.state.usedTools.add('search');
+            } else {
+                result = `Error: Tool ${toolName} not found.`;
+            }
+
+            const duration = Date.now() - start;
+            this.emit(EVENT.TOOL_COMPLETE, {
+                toolName,
+                success,
+                resultPreview: typeof result === 'string' ? result.substring(0, 300) : JSON.stringify(result).substring(0, 300),
+                durationMs: duration,
+                step: this.state.steps
+            });
+
+            toolResults.push({
+                toolUseId,
+                content: [{ json: { result } }]
+            });
+        }
+
+        // Add Tool Results to History
+        if (toolResults.length > 0) {
+            this.state.messages.push({
+                role: 'user',
+                content: toolResults.map(tr => ({
+                    type: 'tool_result',
+                    toolUseId: tr.toolUseId,
+                    content: tr.content
+                }))
+            });
+        }
+    }
+
+    private handleFinalAnswer(response: string) {
+        this.state.finalAnswer = response;
+
+        // Determine Answer Mode
+        if (this.state.nativeDocBlocks.length > 0) {
+            this.state.answerMode = 'file_grounded';
+            this.state.answerState = 'VERIFIED';
+        } else if (this.state.usedTools.has('search')) {
+            this.state.answerMode = 'rag';
+            this.state.answerState = 'VERIFIED';
+        }
+
+        this.emit(EVENT.ANSWER_START, { answerMode: this.state.answerMode });
+        this.state.messages.push({ role: 'assistant', content: response });
+        this.emit(EVENT.ANSWER_DONE, { fullLength: response.length });
+    }
+
+    /**
+     * 5. Finalize, Persist, Summary
+     */
+    private async finalize() {
+        if (!this.state.finalAnswer) return;
+
+        const { finalAnswer, answerMode, answerState, steps, totalUsage, startTime } = this.state;
+        const totalDurationMs = Date.now() - startTime;
+
+        let confidence = 'Low';
+        let explanation = { basis: 'Internal', assumptions: [], missing_info: [] };
+
+        if (answerMode === 'file_grounded' || answerMode === 'rag') {
+            confidence = 'High';
+            explanation.basis = 'RAG';
+        }
+
+        this.emit(EVENT.METADATA, {
+            metadata: {
+                answer_mode: answerMode,
+                answer_state: answerState,
+                usedRAG: answerMode !== 'internal',
+                stepsUsed: steps,
+                totalTokens: totalUsage.total,
+                explanation
+            }
+        });
+
+        this.emit(EVENT.AGENT_COMPLETE, {
+            totalSteps: steps,
+            totalTokens: totalUsage.total,
+            durationMs: totalDurationMs,
+            toolsUsed: Array.from(this.state.usedTools),
+            answerMode
+        });
+
+        this.emit(EVENT.STATUS, { message: '' });
+
+        // -- Persistence --
+        // Wait for file uploads
+        const uploadedAttachments: any[] = [];
+        if (this.state.uploadPromises.length > 0) {
+            const results = await Promise.all(this.state.uploadPromises);
+            results.forEach(r => r && uploadedAttachments.push(r));
+        }
+
+        const userMsgToSave: any = { role: 'user' as const, content: this.ctx.message, timestamp: new Date() };
+        if (uploadedAttachments.length > 0) userMsgToSave.attachments = uploadedAttachments;
+
+        const assistantMsgToSave = {
+            role: 'assistant' as const,
+            content: finalAnswer,
+            timestamp: new Date(),
+            meta: {
+                stepsUsed: steps,
+                answer_mode: answerMode,
+                answer_state: answerState,
+                confidence,
+                explanation
+            },
+            agentEvents: this.store.getEventLog().map((e: any) => ({
+                ...e, timestamp: new Date(e.timestamp)
+            }))
+        };
+
+        const { userId, sessionId } = this.ctx;
+        await HistoryService.addMessage(userId, sessionId, userMsgToSave);
+        await HistoryService.addMessage(userId, sessionId, assistantMsgToSave);
+        await HistoryService.saveToPersistentStorage(
+            userId, sessionId,
+            [userMsgToSave, assistantMsgToSave],
+            { totalTokens: totalUsage.total },
+            process.env.ENV_TYPE || 'TEST',
+            MODELS.PRIMARY
+        );
+
+        LoggerService.info('chat_completion', {
+            tokens: totalUsage, model: MODELS.PRIMARY, steps, sessionId, traceId: this.state.traceId
+        }, userId);
+
+        // Background Summary & Title
+        SummarizationService.runUpdate(userId, sessionId, [userMsgToSave, assistantMsgToSave], this.state.smartContext || {
+            canonical: '', rolling: { facts: [], intent: { primary: 'QUERY', confidence: 1 }, constraints: [], decisions: [], open_questions: [], confidence_score: 1 },
+            version: 0, hashes: { canonical: '', rolling: '', raw: '' }, lastCanonizedAt: new Date()
+        }).catch((e: any) => LoggerService.error('Background Summary Failed', e));
+
+        if (this.state.history.length === 0) {
+            SummarizationService.updateTitle(userId, sessionId, this.ctx.message)
+                .then(title => title && this.emit(EVENT.TITLE, { title }))
+                .catch(e => LoggerService.error('Title Gen Failed', e));
+        }
+    }
+
+    private handleTimeout() {
+        LoggerService.warn('agent_timeout', { steps: this.state.steps, traceId: this.state.traceId }, this.ctx.userId);
+        this.state.finalAnswer = 'ขออภัยครับ คำขอใช้เวลาเกินกำหนด กรุณาลองถามใหม่อีกครั้ง';
+        this.state.answerMode = 'internal';
+        this.state.answerState = 'TIMEOUT';
+        this.emit(EVENT.STATUS, { message: 'หมดเวลาดำเนินการ' });
+    }
+
+    private updateUsage(stepUsage: any, durationMs: number) {
+        this.state.totalUsage.input += stepUsage.input;
+        this.state.totalUsage.output += stepUsage.output;
+        this.state.totalUsage.total += stepUsage.total;
+
+        this.emit(EVENT.STEP_USAGE, {
+            step: this.state.steps,
+            input: stepUsage.input,
+            output: stepUsage.output,
+            total: stepUsage.total,
+            durationMs
+        });
+    }
+
+    private sanitizeFileName(name: string): string {
+        return name
+            .replace(/\.[^.]+$/, '')
+            .replace(/[^a-zA-Z0-9\s\-\(\)\[\]]/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim() || 'document';
+    }
 }
