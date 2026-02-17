@@ -126,10 +126,11 @@ export class AgentWorkflow {
     private emitDelta(delta: string) {
         this.deltaBuffer += delta;
         const now = Date.now();
-        if (now - this.lastEmitTime > 50) {
+        // Flush if time elapsed > 20ms or buffer too large
+        if (now - this.lastEmitTime > 20 || this.deltaBuffer.length > 50) {
             this.flushDelta();
         } else if (!this.deltaTimer) {
-            this.deltaTimer = setTimeout(() => this.flushDelta(), 50);
+            this.deltaTimer = setTimeout(() => this.flushDelta(), 20);
         }
     }
 
@@ -159,6 +160,9 @@ export class AgentWorkflow {
 
         try {
             // 1. Load Context & Files
+            // Yield to ensure AGENT_START is flushed
+            await new Promise(resolve => setTimeout(resolve, 0));
+
             await this.loadContext();
             await this.processFiles();
 
