@@ -1196,90 +1196,91 @@ const formatBytes = (bytes) => {
 
 /* === Dark Mode Support (Redesigned for High Contrast) === */
 /* Using :global to target the theme attribute on html/body if it's outside scoped */
-:global([data-theme="dark"]) .glass-card {
-    background: rgba(30, 41, 59, 0.8); /* Slate-800, more opaque */
-    border-color: rgba(51, 65, 85, 0.8); /* Slate-700 */
-    color: #f8fafc; /* Slate-50 - High Contrast */
+/* Increased specificity: html[data-theme="dark"] body .class */
+:global(html[data-theme="dark"]) .glass-card {
+    background: rgba(30, 41, 59, 0.95) !important; /* Slate-800, almost opaque */
+    border-color: rgba(51, 65, 85, 0.8) !important; /* Slate-700 */
+    color: #f8fafc !important; /* Slate-50 - High Contrast */
 }
 
-:global([data-theme="dark"]) .glass-card.thinking-card {
-    background: rgba(30, 41, 59, 0.8); /* Slate-800 */
-    border-color: #334155;
+:global(html[data-theme="dark"]) .glass-card.thinking-card {
+    background: rgba(30, 41, 59, 0.95) !important;
+    border-color: #334155 !important;
     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
 }
 
-:global([data-theme="dark"]) .glass-card.tool-card {
-    background: #020617; /* Slate-950/Black for terminal feel */
-    border-color: #1e293b; /* Slate-800 */
+:global(html[data-theme="dark"]) .glass-card.tool-card {
+    background: #020617 !important; /* Slate-950/Black for terminal feel */
+    border-color: #1e293b !important; /* Slate-800 */
     box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.3);
 }
 
-:global([data-theme="dark"]) .glass-card.result-card {
-    background: #171717; /* Neutral-900 */
-    border-color: #404040; /* Neutral-700 */
+:global(html[data-theme="dark"]) .glass-card.result-card {
+    background: #171717 !important; /* Neutral-900 */
+    border-color: #404040 !important; /* Neutral-700 */
 }
 
-:global([data-theme="dark"]) .timeline-icon {
-    background: #1e293b; /* Slate-800 */
-    border-color: #334155; /* Slate-700 */
-    color: #cbd5e1; /* Slate-300 */
+:global(html[data-theme="dark"]) .timeline-icon {
+    background: #1e293b !important; /* Slate-800 */
+    border-color: #334155 !important; /* Slate-700 */
+    color: #cbd5e1 !important; /* Slate-300 */
 }
 
-:global([data-theme="dark"]) .timeline-icon.thinking {
-    background: #1e293b;
-    color: #94a3b8;
+:global(html[data-theme="dark"]) .timeline-icon.thinking {
+    background: #1e293b !important;
+    color: #94a3b8 !important;
 }
 
 /* Ensure text visibility in dark mode */
-:global([data-theme="dark"]) .card-header {
-    color: #cbd5e1; /* Slate-300 */
+:global(html[data-theme="dark"]) .card-header {
+    color: #cbd5e1 !important; /* Slate-300 */
 }
 
-:global([data-theme="dark"]) .header-title {
-    color: #f8fafc; /* Slate-50 */
+:global(html[data-theme="dark"]) .header-title {
+    color: #f8fafc !important; /* Slate-50 */
     font-weight: 700;
 }
 
-:global([data-theme="dark"]) .card-body.markdown-body {
-    color: #f8fafc; /* Slate-50 */
+:global(html[data-theme="dark"]) .card-body.markdown-body {
+    color: #f8fafc !important; /* Slate-50 */
 }
 
-:global([data-theme="dark"]) .card-body.markdown-body p,
-:global([data-theme="dark"]) .card-body.markdown-body li,
-:global([data-theme="dark"]) .card-body.markdown-body span,
-:global([data-theme="dark"]) .card-body.markdown-body strong {
-    color: #f8fafc;
+:global(html[data-theme="dark"]) .card-body.markdown-body p,
+:global(html[data-theme="dark"]) .card-body.markdown-body li,
+:global(html[data-theme="dark"]) .card-body.markdown-body span,
+:global(html[data-theme="dark"]) .card-body.markdown-body strong {
+    color: #f8fafc !important;
 }
 
-:global([data-theme="dark"]) .card-body.markdown-body code {
-    background: rgba(0, 0, 0, 0.3);
-    border: 1px solid #334155;
-    color: #e2e8f0;
+:global(html[data-theme="dark"]) .card-body.markdown-body code {
+    background: rgba(0, 0, 0, 0.3) !important;
+    border: 1px solid #334155 !important;
+    color: #e2e8f0 !important;
 }
 
-:global([data-theme="dark"]) .tool-command-box {
-    color: #f8fafc;
+:global(html[data-theme="dark"]) .tool-command-box {
+    color: #f8fafc !important;
     font-weight: 500;
 }
 
-:global([data-theme="dark"]) .result-preview-text {
-    color: #e2e8f0; /* Slate-200 */
+:global(html[data-theme="dark"]) .result-preview-text {
+    color: #e2e8f0 !important; /* Slate-200 */
 }
 
-:global([data-theme="dark"]) .timeline-line {
-    background: #334155; /* Slate-700 */
+:global(html[data-theme="dark"]) .timeline-line {
+    background: #334155 !important; /* Slate-700 */
 }
 
-:global([data-theme="dark"]) .status-text {
-    color: #f8fafc;
+:global(html[data-theme="dark"]) .status-text {
+    color: #f8fafc !important;
 }
 
-:global([data-theme="dark"]) .agent-flow-header:hover .status-text {
-    color: #ffffff;
+:global(html[data-theme="dark"]) .agent-flow-header:hover .status-text {
+    color: #ffffff !important;
     text-shadow: 0 0 10px rgba(255,255,255,0.3);
 }
 
-:global([data-theme="dark"]) .fade-text {
-    color: #94a3b8;
+:global(html[data-theme="dark"]) .fade-text {
+    color: #94a3b8 !important;
 }
 </style>
