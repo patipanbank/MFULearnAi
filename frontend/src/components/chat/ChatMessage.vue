@@ -312,56 +312,90 @@ const formatBytes = (bytes) => {
                 </div>
             </div>
 
-            <!-- Expanded Content: Vertical Timeline -->
+            <!-- Expanded Content: Polished Timeline -->
             <div v-if="flowExpanded" class="agent-flow-content">
                 <div v-for="(evt, idx) in timelineEvents" :key="idx" class="timeline-item">
-                    <!-- Timeline Connector -->
-                    <div class="timeline-marker">
+                    <!-- Timeline Left: Icon & Line -->
+                    <div class="timeline-left">
                         <div class="timeline-line" v-if="idx < timelineEvents.length - 1"></div>
-                        <div class="timeline-dot" :class="evt.type">
-                            <span v-if="evt.type === 'thinking'">💭</span>
-                            <span v-else-if="evt.type === 'tool_start'">⚡</span>
-                            <span v-else-if="evt.type === 'tool_complete'">✅</span>
-                            <span v-else>•</span>
+                        
+                        <!-- Icon: Thinking -->
+                        <div v-if="evt.type === 'thinking'" class="timeline-icon thinking">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path>
+                            </svg>
+                        </div>
+                        
+                        <!-- Icon: Tool Start -->
+                        <div v-else-if="evt.type === 'tool_start'" class="timeline-icon tool">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+                            </svg>
+                        </div>
+                        
+                        <!-- Icon: Tool Complete -->
+                        <div v-else-if="evt.type === 'tool_complete'" class="timeline-icon success">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="20 6 9 17 4 12"></polyline>
+                            </svg>
+                        </div>
+
+                        <!-- Icon: Default -->
+                        <div v-else class="timeline-icon">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="1"></circle>
+                                <circle cx="19" cy="12" r="1"></circle>
+                                <circle cx="5" cy="12" r="1"></circle>
+                            </svg>
                         </div>
                     </div>
 
-                    <!-- Content Block -->
-                    <div class="timeline-body">
-                        <!-- Thinking -->
-                        <div v-if="evt.type === 'thinking'" class="content-block thinking">
-                            <div class="block-header">Thinking Process (Step {{ evt.step }})</div>
-                            <div class="block-text markdown-body">{{ evt.message }}</div>
+                    <!-- Timeline Right: Content Card -->
+                    <div class="timeline-right">
+                        <!-- Thinking Card -->
+                        <div v-if="evt.type === 'thinking'" class="flow-card thinking-card">
+                            <div class="card-header">
+                                <span>Thinking Process</span>
+                                <span class="step-num">Step {{ evt.step }}</span>
+                            </div>
+                            <div class="card-body markdown-body">{{ evt.message }}</div>
                         </div>
 
-                        <!-- Tool Use -->
-                        <div v-else-if="evt.type === 'tool_start'" class="content-block tool-use">
-                            <div class="block-header">Running Tool</div>
-                            <div class="tool-command">
-                                <span class="cmd-prompt">></span> {{ evt.toolName }}
+                        <!-- Tool Use Card -->
+                        <div v-else-if="evt.type === 'tool_start'" class="flow-card tool-card">
+                            <div class="card-header">
+                                <span>Executing Tool</span>
+                            </div>
+                            <div class="tool-command-box">
+                                <span class="prompt">$</span> {{ evt.toolName }}
                             </div>
                         </div>
 
-                        <!-- Tool Result -->
-                        <div v-else-if="evt.type === 'tool_complete'" class="content-block tool-result">
-                            <div class="result-status" :class="{ success: evt.success, error: !evt.success }">
-                                {{ evt.success ? 'Completed' : 'Failed' }}
+                        <!-- Tool Result Card -->
+                        <div v-else-if="evt.type === 'tool_complete'" class="flow-card result-card">
+                            <div class="result-badge" :class="evt.success ? 'success' : 'failure'">
+                                {{ evt.success ? 'Success' : 'Failed' }}
                             </div>
-                            <div v-if="evt.resultPreview" class="result-preview">
-                                {{ evt.resultPreview.substring(0, 100) }}...
+                            <div v-if="evt.resultPreview" class="result-preview-text">
+                                {{ evt.resultPreview.substring(0, 120) }}{{ evt.resultPreview.length > 120 ? '...' : '' }}
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Live Indicator (at bottom) -->
+                <!-- Streaming Pulse -->
                 <div v-if="!agentSummary?.isComplete && isStreaming" class="timeline-item">
-                    <div class="timeline-marker">
-                        <div class="timeline-dot pulse">⏳</div>
+                    <div class="timeline-left">
+                        <div class="timeline-icon pulse">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <polyline points="12 6 12 12 16 14"></polyline>
+                            </svg>
+                        </div>
                     </div>
-                    <div class="timeline-body">
-                         <div class="content-block thinking">
-                            <div class="block-text fade-text">Processing...</div>
+                     <div class="timeline-right">
+                        <div class="flow-card thinking-card ghost">
+                            <div class="card-body">Processing...</div>
                         </div>
                     </div>
                 </div>
@@ -1107,15 +1141,15 @@ const formatBytes = (bytes) => {
 </style>
 
 
-/* === Agent Flow Redesign (Round 4 - Vertical Timeline) === */
+/* === Agent Flow Redesign (Round 5 - Visual Polish) === */
 .agent-flow-container {
-    margin-bottom: 12px;
+    margin-bottom: 20px;
     width: 100%;
     display: flex;
     flex-direction: column;
 }
 
-/* Header (Retain from Round 3) */
+/* Header */
 .agent-flow-header {
     appearance: none; -webkit-appearance: none;
     background: transparent; border: none; padding: 6px 0;
@@ -1129,135 +1163,148 @@ const formatBytes = (bytes) => {
     user-select: none;
 }
 .agent-flow-header:hover { color: var(--color-text-primary); }
-.header-left { display: flex; align-items: center; gap: 8px; width: 100%; overflow: hidden; }
-.status-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 13px;}
+.header-left { display: flex; align-items: center; gap: 8px; width: 100%; }
+.status-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 13px; }
 
-/* Timeline Container */
+/* Timeline Area */
 .agent-flow-content {
-    margin-top: 8px;
-    display: flex; flex-direction: column; 
-    gap: 0; /* Gap handled by items for line continuity */
-    padding-left: 2px; /* Slight offset */
-    max-height: 350px;
+    margin-top: 12px;
+    display: flex; flex-direction: column;
+    gap: 0;
+    padding-left: 4px;
+    max-height: 400px;
     overflow-y: auto; overflow-x: hidden;
+    padding-bottom: 8px;
+    /* Custom Scrollbar */
     scrollbar-width: thin;
     scrollbar-color: var(--color-border) transparent;
-    padding-bottom: 8px;
 }
 
 .timeline-item {
     display: flex;
-    gap: 12px;
+    gap: 16px;
     position: relative;
-    padding-bottom: 16px; /* Space between steps */
-    animation: flowStepEnter 0.3s cubic-bezier(0.2, 0.9, 0.3, 1) forwards;
+    padding-bottom: 24px;
+    animation: flowSlideIn 0.3s ease-out forwards;
     opacity: 0;
-    transform: translateY(5px);
+    transform: translateY(10px);
 }
-/* Stagger animation */
-.timeline-item:nth-child(1) { animation-delay: 0.05s; }
-.timeline-item:nth-child(2) { animation-delay: 0.1s; }
-.timeline-item:nth-child(n+3) { animation-delay: 0.15s; }
 
-/* Timeline Marker (Left Side) */
-.timeline-marker {
+.timeline-left {
     display: flex; flex-direction: column; align-items: center;
-    width: 20px; flex-shrink: 0;
+    width: 24px; flex-shrink: 0;
     position: relative;
+    padding-top: 2px;
 }
-.timeline-dot {
-    width: 20px; height: 20px;
-    border-radius: 50%;
-    background: var(--color-bg-secondary);
-    border: 1px solid var(--color-border);
-    display: flex; align-items: center; justify-content: center;
-    font-size: 10px;
-    z-index: 2; /* On top of line */
-}
-.timeline-dot.tool_start { background: #e0f2fe; border-color: #7dd3fc; color: #0284c7; }
-.timeline-dot.thinking { background: #f3f4f6; border-color: #d1d5db; }
-.timeline-dot.pulse { animation: pulse 1.5s infinite; border-color: var(--color-primary); color: var(--color-primary); }
 
 .timeline-line {
     position: absolute;
-    top: 20px; bottom: -16px; /* Connect to next item */
+    top: 28px; bottom: -20px;
     width: 2px;
     background: var(--color-border);
-    opacity: 0.5;
+    opacity: 0.3;
     z-index: 1;
 }
-/* Hide line for last item */
 .timeline-item:last-child .timeline-line { display: none; }
 
-/* Content Body (Right Side) */
-.timeline-body {
+.timeline-icon {
+    width: 24px; height: 24px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--color-bg-primary);
+    border: 1px solid var(--color-border);
+    color: var(--color-text-muted);
+    z-index: 2;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+}
+.timeline-icon.thinking { color: #6b7280; background: #f9fafb; }
+.timeline-icon.tool { color: #0284c7; background: #e0f2fe; border-color: #bae6fd; }
+.timeline-icon.success { color: #16a34a; background: #dcfce7; border-color: #bbf7d0; }
+.timeline-icon.pulse { animation: pulse 1.5s infinite; color: var(--color-primary); border-color: var(--color-primary); }
+
+.timeline-right {
     flex: 1;
     min-width: 0;
-    padding-top: 0; /* Align with dot */
 }
 
-.content-block {
-    background: transparent;
-}
-.content-block.tool-use {
-    background: var(--color-bg-tertiary);
+/* Content Cards */
+.flow-card {
     border-radius: 8px;
-    padding: 8px 12px;
-    border: 1px solid var(--color-border);
+    padding: 0;
+}
+.flow-card.thinking-card {
+    /* Minimalist for thinking */
+    border-left: 2px solid var(--color-border);
+    padding-left: 12px;
+}
+.flow-card.thinking-card.ghost {
+    border-left: 2px dashed var(--color-border);
+    opacity: 0.7;
 }
 
-.block-header {
-    font-size: 11px;
-    font-weight: 600;
+.flow-card.tool-card {
+    background: #1e1e1e; /* Dark for terminal feel */
+    border-radius: 8px;
+    padding: 10px 14px;
+    color: #e5e7eb;
+    margin-top: -4px;
+}
+.flow-card.result-card {
+    background: var(--color-bg-tertiary);
+    border: 1px solid var(--color-border);
+    padding: 10px 14px;
+    border-radius: 8px;
+    margin-top: -4px;
+}
+
+/* Headers & Text */
+.card-header {
+    display: flex; align-items: center; justify-content: space-between;
+    font-size: 11px; font-weight: 600;
     color: var(--color-text-muted);
-    margin-bottom: 4px;
+    margin-bottom: 6px;
     text-transform: uppercase;
     letter-spacing: 0.5px;
 }
+.step-num { opacity: 0.7; }
 
-.block-text.markdown-body {
+.card-body.markdown-body {
     font-size: 14px;
     line-height: 1.6;
     color: var(--color-text-secondary);
     white-space: pre-wrap;
-    word-break: break-word;
 }
-.block-text.fade-text { font-style: italic; color: var(--color-text-muted); font-size: 13px; }
 
-.tool-command {
+.tool-command-box {
     font-family: 'Menlo', monospace;
-    font-size: 12px;
-    color: var(--color-text-primary);
-    display: flex; align-items: flex-start; gap: 6px;
+    font-size: 13px;
+    line-height: 1.5;
 }
-.cmd-prompt { color: var(--color-primary); font-weight: bold; }
+.prompt { color: #4ade80; margin-right: 6px; }
 
-.result-status {
-    font-size: 12px; font-weight: 500;
-    display: inline-block;
-    padding: 2px 8px; border-radius: 12px;
-    margin-bottom: 4px;
+.result-badge {
+    display: inline-flex;
+    font-size: 11px; font-weight: 600;
+    padding: 2px 8px; border-radius: 4px;
+    margin-bottom: 6px;
 }
-.result-status.success { background: #dcfce7; color: #166534; }
-.result-status.error { background: #fee2e2; color: #991b1b; }
+.result-badge.success { background: #dcfce7; color: #166534; }
+.result-badge.failure { background: #fee2e2; color: #991b1b; }
 
-.result-preview {
-    font-size: 12px;
-    color: var(--color-text-muted);
-    font-style: italic;
-    border-left: 2px solid var(--color-border);
-    padding-left: 8px;
-    margin-top: 4px;
+.result-preview-text {
+    font-size: 13px;
+    color: var(--color-text-secondary);
+    font-family: monospace;
+    opacity: 0.9;
 }
 
-@keyframes flowStepEnter {
-    from { opacity: 0; transform: translateY(5px); }
+@keyframes flowSlideIn {
+    from { opacity: 0; transform: translateY(10px); }
     to { opacity: 1; transform: translateY(0); }
 }
 @keyframes pulse {
-    0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(var(--color-primary-rgb), 0.4); }
-    70% { transform: scale(1.1); box-shadow: 0 0 0 6px rgba(var(--color-primary-rgb), 0); }
-    100% { transform: scale(1); }
+    0% { box-shadow: 0 0 0 0 rgba(var(--color-primary-rgb), 0.4); }
+    70% { box-shadow: 0 0 0 6px rgba(var(--color-primary-rgb), 0); }
 }
 
 /* Scrollbar */
