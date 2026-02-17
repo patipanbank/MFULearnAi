@@ -1194,79 +1194,92 @@ const formatBytes = (bytes) => {
     }
 }
 
-/* === Dark Mode Support === */
+/* === Dark Mode Support (Redesigned for High Contrast) === */
 /* Using :global to target the theme attribute on html/body if it's outside scoped */
 :global([data-theme="dark"]) .glass-card {
-    background: rgba(30, 30, 30, 0.6);
-    border-color: rgba(255, 255, 255, 0.1);
-    color: #e5e7eb; /* Default text color for card */
+    background: rgba(30, 41, 59, 0.8); /* Slate-800, more opaque */
+    border-color: rgba(51, 65, 85, 0.8); /* Slate-700 */
+    color: #f8fafc; /* Slate-50 - High Contrast */
 }
 
 :global([data-theme="dark"]) .glass-card.thinking-card {
-    background: rgba(30, 30, 30, 0.6);
-    border-color: rgba(255, 255, 255, 0.1);
+    background: rgba(30, 41, 59, 0.8); /* Slate-800 */
+    border-color: #334155;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
 }
 
 :global([data-theme="dark"]) .glass-card.tool-card {
-    background: #171717; /* Even darker for tool */
-    border-color: #404040;
+    background: #020617; /* Slate-950/Black for terminal feel */
+    border-color: #1e293b; /* Slate-800 */
+    box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.3);
 }
 
 :global([data-theme="dark"]) .glass-card.result-card {
-    background: rgba(40, 40, 40, 0.6);
-    border-color: rgba(255, 255, 255, 0.1);
+    background: #171717; /* Neutral-900 */
+    border-color: #404040; /* Neutral-700 */
 }
 
 :global([data-theme="dark"]) .timeline-icon {
-    background: #1f1f1f;
-    border-color: #404040;
+    background: #1e293b; /* Slate-800 */
+    border-color: #334155; /* Slate-700 */
+    color: #cbd5e1; /* Slate-300 */
 }
 
 :global([data-theme="dark"]) .timeline-icon.thinking {
-    background: #1f1f1f;
-    color: #9ca3af;
+    background: #1e293b;
+    color: #94a3b8;
 }
 
 /* Ensure text visibility in dark mode */
 :global([data-theme="dark"]) .card-header {
-    color: #9ca3af; /* Muted text for headers */
+    color: #cbd5e1; /* Slate-300 */
 }
 
 :global([data-theme="dark"]) .header-title {
-    color: #e5e7eb; /* Brighter for title */
+    color: #f8fafc; /* Slate-50 */
+    font-weight: 700;
 }
 
 :global([data-theme="dark"]) .card-body.markdown-body {
-    color: #e5e7eb;
+    color: #f8fafc; /* Slate-50 */
 }
 
 :global([data-theme="dark"]) .card-body.markdown-body p,
 :global([data-theme="dark"]) .card-body.markdown-body li,
-:global([data-theme="dark"]) .card-body.markdown-body span {
-    color: #e5e7eb;
+:global([data-theme="dark"]) .card-body.markdown-body span,
+:global([data-theme="dark"]) .card-body.markdown-body strong {
+    color: #f8fafc;
+}
+
+:global([data-theme="dark"]) .card-body.markdown-body code {
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid #334155;
+    color: #e2e8f0;
 }
 
 :global([data-theme="dark"]) .tool-command-box {
-    color: #e5e7eb;
+    color: #f8fafc;
+    font-weight: 500;
 }
 
 :global([data-theme="dark"]) .result-preview-text {
-    color: #d1d5db;
+    color: #e2e8f0; /* Slate-200 */
 }
 
 :global([data-theme="dark"]) .timeline-line {
-    background: #404040;
+    background: #334155; /* Slate-700 */
 }
 
 :global([data-theme="dark"]) .status-text {
-    color: #e5e7eb;
+    color: #f8fafc;
 }
 
 :global([data-theme="dark"]) .agent-flow-header:hover .status-text {
     color: #ffffff;
+    text-shadow: 0 0 10px rgba(255,255,255,0.3);
 }
 
 :global([data-theme="dark"]) .fade-text {
-    color: #9ca3af;
+    color: #94a3b8;
 }
 </style>
