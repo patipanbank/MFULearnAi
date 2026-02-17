@@ -178,6 +178,172 @@ export const useChatStore = defineStore('chat', () => {
             timestamp: new Date()
         })
 
+        // ── Fix: Setup Socket Listener BEFORE Request to prevent Race Condition ──
+        const { getSocket } = await import('../services/socket.js')
+        const socket = getSocket()
+
+        if (!socket) {
+            throw new Error('Socket.IO not connected — please refresh the page')
+        }
+
+        // Buffer events in case they arrive before fetch returns traceId
+        const eventBuffer = []
+        let traceId = null
+        let resolveAgentPromise = null
+        let rejectAgentPromise = null
+
+        // Main Promise that waits for agent completion
+        const agentCompletionPromise = new Promise((resolve, reject) => {
+            resolveAgentPromise = resolve
+            rejectAgentPromise = reject
+        })
+
+        const handleEvent = (data) => {
+            // If we don't have traceId yet, buffer it
+            if (!traceId) {
+                console.log('[ChatStore] Buffering event', data.type)
+                eventBuffer.push(data)
+                return
+            }
+
+            // Only process events for this trace
+            if (data.traceId !== traceId) return
+
+            // Helper: ensure agentEvents array exists
+            const ensureEvents = () => {
+                if (!messages.value[assistantIndex].agentEvents) {
+                    messages.value[assistantIndex].agentEvents = []
+                }
+            }
+
+            // ══ Agent Flow Events ══
+            if (['agent_start', 'context_loaded', 'agent_step', 'thinking',
+                'answer_start', 'answer_done', 'step_usage', 'agent_complete'].includes(data.type)) {
+                ensureEvents()
+                messages.value[assistantIndex].agentEvents.push({
+                    type: data.type,
+                    ...data,
+                    receivedAt: Date.now()
+                })
+            }
+
+            // Tool events
+            if (data.type === 'tool_start') {
+                ensureEvents()
+                messages.value[assistantIndex].agentEvents.push({
+                    type: 'tool_start',
+                    toolName: data.toolName,
+                    input: data.input,
+                    step: data.step,
+                    receivedAt: Date.now()
+                })
+            }
+
+            if (data.type === 'tool_complete') {
+                ensureEvents()
+                messages.value[assistantIndex].agentEvents.push({
+                    type: 'tool_complete',
+                    toolName: data.toolName,
+                    success: data.success,
+                    resultPreview: data.resultPreview,
+                    durationMs: data.durationMs,
+                    step: data.step,
+                    receivedAt: Date.now()
+                })
+            }
+
+            // ══ Answer Streaming (Token-by-token) ══
+            if (data.type === 'answer_delta') {
+                messages.value[assistantIndex].content += data.delta
+            }
+
+            // Status Updates
+            if (data.type === 'status') {
+                messages.value[assistantIndex].status = data.message
+            }
+
+            // Thinking status
+            if (data.type === 'thinking') {
+                messages.value[assistantIndex].status = data.message
+            }
+
+            // Intent Detection
+            if (data.type === 'intent') {
+                messages.value[assistantIndex].intent = data.intent
+            }
+
+            // Final Metadata
+            if (data.type === 'metadata') {
+                messages.value[assistantIndex].meta = data.metadata
+            }
+
+            // File Processing Progress
+            if (data.type === 'file_progress') {
+                const userMsgIndex = assistantIndex - 1;
+                if (userMsgIndex >= 0 && messages.value[userMsgIndex].role === 'user') {
+                    const userMsg = messages.value[userMsgIndex];
+                    if (!userMsg.fileProgress) userMsg.fileProgress = {}
+                    userMsg.fileProgress = {
+                        currentFile: data.fileName,
+                        currentindex: data.fileIndex,
+                        totalFiles: data.totalFiles,
+                        stage: data.stage,
+                        percent: data.percent,
+                        detail: data.detail
+                    }
+                }
+            }
+
+            // Error from backend
+            if (data.type === 'error' || data.error) {
+                console.error('[ChatStore] Backend reported error:', data.error)
+                const errorMsg = `\n\n**Error**: ${data.error}`
+                messages.value[assistantIndex].content += errorMsg
+                messages.value[assistantIndex].error = data.error
+                // Don't hang forever on error
+                socket.off('agent:event', handleEvent)
+                if (resolveAgentPromise) resolveAgentPromise()
+            }
+
+            // Title Update
+            if (data.type === 'title') {
+                const session = sessions.value.find(s => s.sessionId === currentSessionId.value)
+                if (session) {
+                    if (!session.metadata) session.metadata = {}
+                    session.metadata.title = data.title
+                }
+            }
+
+            // File Persisted
+            if (data.type === 'file_uploaded') {
+                const userMsgIndex = assistantIndex - 1;
+                if (userMsgIndex >= 0 && messages.value[userMsgIndex].role === 'user') {
+                    const userMsg = messages.value[userMsgIndex];
+                    if (!userMsg.attachments) userMsg.attachments = [];
+                    const exists = userMsg.attachments.some(a => a.fileName === data.fileName);
+                    if (!exists) {
+                        userMsg.attachments.push({
+                            ...data.metadata,
+                            fileName: data.fileName || data.metadata?.fileName,
+                            fileSize: data.metadata?.size || data.metadata?.fileSize
+                        });
+                    }
+                    if (userMsg.files) {
+                        userMsg.files = userMsg.files.filter(f => f.name !== data.fileName);
+                    }
+                }
+            }
+
+            // ══ Completion: resolve the promise ══
+            if (data.type === 'agent_complete') {
+                socket.off('agent:event', handleEvent)
+                if (resolveAgentPromise) resolveAgentPromise()
+            }
+        }
+
+        // Start listening immediately
+        socket.on('agent:event', handleEvent)
+
         try {
             const token = localStorage.getItem('auth_token')
             console.log(`[ChatStore] Sending request to /api/chat with model: ${selectedModel}...`)
@@ -215,6 +381,9 @@ export const useChatStore = defineStore('chat', () => {
             })
 
             if (!response.ok) {
+                // If request fails, cleanup listener
+                socket.off('agent:event', handleEvent)
+
                 if (response.status === 401 || response.status === 403) {
                     const authStore = (await import('./auth')).useAuthStore()
                     authStore.logout()
@@ -225,7 +394,10 @@ export const useChatStore = defineStore('chat', () => {
                 throw new Error(`Server Error ${response.status}: ${errText}`)
             }
 
-            const { traceId, sessionId: returnedSessionId } = await response.json()
+            const data = await response.json()
+            traceId = data.traceId
+            const returnedSessionId = data.sessionId
+
             console.log(`[ChatStore] Got traceId=${traceId}, sessionId=${returnedSessionId}`)
 
             // Update sessionId if server assigned a new one
@@ -233,167 +405,33 @@ export const useChatStore = defineStore('chat', () => {
                 currentSessionId.value = returnedSessionId
             }
 
-            // ── Listen for real-time events via Socket.IO ──
-            const { getSocket } = await import('../services/socket.js')
-            const socket = getSocket()
-
-            if (!socket) {
-                throw new Error('Socket.IO not connected — please refresh the page')
+            // Process buffered events now that we have traceId
+            if (eventBuffer.length > 0) {
+                console.log(`[ChatStore] Processing ${eventBuffer.length} buffered events`)
+                for (const evt of eventBuffer) {
+                    handleEvent(evt)
+                }
+                eventBuffer.length = 0 // Clear buffer
             }
 
-            // Create a promise that resolves when agent completes
-            await new Promise((resolve, reject) => {
-                const handleEvent = (data) => {
-                    // Only process events for this trace
-                    if (data.traceId !== traceId) return
+            // Wait for agent completion or timeout
+            // Timeout safety: if no completion after 5 min, cleanup
+            const timeout = setTimeout(() => {
+                socket.off('agent:event', handleEvent)
+                if (rejectAgentPromise) rejectAgentPromise(new Error('Agent workflow timed out'))
+            }, 5 * 60 * 1000)
 
-                    // Helper: ensure agentEvents array exists
-                    const ensureEvents = () => {
-                        if (!messages.value[assistantIndex].agentEvents) {
-                            messages.value[assistantIndex].agentEvents = []
-                        }
-                    }
-
-                    // ══ Agent Flow Events ══
-                    if (['agent_start', 'context_loaded', 'agent_step', 'thinking',
-                        'answer_start', 'answer_done', 'step_usage', 'agent_complete'].includes(data.type)) {
-                        ensureEvents()
-                        messages.value[assistantIndex].agentEvents.push({
-                            type: data.type,
-                            ...data,
-                            receivedAt: Date.now()
-                        })
-                    }
-
-                    // Tool events
-                    if (data.type === 'tool_start') {
-                        ensureEvents()
-                        messages.value[assistantIndex].agentEvents.push({
-                            type: 'tool_start',
-                            toolName: data.toolName,
-                            input: data.input,
-                            step: data.step,
-                            receivedAt: Date.now()
-                        })
-                    }
-
-                    if (data.type === 'tool_complete') {
-                        ensureEvents()
-                        messages.value[assistantIndex].agentEvents.push({
-                            type: 'tool_complete',
-                            toolName: data.toolName,
-                            success: data.success,
-                            resultPreview: data.resultPreview,
-                            durationMs: data.durationMs,
-                            step: data.step,
-                            receivedAt: Date.now()
-                        })
-                    }
-
-                    // ══ Answer Streaming (Token-by-token) ══
-                    if (data.type === 'answer_delta') {
-                        messages.value[assistantIndex].content += data.delta
-                    }
-
-                    // Status Updates
-                    if (data.type === 'status') {
-                        messages.value[assistantIndex].status = data.message
-                    }
-
-                    // Thinking status
-                    if (data.type === 'thinking') {
-                        messages.value[assistantIndex].status = data.message
-                    }
-
-                    // Intent Detection
-                    if (data.type === 'intent') {
-                        messages.value[assistantIndex].intent = data.intent
-                    }
-
-                    // Final Metadata
-                    if (data.type === 'metadata') {
-                        messages.value[assistantIndex].meta = data.metadata
-                    }
-
-                    // File Processing Progress
-                    if (data.type === 'file_progress') {
-                        const userMsgIndex = assistantIndex - 1;
-                        if (userMsgIndex >= 0 && messages.value[userMsgIndex].role === 'user') {
-                            const userMsg = messages.value[userMsgIndex];
-                            if (!userMsg.fileProgress) userMsg.fileProgress = {}
-                            userMsg.fileProgress = {
-                                currentFile: data.fileName,
-                                currentindex: data.fileIndex,
-                                totalFiles: data.totalFiles,
-                                stage: data.stage,
-                                percent: data.percent,
-                                detail: data.detail
-                            }
-                        }
-                    }
-
-                    // Error from backend
-                    if (data.type === 'error' || data.error) {
-                        console.error('[ChatStore] Backend reported error:', data.error)
-                        const errorMsg = `\n\n**Error**: ${data.error}`
-                        messages.value[assistantIndex].content += errorMsg
-                        messages.value[assistantIndex].error = data.error
-                    }
-
-                    // Title Update
-                    if (data.type === 'title') {
-                        const session = sessions.value.find(s => s.sessionId === currentSessionId.value)
-                        if (session) {
-                            if (!session.metadata) session.metadata = {}
-                            session.metadata.title = data.title
-                        }
-                    }
-
-                    // File Persisted
-                    if (data.type === 'file_uploaded') {
-                        const userMsgIndex = assistantIndex - 1;
-                        if (userMsgIndex >= 0 && messages.value[userMsgIndex].role === 'user') {
-                            const userMsg = messages.value[userMsgIndex];
-                            if (!userMsg.attachments) userMsg.attachments = [];
-                            const exists = userMsg.attachments.some(a => a.fileName === data.fileName);
-                            if (!exists) {
-                                userMsg.attachments.push({
-                                    ...data.metadata,
-                                    fileName: data.fileName || data.metadata?.fileName,
-                                    fileSize: data.metadata?.size || data.metadata?.fileSize
-                                });
-                            }
-                            if (userMsg.files) {
-                                userMsg.files = userMsg.files.filter(f => f.name !== data.fileName);
-                            }
-                        }
-                    }
-
-                    // ══ Completion: resolve the promise ══
-                    if (data.type === 'agent_complete') {
-                        socket.off('agent:event', handleEvent)
-                        resolve()
-                    }
-                }
-
-                // Register Socket.IO listener
-                socket.on('agent:event', handleEvent)
-
-                // Timeout safety: if no completion after 5 min, cleanup
-                const timeout = setTimeout(() => {
-                    socket.off('agent:event', handleEvent)
-                    reject(new Error('Agent workflow timed out'))
-                }, 5 * 60 * 1000)
-
-                // Cleanup on abort
-                abortController.signal.addEventListener('abort', () => {
-                    socket.off('agent:event', handleEvent)
-                    clearTimeout(timeout)
-                    resolve() // Don't reject on user abort
-                })
+            // Cleanup on abort
+            abortController.signal.addEventListener('abort', () => {
+                socket.off('agent:event', handleEvent)
+                clearTimeout(timeout)
+                if (resolveAgentPromise) resolveAgentPromise() // Don't reject on user abort
             })
 
+            await agentCompletionPromise;
+
         } catch (error) {
+            socket.off('agent:event', handleEvent)
             if (error.name === 'AbortError') {
                 console.log('[ChatStore] Request Aborted')
             } else {
