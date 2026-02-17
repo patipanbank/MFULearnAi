@@ -237,13 +237,68 @@ export const useChatStore = defineStore('chat', () => {
                         try {
                             const data = JSON.parse(dataStr)
 
-                            // 1. Text Delta
-                            if (data.text) {
+                            // Helper: ensure agentEvents array exists
+                            const ensureEvents = () => {
+                                if (!messages.value[assistantIndex].agentEvents) {
+                                    messages.value[assistantIndex].agentEvents = []
+                                }
+                            }
+
+                            // ══ NEW: Structured Agent Flow Events ══
+
+                            // Agent lifecycle events (stored in timeline)
+                            if (['agent_start', 'context_loaded', 'agent_step', 'thinking',
+                                'answer_start', 'answer_done', 'step_usage', 'agent_complete'].includes(data.type)) {
+                                ensureEvents()
+                                messages.value[assistantIndex].agentEvents.push({
+                                    type: data.type,
+                                    ...data,
+                                    receivedAt: Date.now()
+                                })
+                            }
+
+                            // Tool events (stored in timeline with details)
+                            if (data.type === 'tool_start') {
+                                ensureEvents()
+                                messages.value[assistantIndex].agentEvents.push({
+                                    type: 'tool_start',
+                                    toolName: data.toolName,
+                                    input: data.input,
+                                    step: data.step,
+                                    receivedAt: Date.now()
+                                })
+                            }
+
+                            if (data.type === 'tool_complete') {
+                                ensureEvents()
+                                messages.value[assistantIndex].agentEvents.push({
+                                    type: 'tool_complete',
+                                    toolName: data.toolName,
+                                    success: data.success,
+                                    resultPreview: data.resultPreview,
+                                    durationMs: data.durationMs,
+                                    step: data.step,
+                                    receivedAt: Date.now()
+                                })
+                            }
+
+                            // ══ Answer Streaming (Token-by-token) ══
+                            if (data.type === 'answer_delta') {
+                                messages.value[assistantIndex].content += data.delta
+                            }
+
+                            // ══ BACKWARD COMPATIBLE: Bulk text (legacy/fallback) ══
+                            if (data.text && !data.type) {
                                 messages.value[assistantIndex].content += data.text
                             }
 
                             // 2. Status Updates (e.g. "Executing tool...")
                             if (data.type === 'status') {
+                                messages.value[assistantIndex].status = data.message
+                            }
+
+                            // ══ Thinking status (show in UI as status) ══
+                            if (data.type === 'thinking') {
                                 messages.value[assistantIndex].status = data.message
                             }
 
@@ -258,18 +313,14 @@ export const useChatStore = defineStore('chat', () => {
                             }
 
                             // 5. File Processing Progress
-                            // 5. File Processing Progress
                             if (data.type === 'file_progress') {
-                                // Target the USER message (preceding the assistant)
                                 const userMsgIndex = assistantIndex - 1;
                                 if (userMsgIndex >= 0 && messages.value[userMsgIndex].role === 'user') {
                                     const userMsg = messages.value[userMsgIndex];
 
-                                    // Initialize fileProgress object if missing
                                     if (!userMsg.fileProgress) {
                                         userMsg.fileProgress = {}
                                     }
-                                    // Store progress by file index or name
                                     userMsg.fileProgress = {
                                         currentFile: data.fileName,
                                         currentindex: data.fileIndex,
@@ -279,12 +330,9 @@ export const useChatStore = defineStore('chat', () => {
                                         detail: data.detail
                                     }
                                 }
-
-                                // Legacy/Fallback: Status text removed as per user request (UI Consolidation)
-                                // messages.value[assistantIndex].status = data.detail || `Processing ${data.fileName}...`
                             }
 
-                            // 6. Error from backend (e.g. Bedrock failure)
+                            // 6. Error from backend
                             if (data.error) {
                                 console.error('[ChatStore] Backend reported error:', data.error)
                                 const errorMsg = `\n\n**Error**: ${data.error}`
@@ -292,18 +340,16 @@ export const useChatStore = defineStore('chat', () => {
                                 messages.value[assistantIndex].error = data.error
                             }
 
-                            // 8. Title Update
+                            // 7. Title Update
                             if (data.type === 'title') {
-                                // Update current session title locally
                                 const session = sessions.value.find(s => s.sessionId === currentSessionId.value)
                                 if (session) {
                                     if (!session.metadata) session.metadata = {}
                                     session.metadata.title = data.title
-                                    // Trigger reactivity if needed, usually direct mutation works in Pinia/Vue ref
                                 }
                             }
 
-                            // 7. File Persisted (Real-time update)
+                            // 8. File Persisted (Real-time update)
                             if (data.type === 'file_uploaded') {
                                 const userMsgIndex = assistantIndex - 1;
                                 if (userMsgIndex >= 0 && messages.value[userMsgIndex].role === 'user') {
@@ -311,7 +357,6 @@ export const useChatStore = defineStore('chat', () => {
 
                                     if (!userMsg.attachments) userMsg.attachments = [];
 
-                                    // avoid duplicates
                                     const exists = userMsg.attachments.some(a => a.fileName === data.fileName);
                                     if (!exists) {
                                         userMsg.attachments.push({
@@ -321,7 +366,6 @@ export const useChatStore = defineStore('chat', () => {
                                         });
                                     }
 
-                                    // Remove from temporary files list to avoid double display
                                     if (userMsg.files) {
                                         userMsg.files = userMsg.files.filter(f => f.name !== data.fileName);
                                     }

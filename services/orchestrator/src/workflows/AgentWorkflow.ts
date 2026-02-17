@@ -16,6 +16,26 @@ const AVAILABLE_TOOLS = [
     new SearchTool()
 ];
 
+// ── SSE Event Type Constants ──
+const EVENT = {
+    AGENT_START: 'agent_start',
+    CONTEXT_LOADED: 'context_loaded',
+    AGENT_STEP: 'agent_step',
+    THINKING: 'thinking',
+    TOOL_START: 'tool_start',
+    TOOL_COMPLETE: 'tool_complete',
+    ANSWER_START: 'answer_start',
+    ANSWER_DELTA: 'answer_delta',
+    ANSWER_DONE: 'answer_done',
+    STEP_USAGE: 'step_usage',
+    AGENT_COMPLETE: 'agent_complete',
+    STATUS: 'status',
+    METADATA: 'metadata',
+    FILE_PROGRESS: 'file_progress',
+    FILE_UPLOADED: 'file_uploaded',
+    TITLE: 'title',
+} as const;
+
 export class AgentWorkflow {
     static async run(req: Request, res: Response) {
         const { userId, message, sessionId, collectionId, userRole, userDepartment, images, files } = (req as any).userContext;
@@ -35,6 +55,7 @@ export class AgentWorkflow {
     ) {
         const query = message;
         const traceId = (global as any).crypto ? (global as any).crypto.randomUUID() : require('crypto').randomUUID();
+        const workflowStartTime = Date.now();
 
         // Prepare Tool Config for Bedrock
         const allowedTools = AVAILABLE_TOOLS.filter(t => t.isAllowed(userRole));
@@ -57,12 +78,34 @@ export class AgentWorkflow {
             if (!clientDisconnected && !res.writableEnded) res.write(data);
         };
 
+        // ── Helper: Emit structured SSE event ──
+        const eventLog: any[] = [];
+        const emitEvent = (type: string, payload: Record<string, any> = {}) => {
+            const event = { type, ...payload, timestamp: new Date().toISOString() };
+            safeWrite(`data: ${JSON.stringify(event)}\n\n`);
+            // Store in eventLog for MongoDB persistence (skip high-frequency deltas)
+            if (type !== EVENT.ANSWER_DELTA) {
+                eventLog.push(event);
+            }
+        };
+
         const totalUsage = { input: 0, output: 0, total: 0 };
         LoggerService.info('agent_workflow_start', { traceId, userId, message }, userId);
 
+        // ▸ EVENT: agent_start
+        emitEvent(EVENT.AGENT_START, { traceId, sessionId });
+
         try {
             // 1.1 Load History + Smart Context (Agent Memory)
+            emitEvent(EVENT.STATUS, { message: 'กำลังโหลดบริบทการสนทนา...' });
             const { messages: history, smartContext } = await HistoryService.getContext(userId, sessionId);
+
+            // ▸ EVENT: context_loaded
+            emitEvent(EVENT.CONTEXT_LOADED, {
+                historyCount: history.length,
+                hasSmartContext: !!smartContext,
+                smartContextVersion: smartContext?.version || 0
+            });
 
             // 1.3.5 Attached Files — Send directly as native Converse API document blocks
             let nativeDocBlocks: Array<{ type: 'document', format: string, name: string, data: string }> = [];
@@ -85,8 +128,6 @@ export class AgentWorkflow {
                 const MAX_EXTRACTED_TEXT_CHARS = 100_000;    // ~100K chars for context window safety
                 const supportedFormats = ['pdf', 'txt', 'md', 'html', 'csv', 'doc', 'docx', 'xls', 'xlsx'];
 
-                // (uploadPromises is defined at top scope)
-
                 const totalFiles = files.length;
                 for (let fi = 0; fi < files.length; fi++) {
                     const file = files[fi];
@@ -96,7 +137,7 @@ export class AgentWorkflow {
                     // Progress helper
                     const emitProgress = (stage: string, percent: number, detail?: string) => {
                         safeWrite(`data: ${JSON.stringify({
-                            type: 'file_progress',
+                            type: EVENT.FILE_PROGRESS,
                             fileName,
                             fileIndex: fi,
                             totalFiles,
@@ -127,7 +168,7 @@ export class AgentWorkflow {
                             .then(meta => {
                                 // Emit event for frontend to show clickable link immediately
                                 safeWrite(`data: ${JSON.stringify({
-                                    type: 'file_uploaded',
+                                    type: EVENT.FILE_UPLOADED,
                                     fileName,
                                     metadata: meta
                                 })}\n\n`);
@@ -166,7 +207,6 @@ export class AgentWorkflow {
                             limit: MAX_NATIVE_SIZE
                         }, userId);
 
-                        // Simulated Progress (20% -> 85%) for OCR/Parsing duration
                         let extractPercent = 20;
                         const progressTimer = setInterval(() => {
                             extractPercent = Math.min(extractPercent + 5, 85);
@@ -226,7 +266,6 @@ export class AgentWorkflow {
                 : `- If the Knowledge Base or Context does not explicitly contain the answer, you MUST use the 'search' tool to find it. Do NOT say "I don't have enough information" without searching first.`;
 
             // Enhancement 4: Multi-Block System Prompts
-            // Split the system prompt into logical blocks for better compartmentalization and caching
             const systemBlocks: Array<{ text: string }> = [];
 
             // Block 1: Persona & Core Rules (Static - great for caching)
@@ -269,12 +308,10 @@ ${JSON.stringify(smartContext?.rolling || {}, null, 2)}`
             } : undefined;
 
             // 1.4 Construct Initial Messages
-            // Enhancement 5: Include native document blocks and extracted text in user message
             const userContent: any[] = [];
             if (nativeDocBlocks.length > 0) {
                 userContent.push(...nativeDocBlocks);
             }
-            // Large files: prepend extracted text as labeled text blocks
             if (extractedTextBlocks.length > 0) {
                 for (const etb of extractedTextBlocks) {
                     userContent.push({
@@ -315,6 +352,7 @@ ${JSON.stringify(smartContext?.rolling || {}, null, 2)}`
                     finalAnswer = 'ขออภัยครับ คำขอใช้เวลาเกินกำหนด กรุณาลองถามใหม่อีกครั้ง';
                     answerMode = 'internal';
                     answerState = 'TIMEOUT';
+                    emitEvent(EVENT.STATUS, { message: 'หมดเวลาดำเนินการ' });
                     break;
                 }
 
@@ -326,6 +364,9 @@ ${JSON.stringify(smartContext?.rolling || {}, null, 2)}`
 
                 steps++;
                 LoggerService.info('agent_step', { step: steps, sessionId, traceId }, userId);
+
+                // ▸ EVENT: agent_step
+                emitEvent(EVENT.AGENT_STEP, { step: steps, maxSteps: AGENT_CONFIG.MAX_STEPS });
 
                 // Diagnostic: log message structure before sending (only on step 1)
                 if (steps === 1) {
@@ -342,6 +383,11 @@ ${JSON.stringify(smartContext?.rolling || {}, null, 2)}`
                     console.log(`[AgentWorkflow] Messages structure before sendChat:`, JSON.stringify(msgStructure));
                 }
 
+                // ▸ EVENT: thinking
+                emitEvent(EVENT.THINKING, { step: steps, message: `กำลังวิเคราะห์... (ขั้นตอนที่ ${steps})` });
+
+                const stepStartTime = Date.now();
+
                 const { text: fullResponse, usage: stepUsage, stopReason } = await BedrockService.sendChat(
                     MODELS.PRIMARY,
                     messages,
@@ -351,11 +397,14 @@ ${JSON.stringify(smartContext?.rolling || {}, null, 2)}`
                     guardrailConfig
                 );
 
+                const stepDurationMs = Date.now() - stepStartTime;
+
                 LoggerService.info('agent_model_response', {
                     step: steps,
                     stopReason,
                     responseLength: fullResponse?.length,
-                    rawResponsePreview: fullResponse?.substring(0, 200)
+                    rawResponsePreview: fullResponse?.substring(0, 200),
+                    durationMs: stepDurationMs
                 }, userId);
 
                 // ... (Usage tracking) ...
@@ -363,10 +412,18 @@ ${JSON.stringify(smartContext?.rolling || {}, null, 2)}`
                 totalUsage.output += stepUsage.output;
                 totalUsage.total += stepUsage.total;
 
+                // ▸ EVENT: step_usage
+                emitEvent(EVENT.STEP_USAGE, {
+                    step: steps,
+                    input: stepUsage.input,
+                    output: stepUsage.output,
+                    total: stepUsage.total,
+                    durationMs: stepDurationMs
+                });
+
                 // Handle Response
                 if (stopReason === 'tool_use') {
                     LoggerService.info('agent_tool_use_detected', { step: steps }, userId);
-                    // ... (Parsing logic) ...
                     let contentBlocks: any[] = [];
                     try {
                         contentBlocks = JSON.parse(fullResponse);
@@ -380,16 +437,25 @@ ${JSON.stringify(smartContext?.rolling || {}, null, 2)}`
                     for (const block of contentBlocks) {
                         if (block.type === 'tool_use') {
                             const toolName = block.name;
-                            usedTools.add(toolName); // R3: Track tool usage
+                            usedTools.add(toolName);
 
                             const toolUseId = block.toolUseId;
                             const toolInput = block.input;
-                            // ... (Execution logic) ...
-                            LoggerService.info('tool_execution', { tool: toolName, input: toolInput }, userId);
-                            safeWrite(`data: ${JSON.stringify({ type: 'status', message: `Using ${toolName}...` })}\n\n`);
 
+                            LoggerService.info('tool_execution', { tool: toolName, input: toolInput }, userId);
+
+                            // ▸ EVENT: tool_start
+                            emitEvent(EVENT.TOOL_START, {
+                                toolName,
+                                input: toolInput,
+                                step: steps
+                            });
+                            emitEvent(EVENT.STATUS, { message: `🔧 Using ${toolName}...` });
+
+                            const toolStartTime = Date.now();
                             const tool = allowedTools.find(t => t.schemaJSON.name === toolName);
                             let resultContent: any;
+                            let toolSuccess = false;
 
                             if (tool) {
                                 LoggerService.info('agent_executing_tool', { tool: toolName, input: toolInput }, userId);
@@ -400,9 +466,9 @@ ${JSON.stringify(smartContext?.rolling || {}, null, 2)}`
                                     collectionId
                                 });
                                 resultContent = executionResult.success ? executionResult.result : `Error: ${executionResult.error}`;
+                                toolSuccess = executionResult.success;
                                 LoggerService.info('agent_tool_result', { tool: toolName, success: executionResult.success, resultLength: resultContent?.length }, userId);
 
-                                // Search results are used for context but no citation tracking needed
                                 if (toolName === 'search' && executionResult.success) {
                                     usedTools.add('search');
                                 }
@@ -410,13 +476,28 @@ ${JSON.stringify(smartContext?.rolling || {}, null, 2)}`
                                 resultContent = `Error: Tool ${toolName} not found.`;
                             }
 
+                            const toolDurationMs = Date.now() - toolStartTime;
+
+                            // ▸ EVENT: tool_complete
+                            const resultPreview = typeof resultContent === 'string'
+                                ? resultContent.substring(0, 300)
+                                : JSON.stringify(resultContent).substring(0, 300);
+
+                            emitEvent(EVENT.TOOL_COMPLETE, {
+                                toolName,
+                                success: toolSuccess,
+                                resultPreview,
+                                durationMs: toolDurationMs,
+                                step: steps
+                            });
+
                             toolResults.push({
                                 toolUseId: toolUseId,
                                 content: [{ json: { result: resultContent } }]
                             });
                         }
                     }
-                    // ... (Append results) ...
+                    // Append tool results
                     messages.push({
                         role: 'user',
                         content: toolResults.map(tr => ({
@@ -428,7 +509,20 @@ ${JSON.stringify(smartContext?.rolling || {}, null, 2)}`
 
 
                 } else {
-                    // ... (Final Answer Logic) ...
+                    // === FINAL ANSWER ===
+                    // Determine answer mode before streaming
+                    if (nativeDocBlocks.length > 0) {
+                        answerMode = 'file_grounded';
+                        answerState = 'VERIFIED';
+                    } else if (usedTools.has('search')) {
+                        answerMode = 'rag';
+                        answerState = 'VERIFIED';
+                    }
+
+                    // ▸ EVENT: answer_start
+                    emitEvent(EVENT.ANSWER_START, { answerMode });
+
+                    // Parse the content from the synchronous response
                     let textContent = '';
                     try {
                         const blocks = JSON.parse(fullResponse);
@@ -443,14 +537,20 @@ ${JSON.stringify(smartContext?.rolling || {}, null, 2)}`
 
                     finalAnswer = textContent;
 
-                    // Simplified answer mode logic (no citations)
-                    if (nativeDocBlocks.length > 0) {
-                        answerMode = 'file_grounded';
-                        answerState = 'VERIFIED';
-                    } else if (usedTools.has('search')) {
-                        answerMode = 'rag';
-                        answerState = 'VERIFIED';
+                    // Stream the final answer token-by-token via simulated chunks
+                    // Break text into small chunks for progressive rendering
+                    const CHUNK_SIZE = 12; // Characters per chunk — balance between speed and smoothness
+                    for (let i = 0; i < finalAnswer.length; i += CHUNK_SIZE) {
+                        const delta = finalAnswer.substring(i, i + CHUNK_SIZE);
+                        emitEvent(EVENT.ANSWER_DELTA, { delta });
+                        // Tiny delay to prevent browser buffer coalescing (only if large text)
+                        if (finalAnswer.length > 200 && i % (CHUNK_SIZE * 10) === 0 && i > 0) {
+                            await new Promise(r => setTimeout(r, 1));
+                        }
                     }
+
+                    // ▸ EVENT: answer_done
+                    emitEvent(EVENT.ANSWER_DONE, { fullLength: finalAnswer.length });
 
                     break;
                 }
@@ -458,18 +558,17 @@ ${JSON.stringify(smartContext?.rolling || {}, null, 2)}`
 
             // === END LOOP ===
 
-            // 6. Streaming Final Answer
+            // 6. Emit final metadata & completion events
             if (finalAnswer) {
-                // ... (Logic for explanation extraction if needed, or we can ask the model to provide it separate)
-                // For now, simple heuristic
                 if (answerMode === 'file_grounded' || answerMode === 'rag') {
                     confidence = 'High';
-                    explanation.basis = 'RAG'; // Legacy field compatibility
+                    explanation.basis = 'RAG';
                 }
 
-                safeWrite(`data: ${JSON.stringify({ text: finalAnswer, traceId })}\n\n`);
-                safeWrite(`data: ${JSON.stringify({
-                    type: 'metadata',
+                const totalDurationMs = Date.now() - workflowStartTime;
+
+                // ▸ EVENT: metadata (backward compatible)
+                emitEvent(EVENT.METADATA, {
                     metadata: {
                         answer_mode: answerMode,
                         answer_state: answerState,
@@ -478,8 +577,19 @@ ${JSON.stringify(smartContext?.rolling || {}, null, 2)}`
                         totalTokens: totalUsage.total,
                         explanation
                     }
-                })}\n\n`);
-                safeWrite(`data: ${JSON.stringify({ type: 'status', message: '' })}\n\n`);
+                });
+
+                // ▸ EVENT: agent_complete
+                emitEvent(EVENT.AGENT_COMPLETE, {
+                    totalSteps: steps,
+                    totalTokens: totalUsage.total,
+                    durationMs: totalDurationMs,
+                    toolsUsed: Array.from(usedTools),
+                    answerMode
+                });
+
+                // Clear status and close stream
+                emitEvent(EVENT.STATUS, { message: '' });
                 safeWrite('data: [DONE]\n\n');
                 if (!res.writableEnded) res.end();
 
@@ -510,7 +620,23 @@ ${JSON.stringify(smartContext?.rolling || {}, null, 2)}`
                         usedRAG: answerMode !== 'internal',
                         confidence,
                         explanation
-                    }
+                    },
+                    // Persist agent event flow to MongoDB (excluding high-frequency deltas)
+                    agentEvents: eventLog.map(e => ({
+                        type: e.type,
+                        step: e.step,
+                        toolName: e.toolName,
+                        input: e.input,
+                        resultPreview: e.resultPreview,
+                        success: e.success,
+                        durationMs: e.durationMs,
+                        message: e.message,
+                        answerMode: e.answerMode,
+                        totalSteps: e.totalSteps,
+                        totalTokens: e.totalTokens,
+                        tokens: e.total ? { input: e.input, output: e.output, total: e.total } : undefined,
+                        timestamp: new Date(e.timestamp)
+                    }))
                 };
 
                 await HistoryService.addMessage(userId, sessionId, currentMessage);
@@ -532,12 +658,12 @@ ${JSON.stringify(smartContext?.rolling || {}, null, 2)}`
                     version: 0, hashes: { canonical: '', rolling: '', raw: '' }, lastCanonizedAt: new Date()
                 }).catch((e: any) => LoggerService.error('Background Summary Failed', e));
 
-                // 9. Auto-Title Generation (First Turn Only) - Moved before stream end
+                // 9. Auto-Title Generation (First Turn Only)
                 if (history.length === 0) {
                     try {
                         const newTitle = await SummarizationService.updateTitle(userId, sessionId, query);
                         if (newTitle) {
-                            safeWrite(`data: ${JSON.stringify({ type: 'title', title: newTitle })}\n\n`);
+                            safeWrite(`data: ${JSON.stringify({ type: EVENT.TITLE, title: newTitle })}\n\n`);
                         }
                     } catch (e: any) {
                         LoggerService.error('Title Gen Failed', e);

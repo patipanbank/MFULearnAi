@@ -1,12 +1,13 @@
 <script setup>
 import { useMarkdown } from '@/composables/useMarkdown'
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import api from '@/utils/api'
 
 const props = defineProps({
   message: { type: Object, required: true },
   userInitial: { type: String, default: 'U' },
   userAvatarUrl: { type: String, default: '' },
+  isStreaming: { type: Boolean, default: false },
   t: { type: Function, required: true }
 })
 
@@ -15,7 +16,86 @@ const emit = defineEmits(['copy'])
 const { render, copyToClipboard } = useMarkdown()
 const copied = ref(false)
 const viewingImage = ref(null)
-const messageRef = ref(null) // Reference to the message container
+const messageRef = ref(null)
+const flowExpanded = ref(false)
+
+// ── Agent Flow Timeline computeds ──
+const hasAgentEvents = computed(() => {
+    return props.message.agentEvents && props.message.agentEvents.length > 0
+})
+
+const agentSummary = computed(() => {
+    if (!hasAgentEvents.value) return null
+    const events = props.message.agentEvents
+    const completeEvt = events.find(e => e.type === 'agent_complete')
+    const totalSteps = completeEvt?.totalSteps || events.filter(e => e.type === 'agent_step').length
+    const totalDuration = completeEvt?.durationMs
+    const toolsUsed = [...new Set(events.filter(e => e.type === 'tool_complete').map(e => e.toolName))]
+    return {
+        steps: totalSteps,
+        durationMs: totalDuration,
+        durationStr: totalDuration ? (totalDuration / 1000).toFixed(1) + 's' : null,
+        toolsUsed,
+        isComplete: !!completeEvt
+    }
+})
+
+const timelineEvents = computed(() => {
+    if (!hasAgentEvents.value) return []
+    // Filter to display-worthy events only
+    return props.message.agentEvents.filter(e =>
+        ['context_loaded', 'agent_step', 'thinking', 'tool_start', 'tool_complete',
+         'answer_start', 'answer_done', 'agent_complete', 'step_usage'].includes(e.type)
+    )
+})
+
+const eventIcon = (type) => {
+    const icons = {
+        context_loaded: '📝',
+        agent_step: '🔄',
+        thinking: '🧠',
+        tool_start: '🔧',
+        tool_complete: '✅',
+        answer_start: '💬',
+        answer_done: '✨',
+        agent_complete: '🏁',
+        step_usage: '📊'
+    }
+    return icons[type] || '•'
+}
+
+const eventLabel = (evt) => {
+    switch (evt.type) {
+        case 'context_loaded':
+            return `Context loaded — ${evt.historyCount || 0} messages${evt.hasSmartContext ? ', smart context ✓' : ''}`
+        case 'agent_step':
+            return `Step ${evt.step}/${evt.maxSteps}`
+        case 'thinking':
+            return evt.message || 'Thinking...'
+        case 'tool_start':
+            return `${evt.toolName}(${typeof evt.input === 'object' ? JSON.stringify(evt.input).substring(0, 60) : String(evt.input || '').substring(0, 60)})`
+        case 'tool_complete': {
+            const dur = evt.durationMs ? ` (${(evt.durationMs / 1000).toFixed(1)}s)` : ''
+            const status = evt.success ? '✓' : '✗'
+            return `${evt.toolName} → ${status}${dur}`
+        }
+        case 'answer_start':
+            return `Generating answer — ${evt.answerMode || 'internal'} mode`
+        case 'answer_done':
+            return `Answer complete — ${evt.fullLength || '?'} chars`
+        case 'agent_complete': {
+            const dur = evt.durationMs ? ` in ${(evt.durationMs / 1000).toFixed(1)}s` : ''
+            return `Done — ${evt.totalSteps} step(s), ${evt.totalTokens || '?'} tokens${dur}`
+        }
+        case 'step_usage':
+            return `Tokens: in=${evt.input || 0} out=${evt.output || 0}`
+        default:
+            return evt.type
+    }
+}
+
+const isToolEvent = (type) => type === 'tool_start' || type === 'tool_complete'
+const isSubEvent = (type) => ['thinking', 'tool_start', 'tool_complete', 'step_usage'].includes(type)
 
 
 
@@ -203,10 +283,8 @@ const formatBytes = (bytes) => {
           
           <div ref="messageRef" class="prose-content prose" v-if="message.content" v-html="render(message.content)"></div>
           
-
-          
           <!-- Typing Indicator / Status (Dynamic) -->
-          <div v-else-if="!message.content || (message.status && message.status !== '')" class="typing-indicator">
+          <div v-if="!message.content || (message.status && message.status !== '' && !message.content)" class="typing-indicator">
             <div class="dots" v-if="!message.content">
               <span></span>
               <span></span>
@@ -214,7 +292,60 @@ const formatBytes = (bytes) => {
             </div>
             <span class="text animate-flicker">{{ message.status || t('thinking') }}</span>
           </div>
-          
+
+          <!-- ══ Agent Flow Timeline ══ -->
+          <div v-if="hasAgentEvents" class="agent-flow-container">
+            <button
+              class="agent-flow-toggle"
+              @click="flowExpanded = !flowExpanded"
+              :class="{ expanded: flowExpanded }"
+            >
+              <span class="flow-icon">🤖</span>
+              <span class="flow-label">
+                Agent Flow
+                <template v-if="agentSummary">
+                  ({{ agentSummary.steps }} step{{ agentSummary.steps !== 1 ? 's' : '' }}<template v-if="agentSummary.durationStr">, {{ agentSummary.durationStr }}</template>)
+                </template>
+              </span>
+              <span v-if="!agentSummary?.isComplete && isStreaming" class="flow-streaming-dot"></span>
+              <svg class="flow-chevron" :class="{ rotated: flowExpanded }" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="6 9 12 15 18 9"></polyline>
+              </svg>
+            </button>
+
+            <Transition name="slide-down">
+              <div v-if="flowExpanded" class="agent-flow-timeline">
+                <div
+                  v-for="(evt, idx) in timelineEvents"
+                  :key="idx"
+                  class="timeline-event"
+                  :class="{ 'sub-event': isSubEvent(evt.type), 'tool-event': isToolEvent(evt.type) }"
+                >
+                  <span class="event-connector">
+                    <span class="connector-line" v-if="idx < timelineEvents.length - 1"></span>
+                    <span class="connector-dot">{{ eventIcon(evt.type) }}</span>
+                  </span>
+                  <span class="event-content">
+                    <span class="event-label">{{ eventLabel(evt) }}</span>
+                    <!-- Show tool result preview for tool_complete -->
+                    <span v-if="evt.type === 'tool_complete' && evt.resultPreview" class="event-detail">
+                      {{ evt.resultPreview.substring(0, 120) }}{{ evt.resultPreview.length > 120 ? '...' : '' }}
+                    </span>
+                  </span>
+                </div>
+
+                <!-- Streaming indicator at bottom -->
+                <div v-if="!agentSummary?.isComplete && isStreaming" class="timeline-event active">
+                  <span class="event-connector">
+                    <span class="connector-dot pulse">⏳</span>
+                  </span>
+                  <span class="event-content">
+                    <span class="event-label animate-flicker">Processing...</span>
+                  </span>
+                </div>
+              </div>
+            </Transition>
+          </div>
 
           <!-- AI Actions (Copy Button icon only) -->
           <div class="actions" v-if="message.content">
@@ -775,4 +906,174 @@ const formatBytes = (bytes) => {
     overflow: hidden;
     text-overflow: ellipsis;
 }
+
+/* ══════════════════ Agent Flow Timeline ══════════════════ */
+.agent-flow-container {
+    margin-top: 12px;
+    border-top: 1px solid var(--color-border, rgba(255,255,255,0.08));
+    padding-top: 8px;
+}
+
+.agent-flow-toggle {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: transparent;
+    border: 1px solid var(--color-border, rgba(255,255,255,0.1));
+    border-radius: 8px;
+    padding: 6px 12px;
+    cursor: pointer;
+    font-size: 12px;
+    color: var(--color-text-muted, #999);
+    transition: all 0.2s ease;
+    width: 100%;
+    text-align: left;
+}
+
+.agent-flow-toggle:hover {
+    background: var(--color-bg-tertiary, rgba(255,255,255,0.04));
+    color: var(--color-text-primary, #ddd);
+    border-color: var(--color-accent, #6366f1);
+}
+
+.agent-flow-toggle.expanded {
+    border-color: var(--color-accent, #6366f1);
+    background: var(--color-bg-tertiary, rgba(255,255,255,0.02));
+}
+
+.flow-icon {
+    font-size: 14px;
+}
+
+.flow-label {
+    flex: 1;
+    font-weight: 500;
+}
+
+.flow-streaming-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--color-accent, #6366f1);
+    animation: pulse-dot 1.2s ease-in-out infinite;
+}
+
+@keyframes pulse-dot {
+    0%, 100% { opacity: 0.3; transform: scale(0.8); }
+    50% { opacity: 1; transform: scale(1.2); }
+}
+
+.flow-chevron {
+    transition: transform 0.25s ease;
+    flex-shrink: 0;
+}
+
+.flow-chevron.rotated {
+    transform: rotate(180deg);
+}
+
+/* Timeline */
+.agent-flow-timeline {
+    padding: 8px 0 4px 6px;
+}
+
+.timeline-event {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 3px 0;
+    font-size: 12px;
+    line-height: 1.5;
+    color: var(--color-text-secondary, #bbb);
+}
+
+.timeline-event.sub-event {
+    padding-left: 16px;
+    font-size: 11px;
+    color: var(--color-text-muted, #888);
+}
+
+.timeline-event.tool-event {
+    font-size: 11px;
+}
+
+.timeline-event.active .event-label {
+    color: var(--color-accent, #6366f1);
+}
+
+.event-connector {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex-shrink: 0;
+    width: 20px;
+}
+
+.connector-dot {
+    font-size: 12px;
+    z-index: 1;
+    line-height: 1;
+}
+
+.connector-dot.pulse {
+    animation: pulse-dot 1.2s ease-in-out infinite;
+}
+
+.connector-line {
+    position: absolute;
+    top: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 1px;
+    height: calc(100% + 4px);
+    background: var(--color-border, rgba(255,255,255,0.1));
+}
+
+.event-content {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+    flex: 1;
+}
+
+.event-label {
+    word-break: break-word;
+}
+
+.event-detail {
+    font-size: 10px;
+    color: var(--color-text-muted, #777);
+    background: var(--color-bg-tertiary, rgba(255,255,255,0.03));
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-family: 'Fira Code', 'Cascadia Code', monospace;
+    max-height: 60px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    word-break: break-all;
+}
+
+/* Slide down transition */
+.slide-down-enter-active,
+.slide-down-leave-active {
+    transition: all 0.25s ease;
+    overflow: hidden;
+}
+
+.slide-down-enter-from,
+.slide-down-leave-to {
+    opacity: 0;
+    max-height: 0;
+    transform: translateY(-8px);
+}
+
+.slide-down-enter-to,
+.slide-down-leave-from {
+    opacity: 1;
+    max-height: 500px;
+    transform: translateY(0);
+}
 </style>
+

@@ -286,6 +286,7 @@ const closeEvidenceViewer = () => {
               :message="msg"
               :user-initial="userInitial"
               :user-avatar-url="authStore.profilePicture"
+              :is-streaming="chatStore.isStreaming && idx === chatStore.messages.length - 1"
               :t="t"
               @copy="handleCopyMessage"
             />

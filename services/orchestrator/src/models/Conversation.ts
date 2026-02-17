@@ -18,7 +18,23 @@ const ConversationSchema = new mongoose.Schema({
             mediaType: String
         }],
         timestamp: { type: Date, default: Date.now },
-        meta: { type: mongoose.Schema.Types.Mixed }
+        meta: { type: mongoose.Schema.Types.Mixed },
+        // Agent event flow timeline — persisted for inspection/debugging
+        agentEvents: [{
+            type: { type: String },             // event type (agent_start, thinking, tool_start, etc.)
+            step: Number,                        // agent loop step number
+            toolName: String,                    // tool name (for tool_start/tool_complete)
+            input: mongoose.Schema.Types.Mixed,  // tool input
+            resultPreview: String,               // truncated tool result
+            success: Boolean,                    // tool execution success
+            durationMs: Number,                  // duration of step/tool execution
+            message: String,                     // status/thinking message
+            answerMode: String,                  // answer mode (internal/rag/file_grounded)
+            totalSteps: Number,                  // total steps at completion
+            totalTokens: Number,                 // total tokens at completion
+            tokens: mongoose.Schema.Types.Mixed, // per-step token usage {input, output, total}
+            timestamp: { type: Date, default: Date.now }
+        }]
     }],
     modelId: String,
     metadata: {

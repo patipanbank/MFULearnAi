@@ -202,5 +202,103 @@ export class BedrockService {
         // Should never reach here, but TypeScript needs it
         throw new Error('Bedrock sendChat: max retries exceeded');
     }
+
+    /**
+     * Stream chat response token-by-token via SSE.
+     * Used for the FINAL ANSWER step in the agent loop (non-tool-use).
+     * Calls bedrock-text with stream:true and parses SSE chunks.
+     *
+     * @param modelId - Bedrock model ID
+     * @param messages - Conversation messages
+     * @param onDelta - Callback invoked per text delta chunk
+     * @param temperature - Model temperature (default 0.5)
+     * @param toolConfig - Optional tool configuration (typically undefined for final answer)
+     * @param guardrailConfig - Optional guardrail configuration
+     * @returns Accumulated full text + usage stats
+     */
+    static async streamChatSSE(
+        modelId: string,
+        messages: ChatMessage[],
+        onDelta: (delta: string) => void,
+        temperature: number = 0.5,
+        toolConfig?: any,
+        guardrailConfig?: any
+    ): Promise<{ text: string, usage: any, stopReason?: string }> {
+        const requestData: any = {
+            messages,
+            modelId,
+            temperature,
+            stream: true // Force streaming mode
+        };
+
+        if (toolConfig) requestData.toolConfig = toolConfig;
+        if (guardrailConfig) requestData.guardrailConfig = guardrailConfig;
+
+        try {
+            const response = await axios({
+                method: 'post',
+                url: `${BEDROCK_TEXT_URL}/chat`,
+                data: requestData,
+                headers: {
+                    'Authorization': `Bearer ${TokenService.mint('bedrock', 'write')}`,
+                    'x-correlation-id': ContextService.getCorrelationId()
+                },
+                responseType: 'stream',
+                timeout: 120000,
+                maxBodyLength: Infinity,
+                maxContentLength: Infinity
+            });
+
+            let fullText = '';
+            let tokenUsage = { input: 0, output: 0, total: 0 };
+            let stopReason: string | undefined;
+            let buffer = '';
+
+            return new Promise((resolve, reject) => {
+                response.data.on('data', (chunk: Buffer) => {
+                    buffer += chunk.toString();
+                    const lines = buffer.split('\n');
+                    buffer = lines.pop() || ''; // Keep incomplete last line in buffer
+
+                    for (const line of lines) {
+                        const trimmed = line.trim();
+                        if (!trimmed.startsWith('data:')) continue;
+
+                        const dataStr = trimmed.replace(/^data:\s*/, '');
+                        if (dataStr === '[DONE]') continue;
+
+                        try {
+                            const data = JSON.parse(dataStr);
+                            if (data.text) {
+                                fullText += data.text;
+                                onDelta(data.text);
+                            }
+                            if (data.type === 'usage' && data.usage) {
+                                tokenUsage = data.usage;
+                            }
+                            if (data.stopReason) {
+                                stopReason = data.stopReason;
+                            }
+                        } catch (e) {
+                            // Partial JSON — safe to skip
+                        }
+                    }
+                });
+
+                response.data.on('end', () => {
+                    resolve({ text: fullText, usage: tokenUsage, stopReason });
+                });
+
+                response.data.on('error', (err: Error) => {
+                    LoggerService.error('bedrock_stream_sse_error', { error: err.message });
+                    reject(err);
+                });
+            });
+
+        } catch (error: any) {
+            LoggerService.error('bedrock_stream_sse_request_error', { error: error.message });
+            throw error;
+        }
+    }
 }
 
