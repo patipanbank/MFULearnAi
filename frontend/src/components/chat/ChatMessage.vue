@@ -288,71 +288,74 @@ const formatBytes = (bytes) => {
           </div>
           
           
-          <!-- ══ Agent Flow Timeline (BEFORE answer — shows real-time progression) ══ -->
+          <!-- ══ Agent Flow (Redesigned) ══ -->
           <div v-if="showAgentFlow" class="agent-flow-container">
-            <button
-              class="agent-flow-toggle"
-              @click="toggleFlow"
-              :class="{ expanded: flowExpanded }"
+            <!-- Collapsed Header -->
+            <button 
+                class="agent-flow-header" 
+                @click="toggleFlow"
+                :class="{ active: flowExpanded }"
             >
-              <span class="flow-icon">🤖</span>
-              <span class="flow-label">
-                {{ agentSummary?.isComplete ? 'Finished' : 'Working...' }}
-              </span>
-              <span v-if="!agentSummary?.isComplete && isStreaming" class="flow-streaming-dot"></span>
-              <svg class="flow-chevron" :class="{ rotated: flowExpanded }" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <polyline points="6 9 12 15 18 9"></polyline>
-              </svg>
+                <div class="header-left">
+                    <span class="icon-indicator">
+                        <svg v-if="flowExpanded" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="6 9 12 15 18 9"></polyline>
+                        </svg>
+                        <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                             <polyline points="9 18 15 12 9 6"></polyline>
+                        </svg>
+                    </span>
+                    <span class="status-text">
+                        {{ agentSummary?.isComplete ? 'Thoughts' : 'Working...' }}
+                    </span>
+                </div>
             </button>
 
-            <Transition name="slide-down">
-              <div v-if="flowExpanded" class="agent-flow-timeline">
-                <div
-                  v-for="(evt, idx) in timelineEvents"
-                  :key="idx"
-                  class="timeline-event"
-                  :class="{ 'sub-event': isSubEvent(evt.type), 'tool-event': isToolEvent(evt.type) }"
-                >
-                  <span class="event-connector">
-                    <span class="connector-line" v-if="idx < timelineEvents.length - 1 || (!agentSummary?.isComplete && isStreaming)"></span>
-                    <span class="connector-dot">{{ eventIcon(evt.type) }}</span>
-                  </span>
-                  <span class="event-content">
-                    <span class="event-label">{{ eventLabel(evt) }}</span>
-                    <!-- Show tool result preview for tool_complete -->
-                    <span v-if="evt.type === 'tool_complete' && evt.resultPreview" class="event-detail">
-                      {{ evt.resultPreview.substring(0, 120) }}{{ evt.resultPreview.length > 120 ? '...' : '' }}
-                    </span>
-                  </span>
-                </div>
+            <!-- Expanded Content -->
+            <div v-if="flowExpanded" class="agent-flow-content">
+                <div v-for="(evt, idx) in timelineEvents" :key="idx" class="flow-item">
+                    <!-- Thinking (Step 1, etc.) -->
+                    <div v-if="evt.type === 'thinking'" class="flow-step text-step">
+                        <div class="step-title">
+                            <span class="icon">Thinking (Step {{ evt.step }})</span>
+                        </div>
+                        <div class="step-body markdown-body">{{ evt.message }}</div>
+                    </div>
 
-                <!-- Streaming indicator at bottom -->
-                <div v-if="!agentSummary?.isComplete && isStreaming" class="timeline-event active">
-                  <span class="event-connector">
-                    <span class="connector-dot pulse">⏳</span>
-                  </span>
-                  <span class="event-content">
-                    <span class="event-label animate-flicker">{{ message.status || 'Processing...' }}</span>
-                  </span>
+                    <!-- Tool Use -->
+                    <div v-else-if="evt.type === 'tool_start'" class="flow-step tool-step">
+                        <div class="step-title">
+                            <span class="icon">Executing Tool</span>
+                        </div>
+                        <div class="step-body code-font">
+                            > {{ evt.toolName }}
+                        </div>
+                    </div>
+
+                    <!-- Tool Complete -->
+                    <div v-else-if="evt.type === 'tool_complete'" class="flow-step tool-result">
+                        <div class="step-body fade-text">
+                            Result: {{ evt.success ? 'Success' : 'Failed' }}
+                        </div>
+                    </div>
+                    
+                     <!-- Streaming Thinking Indicator inside box -->
+                    <div v-if="!agentSummary?.isComplete && isStreaming" class="flow-step">
+                        <div class="step-body fade-text">Processing...</div>
+                    </div>
                 </div>
-              </div>
-            </Transition>
+            </div>
           </div>
 
-          <!-- Answer content (appears AFTER agent flow — the final step) -->
+          <!-- Answer content -->
           <div ref="messageRef" class="prose-content prose" v-if="message.content" v-html="render(message.content)"></div>
           
-          <!-- Typing Indicator — ONLY for non-agent/legacy responses -->
+          <!-- Typing Indicator (Legacy/Fallback) -->
           <div v-if="!message.content && !showAgentFlow" class="typing-indicator">
-            <div class="dots">
-              <span></span>
-              <span></span>
-              <span></span>
-            </div>
-            <span class="text animate-flicker">{{ message.status || t('thinking') }}</span>
+             <div class="dots"><span></span><span></span><span></span></div>
           </div>
 
-          <!-- AI Actions (Copy Button icon only) -->
+          <!-- AI Actions -->
           <div class="actions" v-if="message.content">
             <button class="btn-icon-copy" @click="handleCopy" :class="{ copied }" :title="t('copy')">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -1082,3 +1085,87 @@ const formatBytes = (bytes) => {
 }
 </style>
 
+
+/* === Agent Flow Redesign === */
+.agent-flow-container {
+    margin-bottom: 12px;
+    border-left: 2px solid var(--color-border);
+    padding-left: 12px;
+}
+
+.agent-flow-header {
+    background: none; border: none; padding: 0;
+    cursor: pointer;
+    display: flex; align-items: center;
+    color: var(--color-text-muted);
+    font-size: 13px; font-weight: 500;
+    transition: color 0.2s;
+    outline: none;
+}
+.agent-flow-header:hover { color: var(--color-text-primary); }
+
+.header-left { display: flex; align-items: center; gap: 6px; }
+.icon-indicator { display: flex; align-items: center; }
+
+.agent-flow-content {
+    margin-top: 8px;
+    display: flex; flex-direction: column; gap: 12px;
+    padding-left: 4px; /* Slight indent */
+    animation: slideDown 0.2s ease-out;
+}
+
+.flow-step { font-size: 14px; color: var(--color-text-secondary); }
+
+.step-title {
+    font-weight: 600;
+    margin-bottom: 4px;
+    font-size: 12px;
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    display: flex; align-items: center; gap: 6px;
+}
+
+.step-body.markdown-body {
+    white-space: pre-wrap;
+    line-height: 1.6;
+    color: var(--color-text-secondary);
+}
+
+.step-body.code-font {
+    font-family: monospace;
+    background: var(--color-bg-secondary);
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 13px;
+    border: 1px solid var(--color-border);
+}
+
+.step-body.fade-text {
+    font-size: 13px;
+    color: var(--color-text-muted);
+    font-style: italic;
+}
+
+@keyframes slideDown {
+    from { opacity: 0; transform: translateY(-5px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Typing Indicator */
+.typing-indicator .dots { display: flex; gap: 4px; }
+.typing-indicator .dots span {
+  width: 5px; height: 5px; background: var(--color-text-muted);
+  border-radius: 50%; animation: bounce 1.4s infinite;
+}
+.typing-indicator .dots span:nth-child(2) { animation-delay: 0.2s; }
+.typing-indicator .dots span:nth-child(3) { animation-delay: 0.4s; }
+@keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
+
+/* Actions */
+.actions { margin-top: 8px; }
+.btn-icon-copy {
+    background: none; border: none; cursor: pointer; color: var(--color-text-muted); padding: 4px;
+}
+.btn-icon-copy:hover { color: var(--color-primary); }
+.btn-icon-copy.copied { color: var(--color-success); }

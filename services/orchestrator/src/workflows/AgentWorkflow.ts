@@ -379,6 +379,7 @@ ${JSON.stringify(smartContext?.rolling || {}, null, 2)}`
 
             const stepStartTime = Date.now();
             let firstTokenTime: number | null = null;
+            let bufferedText = '';
 
             // --- STREAMING CALL ---
             const { text: fullResponse, content: contentBlocks, usage: stepUsage, stopReason } = await BedrockService.streamChatSSE(
@@ -386,7 +387,9 @@ ${JSON.stringify(smartContext?.rolling || {}, null, 2)}`
                 this.state.messages,
                 (delta) => {
                     if (!firstTokenTime) firstTokenTime = Date.now();
-                    this.emit(AGENT_EVENTS.ANSWER_DELTA, { delta });
+                    bufferedText += delta;
+                    // Optional: Emit thinking_delta if we want real-time update in the collapsed box
+                    // this.emit('thinking_delta', { delta }); 
                 },
                 0.5,
                 toolConfig,
@@ -409,8 +412,20 @@ ${JSON.stringify(smartContext?.rolling || {}, null, 2)}`
 
             // Logic: Tool Use vs Final Answer
             if (stopReason === 'tool_use') {
+                // It was a thought process leading to a tool. Persist it as a THINKING event.
+                if (fullResponse && fullResponse.trim()) {
+                    this.emit(AGENT_EVENTS.THINKING, {
+                        step: this.state.steps,
+                        message: fullResponse.trim()
+                    });
+                }
                 await this.handleToolExecution(fullResponse, contentBlocks, allowedTools);
             } else {
+                // Final Answer - Emit the buffered text as the answer explanation? 
+                // Wait, if we didn't emit ANSWER_DELTA, the frontend shows nothing.
+                // We must emit the answer now.
+                this.emit(AGENT_EVENTS.ANSWER_DELTA, { delta: fullResponse });
+
                 // Final Answer
                 this.handleFinalAnswer(fullResponse);
                 break;
