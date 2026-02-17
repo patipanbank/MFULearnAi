@@ -36,6 +36,11 @@ const hasAgentEvents = computed(() => {
     return props.message.agentEvents && props.message.agentEvents.length > 0
 })
 
+// Show Agent Flow immediately when streaming starts (before events arrive)
+const showAgentFlow = computed(() => {
+    return props.isStreaming || hasAgentEvents.value
+})
+
 const agentSummary = computed(() => {
     if (!hasAgentEvents.value) return null
     const events = props.message.agentEvents
@@ -295,7 +300,7 @@ const formatBytes = (bytes) => {
           
           
           <!-- ══ Agent Flow Timeline (BEFORE answer — shows real-time progression) ══ -->
-          <div v-if="hasAgentEvents" class="agent-flow-container">
+          <div v-if="showAgentFlow" class="agent-flow-container">
             <button
               class="agent-flow-toggle"
               @click="toggleFlow"
@@ -351,8 +356,8 @@ const formatBytes = (bytes) => {
           <!-- Answer content (appears AFTER agent flow — the final step) -->
           <div ref="messageRef" class="prose-content prose" v-if="message.content" v-html="render(message.content)"></div>
           
-          <!-- Typing Indicator — ONLY when NO agent events (fallback for non-agent responses) -->
-          <div v-if="!message.content && !hasAgentEvents" class="typing-indicator">
+          <!-- Typing Indicator — ONLY for non-agent/legacy responses -->
+          <div v-if="!message.content && !showAgentFlow" class="typing-indicator">
             <div class="dots">
               <span></span>
               <span></span>
