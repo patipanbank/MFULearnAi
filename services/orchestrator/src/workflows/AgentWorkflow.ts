@@ -17,7 +17,7 @@ const AVAILABLE_TOOLS = [
 ];
 
 // ── SSE Event Type Constants ──
-const EVENT = {
+export const AGENT_EVENTS = {
     AGENT_START: 'agent_start',
     CONTEXT_LOADED: 'context_loaded',
     AGENT_STEP: 'agent_step',
@@ -70,6 +70,11 @@ export class AgentWorkflow {
     private state: WorkflowState;
     private store: AgentEventStore;
 
+    // Real-time throttling
+    private deltaBuffer: string = '';
+    private deltaTimer: NodeJS.Timeout | null = null;
+    private lastEmitTime: number = 0;
+
     private constructor(ctx: AgentContext) {
         this.ctx = ctx;
         const traceId = crypto.randomUUID();
@@ -118,6 +123,28 @@ export class AgentWorkflow {
         this.store.emit(type, payload);
     }
 
+    private emitDelta(delta: string) {
+        this.deltaBuffer += delta;
+        const now = Date.now();
+        if (now - this.lastEmitTime > 50) {
+            this.flushDelta();
+        } else if (!this.deltaTimer) {
+            this.deltaTimer = setTimeout(() => this.flushDelta(), 50);
+        }
+    }
+
+    private flushDelta() {
+        if (this.deltaBuffer) {
+            this.emit(AGENT_EVENTS.ANSWER_DELTA, { delta: this.deltaBuffer });
+            this.deltaBuffer = '';
+            this.lastEmitTime = Date.now();
+        }
+        if (this.deltaTimer) {
+            clearTimeout(this.deltaTimer);
+            this.deltaTimer = null;
+        }
+    }
+
     private async run(): Promise<{ traceId: string }> {
         LoggerService.info('agent_workflow_start', {
             traceId: this.state.traceId,
@@ -125,7 +152,7 @@ export class AgentWorkflow {
             message: this.ctx.message
         }, this.ctx.userId);
 
-        this.emit(EVENT.AGENT_START, {
+        this.emit(AGENT_EVENTS.AGENT_START, {
             traceId: this.state.traceId,
             sessionId: this.ctx.sessionId
         });
@@ -160,7 +187,7 @@ export class AgentWorkflow {
      * 1. Load History & Smart Context
      */
     private async loadContext() {
-        this.emit(EVENT.STATUS, { message: 'กำลังโหลดบริบทการสนทนา...' });
+        this.emit(AGENT_EVENTS.STATUS, { message: 'กำลังโหลดบริบทการสนทนา...' });
         const { messages: history, smartContext } = await HistoryService.getContext(
             this.ctx.userId,
             this.ctx.sessionId
@@ -168,7 +195,7 @@ export class AgentWorkflow {
         this.state.history = history;
         this.state.smartContext = smartContext;
 
-        this.emit(EVENT.CONTEXT_LOADED, {
+        this.emit(AGENT_EVENTS.CONTEXT_LOADED, {
             historyCount: history.length,
             hasSmartContext: !!smartContext,
             smartContextVersion: smartContext?.version || 0
@@ -202,7 +229,7 @@ export class AgentWorkflow {
             const fileSizeMB = ((file.buffer?.length || 0) / (1024 * 1024)).toFixed(1);
 
             const emitProgress = (stage: string, percent: number, detail?: string) => {
-                this.emit(EVENT.FILE_PROGRESS, {
+                this.emit(AGENT_EVENTS.FILE_PROGRESS, {
                     fileName, fileIndex: fi, totalFiles, stage, percent, detail: detail || ''
                 });
             };
@@ -224,7 +251,7 @@ export class AgentWorkflow {
             this.state.uploadPromises.push(
                 ChatAttachmentService.uploadFile(file.buffer, fileName, file.mediaType || 'application/pdf', userId)
                     .then(meta => {
-                        this.emit(EVENT.FILE_UPLOADED, { fileName, metadata: meta });
+                        this.emit(AGENT_EVENTS.FILE_UPLOADED, { fileName, metadata: meta });
                         return { ...meta, fileType: ext };
                     })
                     .catch(err => {
@@ -367,8 +394,8 @@ ${JSON.stringify(smartContext?.rolling || {}, null, 2)}`
             if (this.state.clientDisconnected) return;
 
             this.state.steps++;
-            this.emit(EVENT.AGENT_STEP, { step: this.state.steps, maxSteps: AGENT_CONFIG.MAX_STEPS });
-            this.emit(EVENT.THINKING, { step: this.state.steps, message: `กำลังวิเคราะห์... (ขั้นตอนที่ ${this.state.steps})` });
+            this.emit(AGENT_EVENTS.AGENT_STEP, { step: this.state.steps, maxSteps: AGENT_CONFIG.MAX_STEPS });
+            this.emit(AGENT_EVENTS.THINKING, { step: this.state.steps, message: `กำลังวิเคราะห์... (ขั้นตอนที่ ${this.state.steps})` });
 
             LoggerService.info('agent_step', { step: this.state.steps, traceId: this.state.traceId }, this.ctx.userId);
 
@@ -379,12 +406,15 @@ ${JSON.stringify(smartContext?.rolling || {}, null, 2)}`
                 MODELS.PRIMARY,
                 this.state.messages,
                 (delta) => {
-                    this.emit(EVENT.ANSWER_DELTA, { delta });
+                    this.emitDelta(delta);
                 },
                 0.5,
                 toolConfig,
                 guardrailConfig
             );
+
+            // Flush any remaining buffer
+            this.flushDelta();
 
             // Update Usage
             const stepDurationMs = Date.now() - stepStartTime;
@@ -419,8 +449,8 @@ ${JSON.stringify(smartContext?.rolling || {}, null, 2)}`
 
             LoggerService.info('tool_execution', { tool: toolName, input: toolInput }, this.ctx.userId);
 
-            this.emit(EVENT.TOOL_START, { toolName, input: toolInput, step: this.state.steps });
-            this.emit(EVENT.STATUS, { message: `🔧 Using ${toolName}...` });
+            this.emit(AGENT_EVENTS.TOOL_START, { toolName, input: toolInput, step: this.state.steps });
+            this.emit(AGENT_EVENTS.STATUS, { message: `🔧 Using ${toolName}...` });
 
             // Execute Tool
             const start = Date.now();
@@ -443,7 +473,7 @@ ${JSON.stringify(smartContext?.rolling || {}, null, 2)}`
             }
 
             const duration = Date.now() - start;
-            this.emit(EVENT.TOOL_COMPLETE, {
+            this.emit(AGENT_EVENTS.TOOL_COMPLETE, {
                 toolName,
                 success,
                 resultPreview: typeof result === 'string' ? result.substring(0, 300) : JSON.stringify(result).substring(0, 300),
@@ -482,9 +512,9 @@ ${JSON.stringify(smartContext?.rolling || {}, null, 2)}`
             this.state.answerState = 'VERIFIED';
         }
 
-        this.emit(EVENT.ANSWER_START, { answerMode: this.state.answerMode });
+        this.emit(AGENT_EVENTS.ANSWER_START, { answerMode: this.state.answerMode });
         this.state.messages.push({ role: 'assistant', content: response });
-        this.emit(EVENT.ANSWER_DONE, { fullLength: response.length });
+        this.emit(AGENT_EVENTS.ANSWER_DONE, { fullLength: response.length });
     }
 
     /**
@@ -504,7 +534,7 @@ ${JSON.stringify(smartContext?.rolling || {}, null, 2)}`
             explanation.basis = 'RAG';
         }
 
-        this.emit(EVENT.METADATA, {
+        this.emit(AGENT_EVENTS.METADATA, {
             metadata: {
                 answer_mode: answerMode,
                 answer_state: answerState,
@@ -515,7 +545,7 @@ ${JSON.stringify(smartContext?.rolling || {}, null, 2)}`
             }
         });
 
-        this.emit(EVENT.AGENT_COMPLETE, {
+        this.emit(AGENT_EVENTS.AGENT_COMPLETE, {
             totalSteps: steps,
             totalTokens: totalUsage.total,
             durationMs: totalDurationMs,
@@ -523,7 +553,7 @@ ${JSON.stringify(smartContext?.rolling || {}, null, 2)}`
             answerMode
         });
 
-        this.emit(EVENT.STATUS, { message: '' });
+        this.emit(AGENT_EVENTS.STATUS, { message: '' });
 
         // -- Persistence --
         // Wait for file uploads
@@ -575,7 +605,7 @@ ${JSON.stringify(smartContext?.rolling || {}, null, 2)}`
 
         if (this.state.history.length === 0) {
             SummarizationService.updateTitle(userId, sessionId, this.ctx.message)
-                .then(title => title && this.emit(EVENT.TITLE, { title }))
+                .then(title => title && this.emit(AGENT_EVENTS.TITLE, { title }))
                 .catch(e => LoggerService.error('Title Gen Failed', e));
         }
     }
@@ -585,7 +615,7 @@ ${JSON.stringify(smartContext?.rolling || {}, null, 2)}`
         this.state.finalAnswer = 'ขออภัยครับ คำขอใช้เวลาเกินกำหนด กรุณาลองถามใหม่อีกครั้ง';
         this.state.answerMode = 'internal';
         this.state.answerState = 'TIMEOUT';
-        this.emit(EVENT.STATUS, { message: 'หมดเวลาดำเนินการ' });
+        this.emit(AGENT_EVENTS.STATUS, { message: 'หมดเวลาดำเนินการ' });
     }
 
     private updateUsage(stepUsage: any, durationMs: number) {
@@ -593,7 +623,7 @@ ${JSON.stringify(smartContext?.rolling || {}, null, 2)}`
         this.state.totalUsage.output += stepUsage.output;
         this.state.totalUsage.total += stepUsage.total;
 
-        this.emit(EVENT.STEP_USAGE, {
+        this.emit(AGENT_EVENTS.STEP_USAGE, {
             step: this.state.steps,
             input: stepUsage.input,
             output: stepUsage.output,
@@ -601,6 +631,7 @@ ${JSON.stringify(smartContext?.rolling || {}, null, 2)}`
             durationMs
         });
     }
+
 
     private sanitizeFileName(name: string): string {
         return name
