@@ -166,11 +166,12 @@ export const useChatStore = defineStore('chat', () => {
             }
         }
 
-        // Add placeholder for assistant
         const assistantIndex = messages.value.length
         messages.value.push({
             role: 'assistant',
-            content: '', // Start empty
+            content: '',
+            status: '',
+            agentEvents: [], // Pre-init for Vue reactivity — Agent Flow timeline needs this
             timestamp: new Date()
         })
 

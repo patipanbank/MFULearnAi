@@ -68,6 +68,8 @@ export class AgentWorkflow {
         res.setHeader('Content-Type', 'text/event-stream');
         res.setHeader('Cache-Control', 'no-cache');
         res.setHeader('Connection', 'keep-alive');
+        res.setHeader('X-Accel-Buffering', 'no'); // Disable nginx proxy buffering
+        res.flushHeaders(); // Force headers to be sent immediately — prevents Node.js buffering
 
         // Client disconnect detection for SSE
         let clientDisconnected = false;
@@ -75,7 +77,13 @@ export class AgentWorkflow {
         if (req) req.on('close', () => { clientDisconnected = true; });
 
         const safeWrite = (data: string) => {
-            if (!clientDisconnected && !res.writableEnded) res.write(data);
+            if (!clientDisconnected && !res.writableEnded) {
+                res.write(data);
+                // Force flush to prevent event buffering (critical for real-time SSE)
+                if (typeof (res as any).flush === 'function') {
+                    (res as any).flush();
+                }
+            }
         };
 
         // ── Helper: Emit structured SSE event ──
