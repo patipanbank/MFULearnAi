@@ -1199,6 +1199,7 @@ const formatBytes = (bytes) => {
 :global([data-theme="dark"]) .glass-card {
     background: rgba(30, 30, 30, 0.6);
     border-color: rgba(255, 255, 255, 0.1);
+    color: #e5e7eb; /* Default text color for card */
 }
 
 :global([data-theme="dark"]) .glass-card.thinking-card {
@@ -1227,7 +1228,25 @@ const formatBytes = (bytes) => {
 }
 
 /* Ensure text visibility in dark mode */
+:global([data-theme="dark"]) .card-header {
+    color: #9ca3af; /* Muted text for headers */
+}
+
+:global([data-theme="dark"]) .header-title {
+    color: #e5e7eb; /* Brighter for title */
+}
+
 :global([data-theme="dark"]) .card-body.markdown-body {
+    color: #e5e7eb;
+}
+
+:global([data-theme="dark"]) .card-body.markdown-body p,
+:global([data-theme="dark"]) .card-body.markdown-body li,
+:global([data-theme="dark"]) .card-body.markdown-body span {
+    color: #e5e7eb;
+}
+
+:global([data-theme="dark"]) .tool-command-box {
     color: #e5e7eb;
 }
 
@@ -1237,5 +1256,17 @@ const formatBytes = (bytes) => {
 
 :global([data-theme="dark"]) .timeline-line {
     background: #404040;
+}
+
+:global([data-theme="dark"]) .status-text {
+    color: #e5e7eb;
+}
+
+:global([data-theme="dark"]) .agent-flow-header:hover .status-text {
+    color: #ffffff;
+}
+
+:global([data-theme="dark"]) .fade-text {
+    color: #9ca3af;
 }
 </style>
