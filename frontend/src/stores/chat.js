@@ -40,6 +40,9 @@ export const useChatStore = defineStore('chat', () => {
                 if (data.models && Array.isArray(data.models)) {
                     availableModels.value = data.models
                 }
+            } else if (response.status === 401 || response.status === 403) {
+                const authStore = (await import('./auth')).useAuthStore()
+                authStore.logout()
             }
         } catch (error) {
             console.error('Failed to fetch models:', error)
@@ -215,6 +218,12 @@ export const useChatStore = defineStore('chat', () => {
             })
 
             if (!response.ok) {
+                if (response.status === 401 || response.status === 403) {
+                    const authStore = (await import('./auth')).useAuthStore()
+                    authStore.logout()
+                    return
+                }
+
                 const errText = await response.text()
                 throw new Error(`Server Error ${response.status}: ${errText}`)
             }

@@ -27,8 +27,8 @@ api.interceptors.response.use(
     async (error) => {
         const originalRequest = error.config
 
-        // If 401 and not already retrying
-        if (error.response?.status === 401 && !originalRequest._retry) {
+        // If 401 or 403 (Invalid/Expired Token) and not already retrying
+        if ((error.response?.status === 401 || error.response?.status === 403) && !originalRequest._retry) {
             originalRequest._retry = true
 
             try {
@@ -64,8 +64,8 @@ api.interceptors.response.use(
             }
         }
 
-        // If not 401 or refresh failed (already handled above but generic fallback)
-        if (error.response?.status === 401 && originalRequest._retry) {
+        // If not 401/403 or refresh failed (already handled above but generic fallback)
+        if ((error.response?.status === 401 || error.response?.status === 403) && originalRequest._retry) {
             localStorage.removeItem('auth_token')
             localStorage.removeItem('user_info')
             window.location.href = '/login'
