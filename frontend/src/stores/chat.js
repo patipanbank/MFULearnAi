@@ -224,20 +224,23 @@ export const useChatStore = defineStore('chat', () => {
         })
 
         const handleEvent = (data) => {
+            // Version check
+            // console.log('[ChatStore] HandleEvent v2 check')
+
             // If we don't have traceId yet, buffer it
             if (!traceId) {
-                // console.log('[ChatStore] Buffering event', data.type)
+                // console.log('[ChatStore] Buffering event (no traceId)', data.type)
                 eventBuffer.push(data)
                 return
             }
 
             // Only process events for this trace
             if (data.traceId !== traceId) {
-                console.warn(`[ChatStore] Dropping event ${data.type} (traceId mismatch): expected ${traceId}, got ${data.traceId}`)
+                console.warn(`[ChatStore] DROPPED ${data.type} - ID Fail: stored '${traceId}' vs event '${data.traceId}'`)
                 return
             }
 
-            console.log(`[ChatStore] Processing event: ${data.type}`)
+            console.log(`[ChatStore] ACCEPTED ${data.type} - IDs Match`)
 
             // Helper: ensure agentEvents array exists
             const ensureEvents = () => {
