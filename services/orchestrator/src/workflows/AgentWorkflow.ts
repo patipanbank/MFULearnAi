@@ -404,12 +404,14 @@ ${JSON.stringify(smartContext?.rolling || {}, null, 2)}`
             LoggerService.info('agent_step', { step: this.state.steps, traceId: this.state.traceId }, this.ctx.userId);
 
             const stepStartTime = Date.now();
+            let firstTokenTime: number | null = null;
 
             // --- STREAMING CALL ---
             const { text: fullResponse, content: contentBlocks, usage: stepUsage, stopReason } = await BedrockService.streamChatSSE(
                 MODELS.PRIMARY,
                 this.state.messages,
                 (delta) => {
+                    if (!firstTokenTime) firstTokenTime = Date.now();
                     this.emitDelta(delta);
                 },
                 0.5,
@@ -422,6 +424,16 @@ ${JSON.stringify(smartContext?.rolling || {}, null, 2)}`
 
             // Update Usage
             const stepDurationMs = Date.now() - stepStartTime;
+            const ttftMs = firstTokenTime ? firstTokenTime - stepStartTime : null;
+
+            LoggerService.info('agent_model_response_metrics', {
+                step: this.state.steps,
+                traceId: this.state.traceId,
+                ttftMs,
+                totalDurationMs: stepDurationMs,
+                model: MODELS.PRIMARY
+            }, this.ctx.userId);
+
             this.updateUsage(stepUsage, stepDurationMs);
 
             // Logic: Tool Use vs Final Answer
