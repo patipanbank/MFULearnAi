@@ -972,180 +972,11 @@ const formatBytes = (bytes) => {
     text-overflow: ellipsis;
 }
 
-/* ══════════════════ Agent Flow Timeline ══════════════════ */
+/* ══════════════════ Agent Flow Timeline (Premium) ══════════════════ */
 .agent-flow-container {
     margin-top: 12px;
-    border-top: 1px solid var(--color-border, rgba(255,255,255,0.08));
+    border-top: 1px solid var(--color-border);
     padding-top: 8px;
-}
-
-.agent-flow-toggle {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    background: transparent;
-    border: 1px solid var(--color-border, rgba(255,255,255,0.1));
-    border-radius: 8px;
-    padding: 6px 12px;
-    cursor: pointer;
-    font-size: 12px;
-    color: var(--color-text-muted, #999);
-    transition: all 0.2s ease;
-    width: 100%;
-    text-align: left;
-}
-
-.agent-flow-toggle:hover {
-    background: var(--color-bg-tertiary, rgba(255,255,255,0.04));
-    color: var(--color-text-primary, #ddd);
-    border-color: var(--color-accent, #6366f1);
-}
-
-.agent-flow-toggle.expanded {
-    border-color: var(--color-accent, #6366f1);
-    background: var(--color-bg-tertiary, rgba(255,255,255,0.02));
-}
-
-.flow-icon {
-    font-size: 14px;
-}
-
-.flow-label {
-    flex: 1;
-    font-weight: 500;
-}
-
-.flow-streaming-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: var(--color-accent, #6366f1);
-    animation: pulse-dot 1.2s ease-in-out infinite;
-}
-
-@keyframes pulse-dot {
-    0%, 100% { opacity: 0.3; transform: scale(0.8); }
-    50% { opacity: 1; transform: scale(1.2); }
-}
-
-.flow-chevron {
-    transition: transform 0.25s ease;
-    flex-shrink: 0;
-}
-
-.flow-chevron.rotated {
-    transform: rotate(180deg);
-}
-
-/* Timeline */
-.agent-flow-timeline {
-    padding: 8px 0 4px 6px;
-}
-
-.timeline-event {
-    display: flex;
-    align-items: flex-start;
-    gap: 8px;
-    padding: 3px 0;
-    font-size: 12px;
-    line-height: 1.5;
-    color: var(--color-text-secondary, #bbb);
-}
-
-.timeline-event.sub-event {
-    padding-left: 16px;
-    font-size: 11px;
-    color: var(--color-text-muted, #888);
-}
-
-.timeline-event.tool-event {
-    font-size: 11px;
-}
-
-.timeline-event.active .event-label {
-    color: var(--color-accent, #6366f1);
-}
-
-.event-connector {
-    position: relative;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    flex-shrink: 0;
-    width: 20px;
-}
-
-.connector-dot {
-    font-size: 12px;
-    z-index: 1;
-    line-height: 1;
-}
-
-.connector-dot.pulse {
-    animation: pulse-dot 1.2s ease-in-out infinite;
-}
-
-.connector-line {
-    position: absolute;
-    top: 16px;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 1px;
-    height: calc(100% + 4px);
-    background: var(--color-border, rgba(255,255,255,0.1));
-}
-
-.event-content {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    min-width: 0;
-    flex: 1;
-}
-
-.event-label {
-    word-break: break-word;
-}
-
-.event-detail {
-    font-size: 10px;
-    color: var(--color-text-muted, #777);
-    background: var(--color-bg-tertiary, rgba(255,255,255,0.03));
-    padding: 4px 8px;
-    border-radius: 4px;
-    font-family: 'Fira Code', 'Cascadia Code', monospace;
-    max-height: 60px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    word-break: break-all;
-}
-
-/* Slide down transition */
-.slide-down-enter-active,
-.slide-down-leave-active {
-    transition: all 0.25s ease;
-    overflow: hidden;
-}
-
-.slide-down-enter-from,
-.slide-down-leave-to {
-    opacity: 0;
-    max-height: 0;
-    transform: translateY(-8px);
-}
-
-.slide-down-enter-to,
-.slide-down-leave-from {
-    opacity: 1;
-    max-height: 500px;
-    transform: translateY(0);
-}
-
-
-
-/* === Agent Flow Redesign (Round 5 - Visual Polish) === */
-.agent-flow-container {
-    margin-bottom: 20px;
     width: 100%;
     display: flex;
     flex-direction: column;
@@ -1167,6 +998,7 @@ const formatBytes = (bytes) => {
 .agent-flow-header:hover { color: var(--color-text-primary); }
 .header-left { display: flex; align-items: center; gap: 8px; width: 100%; }
 .status-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 13px; }
+.icon-indicator { display: flex; align-items: center; justify-content: center; }
 
 /* Timeline Area */
 .agent-flow-content {
@@ -1174,7 +1006,7 @@ const formatBytes = (bytes) => {
     display: flex; flex-direction: column;
     gap: 0;
     padding-left: 4px;
-    max-height: 400px;
+    max-height: 500px;
     overflow-y: auto; overflow-x: hidden;
     padding-bottom: 8px;
     /* Custom Scrollbar */
@@ -1187,9 +1019,24 @@ const formatBytes = (bytes) => {
     gap: 16px;
     position: relative;
     padding-bottom: 24px;
-    animation: flowSlideIn 0.3s ease-out forwards;
-    opacity: 0;
-    transform: translateY(10px);
+    /* animation: flowSlideIn 0.3s ease-out forwards; */
+}
+
+/* List Transitions */
+.list-move,
+.list-enter-active,
+.list-leave-active {
+  transition: all 0.3s ease;
+}
+
+.list-enter-from,
+.list-leave-to {
+  opacity: 0;
+  transform: translateY(10px);
+}
+
+.list-leave-active {
+  position: absolute;
 }
 
 .timeline-left {
@@ -1231,50 +1078,61 @@ const formatBytes = (bytes) => {
 
 /* Content Cards */
 .flow-card {
-    border-radius: 8px;
-    padding: 0;
-}
-.flow-card.thinking-card {
-    /* Box Style for Thinking */
-    background: var(--color-bg-primary);
-    border: 1px solid var(--color-border);
-    border-radius: 8px;
-    padding: 10px 14px;
-    /* Remove Left Border from previous design */
-    border-left: 1px solid var(--color-border); 
-    box-shadow: 0 1px 2px rgba(0,0,0,0.02);
-}
-.flow-card.thinking-card.ghost {
-    background: transparent;
-    border: 1px dashed var(--color-border);
-    opacity: 0.7;
+    border-radius: 12px;
+    padding: 12px 16px;
+    width: 100%;
 }
 
-.flow-card.tool-card {
-    background: #1e1e1e; /* Dark for terminal feel */
-    border-radius: 8px;
-    padding: 10px 14px;
+/* Glassmorphism */
+.glass-card {
+    background: rgba(255, 255, 255, 0.4);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.03);
+}
+
+.glass-card.thinking-card {
+    background: rgba(255, 255, 255, 0.6);
+    border-color: rgba(0, 0, 0, 0.05);
+}
+
+.glass-card.tool-card {
+    background: #1e1e1e; /* keep executed tools dark/terminal-like */
     color: #e5e7eb;
-    margin-top: -4px;
-}
-.flow-card.result-card {
-    background: var(--color-bg-tertiary);
-    border: 1px solid var(--color-border);
-    padding: 10px 14px;
-    border-radius: 8px;
-    margin-top: -4px;
+    border: 1px solid #374151;
 }
 
-/* Headers & Text */
+.glass-card.result-card {
+    background: rgba(255, 255, 255, 0.5);
+    border: 1px solid rgba(0,0,0,0.05);
+}
+
+.glass-card.ghost {
+    background: rgba(255, 255, 255, 0.2);
+    border: 1px dashed rgba(0, 0, 0, 0.1);
+}
+
+/* Dark Mode Overrides (assuming a class or media query, but let's stick to variables if possible) */
+/* Ideally we'd use CSS variables for these RGBA values if the app supports it.
+   Start by using variables if available, otherwise fallback.
+   I'll assume standard app variables for now.
+*/
+
 .card-header {
     display: flex; align-items: center; justify-content: space-between;
-    font-size: 11px; font-weight: 600;
+    font-size: 11px; font-weight: 700;
     color: var(--color-text-muted);
-    margin-bottom: 6px;
+    margin-bottom: 8px;
     text-transform: uppercase;
     letter-spacing: 0.5px;
 }
-.step-num { opacity: 0.7; }
+.header-badge {
+    background: rgba(0,0,0,0.05);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 10px;
+}
 
 .card-body.markdown-body {
     font-size: 14px;
@@ -1284,11 +1142,12 @@ const formatBytes = (bytes) => {
 }
 
 .tool-command-box {
-    font-family: 'Menlo', monospace;
+    font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
     font-size: 13px;
     line-height: 1.5;
+    color: #e5e7eb; /* Light text for dark terminal */
 }
-.prompt { color: #4ade80; margin-right: 6px; }
+.prompt { color: #4ade80; margin-right: 8px; user-select: none;}
 
 .result-badge {
     display: inline-flex;
@@ -1303,13 +1162,21 @@ const formatBytes = (bytes) => {
     font-size: 13px;
     color: var(--color-text-secondary);
     font-family: monospace;
-    opacity: 0.9;
+    opacity: 0.85;
 }
 
-@keyframes flowSlideIn {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
+.fade-text {
+    color: var(--color-text-muted);
+    font-style: italic;
+    font-size: 13px;
+    animation: flicker 2s infinite;
 }
+
+@keyframes flicker {
+    0%, 100% { opacity: 0.5; }
+    50% { opacity: 1; }
+}
+
 @keyframes pulse {
     0% { box-shadow: 0 0 0 0 rgba(var(--color-primary-rgb), 0.4); }
     70% { box-shadow: 0 0 0 6px rgba(var(--color-primary-rgb), 0); }
@@ -1323,25 +1190,7 @@ const formatBytes = (bytes) => {
 /* Responsive */
 @media (max-width: 768px) {
     .agent-flow-content {
-        max-height: 250px; /* Slightly smaller on mobile */
+        max-height: 350px;
     }
-    .step-body.markdown-body { font-size: 13px; }
 }
-
-/* Typing Indicator */
-.typing-indicator .dots { display: flex; gap: 4px; }
-.typing-indicator .dots span {
-  width: 5px; height: 5px; background: var(--color-text-muted);
-  border-radius: 50%; animation: bounce 1.4s infinite;
-}
-.typing-indicator .dots span:nth-child(2) { animation-delay: 0.2s; }
-.typing-indicator .dots span:nth-child(3) { animation-delay: 0.4s; }
-@keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
-
-/* Actions */
-.actions { margin-top: 8px; }
-.btn-icon-copy {
-    background: none; border: none; cursor: pointer; color: var(--color-text-muted); padding: 4px;
-}
-.btn-icon-copy:hover { color: var(--color-primary); }
-.btn-icon-copy.copied { color: var(--color-success); }
+</style>
