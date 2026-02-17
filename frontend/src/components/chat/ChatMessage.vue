@@ -312,93 +312,95 @@ const formatBytes = (bytes) => {
                 </div>
             </div>
 
-            <!-- Expanded Content: Polished Timeline -->
-            <div v-if="flowExpanded" class="agent-flow-content">
-                <div v-for="(evt, idx) in timelineEvents" :key="idx" class="timeline-item">
-                    <!-- Timeline Left: Icon & Line -->
-                    <div class="timeline-left">
-                        <div class="timeline-line" v-if="idx < timelineEvents.length - 1"></div>
-                        
-                        <!-- Icon: Thinking -->
-                        <div v-if="evt.type === 'thinking'" class="timeline-icon thinking">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path>
-                            </svg>
-                        </div>
-                        
-                        <!-- Icon: Tool Start -->
-                        <div v-else-if="evt.type === 'tool_start'" class="timeline-icon tool">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
-                            </svg>
-                        </div>
-                        
-                        <!-- Icon: Tool Complete -->
-                        <div v-else-if="evt.type === 'tool_complete'" class="timeline-icon success">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <polyline points="20 6 9 17 4 12"></polyline>
-                            </svg>
+            <!-- Expanded Content: Premium Timeline with Animations -->
+            <div v-if="flowExpanded" class="agent-flow-content custom-scroll">
+                <TransitionGroup name="list" tag="div" class="timeline-container">
+                    <div v-for="(evt, idx) in timelineEvents" :key="evt.id || idx" class="timeline-item">
+                        <!-- Timeline Left: Icon & Line -->
+                        <div class="timeline-left">
+                            <div class="timeline-line"></div>
+                            
+                            <!-- Icon: Thinking -->
+                            <div v-if="evt.type === 'thinking'" class="timeline-icon thinking">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path>
+                                </svg>
+                            </div>
+                            
+                            <!-- Icon: Tool Start -->
+                            <div v-else-if="evt.type === 'tool_start'" class="timeline-icon tool">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+                                </svg>
+                            </div>
+                            
+                            <!-- Icon: Tool Complete -->
+                            <div v-else-if="evt.type === 'tool_complete'" class="timeline-icon success">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polyline points="20 6 9 17 4 12"></polyline>
+                                </svg>
+                            </div>
+
+                            <!-- Icon: Default -->
+                            <div v-else class="timeline-icon">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <circle cx="12" cy="12" r="1"></circle>
+                                    <circle cx="19" cy="12" r="1"></circle>
+                                    <circle cx="5" cy="12" r="1"></circle>
+                                </svg>
+                            </div>
                         </div>
 
-                        <!-- Icon: Default -->
-                        <div v-else class="timeline-icon">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <circle cx="12" cy="12" r="1"></circle>
-                                <circle cx="19" cy="12" r="1"></circle>
-                                <circle cx="5" cy="12" r="1"></circle>
-                            </svg>
+                        <!-- Timeline Right: Premium Content Card -->
+                        <div class="timeline-right">
+                            <!-- Thinking Card -->
+                            <div v-if="evt.type === 'thinking'" class="flow-card glass-card thinking-card">
+                                <div class="card-header">
+                                    <span class="header-title">Thinking Process</span>
+                                    <span class="header-badge">Step {{ evt.step }}</span>
+                                </div>
+                                <div class="card-body markdown-body" v-html="render(evt.message)"></div>
+                            </div>
+
+                            <!-- Tool Use Card -->
+                            <div v-else-if="evt.type === 'tool_start'" class="flow-card glass-card tool-card">
+                                <div class="card-header">
+                                    <span class="header-title">Executing Tool</span>
+                                </div>
+                                <div class="tool-command-box">
+                                    <span class="prompt">$</span> {{ evt.toolName }}
+                                </div>
+                            </div>
+
+                            <!-- Tool Result Card -->
+                            <div v-else-if="evt.type === 'tool_complete'" class="flow-card glass-card result-card">
+                                <div class="result-badge" :class="evt.success ? 'success' : 'failure'">
+                                    {{ evt.success ? 'Success' : 'Failed' }}
+                                </div>
+                                <div v-if="evt.resultPreview" class="result-preview-text">
+                                    {{ evt.resultPreview.substring(0, 150) }}{{ evt.resultPreview.length > 150 ? '...' : '' }}
+                                </div>
+                            </div>
                         </div>
                     </div>
 
-                    <!-- Timeline Right: Content Card -->
-                    <div class="timeline-right">
-                        <!-- Thinking Card -->
-                        <div v-if="evt.type === 'thinking'" class="flow-card thinking-card">
-                            <div class="card-header">
-                                <span>Thinking Process</span>
-                                <span class="step-num">Step {{ evt.step }}</span>
-                            </div>
-                            <div class="card-body markdown-body" v-html="render(evt.message)"></div>
-                        </div>
-
-                        <!-- Tool Use Card -->
-                        <div v-else-if="evt.type === 'tool_start'" class="flow-card tool-card">
-                            <div class="card-header">
-                                <span>Executing Tool</span>
-                            </div>
-                            <div class="tool-command-box">
-                                <span class="prompt">$</span> {{ evt.toolName }}
+                    <!-- Streaming Pulse Indicator -->
+                    <div v-if="!agentSummary?.isComplete && isStreaming" key="streaming-pulse" class="timeline-item">
+                        <div class="timeline-left">
+                            <div class="timeline-icon pulse">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <circle cx="12" cy="12" r="10"></circle>
+                                    <polyline points="12 6 12 12 16 14"></polyline>
+                                </svg>
                             </div>
                         </div>
-
-                        <!-- Tool Result Card -->
-                        <div v-else-if="evt.type === 'tool_complete'" class="flow-card result-card">
-                            <div class="result-badge" :class="evt.success ? 'success' : 'failure'">
-                                {{ evt.success ? 'Success' : 'Failed' }}
-                            </div>
-                            <div v-if="evt.resultPreview" class="result-preview-text">
-                                {{ evt.resultPreview.substring(0, 150) }}{{ evt.resultPreview.length > 150 ? '...' : '' }}
+                         <div class="timeline-right">
+                            <div class="flow-card glass-card ghost">
+                                <div class="card-body fade-text">Processing...</div>
                             </div>
                         </div>
                     </div>
-                </div>
-
-                <!-- Streaming Pulse -->
-                <div v-if="!agentSummary?.isComplete && isStreaming" class="timeline-item">
-                    <div class="timeline-left">
-                        <div class="timeline-icon pulse">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <circle cx="12" cy="12" r="10"></circle>
-                                <polyline points="12 6 12 12 16 14"></polyline>
-                            </svg>
-                        </div>
-                    </div>
-                     <div class="timeline-right">
-                        <div class="flow-card thinking-card ghost">
-                            <div class="card-body">Processing...</div>
-                        </div>
-                    </div>
-                </div>
+                </TransitionGroup>
             </div>
           </div>
 
