@@ -72,7 +72,6 @@ export class AgentWorkflow {
         res.flushHeaders(); // Send headers immediately
 
         // Disable Nagle's algorithm — send each write() as a separate TCP packet immediately
-        // This is THE critical fix for real-time SSE delivery
         const socket = (res as any).socket || (res as any).connection;
         if (socket && typeof socket.setNoDelay === 'function') {
             socket.setNoDelay(true);
@@ -81,6 +80,14 @@ export class AgentWorkflow {
         if (typeof (res as any).uncork === 'function') {
             (res as any).uncork();
         }
+
+        // ── Proxy Buffer Flush Padding ──
+        // Many reverse proxies (Apache, IIS, university proxies) buffer the first 4KB-16KB
+        // before forwarding. By sending a large SSE comment (ignored by parsers), we force
+        // the proxy to flush its buffer. Subsequent events will then stream through immediately.
+        const PROXY_PADDING_SIZE = 16 * 1024; // 16KB — exceeds most proxy buffer thresholds
+        const padding = `: ${'-'.repeat(PROXY_PADDING_SIZE)}\n\n`;
+        res.write(padding);
 
         // Client disconnect detection for SSE
         let clientDisconnected = false;
