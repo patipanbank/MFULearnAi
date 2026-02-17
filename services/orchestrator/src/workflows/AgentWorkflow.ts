@@ -123,6 +123,17 @@ export class AgentWorkflow {
         // ▸ EVENT: agent_start
         emitEvent(EVENT.AGENT_START, { traceId, sessionId });
 
+        // ── Heartbeat Timer ──
+        // Send a ping every 2 seconds to keep connection active and force buffer flush
+        // during long idle periods (e.g. tool execution, LLM generation)
+        let heartbeatInterval: NodeJS.Timeout | null = setInterval(() => {
+            if (!clientDisconnected && !res.writableEnded) {
+                // SSE comment (ignored by client parser) but forces data flow
+                res.write(': ping\n\n');
+                if (typeof (res as any).flush === 'function') (res as any).flush();
+            }
+        }, 2000);
+
         try {
             // 1.1 Load History + Smart Context (Agent Memory)
             emitEvent(EVENT.STATUS, { message: 'กำลังโหลดบริบทการสนทนา...' });
@@ -619,6 +630,8 @@ ${JSON.stringify(smartContext?.rolling || {}, null, 2)}`
                 // Clear status and close stream
                 emitEvent(EVENT.STATUS, { message: '' });
                 safeWrite('data: [DONE]\n\n');
+                // Clear heartbeat timer
+                if (heartbeatInterval) clearInterval(heartbeatInterval);
                 if (!res.writableEnded) res.end();
 
                 // 7. Telemetry & Persistence
