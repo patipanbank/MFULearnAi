@@ -100,7 +100,9 @@ export class AgentWorkflow {
         // ── Helper: Emit structured SSE event ──
         const eventLog: any[] = [];
         const emitEvent = (type: string, payload: Record<string, any> = {}) => {
-            const event = { type, ...payload, timestamp: new Date().toISOString() };
+            const now = new Date();
+            const event = { type, ...payload, timestamp: now.toISOString() };
+            console.log(`[SSE_EMIT] ${now.toISOString()} | type=${type}`);
             safeWrite(`data: ${JSON.stringify(event)}\n\n`);
             // Store in eventLog for MongoDB persistence (skip high-frequency deltas)
             if (type !== EVENT.ANSWER_DELTA) {

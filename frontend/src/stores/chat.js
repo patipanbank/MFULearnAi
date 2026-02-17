@@ -227,7 +227,7 @@ export const useChatStore = defineStore('chat', () => {
                 if (done) break
 
                 const chunk = decoder.decode(value, { stream: true })
-                // console.log('[ChatStore] Received chunk:', chunk)
+                console.log(`[SSE_RECV] ${new Date().toISOString()} | chunk_length=${chunk.length}`)
 
                 const lines = chunk.split('\n')
                 for (const line of lines) {
@@ -237,6 +237,7 @@ export const useChatStore = defineStore('chat', () => {
 
                         try {
                             const data = JSON.parse(dataStr)
+                            console.log(`[SSE_EVENT] ${new Date().toISOString()} | type=${data.type} | backend_ts=${data.timestamp}`)
 
                             // Helper: ensure agentEvents array exists
                             const ensureEvents = () => {
