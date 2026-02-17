@@ -67,13 +67,7 @@ interface WorkflowState {
 
 export class AgentWorkflow {
     private ctx: AgentContext;
-    private state: WorkflowState;
-    private store: AgentEventStore;
-
-    // Real-time throttling
-    private deltaBuffer: string = '';
-    private deltaTimer: NodeJS.Timeout | null = null;
-    private lastEmitTime: number = 0;
+    private state: WorkflowState; private store: AgentEventStore;
 
     private constructor(ctx: AgentContext) {
         this.ctx = ctx;
@@ -123,28 +117,6 @@ export class AgentWorkflow {
         this.store.emit(type, payload);
     }
 
-    private emitDelta(delta: string) {
-        this.deltaBuffer += delta;
-        const now = Date.now();
-        // Flush if time elapsed > 20ms or buffer too large
-        if (now - this.lastEmitTime > 20 || this.deltaBuffer.length > 50) {
-            this.flushDelta();
-        } else if (!this.deltaTimer) {
-            this.deltaTimer = setTimeout(() => this.flushDelta(), 20);
-        }
-    }
-
-    private flushDelta() {
-        if (this.deltaBuffer) {
-            this.emit(AGENT_EVENTS.ANSWER_DELTA, { delta: this.deltaBuffer });
-            this.deltaBuffer = '';
-            this.lastEmitTime = Date.now();
-        }
-        if (this.deltaTimer) {
-            clearTimeout(this.deltaTimer);
-            this.deltaTimer = null;
-        }
-    }
 
     private async run(): Promise<{ traceId: string }> {
         LoggerService.info('agent_workflow_start', {
@@ -412,15 +384,12 @@ ${JSON.stringify(smartContext?.rolling || {}, null, 2)}`
                 this.state.messages,
                 (delta) => {
                     if (!firstTokenTime) firstTokenTime = Date.now();
-                    this.emitDelta(delta);
+                    this.emit(AGENT_EVENTS.ANSWER_DELTA, { delta });
                 },
                 0.5,
                 toolConfig,
                 guardrailConfig
             );
-
-            // Flush any remaining buffer
-            this.flushDelta();
 
             // Update Usage
             const stepDurationMs = Date.now() - stepStartTime;
