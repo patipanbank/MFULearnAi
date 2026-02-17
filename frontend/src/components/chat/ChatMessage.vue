@@ -1086,21 +1086,22 @@ const formatBytes = (bytes) => {
 </style>
 
 
-/* === Agent Flow Redesign === */
+/* === Agent Flow Redesign (Round 2) === */
 .agent-flow-container {
     margin-bottom: 12px;
-    border-left: 2px solid var(--color-border);
-    padding-left: 12px;
+    /* Removed border-left */
+    /* Removed padding-left to make it flush */
 }
 
 .agent-flow-header {
-    background: none; border: none; padding: 0;
+    background: none; border: none; padding: 4px 0;
     cursor: pointer;
     display: flex; align-items: center;
     color: var(--color-text-muted);
     font-size: 13px; font-weight: 500;
     transition: color 0.2s;
     outline: none;
+    width: 100%; /* Full width for click target */
 }
 .agent-flow-header:hover { color: var(--color-text-primary); }
 
@@ -1109,36 +1110,65 @@ const formatBytes = (bytes) => {
 
 .agent-flow-content {
     margin-top: 8px;
-    display: flex; flex-direction: column; gap: 12px;
-    padding-left: 4px; /* Slight indent */
-    animation: slideDown 0.2s ease-out;
+    display: flex; flex-direction: column; gap: 16px; /* Increased gap for better readability */
+    padding-left: 22px; /* Indent to align with text, not icon */
+    
+    /* Fixed Height & Scroll */
+    max-height: 300px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    
+    /* Scrollbar Styling */
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-border) transparent;
 }
+
+.agent-flow-content::-webkit-scrollbar { width: 4px; }
+.agent-flow-content::-webkit-scrollbar-track { background: transparent; }
+.agent-flow-content::-webkit-scrollbar-thumb { background: var(--color-border); border-radius: 4px; }
+
+.flow-item {
+    animation: flowStepEnter 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    opacity: 0;
+    transform: translateY(10px);
+}
+
+/* Stagger animation based on child index (approximate) */
+.flow-item:nth-child(1) { animation-delay: 0.05s; }
+.flow-item:nth-child(2) { animation-delay: 0.1s; }
+.flow-item:nth-child(3) { animation-delay: 0.15s; }
+.flow-item:nth-child(4) { animation-delay: 0.2s; }
+.flow-item:nth-child(n+5) { animation-delay: 0.25s; }
 
 .flow-step { font-size: 14px; color: var(--color-text-secondary); }
 
 .step-title {
     font-weight: 600;
     margin-bottom: 4px;
-    font-size: 12px;
+    font-size: 11px;
     color: var(--color-text-muted);
     text-transform: uppercase;
     letter-spacing: 0.5px;
     display: flex; align-items: center; gap: 6px;
+    opacity: 0.8;
 }
 
 .step-body.markdown-body {
     white-space: pre-wrap;
     line-height: 1.6;
     color: var(--color-text-secondary);
+    font-size: 14px;
 }
 
 .step-body.code-font {
-    font-family: monospace;
+    font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
     background: var(--color-bg-secondary);
-    padding: 6px 10px;
-    border-radius: 6px;
-    font-size: 13px;
-    border: 1px solid var(--color-border);
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 12px;
+    /* Blend with background, but distinct enough for code */
+    border: none; 
+    color: var(--color-text-primary);
 }
 
 .step-body.fade-text {
@@ -1147,9 +1177,18 @@ const formatBytes = (bytes) => {
     font-style: italic;
 }
 
-@keyframes slideDown {
-    from { opacity: 0; transform: translateY(-5px); }
+@keyframes flowStepEnter {
+    from { opacity: 0; transform: translateY(10px); }
     to { opacity: 1; transform: translateY(0); }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .agent-flow-content {
+        max-height: 250px; /* Slightly smaller on mobile */
+        padding-left: 14px; /* Less indent */
+    }
+    .step-body.markdown-body { font-size: 13px; }
 }
 
 /* Typing Indicator */
