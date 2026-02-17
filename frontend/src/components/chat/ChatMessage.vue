@@ -59,10 +59,9 @@ const agentSummary = computed(() => {
 
 const timelineEvents = computed(() => {
     if (!hasAgentEvents.value) return []
-    // Filter to display-worthy events only
+    // Filter to display-worthy events only - Simplified for user
     return props.message.agentEvents.filter(e =>
-        ['context_loaded', 'agent_step', 'thinking', 'tool_start', 'tool_complete',
-         'answer_start', 'answer_done', 'agent_complete', 'step_usage'].includes(e.type)
+        ['thinking', 'tool_start', 'tool_complete', 'answer_start', 'agent_complete'].includes(e.type)
     )
 })
 
@@ -83,29 +82,19 @@ const eventIcon = (type) => {
 
 const eventLabel = (evt) => {
     switch (evt.type) {
-        case 'context_loaded':
-            return `Context loaded — ${evt.historyCount || 0} messages${evt.hasSmartContext ? ', smart context ✓' : ''}`
-        case 'agent_step':
-            return `Step ${evt.step}/${evt.maxSteps}`
         case 'thinking':
             return evt.message || 'Thinking...'
         case 'tool_start':
-            return `${evt.toolName}(${typeof evt.input === 'object' ? JSON.stringify(evt.input).substring(0, 60) : String(evt.input || '').substring(0, 60)})`
+            return `Used Tool: ${evt.toolName}` // Simplified
         case 'tool_complete': {
-            const dur = evt.durationMs ? ` (${(evt.durationMs / 1000).toFixed(1)}s)` : ''
-            const status = evt.success ? '✓' : '✗'
-            return `${evt.toolName} → ${status}${dur}`
+            const status = evt.success ? 'Success' : 'Failed'
+            return `Tool ${evt.toolName}: ${status}`
         }
         case 'answer_start':
-            return `Generating answer — ${evt.answerMode || 'internal'} mode`
-        case 'answer_done':
-            return `Answer complete — ${evt.fullLength || '?'} chars`
+            return `Compiling answer...`
         case 'agent_complete': {
-            const dur = evt.durationMs ? ` in ${(evt.durationMs / 1000).toFixed(1)}s` : ''
-            return `Done — ${evt.totalSteps} step(s), ${evt.totalTokens || '?'} tokens${dur}`
+            return `Finished`
         }
-        case 'step_usage':
-            return `Tokens: in=${evt.input || 0} out=${evt.output || 0}`
         default:
             return evt.type
     }
@@ -308,10 +297,7 @@ const formatBytes = (bytes) => {
             >
               <span class="flow-icon">🤖</span>
               <span class="flow-label">
-                Agent Flow
-                <template v-if="agentSummary">
-                  ({{ agentSummary.steps }} step{{ agentSummary.steps !== 1 ? 's' : '' }}<template v-if="agentSummary.durationStr">, {{ agentSummary.durationStr }}</template>)
-                </template>
+                {{ agentSummary?.isComplete ? 'Finished' : 'Working...' }}
               </span>
               <span v-if="!agentSummary?.isComplete && isStreaming" class="flow-streaming-dot"></span>
               <svg class="flow-chevron" :class="{ rotated: flowExpanded }" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
