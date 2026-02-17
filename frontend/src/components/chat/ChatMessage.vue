@@ -17,7 +17,19 @@ const { render, copyToClipboard } = useMarkdown()
 const copied = ref(false)
 const viewingImage = ref(null)
 const messageRef = ref(null)
-const flowExpanded = ref(false)
+const flowManualToggle = ref(null) // null = auto, true/false = user override
+
+// Auto-expand during streaming, collapse when done. User can override.
+const flowExpanded = computed(() => {
+    if (flowManualToggle.value !== null) return flowManualToggle.value
+    // Auto-expand while streaming, auto-collapse when agent_complete received
+    if (props.isStreaming && hasAgentEvents.value) return true
+    return false
+})
+
+const toggleFlow = () => {
+    flowManualToggle.value = flowManualToggle.value === null ? !flowExpanded.value : !flowManualToggle.value
+}
 
 // ── Agent Flow Timeline computeds ──
 const hasAgentEvents = computed(() => {
@@ -281,23 +293,12 @@ const formatBytes = (bytes) => {
             </div>
           </div>
           
-          <div ref="messageRef" class="prose-content prose" v-if="message.content" v-html="render(message.content)"></div>
           
-          <!-- Typing Indicator / Status (Dynamic) -->
-          <div v-if="!message.content || (message.status && message.status !== '' && !message.content)" class="typing-indicator">
-            <div class="dots" v-if="!message.content">
-              <span></span>
-              <span></span>
-              <span></span>
-            </div>
-            <span class="text animate-flicker">{{ message.status || t('thinking') }}</span>
-          </div>
-
-          <!-- ══ Agent Flow Timeline ══ -->
+          <!-- ══ Agent Flow Timeline (BEFORE answer — shows real-time progression) ══ -->
           <div v-if="hasAgentEvents" class="agent-flow-container">
             <button
               class="agent-flow-toggle"
-              @click="flowExpanded = !flowExpanded"
+              @click="toggleFlow"
               :class="{ expanded: flowExpanded }"
             >
               <span class="flow-icon">🤖</span>
@@ -322,7 +323,7 @@ const formatBytes = (bytes) => {
                   :class="{ 'sub-event': isSubEvent(evt.type), 'tool-event': isToolEvent(evt.type) }"
                 >
                   <span class="event-connector">
-                    <span class="connector-line" v-if="idx < timelineEvents.length - 1"></span>
+                    <span class="connector-line" v-if="idx < timelineEvents.length - 1 || (!agentSummary?.isComplete && isStreaming)"></span>
                     <span class="connector-dot">{{ eventIcon(evt.type) }}</span>
                   </span>
                   <span class="event-content">
@@ -340,11 +341,24 @@ const formatBytes = (bytes) => {
                     <span class="connector-dot pulse">⏳</span>
                   </span>
                   <span class="event-content">
-                    <span class="event-label animate-flicker">Processing...</span>
+                    <span class="event-label animate-flicker">{{ message.status || 'Processing...' }}</span>
                   </span>
                 </div>
               </div>
             </Transition>
+          </div>
+
+          <!-- Answer content (appears AFTER agent flow — the final step) -->
+          <div ref="messageRef" class="prose-content prose" v-if="message.content" v-html="render(message.content)"></div>
+          
+          <!-- Typing Indicator — ONLY when NO agent events (fallback for non-agent responses) -->
+          <div v-if="!message.content && !hasAgentEvents" class="typing-indicator">
+            <div class="dots">
+              <span></span>
+              <span></span>
+              <span></span>
+            </div>
+            <span class="text animate-flicker">{{ message.status || t('thinking') }}</span>
           </div>
 
           <!-- AI Actions (Copy Button icon only) -->
