@@ -358,7 +358,7 @@ const formatBytes = (bytes) => {
                                 <span>Thinking Process</span>
                                 <span class="step-num">Step {{ evt.step }}</span>
                             </div>
-                            <div class="card-body markdown-body">{{ evt.message }}</div>
+                            <div class="card-body markdown-body" v-html="render(evt.message)"></div>
                         </div>
 
                         <!-- Tool Use Card -->
@@ -377,7 +377,7 @@ const formatBytes = (bytes) => {
                                 {{ evt.success ? 'Success' : 'Failed' }}
                             </div>
                             <div v-if="evt.resultPreview" class="result-preview-text">
-                                {{ evt.resultPreview.substring(0, 120) }}{{ evt.resultPreview.length > 120 ? '...' : '' }}
+                                {{ evt.resultPreview.substring(0, 150) }}{{ evt.resultPreview.length > 150 ? '...' : '' }}
                             </div>
                         </div>
                     </div>
@@ -1233,12 +1233,18 @@ const formatBytes = (bytes) => {
     padding: 0;
 }
 .flow-card.thinking-card {
-    /* Minimalist for thinking */
-    border-left: 2px solid var(--color-border);
-    padding-left: 12px;
+    /* Box Style for Thinking */
+    background: var(--color-bg-primary);
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    padding: 10px 14px;
+    /* Remove Left Border from previous design */
+    border-left: 1px solid var(--color-border); 
+    box-shadow: 0 1px 2px rgba(0,0,0,0.02);
 }
 .flow-card.thinking-card.ghost {
-    border-left: 2px dashed var(--color-border);
+    background: transparent;
+    border: 1px dashed var(--color-border);
     opacity: 0.7;
 }
 
