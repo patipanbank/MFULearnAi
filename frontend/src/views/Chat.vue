@@ -76,6 +76,29 @@ const handleScroll = () => {
   // "Show Button" threshold: loose (e.g. 200px)
   // Don't show button for minor scroll ups
   showScrollBtn.value = distFromBottom > 200
+
+  // --- Reverse Lazy Load (Pagination) ---
+  if (el.scrollTop < 80 && chatStore.hasMoreHistory && !chatStore.isLoadingHistory) {
+    loadMoreWithAnchor()
+  }
+}
+
+// Load older messages while maintaining scroll position
+const loadMoreWithAnchor = async () => {
+  const el = messagesRef.value
+  if (!el) return
+
+  const prevScrollHeight = el.scrollHeight
+  
+  await chatStore.loadMoreHistory()
+  
+  await nextTick()
+  
+  // Adjust scroll position to prevent jumping
+  // (Safari 26+ handles this via overflow-anchor: auto, but manual adjustment is safer for cross-browser)
+  if (el.scrollHeight > prevScrollHeight) {
+     el.scrollTop = el.scrollHeight - prevScrollHeight
+  }
 }
 
 // Lifecycle
@@ -336,6 +359,19 @@ const closeEvidenceViewer = () => {
         />
         
         <div v-else class="messages-list">
+          
+          <!-- History Loading Indicator -->
+          <div v-if="chatStore.isLoadingHistory" class="history-loading">
+            <div class="history-loading-dots">
+              <span /><span /><span />
+            </div>
+          </div>
+
+          <!-- End of History -->
+          <div v-if="!chatStore.hasMoreHistory && chatStore.messages.length > 0" class="history-end">
+            <span>เริ่มต้นการสนทนา</span>
+          </div>
+
           <TransitionGroup name="fade-slide">
             <ChatMessage
               v-for="(msg, idx) in chatStore.messages"
@@ -348,7 +384,8 @@ const closeEvidenceViewer = () => {
               @copy="handleCopyMessage"
             />
           </TransitionGroup>
-          
+          <!-- Scroll Anchor for Safari 26+ overflow-anchor: auto -->
+          <div class="scroll-anchor" />
         </div>
       </div>
       
@@ -427,12 +464,55 @@ const closeEvidenceViewer = () => {
   scroll-behavior: smooth;
   /* Safari 26: Support safe area for notch/dynamic island */
   padding-bottom: env(safe-area-inset-bottom, 0px);
+  /* Safari 26: Prevent jump on prepend */
+  overflow-anchor: auto;
 }
 
 .messages-list {
   max-width: 800px;
   margin: 0 auto;
   padding: 24px;
+  /* Anchor point at latest message */
+  overflow-anchor: none;
+}
+
+.scroll-anchor {
+  overflow-anchor: auto;
+  height: 1px;
+}
+
+.history-loading {
+  display: flex;
+  justify-content: center;
+  padding: 16px;
+}
+
+.history-loading-dots {
+  display: flex;
+  gap: 6px;
+}
+
+.history-loading-dots span {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-text-muted);
+  animation: bounce 1s infinite;
+}
+
+.history-loading-dots span:nth-child(2) { animation-delay: 0.15s; }
+.history-loading-dots span:nth-child(3) { animation-delay: 0.3s; }
+
+@keyframes bounce {
+  0%, 80%, 100% { transform: translateY(0); opacity: 0.4; }
+  40%           { transform: translateY(-6px); opacity: 1; }
+}
+
+.history-end {
+  text-align: center;
+  padding: 16px;
+  font-size: 12px;
+  color: var(--color-text-muted);
 }
 
 /* Transitions */

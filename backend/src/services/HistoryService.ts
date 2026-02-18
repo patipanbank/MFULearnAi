@@ -47,10 +47,51 @@ export class HistoryService {
         return { messages, smartContext };
     }
 
-    // Deprecated: pure getHistory
-    static async getHistory(userId: string, sessionId: string): Promise<ChatMessage[]> {
-        const res = await this.getContext(userId, sessionId);
-        return res.messages;
+    // Supports Pagination: Redis (Hot) -> MongoDB (Cold)
+    static async getHistoryWithPagination(userId: string, sessionId: string, limit: number = 20, beforeTimestamp?: string): Promise<ChatMessage[]> {
+        // Case 1: Initial Load (No cursor) -> Try Redis First
+        if (!beforeTimestamp) {
+            const { messages } = await this.getContext(userId, sessionId);
+            if (messages.length > 0) return messages;
+        }
+
+        // Case 2: Load Older (Cursor exists) OR Redis Miss -> Query MongoDB
+        const query: any = { userId, sessionId };
+
+        // Use aggregation to slice the messages array effectively
+        // Since messages are embedded, we must unwind/filter/sort/group or use $slice with $filter
+        // BUT 'messages' in Mongo is an array sorted by insertion (usually chronological).
+        // Pagination on embedded arrays is tricky.
+
+        // Simpler approach for embedded array:
+        // Fetch the conversation, but use projection/filtering if possible.
+        // Mongoose doesn't support $elemMatch with sort/limit easily on embedded arrays without aggregation.
+
+        const conversation = await Conversation.findOne(query).select('messages');
+        if (!conversation || !conversation.messages) return [];
+
+        let allMessages = conversation.messages as unknown as ChatMessage[];
+
+        // Sort descending (newest first) to paginate backwards
+        allMessages.sort((a, b) => {
+            const tA = a.timestamp ? new Date(a.timestamp).getTime() : 0;
+            const tB = b.timestamp ? new Date(b.timestamp).getTime() : 0;
+            return tB - tA;
+        });
+
+        if (beforeTimestamp) {
+            const beforeTime = new Date(beforeTimestamp).getTime();
+            allMessages = allMessages.filter(m => {
+                const t = m.timestamp ? new Date(m.timestamp).getTime() : 0;
+                return t < beforeTime;
+            });
+        }
+
+        // Take limit
+        const sliced = allMessages.slice(0, limit);
+
+        // Return ascending for frontend display
+        return sliced.reverse();
     }
 
     static async addMessage(userId: string, sessionId: string, message: ChatMessage) {

@@ -24,6 +24,13 @@ export const useChatStore = defineStore('chat', () => {
     const isStreaming = ref(false)
     const availableModels = ref([])
 
+    // Pagination State
+    const hasMoreHistory = ref(true)
+    const isLoadingHistory = ref(false)
+    const oldestMessageTimestamp = computed(() =>
+        messages.value[0]?.timestamp ?? null
+    )
+
     const currentSession = computed(() =>
         sessions.value.find(s => s.sessionId === currentSessionId.value)
     )
@@ -63,10 +70,19 @@ export const useChatStore = defineStore('chat', () => {
         if (!sessionId || currentSessionId.value === sessionId && messages.value.length > 0) return
 
         isLoading.value = true
+        // Reset pagination state on new session load
+        hasMoreHistory.value = true
         try {
             const response = await api.get(`/chat/${sessionId}`)
             messages.value = response.data.messages || []
             currentSessionId.value = sessionId
+
+            // If we got fewer than limit (e.g. 50 from Redis), assumption: might be more in Mongo?
+            // Actually, simplest logic: if < 20, assume end. If >= 20, assume more.
+            // Redis returns 50. So if >= 50, hasMore = true.
+            if (messages.value.length < 20) {
+                hasMoreHistory.value = false
+            }
 
             // If the session isn't in our list yet (e.g. deep link), we should reload list
             const exists = sessions.value.some(s => s.sessionId === sessionId)
@@ -80,6 +96,41 @@ export const useChatStore = defineStore('chat', () => {
             messages.value = []
         } finally {
             isLoading.value = false
+        }
+    }
+
+    // Load older history (Reverse Lazy Load)
+    async function loadMoreHistory() {
+        if (isLoadingHistory.value || !hasMoreHistory.value) return
+        if (!currentSessionId.value || !oldestMessageTimestamp.value) return
+
+        isLoadingHistory.value = true
+        try {
+            console.log('[ChatStore] Loading more history before:', oldestMessageTimestamp.value)
+            const response = await api.get(`/chat/${currentSessionId.value}`, {
+                params: {
+                    before: oldestMessageTimestamp.value,
+                    limit: 20
+                }
+            })
+
+            const olderMessages = response.data.messages || []
+
+            if (olderMessages.length === 0) {
+                hasMoreHistory.value = false
+                return
+            }
+
+            // Prepend older messages
+            messages.value = [...olderMessages, ...messages.value]
+
+            if (olderMessages.length < 20) {
+                hasMoreHistory.value = false
+            }
+        } catch (error) {
+            console.error('Failed to load more history:', error)
+        } finally {
+            isLoadingHistory.value = false
         }
     }
 
@@ -594,6 +645,12 @@ export const useChatStore = defineStore('chat', () => {
         sendMessage,
         stopGeneration,
         clearSession,
-        deleteSession
+        sendMessage,
+        stopGeneration,
+        clearSession,
+        deleteSession,
+        hasMoreHistory,
+        isLoadingHistory,
+        loadMoreHistory
     }
 })

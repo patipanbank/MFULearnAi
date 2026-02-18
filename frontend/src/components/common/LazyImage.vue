@@ -21,7 +21,13 @@ onMounted(() => {
         observer.disconnect()
       }
     },
-    { rootMargin: '100px' } // Start loading 100px before viewport
+    {
+      // Safari 26+: Use scrollMargin for precise intersection detection in nested scroll containers
+      // rootMargin as fallback for older browsers
+      scrollMargin: '120px',
+      rootMargin: '120px',
+      threshold: 0.01
+    }
   )
   if (imgRef.value) observer.observe(imgRef.value)
 })
