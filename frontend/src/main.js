@@ -5,6 +5,7 @@ import router from './router'
 import CoreuiVue from '@coreui/vue'
 import '@coreui/coreui/dist/css/coreui.min.css'
 import './styles/main.css'
+import './styles/code-block.css'
 
 // Click outside directive
 const clickOutside = {
