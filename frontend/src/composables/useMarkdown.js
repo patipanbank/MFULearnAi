@@ -17,17 +17,15 @@ renderer.code = ({ text, lang }) => {
         : hljs.highlightAuto(validCode).value
 
     // Improve label: Capitalize if possible, or use 'Code' if undefined
-    const langLabel = language ? language : 'Code'
+    const langLabel = language ? language.charAt(0).toUpperCase() + language.slice(1) : 'Code'
     const codeClass = language || 'plaintext'
-
-    const copyIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2-2v1"></path></svg>`
 
     return `
 <div class="code-wrapper">
     <div class="code-header">
         <span class="code-lang">${langLabel}</span>
         <button class="code-copy-btn" title="Copy code">
-            ${copyIcon}
+            ${COPY_ICON}
         </button>
     </div>
     <pre><code class="hljs language-${codeClass}">${highlighted}</code></pre>
@@ -46,9 +44,16 @@ export function useMarkdown() {
     // Since this composable might be used in multiple places, we need to be careful not to add duplicate listeners repeatedly
     // A simple way is to check if we've already attached logic, or just attach/detach per component lifecycle.
 
+    // Icons
+    const COPY_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2-2v1"></path></svg>`
+    const CHECK_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>`
+
     const handleCopyClick = async (e) => {
         const btn = e.target.closest('.code-copy-btn')
         if (!btn) return
+
+        // Prevent race conditions if already copied
+        if (btn.classList.contains('copied')) return
 
         // Find the code block content
         const wrapper = btn.closest('.code-wrapper')
@@ -63,13 +68,15 @@ export function useMarkdown() {
             await navigator.clipboard.writeText(text)
 
             // Feedback: Change Icon to Checkmark
-            const originalIcon = btn.innerHTML
-            btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>`
+            btn.innerHTML = CHECK_ICON
             btn.classList.add('copied')
 
             setTimeout(() => {
-                btn.innerHTML = originalIcon
-                btn.classList.remove('copied')
+                // Only revert if we are still in the copied state (simple check, though block above handles rapid clicks)
+                if (btn.classList.contains('copied')) {
+                    btn.innerHTML = COPY_ICON
+                    btn.classList.remove('copied')
+                }
             }, 2000)
         } catch (err) {
             console.error('Failed to copy code:', err)

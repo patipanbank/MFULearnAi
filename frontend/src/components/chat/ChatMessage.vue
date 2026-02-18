@@ -492,7 +492,7 @@ const formatBytes = (bytes) => {
           </div>
 
           <!-- Answer content -->
-          <div ref="messageRef" class="prose-content prose" v-if="message.content" v-html="render(message.content)"></div>
+          <div ref="messageRef" class="prose-content prose markdown-body" v-if="message.content" v-html="render(message.content)"></div>
           
           <!-- Typing Indicator (Legacy/Fallback) -->
           <div v-if="!message.content && !showAgentFlow" class="typing-indicator">

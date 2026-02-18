@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CSS Debug</title>
+    <style>
+        /* Mimic main.css variables */
+        :root {
+            --color-border: #e2e8f0;
+            --color-bg-secondary: #f8fafc;
+            /* ... others ... */
+        }
+        
+        /* Mimic .prose styles if any (legacy from main.css I saw earlier?) */
+        .prose pre {
+            background-color: #1e293b; /* hypothetical conflict */
+            padding: 1rem;
+            border-radius: 0.5rem;
+        }
+
+        /* Paste code-block.css content here */
+        /* Base Wrapper - High Specificity */
+        .code-wrapper {
+          margin: 1.5rem 0 !important;
+          border-radius: 6px !important;
+          overflow: hidden !important;
+          border: 1px solid #d0d7de !important;
+          background-color: transparent !important;
+          font-family: ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, Liberation Mono, monospace !important;
+          display: flex !important;
+          flex-direction: column !important;
+          width: 100% !important;
+        }
+
+        .code-header {
+          display: flex !important;
+          justify-content: space-between !important;
+          align-items: center !important;
+          padding: 8px 12px !important;
+          background-color: transparent !important;
+          border-bottom: 1px solid #d0d7de !important;
+          font-size: 11px !important;
+          color: #57606a !important;
+          font-weight: 600 !important;
+        }
+
+        .code-wrapper pre {
+          margin: 0 !important;
+          padding: 16px !important;
+          background: transparent !important;
+          border: none !important;
+        }
+
+        .code-wrapper code {
+            color: #24292f !important;
+        }
+    </style>
+</head>
+<body>
+    <div class="prose-content prose">
+        <!-- Rendered Code Block -->
+        <div class="code-wrapper">
+            <div class="code-header">
+                <span class="code-lang">python</span>
+                <button class="code-copy-btn">Copy</button>
+            </div>
+            <pre><code class="hljs language-python">print("Hello")</code></pre>
+        </div>
+    </div>
+</body>
+</html>
