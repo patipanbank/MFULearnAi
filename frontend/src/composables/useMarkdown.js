@@ -1,27 +1,89 @@
-import { computed } from 'vue'
+import { onMounted, onUnmounted } from 'vue'
 import { marked } from 'marked'
 import hljs from 'highlight.js'
 
-// Configure marked once
+// Configure marked with custom renderer
+const renderer = new marked.Renderer()
+
+renderer.code = (code, language) => {
+    const validLang = !!(language && hljs.getLanguage(language))
+    const highlighted = validLang
+        ? hljs.highlight(code, { language }).value
+        : hljs.highlightAuto(code).value
+
+    const langLabel = language ? language : 'text'
+
+    // Icon for copy button (SVG)
+    const copyIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>`
+
+    return `
+<div class="code-wrapper">
+    <div class="code-header">
+        <span class="code-lang">${langLabel}</span>
+        <button class="code-copy-btn" title="Copy code">
+            ${copyIcon}
+            <span>Copy</span>
+        </button>
+    </div>
+    <pre><code class="hljs language-${langLabel}">${highlighted}</code></pre>
+</div>`
+}
+
 marked.setOptions({
-    highlight: (code, lang) => {
-        if (lang && hljs.getLanguage(lang)) {
-            return hljs.highlight(code, { language: lang }).value
-        }
-        return hljs.highlightAuto(code).value
-    },
+    renderer,
     breaks: true,
     gfm: true
 })
 
 export function useMarkdown() {
+
+    // Global click handler for copy buttons
+    // Since this composable might be used in multiple places, we need to be careful not to add duplicate listeners repeatedly
+    // A simple way is to check if we've already attached logic, or just attach/detach per component lifecycle.
+
+    const handleCopyClick = async (e) => {
+        const btn = e.target.closest('.code-copy-btn')
+        if (!btn) return
+
+        // Find the code block content
+        const wrapper = btn.closest('.code-wrapper')
+        if (!wrapper) return
+
+        const codeBlock = wrapper.querySelector('pre code')
+        if (!codeBlock) return
+
+        const text = codeBlock.innerText
+
+        try {
+            await navigator.clipboard.writeText(text)
+
+            // Feedback
+            const originalHtml = btn.innerHTML
+            btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg><span>Copied!</span>`
+            btn.classList.add('copied')
+
+            setTimeout(() => {
+                btn.innerHTML = originalHtml
+                btn.classList.remove('copied')
+            }, 2000)
+        } catch (err) {
+            console.error('Failed to copy code:', err)
+        }
+    }
+
+    onMounted(() => {
+        document.addEventListener('click', handleCopyClick)
+    })
+
+    onUnmounted(() => {
+        document.removeEventListener('click', handleCopyClick)
+    })
+
     const render = (content) => {
         if (!content) return ''
         let html = marked(content)
-
-        // Strip any residual <cite>...</cite> tags from AI responses (no longer used)
+        // Strip any residual <cite>...</cite> tags if present
         html = html.replace(/<cite>[^<]*<\/cite>/g, '')
-
         return html
     }
 
@@ -40,3 +102,4 @@ export function useMarkdown() {
         copyToClipboard
     }
 }
+
