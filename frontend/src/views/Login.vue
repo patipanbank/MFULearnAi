@@ -311,16 +311,21 @@ const overlayGradient = computed(() => {
   height: 20px;
 }
 
-/* Solid Blue MFU Button (Requested Style) */
+/* Glassy Blue MFU Button */
 .btn-mfu {
-  background: var(--color-accent); /* Solid Blue */
-  color: white; /* White Text */
-  border: none; /* No Border */
+  background: rgba(59, 130, 246, 0.6); /* Glassy Blue */
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: white;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  text-shadow: 0 1px 2px rgba(0,0,0,0.2);
 }
 
 .btn-mfu:hover {
-  background: var(--color-accent-hover);
-  box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3);
+  background: rgba(59, 130, 246, 0.8);
+  box-shadow: 0 6px 15px rgba(59, 130, 246, 0.4);
+  border-color: rgba(255, 255, 255, 0.4);
 }
 
 
