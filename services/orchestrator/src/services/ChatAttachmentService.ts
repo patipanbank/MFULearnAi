@@ -27,7 +27,8 @@ export class ChatAttachmentService {
             const response = await axios.post(uploadURL, formData, {
                 headers,
                 maxBodyLength: Infinity,
-                maxContentLength: Infinity
+                maxContentLength: Infinity,
+                timeout: 10000 // 10s timeout to prevent hang
             });
 
             if (response.data && response.data.success) {

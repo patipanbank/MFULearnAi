@@ -57,6 +57,8 @@ services:
       - SAML_CERTIFICATE=${SAML_CERTIFICATE}
     depends_on:
       - identity-service
+      - knowledge-service
+      - redis
     networks:
       - mfulearnai-network
     restart: unless-stopped
