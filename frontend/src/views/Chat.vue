@@ -58,15 +58,24 @@ const userInitial = computed(() =>
 )
 const userName = computed(() => authStore.displayName || 'Guest')
 
-// เพิ่ม ref สำหรับปุ่ม
+// Scroll State
 const showScrollBtn = ref(false)
+const isUserScrolledUp = ref(false)
 
-// ฟังก์ชัน detect scroll position
+// Handle Scroll Event
 const handleScroll = () => {
   const el = messagesRef.value
   if (!el) return
+  
   const distFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight
-  showScrollBtn.value = distFromBottom > 150
+  
+  // "Stuck" to bottom threshold: strict (e.g. 30px)
+  // If user scrolls up even a little, we stop auto-scrolling
+  isUserScrolledUp.value = distFromBottom > 30
+
+  // "Show Button" threshold: loose (e.g. 200px)
+  // Don't show button for minor scroll ups
+  showScrollBtn.value = distFromBottom > 200
 }
 
 // Lifecycle
@@ -107,8 +116,36 @@ watch(() => route.params.sessionId, (newId) => {
   }
 })
 
-watch(() => chatStore.messages.length, () => scrollToBottom())
-watch(() => chatStore.messages[chatStore.messages.length - 1]?.content, () => scrollToBottom())
+// Auto-scroll logic
+watch(() => chatStore.messages.length, () => {
+    // New message added: Always scroll to bottom if it's from user, 
+    // or if we were already at bottom.
+    // Actually, usually beneficial to scroll on new message.
+    // If user sent it, definitely scroll.
+    const lastMsg = chatStore.messages[chatStore.messages.length - 1]
+    if (lastMsg?.role === 'user') {
+        isUserScrolledUp.value = false // force reset
+        scrollToBottom(true)
+    } else if (!isUserScrolledUp.value) {
+        scrollToBottom(true)
+    }
+})
+
+// Watch last message content (streaming)
+watch(() => chatStore.messages[chatStore.messages.length - 1]?.content, () => {
+    // Only auto-scroll if user hasn't scrolled up
+    if (!isUserScrolledUp.value) {
+        // Disable smooth scroll for streaming to prevent jitter/lag
+        scrollToBottom(false) 
+    }
+})
+
+// Also watch for agent events/tools updates to keep scrolling
+watch(() => chatStore.messages[chatStore.messages.length - 1]?.agentEvents?.length, () => {
+     if (!isUserScrolledUp.value) {
+        scrollToBottom(false)
+    }
+}, { deep: true })
 
 // Methods
 const handleNewChat = () => {
