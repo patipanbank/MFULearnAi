@@ -317,36 +317,39 @@ const closeEvidenceViewer = () => {
       
       <!-- Mode Toggle REMOVED -->
 
-      <!-- Scroll to Bottom Button -->
-      <Transition name="fade-up">
-        <button
-          v-if="showScrollBtn"
-          class="scroll-to-bottom-btn"
-          @click="scrollToBottom"
-          :title="t('scrollToBottom') || 'Scroll to bottom'"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
-            fill="none" stroke="currentColor" stroke-width="2.5"
-            stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="6 9 12 15 18 9"/>
-          </svg>
-        </button>
-      </Transition>
+      <!-- Input Container -->
+      <div class="chat-input-container">
+        <!-- Scroll to Bottom Button -->
+        <Transition name="fade-up">
+          <button
+            v-if="showScrollBtn"
+            class="scroll-to-bottom-btn"
+            @click="scrollToBottom"
+            :title="t('scrollToBottom') || 'Scroll to bottom'"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
+              fill="none" stroke="currentColor" stroke-width="2.5"
+              stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="6 9 12 15 18 9"/>
+            </svg>
+          </button>
+        </Transition>
 
-      <!-- Input Area -->
-      <ChatInput
-        ref="inputRef"
-        v-model="inputMessage"
-        :attachments="attachments"
-        :disabled="chatStore.isStreaming"
-        :loading="isProcessingFile"
-        :streaming="chatStore.isStreaming"
-        :t="t"
-        @send="handleSendMessage"
-        @stop="handleStop"
-        @upload="handleFileUpload"
-        @remove-attachment="handleRemoveAttachment"
-      />
+        <!-- Input Area -->
+        <ChatInput
+          ref="inputRef"
+          v-model="inputMessage"
+          :attachments="attachments"
+          :disabled="chatStore.isStreaming"
+          :loading="isProcessingFile"
+          :streaming="chatStore.isStreaming"
+          :t="t"
+          @send="handleSendMessage"
+          @stop="handleStop"
+          @upload="handleFileUpload"
+          @remove-attachment="handleRemoveAttachment"
+        />
+      </div>
     </main>
 
     <!-- PDF Viewer Modal -->
@@ -445,9 +448,16 @@ const closeEvidenceViewer = () => {
 }
 
 /* Scroll to Bottom Button */
+.chat-input-container {
+  position: relative;
+  width: 100%;
+  z-index: 20;
+}
+
 .scroll-to-bottom-btn {
   position: absolute;
-  bottom: 90px; /* เหนือ ChatInput */
+  bottom: 100%; /* Anchor to top of container */
+  margin-bottom: 16px; /* Space above input */
   left: 50%;
   transform: translateX(-50%);
   z-index: 10;
