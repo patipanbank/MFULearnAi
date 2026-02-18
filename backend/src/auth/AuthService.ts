@@ -37,14 +37,27 @@ export class AuthService {
 
     /**
      * Middleware to authenticate users via JWT
+     * Supports Authorization header and query param 'token'
      */
-    static authenticateUser(req: any, res: Response, next: NextFunction) {
-        const authHeader = req.headers['authorization'];
-        const token = authHeader && authHeader.split(' ')[1];
+    static authenticateUser(req: Request, res: Response, next: NextFunction) {
+        // 1. Capture/Propagate Correlation ID
+        const correlationId = (req.headers['x-correlation-id'] as string) || `req-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        // @ts-ignore - correlationId extension
+        req.correlationId = correlationId;
+        res.setHeader('x-correlation-id', correlationId);
+
+        // 2. Extract Token
+        let token = req.headers['authorization'] && req.headers['authorization'].split(' ')[1];
+        // Fallback: Check query param (for <img> tags, downloads, or SSE)
+        if (!token && req.query && req.query.token) {
+            token = req.query.token as string;
+        }
+
         if (!token) return res.status(401).json({ error: 'No token' });
 
         jwt.verify(token, JWT_SECRET, (err: any, decoded: any) => {
             if (err) return res.status(403).json({ error: 'Invalid token' });
+            // @ts-ignore - user extension
             req.user = decoded;
             next();
         });
@@ -54,7 +67,8 @@ export class AuthService {
      * Middleware guard for Role-based access
      */
     static requireRole(roles: UserRole[]) {
-        return (req: any, res: Response, next: NextFunction) => {
+        return (req: Request, res: Response, next: NextFunction) => {
+            // @ts-ignore
             if (!req.user || !roles.includes(req.user.role)) {
                 return res.status(403).json({ error: 'Insufficient permissions' });
             }
