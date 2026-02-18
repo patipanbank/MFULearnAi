@@ -10,7 +10,15 @@ export class ChatAttachmentService {
     static async uploadFile(buffer: Buffer, filename: string, mimeType: string, userId: string, role: string = 'student'): Promise<any> {
         try {
             const formData = new FormData();
-            formData.append('file', buffer, { filename, contentType: mimeType });
+            // Sanitize filename for transport to avoid header encoding issues
+            // Keep extension, replace rest with simple timestamp or uuid-ish
+            const ext = filename.split('.').pop() || 'dat';
+            const safeBase = filename.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 20); // truncate
+            const safeFilename = `${Date.now()}_${safeBase}.${ext}`;
+
+            // Add original filename as known metadata field if supported, or just rely on Orchestrator to track it
+            // Actually, we pass it in the options, but FormData headers are finicky.
+            formData.append('file', buffer, { filename: safeFilename, contentType: mimeType }); // Transport safe name
 
             const headers = {
                 ...formData.getHeaders(),

@@ -798,20 +798,31 @@ app.post('/api/storage/upload', async (req: any, res: Response) => {
         };
 
         // Stream to MinIO
+        // Truncate metadata to avoid header overflow (2KB limit typical)
+        const safeOriginalName = encodeURIComponent(fileInfo.originalName).substring(0, 1000);
+
         uploadPromise = minioClient.putObject(CHAT_BUCKET, s3Key, file, undefined, {
             'Content-Type': mimeType,
-            'x-amz-meta-original-name': encodeURIComponent(fileInfo.originalName),
+            'x-amz-meta-original-name': safeOriginalName, // Safe and truncated
             'x-amz-meta-owner': user.userId
         });
     });
 
+    bb.on('error', (err: any) => {
+        console.error('[Storage] Busboy Error:', err);
+        if (!res.headersSent) res.status(500).json({ error: 'Upload stream failed' });
+    });
+
     bb.on('close', async () => {
         if (!hasFile) {
+            // If valid request but no file field
             return res.status(400).json({ error: 'No file uploaded' });
         }
 
         try {
-            const objInfo = await uploadPromise; // Wait for MinIO finish
+            const objInfo = await uploadPromise; // Wait for MinIO finish (might reject if putObject failed)
+
+            if (!objInfo) throw new Error('MinIO upload returned no info');
 
             // Generate Presigned URL for immediate preview (optional, valid for 1 hour)
             const previewUrl = await minioClient.presignedGetObject(CHAT_BUCKET, fileInfo.s3Key, 3600);
@@ -830,7 +841,7 @@ app.post('/api/storage/upload', async (req: any, res: Response) => {
 
         } catch (e: any) {
             console.error('Storage Upload Failed:', e);
-            res.status(500).json({ error: 'Upload failed: ' + e.message });
+            if (!res.headersSent) res.status(500).json({ error: 'Upload failed: ' + e.message });
         }
     });
 
