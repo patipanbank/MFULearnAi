@@ -13,7 +13,7 @@ const imgRef = ref(null)
 let observer = null
 
 onMounted(() => {
-  // Use IntersectionObserver — load only when image enters viewport
+  // Use IntersectionObserver
   observer = new IntersectionObserver(
     ([entry]) => {
       if (entry.isIntersecting) {
@@ -22,22 +22,30 @@ onMounted(() => {
       }
     },
     {
-      // Safari 26+: Use scrollMargin for precise intersection detection in nested scroll containers
-      // rootMargin as fallback for older browsers
-      scrollMargin: '120px',
-      rootMargin: '120px',
-      threshold: 0.01
+      // Safari 26+: Use scrollMargin
+      scrollMargin: '200px', // Increased margin to trigger earlier
+      rootMargin: '200px',
+      threshold: 0.01 // Trigger as soon as 1% is visible (even if huge)
     }
   )
   if (imgRef.value) observer.observe(imgRef.value)
+
+  // Fallback: If not loaded after 3s (and mounted), force load
+  setTimeout(() => {
+    if (state.value === 'idle' && imgRef.value) {
+      loadImage()
+    }
+  }, 3000)
 })
 
-onUnmounted(() => observer?.disconnect())
-
 const loadImage = () => {
+  if (state.value === 'loaded') return
+  
   state.value = 'loading'
   const img = new Image()
-  img.onload = () => { state.value = 'loaded' }
+  img.onload = () => { 
+      state.value = 'loaded' 
+  }
   img.onerror = () => { state.value = 'error' }
   img.src = props.src
 }
