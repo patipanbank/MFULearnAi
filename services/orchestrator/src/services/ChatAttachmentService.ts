@@ -28,7 +28,7 @@ export class ChatAttachmentService {
                 headers,
                 maxBodyLength: Infinity,
                 maxContentLength: Infinity,
-                timeout: 10000 // 10s timeout to prevent hang
+                timeout: 30000 // 30s timeout
             });
 
             if (response.data && response.data.success) {

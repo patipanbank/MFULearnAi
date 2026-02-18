@@ -765,6 +765,17 @@ app.post('/api/storage/upload', async (req: any, res: Response) => {
     const bb = busboy({ headers: req.headers });
     const CHAT_BUCKET = 'chat-attachments';
 
+    // Lazy Ensure Bucket
+    try {
+        const exists = await minioClient.bucketExists(CHAT_BUCKET);
+        if (!exists) {
+            await minioClient.makeBucket(CHAT_BUCKET, 'us-east-1');
+            console.log(`[Storage] Bucket '${CHAT_BUCKET}' created lazy.`);
+        }
+    } catch (e) {
+        console.error('[Storage] Bucket check failed:', e);
+    }
+
     let uploadPromise: Promise<any> | null = null;
     let fileInfo: any = null;
     let hasFile = false;
