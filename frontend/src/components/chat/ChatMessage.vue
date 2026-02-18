@@ -3,6 +3,7 @@ import { useMarkdown } from '@/composables/useMarkdown'
 import { ref, computed } from 'vue'
 import api from '@/utils/api'
 import { useAuthStore } from '@/stores/auth'
+import LazyImage from '@/components/common/LazyImage.vue'
 
 const authStore = useAuthStore()
 
@@ -198,7 +199,7 @@ const getFileEmoji = (att) => {
 
           <!-- Images -->
           <div v-if="message.images?.length" class="media-row">
-            <img
+            <LazyImage
               v-for="(img, i) in message.images" :key="i"
               :src="`data:${img.mediaType};base64,${img.data}`"
               class="msg-image"
@@ -222,15 +223,12 @@ const getFileEmoji = (att) => {
 
           <!-- Persisted attachments -->
           <div v-if="message.attachments?.length" class="files-row">
-            <img
+            <LazyImage
               v-for="(att, i) in message.attachments.filter(a => a.mimeType?.startsWith('image/'))"
               :key="'img-' + i"
               :src="`/api/chat/attachment/${att.key}?token=${authStore.token}`"
-              class="msg-image placeholder"
-              loading="lazy"
+              class="msg-image"
               @click="viewImage(`/api/chat/attachment/${att.key}?token=${authStore.token}`)"
-              @error="$event.target.style.display='none'"
-              @load="$event.target.classList.remove('placeholder')"
             />
             <div
               v-for="(att, i) in message.attachments.filter(a => !a.mimeType?.startsWith('image/'))"
