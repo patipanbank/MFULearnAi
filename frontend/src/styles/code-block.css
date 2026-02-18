@@ -56,6 +56,11 @@
     font-size: 13px !important;
 }
 
+/* Force syntax highlighter background to be transparent */
+.code-wrapper .hljs {
+    background: transparent !important;
+}
+
 /* Copy Button */
 .code-copy-btn {
     background: transparent;
