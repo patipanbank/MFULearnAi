@@ -163,6 +163,7 @@ const navigateTo = (path) => {
   left: 0;
   width: 100vw;
   height: 100vh;
+  height: 100svh; /* Safari Fix */
   background: rgba(0, 0, 0, 0.5);
   backdrop-filter: blur(2px);
   z-index: 100;
@@ -178,9 +179,12 @@ const navigateTo = (path) => {
   border-right: 1px solid var(--color-border);
   border-top: 1px solid var(--color-border);
   height: 100vh;
+  height: 100svh; /* Safari Fix */
   display: flex;
   flex-direction: column;
   padding: 20px 16px; /* Reduced side padding slightly to give items more width */
+  /* Safari Safe Area */
+  padding-bottom: env(safe-area-inset-bottom, 20px);
   box-shadow: 4px 0 24px rgba(0, 0, 0, 0.3);
   animation: slideIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   overflow-y: auto; /* Allow scrolling */
