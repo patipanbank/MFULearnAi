@@ -59,10 +59,53 @@ const agentSummary = computed(() => {
 
 const timelineEvents = computed(() => {
     if (!hasAgentEvents.value) return []
-    // Filter to display-worthy events only - Simplified for user
-    return props.message.agentEvents.filter(e =>
+    
+    // Filter to display-worthy events only
+    const rawEvents = props.message.agentEvents.filter(e =>
         ['thinking', 'tool_start', 'tool_complete', 'answer_start', 'agent_complete'].includes(e.type)
     )
+
+    // Merge logic for Thinking events
+    const mergedEvents = []
+    const thinkingByStep = {} // Map step -> event index in mergedEvents
+
+    // Identify current max step to know which is "active"
+    const maxStep = Math.max(...rawEvents.map(e => e.step || 0), 0)
+    const isComplete = props.message.agentEvents.some(e => e.type === 'agent_complete' || e.type === 'answer_done')
+
+    rawEvents.forEach(evt => {
+        if (evt.type === 'thinking') {
+            const step = evt.step
+            const isPlaceholder = evt.message && evt.message.startsWith('กำลังวิเคราะห์...')
+
+            if (thinkingByStep[step] !== undefined) {
+                // If we already have a thinking event for this step
+                const existingIndex = thinkingByStep[step]
+                // If new one is NOT a placeholder, replace the existing one
+                if (!isPlaceholder) {
+                    mergedEvents[existingIndex] = { ...evt, isActive: false }
+                }
+            } else {
+                // New step for thinking
+                if (!isPlaceholder) {
+                    // Has content -> Add it
+                    mergedEvents.push({ ...evt, isActive: false })
+                    thinkingByStep[step] = mergedEvents.length - 1
+                } else {
+                    // Is placeholder. Only add if it's potentially active (latest step & not complete)
+                    if (!isComplete && step === maxStep) {
+                        mergedEvents.push({ ...evt, isActive: true })
+                        thinkingByStep[step] = mergedEvents.length - 1
+                    }
+                    // Otherwise skip (hides old/empty placeholders)
+                }
+            }
+        } else {
+            mergedEvents.push(evt)
+        }
+    })
+
+    return mergedEvents
 })
 
 const eventIcon = (type) => {
@@ -321,7 +364,7 @@ const formatBytes = (bytes) => {
                             <div class="timeline-line"></div>
                             
                             <!-- Icon: Thinking -->
-                            <div v-if="evt.type === 'thinking'" class="timeline-icon thinking">
+                            <div v-if="evt.type === 'thinking'" class="timeline-icon thinking" :class="{ 'pulse-active': evt.isActive }">
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path>
                                 </svg>
@@ -359,7 +402,13 @@ const formatBytes = (bytes) => {
                                     <span class="header-title">Thinking Process</span>
                                     <span class="header-badge">Step {{ evt.step }}</span>
                                 </div>
-                                <div class="card-body markdown-body" v-html="render(evt.message)"></div>
+                                <div class="card-body markdown-body">
+                                    <div v-if="evt.isActive" class="thinking-placeholder">
+                                        <span class="dot-flashing"></span>
+                                        <span class="text">Analyzing...</span>
+                                    </div>
+                                    <div v-else v-html="render(evt.message)"></div>
+                                </div>
                             </div>
 
                             <!-- Tool Use Card -->
@@ -1283,5 +1332,70 @@ html[data-theme="dark"] .agent-flow-header:hover .status-text {
 
 html[data-theme="dark"] .fade-text {
     color: #94a3b8 !important;
+}
+</style>
+
+<style scoped>
+/* Thinking Placeholder Animation */
+.thinking-placeholder {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 0;
+    color: var(--color-text-muted);
+    font-style: italic;
+}
+
+.timeline-icon.thinking.pulse-active {
+    color: var(--color-primary);
+    animation: pulse-ring 2s infinite;
+}
+
+@keyframes pulse-ring {
+    0% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.4); }
+    70% { box-shadow: 0 0 0 6px rgba(99, 102, 241, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0); }
+}
+
+.dot-flashing {
+  position: relative;
+  width: 6px;
+  height: 6px;
+  border-radius: 5px;
+  background-color: var(--color-primary);
+  color: var(--color-primary);
+  animation: dot-flashing 1s infinite linear alternate;
+  animation-delay: 0.5s;
+}
+.dot-flashing::before, .dot-flashing::after {
+  content: "";
+  display: inline-block;
+  position: absolute;
+  top: 0;
+}
+.dot-flashing::before {
+  left: -10px;
+  width: 6px;
+  height: 6px;
+  border-radius: 5px;
+  background-color: var(--color-primary);
+  color: var(--color-primary);
+  animation: dot-flashing 1s infinite alternate;
+  animation-delay: 0s;
+}
+.dot-flashing::after {
+  left: 10px;
+  width: 6px;
+  height: 6px;
+  border-radius: 5px;
+  background-color: var(--color-primary);
+  color: var(--color-primary);
+  animation: dot-flashing 1s infinite alternate;
+  animation-delay: 1s;
+}
+
+@keyframes dot-flashing {
+  0% { background-color: var(--color-primary); }
+  50%, 100% { background-color: rgba(99, 102, 241, 0.2); }
 }
 </style>
