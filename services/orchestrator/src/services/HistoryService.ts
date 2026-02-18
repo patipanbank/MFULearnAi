@@ -19,7 +19,11 @@ export class HistoryService {
                 canonical: '',
                 rolling: {
                     facts: [],
-                    intent: conversation.summary, // Use legacy summary as initial intent/context
+                    intent: {
+                        primary: conversation.summary || 'General Inquiry',
+                        secondary: [],
+                        confidence: 1.0
+                    },
                     constraints: [],
                     decisions: [],
                     open_questions: []
