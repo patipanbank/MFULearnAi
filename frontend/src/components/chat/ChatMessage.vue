@@ -1185,14 +1185,11 @@ const formatBytes = (bytes) => {
 }
 
 .tool-card .tool-command-box {
-    background: #1f2428; /* Inner terminal box */
-    color: #e6edf3;
+    background: transparent; /* No separate box */
+    color: #24292f; /* Dark text for light mode */
     padding: 10px 12px;
     font-family: ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, Liberation Mono, monospace;
-    border-top: none; 
-    /* The body IS the command box in current template structure? 
-       No, .tool-command-box is inside .tool-card div (which has no .card-body class in template).
-    */
+    border: none; 
 }
 
 /* Result Badge: Text Only, No Border */
@@ -1258,10 +1255,10 @@ html[data-theme="dark"] .tool-card .card-header {
 }
 
 html[data-theme="dark"] .tool-card .tool-command-box {
-    background: #0d1117; /* Or slightly distinct? */
-    border: 1px solid #30363d; /* Add border to inner box if needed, or just bg */
-    border-radius: 4px;
-    margin: 8px; /* spacing inside card */
+    background: transparent;
+    color: #c9d1d9;
+    border: none;
+    margin: 0;
 }
 
 html[data-theme="dark"] .result-preview-text {
