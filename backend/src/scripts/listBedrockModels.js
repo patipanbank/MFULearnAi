@@ -1,11 +1,11 @@
 const path = require('path');
-const dotenv = require('dotenv');
 
 // Explicitly add backend/node_modules to search path to fix resolution issues
 if (module.paths) {
     module.paths.push(path.join(__dirname, '../../node_modules'));
 }
 
+const dotenv = require('dotenv');
 const { BedrockClient, ListFoundationModelsCommand } = require("@aws-sdk/client-bedrock");
 
 // Load environment variables from backend directory
