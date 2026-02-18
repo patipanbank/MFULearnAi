@@ -285,25 +285,34 @@ const formatBytes = (bytes) => {
 
             <!-- Persisted Attachments (History) -->
             <div v-if="message.attachments && message.attachments.length > 0" class="message-files outside">
-                <div v-for="(att, index) in message.attachments" :key="index" class="msg-file clickable" @click="downloadAttachment(att)" :title="att.fileName">
-                    <div class="file-icon">
-                         <span v-if="att.mimeType && att.mimeType.includes('image')">📷</span>
-                         <span v-else-if="att.mimeType && (att.mimeType.includes('pdf') || att.fileName.endsWith('.pdf'))">📄</span>
-                         <span v-else-if="att.mimeType && (att.mimeType.includes('sheet') || att.mimeType.includes('excel'))">📊</span>
-                         <span v-else>📎</span>
-                    </div>
-                    <div class="file-info-stack">
-                        <span class="file-name">{{ att.fileName }}</span>
-                        <!-- Embedded Progress Bar (Shared with persist attachment if processing continues) -->
-                        <div v-if="message.fileProgress && message.fileProgress.currentFile === att.fileName" class="embedded-progress">
-                             <div class="progress-bar-track small">
-                                <div class="progress-bar-fill" :style="{ width: message.fileProgress.percent + '%' }"></div>
-                             </div>
-                             <span class="progress-text">{{ message.fileProgress.percent }}% - {{ message.fileProgress.detail }}</span>
-                        </div>
-                        <div v-else class="file-size">{{ formatBytes(att.fileSize) }}</div>
-                    </div>
+                <!-- 1. Images -->
+                <div class="message-images" style="width: 100%; justify-content: flex-end;">
+                     <template v-for="(att, index) in message.attachments" :key="'img-'+index">
+                        <img 
+                            v-if="att.mimeType && att.mimeType.startsWith('image/')"
+                            :src="`/api/chat/attachment/${att.key}`" 
+                            class="msg-image clickable"
+                            alt="Attached image"
+                            @click="viewImage(`/api/chat/attachment/${att.key}`)"
+                            @error="$event.target.style.display='none'"
+                        />
+                     </template>
                 </div>
+
+                <!-- 2. Other Files -->
+                <template v-for="(att, index) in message.attachments" :key="'file-'+index">
+                    <div v-if="!att.mimeType || !att.mimeType.startsWith('image/')" class="msg-file clickable" @click="downloadAttachment(att)" :title="att.fileName">
+                        <div class="file-icon">
+                            <span v-if="att.mimeType && (att.mimeType.includes('pdf') || att.fileName.endsWith('.pdf'))">📄</span>
+                            <span v-else-if="att.mimeType && (att.mimeType.includes('sheet') || att.mimeType.includes('excel'))">📊</span>
+                            <span v-else>📎</span>
+                        </div>
+                        <div class="file-info-stack">
+                            <span class="file-name">{{ att.fileName }}</span>
+                            <div class="file-size">{{ formatBytes(att.fileSize) }}</div>
+                        </div>
+                    </div>
+                </template>
             </div>
 
             <div class="bubble user">
