@@ -5,6 +5,29 @@ const path = require('path');
 if (module.paths) {
     const nodeModulesPath = path.join(__dirname, '../../node_modules');
     module.paths.push(nodeModulesPath);
+
+    // Debug: Check if package exists
+    try {
+        if (fs.existsSync(nodeModulesPath)) {
+            console.log('Debug: node_modules exists.');
+            const awsSdkPath = path.join(nodeModulesPath, '@aws-sdk');
+            if (fs.existsSync(awsSdkPath)) {
+                console.log('Debug: @aws-sdk exists. Contents:', fs.readdirSync(awsSdkPath));
+                const bedrockPath = path.join(awsSdkPath, 'client-bedrock');
+                if (fs.existsSync(bedrockPath)) {
+                    console.log('Debug: client-bedrock exists. Contents:', fs.readdirSync(bedrockPath));
+                } else {
+                    console.log('Debug: client-bedrock MISSING in @aws-sdk');
+                }
+            } else {
+                console.log('Debug: @aws-sdk MISSING in node_modules');
+            }
+        } else {
+            console.log('Debug: node_modules directory NOT FOUND at', nodeModulesPath);
+        }
+    } catch (e) {
+        console.log('Debug: Error checking directories:', e.message);
+    }
 }
 
 const { BedrockClient, ListFoundationModelsCommand } = require("@aws-sdk/client-bedrock");
