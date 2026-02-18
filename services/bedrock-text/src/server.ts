@@ -296,7 +296,7 @@ app.post('/api/bedrock/chat', async (req: Request, res: Response) => {
 
             const command = new ConverseStreamCommand(streamCommandInput);
 
-            const response = await client.send(command);
+            const response = await (client as any).send(command);
 
             if (response.stream) {
                 let currentBlockIndex = 0;
@@ -388,7 +388,7 @@ app.post('/api/bedrock/chat', async (req: Request, res: Response) => {
             }
 
             const command = new ConverseCommand(converseInput);
-            const response = await client.send(command);
+            const response = await (client as any).send(command);
 
             const outputMessage = response.output?.message;
             const stopReason = response.stopReason;
