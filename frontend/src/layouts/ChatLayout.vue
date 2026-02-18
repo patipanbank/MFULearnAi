@@ -77,7 +77,8 @@ onUnmounted(() => {
 <style scoped>
 .chat-layout-container {
   display: flex;
-  height: 100vh;
+  height: 100vh;        /* fallback */
+  height: 100svh;       /* Safari 26 fix: use svh to avoid layout shift */
   width: 100vw;
   overflow: hidden;
   background-color: var(--color-bg-primary);
@@ -86,6 +87,7 @@ onUnmounted(() => {
 .chat-main-content {
   flex: 1;
   min-width: 0;
+  min-height: 0;        /* Safari fix: prevent flex overflow */
   height: 100%;
   overflow: visible;
   position: relative;
@@ -95,6 +97,7 @@ onUnmounted(() => {
 
 .content-view {
   flex: 1;
+  min-height: 0;        /* Safari fix */
   overflow: hidden;
   position: relative;
 }

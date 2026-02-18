@@ -415,6 +415,7 @@ const closeEvidenceViewer = () => {
   display: flex;
   flex-direction: column;
   min-width: 0; /* Prevents flex items from overflowing */
+  min-height: 0; /* Safari fix: prevent flex overflow */
   background: var(--color-bg-primary);
   position: relative;
 }
@@ -422,7 +423,10 @@ const closeEvidenceViewer = () => {
 .messages-area {
   flex: 1;
   overflow-y: auto;
+  min-height: 0; /* Safari fix */
   scroll-behavior: smooth;
+  /* Safari 26: Support safe area for notch/dynamic island */
+  padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 .messages-list {
@@ -489,6 +493,8 @@ const closeEvidenceViewer = () => {
   position: relative;
   width: 100%;
   z-index: 20;
+  /* Prevent input from being hidden by virtual keyboard or home indicator */
+  padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 .scroll-to-bottom-btn {
