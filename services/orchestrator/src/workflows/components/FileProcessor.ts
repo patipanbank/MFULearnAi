@@ -142,6 +142,7 @@ export class FileProcessor {
                 });
             }
         };
+        // @ts-ignore - JobProgress type mismatch with simplified listener
         ocrQueueEvents.on('progress', progressListener);
 
         try {
@@ -176,6 +177,7 @@ export class FileProcessor {
                 attachments: []
             };
         } finally {
+            // @ts-ignore
             ocrQueueEvents.off('progress', progressListener);
         }
     }

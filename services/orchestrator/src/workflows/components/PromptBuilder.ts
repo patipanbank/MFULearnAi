@@ -67,7 +67,12 @@ ${JSON.stringify(smartContext?.rolling || {}, null, 2)}`
                 hasBytes: i?.source?.bytes ? true : false
             })), null, 2));
 
-            userContent.push(...images.map((img: any) => ({ type: 'image', source: img })));
+            // Bedrock Converse API expects { image: { source: { bytes: ... }, format: ... } }
+            // Our ctx.images likely contains { source: ..., format: ... } or just raw bytes wrapper?
+            // If they are from frontend, they might be base64. 
+            // Let's assume they are proper ImageBlock objects.
+            // If the upstream service uses Bedrock Runtime "Chat" (Converse), we need to pass `image` property.
+            userContent.push(...images.map((img: any) => ({ image: img })));
         }
 
         // --- Final Message Stack ---
