@@ -126,28 +126,39 @@ export class FileProcessor {
         if (!job) throw new Error(`Job ${jobId} not found`);
 
         try {
-            await job.waitUntilFinished(ocrQueueEvents, timeoutMs);
-            const output = await job.returnvalue; // { blocks: [ExtractedTextBlock], status: 'done' }
+            try {
+                const output = await job.waitUntilFinished(ocrQueueEvents, timeoutMs);
 
-            return {
-                status: 'done',
-                jobId,
-                nativeDocBlocks: [], // filled by caller or separate logic? 
-                // The worker should return ExtractedTextBlock[]
-                extractedTextBlocks: output.blocks || [],
-                attachments: [] // attachments are already handled in processFiles
-            };
-        } catch (e) {
-            LoggerService.error('OCR Job Failed', e);
-            return {
-                status: 'failed',
-                jobId,
-                nativeDocBlocks: [],
-                extractedTextBlocks: [],
-                attachments: []
-            };
+                if (!output || !output.blocks) {
+                    LoggerService.warn('OCR Job Returned No Blocks', { jobId, output });
+                    return {
+                        status: 'done', // Or partial?
+                        jobId,
+                        nativeDocBlocks: [],
+                        extractedTextBlocks: [],
+                        attachments: []
+                    };
+                }
+
+                return {
+                    status: 'done',
+                    jobId,
+                    nativeDocBlocks: [],
+                    // The worker should return ExtractedTextBlock[]
+                    extractedTextBlocks: output.blocks || [],
+                    attachments: [] // attachments are already handled in processFiles
+                };
+            } catch (e) {
+                LoggerService.error('OCR Job Failed', e);
+                return {
+                    status: 'failed',
+                    jobId,
+                    nativeDocBlocks: [],
+                    extractedTextBlocks: [],
+                    attachments: []
+                };
+            }
         }
-    }
 
     private static sanitizeFileName(name: string): string {
         return name
