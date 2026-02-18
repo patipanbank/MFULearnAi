@@ -105,7 +105,7 @@ const formatDate = (dateStr) => {
 const fetchDepartments = async () => {
     loading.value = true;
     try {
-        const response = await api.get('/departments');
+        const response = await api.get('/auth/departments', { baseURL: '/' });
         departments.value = response.data.departments || [];
     } catch (err) {
         console.error('Failed to fetch departments:', err);
@@ -142,9 +142,9 @@ const handleSubmit = async () => {
 
     try {
         if (isEditing.value) {
-            await api.put(`/departments/${form.value._id}`, { name: form.value.name });
+            await api.put(`/auth/departments/${form.value._id}`, { name: form.value.name }, { baseURL: '/' });
         } else {
-            await api.post('/departments', { name: form.value.name, code: null });
+            await api.post('/auth/departments', { name: form.value.name, code: null }, { baseURL: '/' });
         }
         await fetchDepartments();
         closeModal();
@@ -159,7 +159,7 @@ const handleDelete = async (id) => {
     if (!confirm('Are you sure you want to delete this department? Users assigned to it might lose their mapping.')) return;
     
     try {
-        await api.delete(`/departments/${id}`);
+        await api.delete(`/auth/departments/${id}`, { baseURL: '/' });
         departments.value = departments.value.filter(d => d._id !== id);
         closeModal(); // Close modal after delete
     } catch (err) {
