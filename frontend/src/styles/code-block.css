@@ -1,14 +1,16 @@
-/* Modern Code Block Styles */
+/* GitHub-Style Code Blocks */
 
 /* Base Wrapper */
 .code-wrapper {
   margin: 1.5rem 0;
-  border-radius: var(--radius-md);
+  border-radius: 6px;
+  /* GitHub uses 6px */
   overflow: hidden;
   border: 1px solid var(--color-border);
-  background-color: var(--color-bg-tertiary); /* Default background */
-  font-family: 'JetBrains Mono', 'Fira Code', 'Menlo', monospace;
-  transition: border-color 0.2s, box-shadow 0.2s;
+  background-color: #f6f8fa;
+  /* GitHub Light Bg */
+  font-family: ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, Liberation Mono, monospace;
+  transition: border-color 0.2s, background-color 0.2s;
 }
 
 /* Header */
@@ -17,23 +19,35 @@
   justify-content: space-between;
   align-items: center;
   padding: 8px 16px;
-  background-color: rgba(0, 0, 0, 0.03); /* Slight contrast in Light mode */
+  background-color: #f6f8fa;
+  /* GitHub Light Header */
   border-bottom: 1px solid var(--color-border);
-  font-size: 0.75rem;
-  color: var(--color-text-secondary);
+  font-size: 12px;
+  color: #57606a;
+  /* GitHub Light Muted Text */
   user-select: none;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  /* Header uses system font */
+  font-weight: 600;
+}
+
+[data-theme="dark"] .code-wrapper {
+  background-color: #161b22;
+  /* GitHub Dark Dimmed Bg */
+  border-color: #30363d;
 }
 
 [data-theme="dark"] .code-header {
-  background-color: rgba(255, 255, 255, 0.03); /* Slight contrast in Dark mode */
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  background-color: #161b22;
+  border-bottom: 1px solid #30363d;
+  color: #768390;
+  /* GitHub Dark Muted Text */
 }
 
 .code-lang {
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--color-text-muted);
+  text-transform: capitalize;
+  /* GitHub uses capitalized, not uppercase */
 }
 
 /* Copy Button */
@@ -43,23 +57,27 @@
   gap: 6px;
   background: transparent;
   border: none;
-  font-size: 0.75rem;
-  color: var(--color-text-muted);
+  font-size: 12px;
+  color: #57606a;
   cursor: pointer;
   padding: 4px 8px;
   border-radius: 4px;
   transition: all 0.2s ease;
 }
 
+[data-theme="dark"] .code-copy-btn {
+  color: #768390;
+}
+
 .code-copy-btn:hover {
-  background-color: rgba(128, 128, 128, 0.1);
+  background-color: rgba(174, 184, 194, 0.2);
   color: var(--color-text-primary);
 }
 
 .code-copy-btn svg {
   width: 14px;
   height: 14px;
-  opacity: 0.7;
+  opacity: 0.8;
 }
 
 .code-copy-btn.copied {
@@ -76,63 +94,176 @@
   padding: 16px !important;
   overflow-x: auto;
   border: none !important;
-  background: transparent !important; /* Inherit from wrapper */
+  background: transparent !important;
+  /* Inherit from wrapper */
   border-radius: 0 !important;
 }
 
 .code-wrapper code {
   font-family: inherit;
-  font-size: 0.875rem;
-  line-height: 1.6;
+  font-size: 85%;
+  /* GitHub font size */
+  line-height: 1.45;
   background: transparent !important;
   padding: 0 !important;
-  color: var(--color-text-primary);
-  white-space: pre; /* Enforce pre-formatting */
-}
-
-
-/* === Syntax Highlighting Theme Overrides (VSCode Dark+ inspired for Dark Mode) === */
-
-/* Default / Light Mode Colors (Simple fallback) */
-.hljs-keyword, .hljs-selector-tag, .hljs-built_in, .hljs-name, .hljs-tag { color: #d73a49; }
-.hljs-comment, .hljs-quote { color: #6a737d; font-style: italic; }
-.hljs-string, .hljs-literal, .hljs-doctag { color: #032f62; }
-.hljs-title, .hljs-section, .hljs-selector-id { color: #6f42c1; font-weight: bold; }
-.hljs-attribute, .hljs-attr { color: #005cc5; }
-.hljs-variable, .hljs-template-variable { color: #e36209; }
-.hljs-symbol, .hljs-bullet { color: #005cc5; }
-.hljs-meta { color: #24292e; font-weight: bold; }
-
-/* Dark Mode Overrides (VSCode Dark+) */
-[data-theme="dark"] .code-wrapper {
-  background-color: #1e1e1e !important;
-  border-color: #2b2b2b;
+  color: #24292f;
+  /* GitHub Light Text */
+  white-space: pre;
 }
 
 [data-theme="dark"] .code-wrapper code {
-  color: #d4d4d4;
+  color: #adbac7;
+  /* GitHub Dark Text */
 }
 
-[data-theme="dark"] .hljs-keyword, 
-[data-theme="dark"] .hljs-selector-tag { color: #569cd6; } /* Blue */
-[data-theme="dark"] .hljs-built_in { color: #4ec9b0; } /* Teal */
-[data-theme="dark"] .hljs-name, 
-[data-theme="dark"] .hljs-tag { color: #569cd6; }
-[data-theme="dark"] .hljs-comment, 
-[data-theme="dark"] .hljs-quote { color: #6a9955; } /* Green */
-[data-theme="dark"] .hljs-string, 
-[data-theme="dark"] .hljs-literal, 
-[data-theme="dark"] .hljs-doctag { color: #ce9178; } /* Orange/Brown */
-[data-theme="dark"] .hljs-title, 
-[data-theme="dark"] .hljs-section, 
-[data-theme="dark"] .hljs-selector-id { color: #dcdcaa; } /* Yellow */
-[data-theme="dark"] .hljs-attribute, 
-[data-theme="dark"] .hljs-attr { color: #9cdcfe; } /* Light Blue */
-[data-theme="dark"] .hljs-variable, 
-[data-theme="dark"] .hljs-template-variable { color: #9cdcfe; }
+
+/* === Syntax Highlighting Theme - GitHub Light / Dark === */
+
+/* Light Mode (GitHub Light) */
+.hljs-comment,
+.hljs-quote {
+  color: #6e7781;
+}
+
+.hljs-keyword,
+.hljs-selector-tag,
+.hljs-tag {
+  color: #cf222e;
+}
+
+/* Red */
+.hljs-variable,
+.hljs-template-variable,
+.hljs-attribute,
+.hljs-tag .hljs-attr {
+  color: #24292f;
+}
+
+.hljs-string,
+.hljs-doctag {
+  color: #0a3069;
+}
+
+/* Dark Blue */
+.hljs-title,
+.hljs-section,
+.hljs-selector-id {
+  color: #8250df;
+}
+
+/* Purple */
+.hljs-subst {
+  color: #24292f;
+}
+
+.hljs-literal,
+.hljs-number,
+.hljs-built_in {
+  color: #0550ae;
+}
+
+/* Blue */
+.hljs-type,
+.hljs-class .hljs-title {
+  color: #953800;
+}
+
+/* Orange */
+.hljs-regexp,
+.hljs-link {
+  color: #0a3069;
+}
+
+.hljs-symbol,
+.hljs-bullet,
+.hljs-meta {
+  color: #cf222e;
+}
+
+.hljs-deletion {
+  background: #ffebe9;
+  color: #cf222e;
+}
+
+.hljs-addition {
+  background: #dafbe1;
+  color: #1a7f37;
+}
+
+/* Dark Mode Overrides (GitHub Dark Dimmed) */
+[data-theme="dark"] .hljs-comment,
+[data-theme="dark"] .hljs-quote {
+  color: #768390;
+}
+
+[data-theme="dark"] .hljs-keyword,
+[data-theme="dark"] .hljs-selector-tag,
+[data-theme="dark"] .hljs-tag {
+  color: #f47067;
+}
+
+/* Red */
+
+[data-theme="dark"] .hljs-variable,
+[data-theme="dark"] .hljs-template-variable,
+[data-theme="dark"] .hljs-attribute,
+[data-theme="dark"] .hljs-tag .hljs-attr {
+  color: #adbac7;
+}
+
+/* Text Color */
+
+[data-theme="dark"] .hljs-string,
+[data-theme="dark"] .hljs-doctag {
+  color: #96d0ff;
+}
+
+/* Light Blue */
+
+[data-theme="dark"] .hljs-title,
+[data-theme="dark"] .hljs-section,
+[data-theme="dark"] .hljs-selector-id {
+  color: #dcbdfb;
+}
+
+/* Purple */
+
+[data-theme="dark"] .hljs-subst {
+  color: #adbac7;
+}
+
+[data-theme="dark"] .hljs-literal,
+[data-theme="dark"] .hljs-number,
+[data-theme="dark"] .hljs-built_in {
+  color: #6cb6ff;
+}
+
+/* Blue */
+
 [data-theme="dark"] .hljs-type,
-[data-theme="dark"] .hljs-params { color: #9cdcfe; }
-[data-theme="dark"] .hljs-symbol, 
-[data-theme="dark"] .hljs-bullet { color: #d7ba7d; }
-[data-theme="dark"] .hljs-number { color: #b5cea8; } /* Light Green */
-[data-theme="dark"] .hljs-meta { color: #569cd6; }
+[data-theme="dark"] .hljs-class .hljs-title {
+  color: #f69d50;
+}
+
+/* Orange */
+
+[data-theme="dark"] .hljs-regexp,
+[data-theme="dark"] .hljs-link {
+  color: #96d0ff;
+}
+
+[data-theme="dark"] .hljs-symbol,
+[data-theme="dark"] .hljs-bullet,
+[data-theme="dark"] .hljs-meta {
+  color: #f47067;
+}
+
+[data-theme="dark"] .hljs-deletion {
+  background: #3e1f25;
+  color: #ffdcd7;
+}
+
+[data-theme="dark"] .hljs-addition {
+  background: #172a1f;
+  color: #aff5b4;
+}

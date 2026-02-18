@@ -36,10 +36,7 @@ const hasAgentEvents = computed(() => {
     return props.message.agentEvents && props.message.agentEvents.length > 0
 })
 
-// Show Agent Flow immediately when streaming starts (before events arrive)
-const showAgentFlow = computed(() => {
-    return props.isStreaming || hasAgentEvents.value
-})
+
 
 const agentSummary = computed(() => {
     if (!hasAgentEvents.value) return null
@@ -82,12 +79,12 @@ const timelineEvents = computed(() => {
                 // If we already have a thinking event for this step
                 const existingIndex = thinkingByStep[step]
                 // If new one is NOT a placeholder, replace the existing one
-                if (!isPlaceholder) {
+                if (!isPlaceholder && evt.message && evt.message.trim()) {
                     mergedEvents[existingIndex] = { ...evt, isActive: false }
                 }
             } else {
                 // New step for thinking
-                if (!isPlaceholder) {
+                if (!isPlaceholder && evt.message && evt.message.trim()) {
                     // Has content -> Add it
                     mergedEvents.push({ ...evt, isActive: false })
                     thinkingByStep[step] = mergedEvents.length - 1
@@ -106,6 +103,11 @@ const timelineEvents = computed(() => {
     })
 
     return mergedEvents
+})
+
+// Show Agent Flow immediately when streaming starts (before events arrive) Or if we have valid timeline events
+const showAgentFlow = computed(() => {
+    return props.isStreaming || (hasAgentEvents.value && timelineEvents.value.length > 0)
 })
 
 const eventIcon = (type) => {
@@ -1126,41 +1128,107 @@ const formatBytes = (bytes) => {
     min-width: 0;
 }
 
-/* Content Cards */
+/* Content Cards - GitHub Style */
 .flow-card {
-    border-radius: 12px;
-    padding: 12px 16px;
+    border-radius: 6px; /* GitHub radius */
+    padding: 0; /* Header/Body structure requires 0 padding on wrapper */
     width: 100%;
+    overflow: hidden;
+    border: 1px solid #d0d7de;
+    background: #ffffff;
+    box-shadow: none;
 }
 
-/* Glassmorphism */
+/* Specific Card Types */
+.thinking-card {
+    /* Standard GitHub Box */
+}
+
+.card-header {
+    background: #f6f8fa;
+    border-bottom: 1px solid #d0d7de;
+    padding: 8px 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 11px;
+    font-weight: 600;
+    color: #57606a;
+}
+
+.card-body {
+    padding: 12px;
+}
+
+.tool-card {
+    background: #24292f; /* Dark terminal background for tools */
+    border-color: #24292f;
+}
+
+.tool-card .card-header {
+    background: #1f2428;
+    border-bottom: 1px solid #3e444d;
+    color: #c9d1d9;
+}
+
+.tool-card .tool-command-box {
+    color: #e6edf3;
+    padding: 12px;
+}
+
+.result-card {
+    border-color: #d0d7de;
+}
+
 .glass-card {
-    background: rgba(255, 255, 255, 0.4);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.03);
+    /* Legacy override removal */
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
 }
 
-.glass-card.thinking-card {
-    background: rgba(255, 255, 255, 0.6);
-    border-color: rgba(0, 0, 0, 0.05);
+.ghost {
+    background: #f6f8fa;
+    border: 1px dashed #d0d7de;
+    color: #57606a;
+}
+.ghost .card-body {
+    padding: 8px 12px;
+    font-style: italic;
 }
 
-.glass-card.tool-card {
-    background: #1e1e1e; /* keep executed tools dark/terminal-like */
-    color: #e5e7eb;
-    border: 1px solid #374151;
+/* Dark Mode Overrides for Cards */
+html[data-theme="dark"] .flow-card {
+    background: #0d1117; /* GitHub Dark Bg */
+    border-color: #30363d;
 }
 
+html[data-theme="dark"] .card-header {
+    background: #161b22; /* GitHub Dark Dimmed Header */
+    border-bottom-color: #30363d;
+    color: #768390;
+}
+
+html[data-theme="dark"] .tool-card {
+    background: #0d1117; 
+    border-color: #30363d;
+}
+
+html[data-theme="dark"] .thinking-card {
+    background: #0d1117;
+}
+
+html[data-theme="dark"] .ghost {
+    background: #161b22;
+    border-color: #30363d;
+    color: #768390;
+}
+
+/* Remove old glass classes influence */
+.glass-card.thinking-card, 
+.glass-card.tool-card,
 .glass-card.result-card {
-    background: rgba(255, 255, 255, 0.5);
-    border: 1px solid rgba(0,0,0,0.05);
-}
-
-.glass-card.ghost {
-    background: rgba(255, 255, 255, 0.2);
-    border: 1px dashed rgba(0, 0, 0, 0.1);
+    background: unset; 
+    /* allowed to be overridden by above specific styles */
 }
 
 /* Dark Mode Overrides (assuming a class or media query, but let's stick to variables if possible) */
