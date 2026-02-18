@@ -1,19 +1,35 @@
-const path = require('path');
+const fs = require('fs');
 
 // Explicitly add backend/node_modules to search path to fix resolution issues
 if (module.paths) {
     const nodeModulesPath = path.join(__dirname, '../../node_modules');
-    console.log('Debug: __dirname:', __dirname);
-    console.log('Debug: Target node_modules:', nodeModulesPath);
     module.paths.push(nodeModulesPath);
-    console.log('Debug: module.paths:', module.paths);
 }
 
-const dotenv = require('dotenv');
 const { BedrockClient, ListFoundationModelsCommand } = require("@aws-sdk/client-bedrock");
 
-// Load environment variables from backend directory
-dotenv.config({ path: path.join(__dirname, '../../.env') });
+// Manually load environment variables to avoid dotenv dependency issues
+const envPath = path.join(__dirname, '../../.env');
+if (fs.existsSync(envPath)) {
+    console.log(`Loading env from: ${envPath}`);
+    const envConfig = fs.readFileSync(envPath, 'utf8');
+    envConfig.split('\n').forEach(line => {
+        const match = line.match(/^\s*([\w\.\-]+)\s*=\s*(.*)?\s*$/);
+        if (match) {
+            const key = match[1];
+            let value = match[2] || '';
+            if (value.startsWith('"') && value.endsWith('"')) {
+                value = value.slice(1, -1);
+            }
+            if (!process.env[key]) {
+                process.env[key] = value;
+            }
+        }
+    });
+} else {
+    console.log(`Env file not found at: ${envPath}`);
+}
+
 
 const region = process.env.AWS_REGION || 'ap-southeast-1';
 console.log(`Using AWS Region: ${region}`);
