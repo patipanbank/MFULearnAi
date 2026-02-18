@@ -26,6 +26,8 @@ COPY src ./src
 
 # Build TS
 RUN npm run build
+COPY src/ocr.py dist/
+
 
 # Copy python script to dist/src so it matches the path logic in worker.ts
 # worker.ts expects ocr.py in __dirname, which will be dist/
