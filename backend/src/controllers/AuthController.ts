@@ -62,17 +62,8 @@ export class AuthController {
     // --- MFU SSO (OAuth) ---
     static startSsoLogin(req: Request, res: Response) {
         const host = req.get('host') || '';
-        const redirectBase = host.includes('dindinai')
-            ? 'https://dindinai.mfu.ac.th'
-            : 'https://mfulearnai.mfu.ac.th';
-
-        const redirectUri = `${redirectBase}/auth/callback`; // Frontend callback handler? Or Backend?
-        // Wait, the original OAuth service redirected to MFU SSO, and MFU SSO called back to... where?
-        // Original: `redirect_uri` param in startSsoLogin defaults to `${redirectBase}/auth/callback` 
-        // AND the callback route was POST /api/auth/sso/callback.
-        // If MFU SSO is pure server-side generic OAuth2, the redirect_uri should point to the backend if we want backend to handle code.
-        // BUT the original code: `const redirectUri = `${redirectBase}/auth/callback`;` suggests Frontend handles the code and POSTs it to the backend.
-        // Let's keep it consistent: Redirect to SSO, SSO redirects to FRONTEND, Frontend posts code to Backend.
+        // Use service to generate consistent redirect URI (Frontend Callback)
+        const redirectUri = OAuthService.getRedirectUrl(host);
 
         const authUrl = OAuthService.getAuthUrl(redirectUri);
         res.redirect(authUrl);

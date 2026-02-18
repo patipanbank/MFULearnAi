@@ -10,8 +10,11 @@ const MFU_TOKEN_URL = process.env.MFU_SSO_TOKEN_URL || 'https://authsso.mfu.ac.t
 export class OAuthService {
     static getRedirectUrl(host: string): string {
         let redirectBase = 'https://mfulearnai.mfu.ac.th';
+        // Handle local/dev environments or alternative domains
         if (host.includes('dindinai')) {
             redirectBase = 'https://dindinai.mfu.ac.th';
+        } else if (host.includes('localhost')) {
+            redirectBase = 'http://localhost:3000';
         }
         return `${redirectBase}/auth/callback`;
     }
