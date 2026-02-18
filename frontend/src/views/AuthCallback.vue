@@ -17,7 +17,7 @@ onMounted(async () => {
   if (code) {
     try {
       // Exchange code for token
-      const redirectUri = window.location.origin + '/auth-callback'
+      const redirectUri = window.location.origin + '/auth/callback'
       
       console.log('Exchanging code for token...')
       const response = await axios.post('/auth/sso/callback', {
