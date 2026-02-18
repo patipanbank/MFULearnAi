@@ -74,8 +74,8 @@ export class AuthController {
             const { code, redirect_uri } = req.body;
             if (!code || !redirect_uri) return res.status(400).json({ error: 'Missing code or redirect_uri' });
 
-            const { token, user } = await OAuthService.handleCallback(code, redirect_uri);
-            res.json({ token, user });
+            const authResult = await OAuthService.handleCallback(code, redirect_uri);
+            res.json(authResult);
         } catch (err: any) {
             console.error('[Auth] SSO Callback Error:', err.message);
             res.status(401).json({ error: 'Authentication failed' });

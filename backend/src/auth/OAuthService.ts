@@ -50,6 +50,7 @@ export class OAuthService {
         if (!profile) throw new Error('Failed to decode id_token');
 
         // Map Profile
+        // Map Profile (Match legacy oauth-service exactly)
         const userData = {
             googleId: profile.sub || profile.upn,
             email: profile.email || profile.upn,
@@ -58,7 +59,9 @@ export class OAuthService {
             username: profile.username || (profile.email ? profile.email.split('@')[0] : 'unknown'),
             role: 'student',
             department: profile.depart_name,
-            departmentId: profile.depart_id
+            departmentId: profile.depart_id,
+            departName: profile.depart_name, // Backward compatibility
+            provider: 'sso'
         };
 
         if (profile.group === 'Staff' || profile.group === 'Lecturer' ||
@@ -67,7 +70,12 @@ export class OAuthService {
         }
 
         // Login/Create
-        return await AuthService.handleInternalLogin(userData);
+        const internalAuth = await AuthService.handleInternalLogin(userData);
+
+        return {
+            ...internalAuth,
+            sso_id_token: id_token // Legacy frontend might valid this
+        };
     }
 
     private static parseJwt(token: string) {
