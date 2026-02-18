@@ -11,7 +11,10 @@ router.get('/login/saml', AuthController.startSamlLogin);
 router.post('/saml/callback', AuthController.handleSamlCallback);
 router.get('/login/sso', AuthController.startSsoLogin);
 router.post('/sso/callback', AuthController.handleSsoCallback);
+
 router.post('/refresh', AuthController.refresh);
+router.post('/logout', AuthController.logout); // Post usually preferred for actions, but Nginx might allow GET if simple link?
+router.get('/logout', AuthController.logout);  // Supporting GET for simple link/redirect compatibility
 
 // Protected
 router.get('/me', AuthService.authenticateUser, AuthController.me);
