@@ -61,7 +61,10 @@ export class FileProcessor {
                         emit(AGENT_EVENTS.FILE_UPLOADED, { fileName, metadata: meta });
                         return { ...meta, fileType: ext };
                     })
-                    .catch(e => null)
+                    .catch(e => {
+                        LoggerService.error('file_upload_error', { fileName, error: e.message });
+                        return null;
+                    })
             );
 
             // Decision: Native vs Async OCR

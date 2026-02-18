@@ -765,6 +765,8 @@ app.post('/api/storage/upload', async (req: any, res: Response) => {
     const bb = busboy({ headers: req.headers });
     const CHAT_BUCKET = 'chat-attachments';
 
+    console.log(`[Storage] Upload request from user ${user.userId}`);
+
     // Lazy Ensure Bucket
     try {
         const exists = await minioClient.bucketExists(CHAT_BUCKET);
@@ -781,6 +783,9 @@ app.post('/api/storage/upload', async (req: any, res: Response) => {
     let hasFile = false;
 
     bb.on('file', (name, file, info) => {
+        hasFile = true;
+        const { filename, mimeType } = info;
+        console.log(`[Storage] Receiving file: ${filename} (${mimeType})`);
         hasFile = true;
         const { filename, mimeType } = info;
         // Key: {userId}/{date}/{uuid}-{filename}

@@ -24,6 +24,8 @@ export class ChatAttachmentService {
             const baseURL = KNOWLEDGE_URL.replace(/\/api\/knowledge\/?$/, '');
             const uploadURL = `${baseURL}/api/storage/upload`;
 
+            console.log(`[ChatAttachment] Uploading ${filename} to ${uploadURL}`);
+
             const response = await axios.post(uploadURL, formData, {
                 headers,
                 maxBodyLength: Infinity,
