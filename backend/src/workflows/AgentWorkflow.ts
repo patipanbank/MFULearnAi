@@ -300,6 +300,9 @@ export class AgentWorkflow {
                     });
                 }
 
+                // Reset content in frontend bubble as it was just thinking
+                this.emit(AGENT_EVENTS.CONTENT_RESET, {});
+
                 const { usedTools, toolResults } = await ToolExecutor.executeTools(
                     fullResponse,
                     contentBlocks,

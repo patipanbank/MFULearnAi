@@ -378,6 +378,12 @@ export const useChatStore = defineStore('chat', () => {
                 }
             }
 
+            // Content Reset (Retract)
+            if (data.type === 'content_reset') {
+                console.log('[ChatStore] Resetting content (migrated to thinking)')
+                messages.value[assistantIndex].content = ''
+            }
+
             // File Persisted
             if (data.type === 'file_uploaded') {
                 const userMsgIndex = assistantIndex - 1;
