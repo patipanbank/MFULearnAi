@@ -35,15 +35,16 @@ export class SummarizationService {
 
     private static ROLLING_PROMPT = `
 You are a Memory Manager AI. Your goal is to update the "Rolling Context" based on the latest conversation.
-Output strictly in JSON within <json> sentinel tags.
+Output STRICTLY in JSON within <json> sentinel tags.
+DO NOT include any conversational text, pleasantries, or markdown formatting outside the sentinel tags.
 
 Input:
 - Current Rolling Context (JSON)
 - New Messages
 
 Task:
-1. Update 'facts' with new critical information.
-2. Update 'tentative_facts' for items that seem uncertain or need verification.
+1. Update 'facts' with new critical information (keep concise).
+2. Update 'tentative_facts' for items that seem uncertain.
 3. Update 'intent' with primary/secondary goals and confidence.
 4. Update 'constraints'.
 5. Update 'decisions'.
@@ -78,7 +79,8 @@ Input:
 Task:
 1. Append validated facts and decisions from Rolling Context into the Canonical layout.
 2. Keep it concise but lossless for technical details.
-3. Do NOT include temporary chit-chat.
+3. DO NOT include temporary chit-chat.
+4. Output ONLY the updated memory text. Do not overlook the output format.
 
 Output: Updated Canonical Memory (Text only).
 `;
