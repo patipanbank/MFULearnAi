@@ -1,6 +1,7 @@
 <script setup>
 import { ref, watch, computed, nextTick, onMounted } from 'vue'
 import { useChatStore } from '@/stores/chat'
+import { FileText, FileSpreadsheet, FileImage, File } from 'lucide-vue-next'
 
 const chatStore = useChatStore()
 
@@ -81,13 +82,18 @@ const healthLabel = computed(() => {
 })
 
 const getFileIcon = (file) => {
-  if (file.type === 'image') return null
+  if (file.type === 'image') return { component: FileImage, color: '#10b981' }
   const ext = file.name?.split('.').pop()?.toLowerCase()
-  const icons = {
-    pdf: '📄', doc: '📝', docx: '📝', txt: '📃',
-    xls: '📊', xlsx: '📊', csv: '📊'
+  const map = {
+    pdf:  { component: FileText,        color: '#ef4444' },
+    doc:  { component: FileText,        color: '#3b82f6' },
+    docx: { component: FileText,        color: '#3b82f6' },
+    txt:  { component: FileText,        color: '#6b7280' },
+    xls:  { component: FileSpreadsheet, color: '#22c55e' },
+    xlsx: { component: FileSpreadsheet, color: '#22c55e' },
+    csv:  { component: FileSpreadsheet, color: '#22c55e' },
   }
-  return icons[ext] || '📎'
+  return map[ext] || { component: File, color: '#9ca3af' }
 }
 
 defineExpose({
@@ -112,7 +118,13 @@ defineExpose({
             <div v-if="file.type === 'image'" class="chip-thumb">
               <img :src="file.data" />
             </div>
-            <div v-else class="chip-icon">{{ getFileIcon(file) }}</div>
+            <div v-else class="chip-icon">
+              <component
+                :is="getFileIcon(file).component"
+                :color="getFileIcon(file).color"
+                :size="20"
+              />
+            </div>
             <span class="chip-name">{{ file.name }}</span>
             <button class="chip-remove" @click="$emit('remove-attachment', index)">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
