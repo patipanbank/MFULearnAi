@@ -5,7 +5,7 @@
  * - Header: Title Left, User Dropdown Right
  * - Context Bar: Select Knowledge Base
  */
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import axios from 'axios'
 import { useAuthStore } from '@/stores/auth'
@@ -14,6 +14,7 @@ import { useKnowledgeStore } from '@/stores/knowledge'
 import { useTheme, useLanguage } from '@/composables/useSettings'
 import { useScrollToBottom } from '@/composables/useUtils'
 import PDFViewer from '@/components/common/PDFViewer.vue'
+
 
 import {
   ChatMessage,
@@ -57,6 +58,17 @@ const userInitial = computed(() =>
 )
 const userName = computed(() => authStore.displayName || 'Guest')
 
+// เพิ่ม ref สำหรับปุ่ม
+const showScrollBtn = ref(false)
+
+// ฟังก์ชัน detect scroll position
+const handleScroll = () => {
+  const el = messagesRef.value
+  if (!el) return
+  const distFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight
+  showScrollBtn.value = distFromBottom > 150
+}
+
 // Lifecycle
 onMounted(async () => {
   initTheme()
@@ -74,6 +86,14 @@ onMounted(async () => {
   if (route.params.sessionId) {
     chatStore.loadSession(route.params.sessionId)
   }
+  nextTick(() => {
+    messagesRef.value?.addEventListener('scroll', handleScroll)
+  })
+})
+
+// cleanup
+onBeforeUnmount(() => {
+  messagesRef.value?.removeEventListener('scroll', handleScroll)
 })
 
 // Watchers
