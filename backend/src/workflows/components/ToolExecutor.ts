@@ -18,7 +18,7 @@ export class ToolExecutor {
         const toolResults: any[] = [];
 
         for (const block of toolUseBlocks) {
-            if (block.type !== 'tool_use') continue;
+            if (!block || block.type !== 'tool_use') continue;
 
             const { name: toolName, input: toolInput, toolUseId } = block;
             usedTools.add(toolName);

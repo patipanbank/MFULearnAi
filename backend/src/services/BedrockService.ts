@@ -373,7 +373,12 @@ export class BedrockService {
                 }
             });
 
-            return { text: fullText, content: contentBlocks, usage: tokenUsage, stopReason };
+            return {
+                text: fullText,
+                content: contentBlocks.filter(b => b), // Compact array to remove holes
+                usage: tokenUsage,
+                stopReason
+            };
 
         } catch (error: any) {
             LoggerService.error('bedrock_stream_sse_error', { error: error.message });
