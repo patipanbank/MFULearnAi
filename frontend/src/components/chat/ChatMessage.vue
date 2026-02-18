@@ -1063,7 +1063,6 @@ const formatBytes = (bytes) => {
 /* ══════════════════ Agent Flow Timeline (Premium) ══════════════════ */
 .agent-flow-container {
     margin-top: 12px;
-    border-top: 1px solid var(--color-border);
     padding-top: 8px;
     width: 100%;
     display: flex;
@@ -1154,8 +1153,10 @@ const formatBytes = (bytes) => {
     z-index: 2;
     box-shadow: 0 1px 2px rgba(0,0,0,0.05);
 }
-.timeline-icon.thinking { color: #6b7280; background: #f9fafb; }
-.timeline-icon.tool { color: #0284c7; background: #e0f2fe; border-color: #bae6fd; }
+
+.timeline-icon.thinking { color: #0866ff; background: #e7f3ff; border-color: #cce4ff; }
+.timeline-icon.tool { color: #f97316; background: #ffedd5; border-color: #fed7aa; }
+
 .timeline-icon.success { color: #16a34a; background: #dcfce7; border-color: #bbf7d0; }
 .timeline-icon.pulse { animation: pulse 1.5s infinite; color: var(--color-primary); border-color: var(--color-primary); }
 
@@ -1177,7 +1178,7 @@ const formatBytes = (bytes) => {
 }
 
 .card-header {
-    background: #f3f6f9; /* Slightly darker than #f6f8fa */
+    background: transparent; /* Transparent as requested */
     border-bottom: 1px solid #d0d7de;
     padding: 8px 12px;
     display: flex;
@@ -1215,7 +1216,7 @@ const formatBytes = (bytes) => {
 
 .tool-card .card-header {
     /* Enforce standard header */
-    background: #f3f6f9;
+    background: transparent;
     border-bottom: 1px solid #d0d7de;
     color: #57606a;
 }
@@ -1270,7 +1271,7 @@ html[data-theme="dark"] .flow-card {
 }
 
 html[data-theme="dark"] .card-header {
-    background: #161b22; /* Use standard dark header */
+    background: transparent; /* Use standard dark header */
     border-bottom-color: #30363d;
     color: #768390;
 }
@@ -1285,7 +1286,7 @@ html[data-theme="dark"] .tool-card {
 }
 
 html[data-theme="dark"] .tool-card .card-header {
-    background: #161b22;
+    background: transparent;
     border-bottom-color: #30363d;
     color: #768390;
 }
