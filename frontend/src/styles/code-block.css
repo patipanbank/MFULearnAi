@@ -119,6 +119,13 @@
 
 /* === Syntax Highlighting Theme - GitHub Light / Dark === */
 
+/* Ensure hljs background is transparent so wrapper bg shows */
+.hljs {
+  background: transparent !important;
+  padding: 0 !important;
+  color: inherit;
+}
+
 /* Light Mode (GitHub Light) */
 .hljs-comment,
 .hljs-quote {
@@ -127,7 +134,10 @@
 
 .hljs-keyword,
 .hljs-selector-tag,
-.hljs-tag {
+.hljs-tag,
+.hljs-meta .hljs-keyword,
+.hljs-doctag,
+.hljs-section {
   color: #cf222e;
 }
 
@@ -135,18 +145,28 @@
 .hljs-variable,
 .hljs-template-variable,
 .hljs-attribute,
-.hljs-tag .hljs-attr {
+.hljs-tag .hljs-attr,
+.hljs-params {
   color: #24292f;
 }
 
 .hljs-string,
-.hljs-doctag {
+.hljs-name,
+.hljs-type,
+.hljs-attr,
+.hljs-symbol,
+.hljs-bullet,
+.hljs-addition {
   color: #0a3069;
 }
 
-/* Dark Blue */
+/* Note: GitHub `name` (tag) is often green (#22863a) but `type` is blue. 
+   Let's create a specific rule for `name` if needed.*/
+.hljs-name {
+  color: #22863a;
+}
+
 .hljs-title,
-.hljs-section,
 .hljs-selector-id {
   color: #8250df;
 }
@@ -266,4 +286,13 @@
 [data-theme="dark"] .hljs-addition {
   background: #172a1f;
   color: #aff5b4;
+}
+
+/* Additions for coverage */
+[data-theme="dark"] .hljs-name {
+  color: #7ee787;
+}
+
+[data-theme="dark"] .hljs-params {
+  color: #c9d1d9;
 }

@@ -5,7 +5,6 @@ import router from './router'
 import CoreuiVue from '@coreui/vue'
 import '@coreui/coreui/dist/css/coreui.min.css'
 import './styles/main.css'
-import 'highlight.js/styles/atom-one-dark.css'
 
 // Click outside directive
 const clickOutside = {
