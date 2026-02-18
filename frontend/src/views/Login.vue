@@ -65,17 +65,52 @@ const handleAdminLogin = async () => {
 
 // Theme Handling
 const { isDark } = useTheme()
-const overlayGradient = computed(() => {
+
+// Theme-aware glass background (Opacity 0.7 as requested)
+const glassCardBg = computed(() => {
     return isDark.value 
-        ? 'linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4))' 
-        : 'linear-gradient(rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0.3))'
+        ? 'rgba(0, 0, 0, 0.7)' 
+        : 'rgba(255, 255, 255, 0.7)'
+})
+
+// Text color adaptation for glass background
+const glassTextColor = computed(() => {
+    return isDark.value ? '#ffffff' : '#0f172a' // White on Dark Glass, Slate-900 on Light Glass
+})
+
+// Secondary text color
+const glassTextMuted = computed(() => {
+    return isDark.value ? 'rgba(255, 255, 255, 0.7)' : 'rgba(15, 23, 42, 0.6)'
+})
+
+// Input background
+const glassInputBg = computed(() => {
+    return isDark.value ? 'rgba(0, 0, 0, 0.2)' : 'rgba(255, 255, 255, 0.5)' // Darker on dark, lighter on light
+})
+
+// Input text
+const glassInputText = computed(() => {
+    return isDark.value ? '#ffffff' : '#0f172a'
+})
+
+// Border color
+const glassBorder = computed(() => {
+    return isDark.value ? 'rgba(255, 255, 255, 0.15)' : 'rgba(255, 255, 255, 0.4)'
 })
 
 
 </script>
 
 <template>
-  <div class="login-container" :style="{ '--bg-image': `url(${currentBg})`, '--overlay-gradient': overlayGradient }">
+  <div class="login-container" :style="{ 
+      '--bg-image': `url(${currentBg})`, 
+      '--glass-bg': glassCardBg,
+      '--glass-text': glassTextColor,
+      '--glass-text-muted': glassTextMuted,
+      '--glass-input-bg': glassInputBg,
+      '--glass-input-text': glassInputText,
+      '--glass-border': glassBorder
+  }">
     <div class="login-card fade-in">
       <!-- Logo & Title -->
       <div class="login-header">
@@ -164,12 +199,11 @@ const overlayGradient = computed(() => {
   left: 0;
   width: 100%;
   height: 100%;
-  /* Image */
+  /* Image only, no overlay gradient */
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
-  /* Dim (Dark Overlay) or Lighten (White Overlay) based on theme */
-  background-image: var(--overlay-gradient), var(--bg-image); 
+  background-image: var(--bg-image); 
   /* Blur (Reduced) */
   filter: blur(4px);
   /* Scale up slightly to hide blurred edges */
@@ -179,10 +213,10 @@ const overlayGradient = computed(() => {
 }
 
 .login-card {
-  background: rgba(0, 0, 0, 0.7); /* Darker glass background */
+  background: var(--glass-bg); /* Dynamic Glass Background */
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.15); /* Slightly Adjusted border */
+  border: 1px solid var(--glass-border);
   border-radius: 24px;
   padding: 48px;
   width: 100%;
@@ -217,15 +251,15 @@ const overlayGradient = computed(() => {
 .app-title {
   font-size: 28px;
   font-weight: 700;
-  color: #ffffff; /* Explicit white for contrast on glass */
+  color: var(--glass-text); /* Dynamic text color */
   margin-bottom: 8px;
-  text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+  text-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
 .app-subtitle {
-  color: rgba(255, 255, 255, 0.8); /* Semi-transparent white */
+  color: var(--glass-text-muted); /* Dynamic muted text */
   font-size: 14px;
-  text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+  text-shadow: 0 1px 2px rgba(0,0,0,0.1);
 }
 
 .login-buttons, .admin-form {
@@ -243,43 +277,42 @@ const overlayGradient = computed(() => {
 
 .form-group label {
     font-size: 14px;
-    color: rgba(255, 255, 255, 0.9);
+    color: var(--glass-text);
     font-weight: 500;
-    text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+    text-shadow: 0 1px 2px rgba(0,0,0,0.1);
 }
 
 .form-input {
     padding: 12px;
     border-radius: 10px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    background: rgba(0, 0, 0, 0.2); /* Darker glass for input */
+    border: 1px solid var(--glass-border);
+    background: var(--glass-input-bg);
     backdrop-filter: blur(4px);
-    color: #ffffff;
+    color: var(--glass-input-text);
     outline: none;
     transition: all 0.2s;
-    box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);
 }
 
 .form-input::placeholder {
-    color: rgba(255, 255, 255, 0.5);
+    color: var(--glass-text-muted);
 }
 
 .form-input:focus {
-    border-color: rgba(255, 255, 255, 0.5);
-    background: rgba(0, 0, 0, 0.3);
-    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.1);
+    border-color: var(--color-primary);
+    background: var(--glass-input-bg);
+    box-shadow: 0 0 0 2px var(--glass-border);
 }
 
 .error-msg {
-    color: #ff8888; /* Brighter red for dark background */
+    color: #ef4444; /* Standard Red */
     font-size: 13px;
     text-align: center;
-    background: rgba(220, 38, 38, 0.2); /* Glassy red */
+    background: rgba(239, 68, 68, 0.1); /* Standard Red Tint */
     backdrop-filter: blur(4px);
-    border: 1px solid rgba(220, 38, 38, 0.3);
+    border: 1px solid rgba(239, 68, 68, 0.2);
     padding: 8px;
     border-radius: 8px;
-    text-shadow: 0 1px 2px rgba(0,0,0,0.2);
 }
 
 .btn-login {
@@ -394,16 +427,14 @@ const overlayGradient = computed(() => {
 
 .btn-text-admin {
     font-size: 13px;
-    color: rgba(255, 255, 255, 0.7);
+    color: var(--glass-text-muted);
     text-decoration: none;
     transition: all 0.2s;
     cursor: pointer;
-    text-shadow: 0 1px 2px rgba(0,0,0,0.2);
 }
 
 .btn-text-admin:hover {
-    color: #ffffff;
+    color: var(--glass-text);
     text-decoration: underline;
-    text-shadow: 0 0 8px rgba(255, 255, 255, 0.5);
 }
 </style>
