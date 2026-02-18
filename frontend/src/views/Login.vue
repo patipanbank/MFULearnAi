@@ -251,24 +251,35 @@ const overlayGradient = computed(() => {
 .form-input {
     padding: 12px;
     border-radius: 10px;
-    border: 1px solid var(--color-border);
-    background: var(--color-bg-input, rgba(255, 255, 255, 0.05));
-    color: var(--color-text);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(0, 0, 0, 0.2); /* Darker glass for input */
+    backdrop-filter: blur(4px);
+    color: #ffffff;
     outline: none;
-    transition: border-color 0.2s;
+    transition: all 0.2s;
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.form-input::placeholder {
+    color: rgba(255, 255, 255, 0.5);
 }
 
 .form-input:focus {
-    border-color: var(--color-primary);
+    border-color: rgba(255, 255, 255, 0.5);
+    background: rgba(0, 0, 0, 0.3);
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.1);
 }
 
 .error-msg {
-    color: #ef4444;
+    color: #ff8888; /* Brighter red for dark background */
     font-size: 13px;
     text-align: center;
-    background: rgba(239, 68, 68, 0.1);
+    background: rgba(220, 38, 38, 0.2); /* Glassy red */
+    backdrop-filter: blur(4px);
+    border: 1px solid rgba(220, 38, 38, 0.3);
     padding: 8px;
     border-radius: 8px;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.2);
 }
 
 .btn-login {
@@ -378,14 +389,16 @@ const overlayGradient = computed(() => {
 
 .btn-text-admin {
     font-size: 13px;
-    color: var(--color-text-muted);
+    color: rgba(255, 255, 255, 0.7);
     text-decoration: none;
-    transition: color 0.2s;
+    transition: all 0.2s;
     cursor: pointer;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.2);
 }
 
 .btn-text-admin:hover {
-    color: var(--color-primary);
+    color: #ffffff;
     text-decoration: underline;
+    text-shadow: 0 0 8px rgba(255, 255, 255, 0.5);
 }
 </style>
