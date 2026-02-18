@@ -88,7 +88,14 @@ const normalizeMessages = (messages: any[]) => {
 
             msg.content.forEach((block: any) => {
                 if (block.type === 'text') content.push({ text: block.text });
-                else if (block.type === 'image') content.push({ image: block.source });
+                else if (block.type === 'image') {
+                    const imgSource = block.source;
+                    // Ensure bytes area Buffer (AWS SDK v3 expects Buffer/Uint8Array)
+                    if (imgSource?.source?.bytes && typeof imgSource.source.bytes === 'string') {
+                        imgSource.source.bytes = Buffer.from(imgSource.source.bytes, 'base64');
+                    }
+                    content.push({ image: imgSource });
+                }
                 // Enhancement 2: Native Document Support
                 else if (block.type === 'document') {
                     const docBytes = typeof block.data === 'string'
