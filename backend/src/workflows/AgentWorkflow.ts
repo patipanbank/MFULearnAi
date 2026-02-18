@@ -3,7 +3,7 @@ import { BedrockService } from '../services/BedrockService';
 import { LoggerService } from '../services/LoggerService';
 import { CalculatorTool } from '../tools/CalculatorTool';
 import { SearchTool } from '../tools/SearchTool';
-import { MODELS, AGENT_CONFIG } from '../config/models';
+import { SYSTEM_MODELS, AGENT_CONFIG } from '../config/models';
 import * as crypto from 'crypto';
 
 // New Components & Types
@@ -235,7 +235,7 @@ export class AgentWorkflow {
 
             // --- STREAMING CALL ---
             const { text: fullResponse, content: contentBlocks, usage: stepUsage, stopReason } = await BedrockService.streamChatSSE(
-                MODELS.PRIMARY,
+                SYSTEM_MODELS.AGENT,
                 this.state.messages,
                 (delta) => {
                     if (!firstTokenTime) firstTokenTime = Date.now();
@@ -259,7 +259,7 @@ export class AgentWorkflow {
                 traceId: this.state.traceId,
                 ttftMs,
                 totalDurationMs: stepDurationMs,
-                model: MODELS.PRIMARY
+                model: SYSTEM_MODELS.AGENT
             }, this.ctx.userId);
 
             this.updateUsage(stepUsage, stepDurationMs);

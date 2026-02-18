@@ -7,7 +7,7 @@ import {
     ConverseStreamCommand
 } from "@aws-sdk/client-bedrock-runtime";
 
-import { MODELS, BEDROCK_MODELS, AVAILABLE_MODELS } from '../../config/models';
+import { MODELS, BEDROCK_MODELS, AVAILABLE_MODELS, SYSTEM_MODELS } from '../../config/models';
 
 dotenv.config();
 
@@ -47,10 +47,10 @@ const validateModel = (modelId: string): string => {
     if (ENV_TYPE === 'PROD') {
         if (!isValid) {
             console.warn(`[Bedrock Text] Invalid or blocked model ${modelId} in PROD`);
-            return MODELS.PRIMARY;
+            return SYSTEM_MODELS.CHAT;
         }
     }
-    return isValid ? modelId : MODELS.PRIMARY;
+    return isValid ? modelId : SYSTEM_MODELS.CHAT;
 };
 
 

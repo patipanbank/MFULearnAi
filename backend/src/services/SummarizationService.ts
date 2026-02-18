@@ -3,7 +3,7 @@ import { HistoryService } from './HistoryService';
 import { LoggerService } from './LoggerService';
 import { Conversation } from '../models/Conversation';
 import crypto from 'crypto';
-import { MODELS } from '../config/models';
+import { SYSTEM_MODELS, MODELS } from '../config/models';
 
 interface SmartContext {
     canonical: string;
@@ -246,7 +246,7 @@ ${newMessages.map(m => `${m.role}: ${m.content}`).join('\n')}
         let response = '';
         try {
             const { text, usage } = await BedrockService.sendChat(
-                MODELS.FAST,
+                SYSTEM_MODELS.SUMMARIZE,
                 [{ role: 'user', content: prompt }],
                 SummarizationService.ROLLING_PROMPT,
                 0.1
@@ -256,7 +256,7 @@ ${newMessages.map(m => `${m.role}: ${m.content}`).join('\n')}
             if (usage) {
                 await LoggerService.info('chat_completion', {
                     tokens: usage,
-                    model: MODELS.FAST,
+                    model: SYSTEM_MODELS.SUMMARIZE,
                     action: 'rolling_summary',
                     isBackground: true
                 });
@@ -303,7 +303,7 @@ ${JSON.stringify(rollingContext, null, 2)}
 
         try {
             const { text: response, usage } = await BedrockService.sendChat(
-                MODELS.FAST,
+                SYSTEM_MODELS.SUMMARIZE,
                 [{ role: 'user', content: prompt }],
                 SummarizationService.CANONIZATION_PROMPT,
                 0.1
@@ -312,7 +312,7 @@ ${JSON.stringify(rollingContext, null, 2)}
             if (usage) {
                 await LoggerService.info('chat_completion', {
                     tokens: usage,
-                    model: MODELS.PRIMARY,
+                    model: SYSTEM_MODELS.SUMMARIZE,
                     action: 'canonization',
                     isBackground: true
                 });
@@ -334,7 +334,7 @@ ${JSON.stringify(rollingContext, null, 2)}
             Output ONLY the title string, no quotes or prefix.`;
 
             const { text: rawTitle, usage } = await BedrockService.sendChat(
-                MODELS.FAST,
+                SYSTEM_MODELS.UTILITY,
                 [{ role: 'user', content: prompt }],
                 'You are a title writer.',
                 0.2
@@ -343,7 +343,7 @@ ${JSON.stringify(rollingContext, null, 2)}
             if (usage) {
                 await LoggerService.info('chat_completion', {
                     tokens: usage,
-                    model: MODELS.FAST,
+                    model: SYSTEM_MODELS.UTILITY,
                     action: 'title_generation',
                     isBackground: true
                 });
