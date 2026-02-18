@@ -6,10 +6,12 @@ import hljs from 'highlight.js'
 const renderer = new marked.Renderer()
 
 renderer.code = (code, language) => {
+    // Ensure code is a string to prevent "replace is not a function" error
+    const validCode = typeof code === 'string' ? code : String(code || '')
     const validLang = !!(language && hljs.getLanguage(language))
     const highlighted = validLang
-        ? hljs.highlight(code, { language }).value
-        : hljs.highlightAuto(code).value
+        ? hljs.highlight(validCode, { language }).value
+        : hljs.highlightAuto(validCode).value
 
     const langLabel = language ? language : 'text'
 
