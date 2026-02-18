@@ -33,7 +33,7 @@ async function listModels() {
         if (response.modelSummaries) {
             console.log('\nAvailable Text Models:');
             console.log('------------------------');
-            response.modelSummaries.forEach(model => {
+            response.modelSummaries.forEach((model: any) => {
                 console.log(`Name: ${model.modelName}`);
                 console.log(`ID: ${model.modelId}`);
                 console.log(`Provider: ${model.providerName}`);
