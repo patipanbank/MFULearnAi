@@ -346,7 +346,7 @@ const glassBorder = computed(() => {
 
 /* Glassy Blue MFU Button */
 .btn-mfu {
-  background: rgba(59, 130, 246, 0.6); /* Glassy Blue */
+  background: rgba(59, 130, 246, 0.8); /* Glassy Blue */
   backdrop-filter: blur(4px);
   -webkit-backdrop-filter: blur(4px);
   border: 1px solid rgba(255, 255, 255, 0.2);
