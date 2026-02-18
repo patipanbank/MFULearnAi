@@ -157,6 +157,7 @@ export class FileProcessor {
                 attachments: []
             };
         }
+    }
 
     private static sanitizeFileName(name: string): string {
         return name
