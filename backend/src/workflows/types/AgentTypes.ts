@@ -107,4 +107,5 @@ export const AGENT_EVENTS = {
     FILE_UPLOADED: 'file_uploaded',
     TITLE: 'title',
     CONTENT_RESET: 'content_reset',
+    THINKING_DELTA: 'thinking_delta',
 } as const;

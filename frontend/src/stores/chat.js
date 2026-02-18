@@ -384,6 +384,29 @@ export const useChatStore = defineStore('chat', () => {
                 messages.value[assistantIndex].content = ''
             }
 
+            // Thinking Delta (Real-time updates for Thinking Card)
+            if (data.type === 'thinking_delta') {
+                ensureEvents()
+                const events = messages.value[assistantIndex].agentEvents
+                const lastEvt = events[events.length - 1]
+
+                if (lastEvt && lastEvt.type === 'thinking' && !lastEvt.isFinished) {
+                    lastEvt.message = (lastEvt.message || '') + data.delta
+                } else {
+                    // Create new thinking block if none active
+                    const maxStep = events.length > 0 ? Math.max(...events.map(e => e.step || 0)) : 0
+
+                    messages.value[assistantIndex].agentEvents.push({
+                        type: 'thinking',
+                        message: data.delta,
+                        step: maxStep + 1,
+                        receivedAt: Date.now(),
+                        isFinished: false,
+                        isActive: true
+                    })
+                }
+            }
+
             // File Persisted
             if (data.type === 'file_uploaded') {
                 const userMsgIndex = assistantIndex - 1;

@@ -241,32 +241,9 @@ export class AgentWorkflow {
                     if (!firstTokenTime) firstTokenTime = Date.now();
                     bufferedText += delta;
 
-                    // REAL-TIME STREAMING
-                    // Only emit if we are NOT in a tool use block (simple heuristic: if we have tool use, stopReason will be tool_use eventually, 
-                    // but we don't know that yet. However, usually tool use generation is JSON which we might not want to stream as answer?
-                    // actually, for 'thinking' or 'answer', we usually just stream. 
-                    // But if the model is generating a JSON for tool use, we probably shouldn't emit ANSWER_DELTA.
-                    // Bedrock's Converse API stream distinguishes content blocks. 
-                    // streamChatSSE lumps text delta. 
-
-                    // For now, let's stream everything. If it ends up being a tool use, we'll just have emitted some text.
-                    // But usually tool use comes in a tailored content block or we parse it.
-                    // If we want to be safe: determine if we are in 'answer mode' or 'tool mode'? 
-                    // We don't know until the end if we rely on stopReason. 
-                    // But typically, if it's a tool use, the first thing it might output is text (thought) then tool use.
-
-                    // Let's emit. If it turns out to be tool use, we might have shown some text to user. 
-                    // Improvements: BedrockService could pass 'type' in delta (text vs tool_use_input). 
-                    // Existing streamChatSSE only calls onDelta for 'text' type deltas. So it is safe-ish.
-
-                    if (!this.state.hasEmittedAnswerStart) {
-                        // Determine mode early if possible, or default to internal
-                        this.determineAnswerMode(bufferedText); // Heuristic might be weak here with partial text
-                        this.emit(AGENT_EVENTS.ANSWER_START, { answerMode: this.state.answerMode });
-                        this.state.hasEmittedAnswerStart = true;
-                    }
-
-                    this.emit(AGENT_EVENTS.ANSWER_DELTA, { delta });
+                    // LEGACY STYLE: Stream thoughts to sidebar only.
+                    // DO NOT emit ANSWER_DELTA here to keep main chat bubble clean.
+                    this.emit(AGENT_EVENTS.THINKING_DELTA, { delta });
                 },
                 0.5,
                 toolConfig,
@@ -339,7 +316,9 @@ export class AgentWorkflow {
                     this.state.hasEmittedAnswerStart = true;
                 }
 
-                // We already emitted DELTAS during streaming.
+                // LEGACY: We didn't emit DELTAS during streaming (we emitted THINKING_DELTA).
+                // So now we must emit the full answer.
+                this.emit(AGENT_EVENTS.ANSWER_DELTA, { delta: fullResponse });
 
                 // 3. Update State & Emit DONE
                 this.state.finalAnswer = fullResponse;
