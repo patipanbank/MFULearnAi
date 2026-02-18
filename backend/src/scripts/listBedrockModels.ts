@@ -9,13 +9,18 @@ dotenv.config({ path: path.join(__dirname, '../../.env') });
 const region = process.env.AWS_REGION || 'ap-southeast-1';
 console.log(`Using AWS Region: ${region}`);
 
-const client = new BedrockClient({
-    region: region,
-    credentials: {
-        accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
-        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!
-    }
-});
+const clientConfig: any = { region };
+
+if (process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY) {
+    clientConfig.credentials = {
+        accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY
+    };
+} else {
+    console.log('AWS credentials not found in environment variables. Attempting to use default credential provider chain (e.g. ~/.aws/credentials)...');
+}
+
+const client = new BedrockClient(clientConfig);
 
 async function listModels() {
     try {
