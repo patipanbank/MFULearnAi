@@ -54,10 +54,28 @@ app.get('/health', (req, res) => res.json({
     rateLimit: RATE_LIMIT
 }));
 
+// Bull Board
+import { createBullBoard } from '@bull-board/api';
+import { BullMQAdapter } from '@bull-board/api/bullMQAdapter';
+import { ExpressAdapter } from '@bull-board/express';
+import { queueService } from './services/QueueService';
+
+const serverAdapter = new ExpressAdapter();
+serverAdapter.setBasePath('/admin/queues');
+
+createBullBoard({
+    queues: [new BullMQAdapter(queueService.ocrQueue)],
+    serverAdapter: serverAdapter,
+});
+
+app.use('/admin/queues', serverAdapter.getRouter());
+
 // Initialize Socket.IO (must be after app setup, before listen)
 const io = setupSocketIO(httpServer);
 
 // Start Server — use httpServer instead of app.listen for Socket.IO
 httpServer.listen(PORT, () => {
     console.log(`[Orchestrator] Server running on port ${PORT} (${ENV_TYPE})`);
+    console.log(`[Orchestrator] Bull Board available at http://localhost:${PORT}/admin/queues`);
 });
+

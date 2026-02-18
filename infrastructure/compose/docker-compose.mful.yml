@@ -94,6 +94,8 @@ services:
       - LOGGER_URL=http://logger-service:6000/api/logs
       - MONGO_URI=mongodb://mongo:27017/mfulearnai-chat
       - REDIS_URL=redis://redis:6379
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
       - JWT_SECRET=${JWT_SECRET:-test-jwt-secret-change-me}
       - KNOWLEDGE_URL=http://knowledge-service:7000/api/knowledge
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
