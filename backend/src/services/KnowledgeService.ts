@@ -148,6 +148,25 @@ export class KnowledgeService {
         }
     }
 
+
+
+    // --- Knowledge List ---
+    static async getKnowledgeList(user: UserContext) {
+        // Return personal + explicit department + public?
+        // Or just personal for now? 
+        // Let's return all readable by user.
+
+        const query: any = {
+            $or: [
+                { type: 'public' },
+                { type: 'department', department: user.department },
+                { type: 'personal', ownerId: user.userId }
+            ]
+        };
+
+        return await Knowledge.find(query).sort({ createdAt: -1 });
+    }
+
     // --- Knowledge CRUD ---
     static async createKnowledgeRecord(
         user: UserContext,

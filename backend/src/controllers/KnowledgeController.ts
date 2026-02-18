@@ -27,6 +27,19 @@ const extractUser = (req: Request): UserContext | null => {
 
 export class KnowledgeController {
 
+    // 0. LIST KNOWLEDGE
+    static async listKnowledge(req: Request, res: Response) {
+        const user = extractUser(req);
+        if (!user) return res.status(401).json({ error: 'Unauthorized' });
+
+        try {
+            const knowledge = await KnowledgeService.getKnowledgeList(user);
+            res.json({ knowledge });
+        } catch (e: any) {
+            res.status(500).json({ error: e.message });
+        }
+    }
+
     // 1. CREATE KNOWLEDGE (Streaming Upload)
     static async create(req: Request, res: Response) {
         const user = extractUser(req);
