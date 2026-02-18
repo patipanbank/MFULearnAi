@@ -1,4 +1,5 @@
 const fs = require('fs');
+const path = require('path');
 
 // Explicitly add backend/node_modules to search path to fix resolution issues
 if (module.paths) {
