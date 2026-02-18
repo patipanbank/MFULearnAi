@@ -107,11 +107,47 @@ export class AgentWorkflow {
 
             // 2. Process Files
             this.state.phase = AgentPhase.UPLOADING;
-            const fileJob = await FileProcessor.processFiles(
-                this.ctx.files,
-                this.ctx.userId,
-                this.emit.bind(this)
+            this.emit.bind(this)
             );
+
+            // 2.1 Process Inline Images (Persist them)
+            if (this.ctx.images && this.ctx.images.length > 0) {
+                this.ctx.images.forEach((img: any, idx: number) => {
+                    if (img.source && img.source.bytes) {
+                        try {
+                            const buffer = Buffer.from(img.source.bytes, 'base64');
+                            const format = img.format || 'png';
+                            const fileName = `image-${Date.now()}-${idx}.${format}`;
+
+                            // Upload and track promise
+                            const p = (async () => {
+                                try {
+                                    const { ChatAttachmentService } = await import('../services/ChatAttachmentService');
+                                    const meta = await ChatAttachmentService.uploadFile(
+                                        buffer,
+                                        fileName,
+                                        `image/${format}`,
+                                        this.ctx.userId
+                                    );
+                                    // Add logic to emit upload event if needed?
+                                    // this.emit(AGENT_EVENTS.FILE_UPLOADED, { fileName, metadata: meta });
+                                    return meta;
+                                } catch (e: any) {
+                                    LoggerService.error('image_upload_error', { error: e.message });
+                                    return null;
+                                }
+                            })();
+
+                            // We treat these as "attachments" for persistence
+                            // We don't push to fileJob (OCR) because they are already images for the model
+                            // But we need to ensure ResultPersister sees them.
+                            // state.uploadPromises is set from fileJob later... we should accumulate them.
+                        } catch (e) {
+                            LoggerService.error('image_processing_error', e);
+                        }
+                    }
+                });
+            }
 
             // Wait for OCR
             if (fileJob.status === 'pending') {
