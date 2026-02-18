@@ -44,7 +44,7 @@ if (process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY) {
 const client = new BedrockRuntimeClient(clientConfig);
 
 const MODELS_TO_CHECK = [
-    { name: 'Opus 4.1', id: 'anthropic.claude-opus-4-1-20250805-v1:0' },
+    { name: 'sonnet-4-5', id: 'anthropic.claude-sonnet-4-5-20250929-v1:0' },
 ];
 
 async function checkModel(model) {
