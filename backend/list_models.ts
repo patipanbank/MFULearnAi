@@ -5,7 +5,7 @@ import path from 'path';
 // Try loading env from multiple locations
 dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 dotenv.config({ path: path.join(__dirname, '../.env') });
-dotenv.config({ path: path.join(__dirname, '../../infrastructure/compose/.env') });
+dotenv.config({ path: path.join(__dirname, '../infrastructure/compose/.env') });
 
 const config: any = {
     region: process.env.AWS_REGION || "ap-southeast-1"
