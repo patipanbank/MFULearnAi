@@ -179,7 +179,7 @@ const overlayGradient = computed(() => {
 }
 
 .login-card {
-  background: rgba(0, 0, 0, 0.6); /* Darker glass background */
+  background: rgba(0, 0, 0, 0.8); /* Darker glass background */
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border: 1px solid rgba(255, 255, 255, 0.15); /* Slightly Adjusted border */
