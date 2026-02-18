@@ -20,7 +20,7 @@ onMounted(async () => {
       const redirectUri = window.location.origin + '/auth/callback'
       
       console.log('Exchanging code for token...')
-      const response = await axios.post('/api/auth/sso/callback', {
+      const response = await axios.post('/auth/sso/callback', {
         code,
         redirect_uri: redirectUri
       })

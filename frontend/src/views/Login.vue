@@ -46,7 +46,7 @@ const handleAdminLogin = async () => {
     
     try {
         // Call Identity Service directly via Gateway
-        const response = await axios.post('/api/auth/admin/login', {
+        const response = await axios.post('/auth/admin/login', {
             username: adminUsername.value,
             password: adminPassword.value
         })
@@ -147,7 +147,7 @@ const glassBorder = computed(() => {
 
       <!-- SSO Login Buttons (Default) -->
       <div v-else class="login-buttons">
-        <a href="/api/auth/login/sso" class="btn-login btn-mfu">
+        <a href="/auth/login/sso" class="btn-login btn-mfu">
           <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
             <polyline points="10 17 15 12 10 7" />

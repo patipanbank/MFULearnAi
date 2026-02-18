@@ -62,7 +62,7 @@ export const useAuthStore = defineStore('auth', () => {
         // Redirect to SSO Logout if applicable (SLO)
         if (authProvider === 'sso') {
             window.open('/login', '_blank')
-            window.location.href = `${api.defaults.baseURL}/auth/logout`
+            window.location.href = `/auth/logout`
         } else if (authProvider === 'google') {
             // For Google, we just clear local data (which is done above)
             // and redirect to login. authenticating again will force new token.
@@ -79,7 +79,10 @@ export const useAuthStore = defineStore('auth', () => {
 
         isLoading.value = true
         try {
-            const response = await api.get('/auth/me')
+            const axios = await import('axios').then(m => m.default)
+            const response = await axios.get('/auth/me', {
+                headers: { Authorization: `Bearer ${token.value}` }
+            })
             user.value = response.data.user
             localStorage.setItem('user_info', JSON.stringify(response.data.user))
         } catch (error) {
@@ -96,7 +99,9 @@ export const useAuthStore = defineStore('auth', () => {
     async function loginAdmin(username, password) {
         isLoading.value = true
         try {
-            const response = await api.post('/auth/admin/login', { username, password })
+            // Use axios directly to avoid /api prefix if that's bound to api instance
+            const axios = await import('axios').then(m => m.default)
+            const response = await axios.post('/auth/admin/login', { username, password })
             const { token, user } = response.data
             setAuth(token, user)
             return true
