@@ -2,7 +2,11 @@ const path = require('path');
 
 // Explicitly add backend/node_modules to search path to fix resolution issues
 if (module.paths) {
-    module.paths.push(path.join(__dirname, '../../node_modules'));
+    const nodeModulesPath = path.join(__dirname, '../../node_modules');
+    console.log('Debug: __dirname:', __dirname);
+    console.log('Debug: Target node_modules:', nodeModulesPath);
+    module.paths.push(nodeModulesPath);
+    console.log('Debug: module.paths:', module.paths);
 }
 
 const dotenv = require('dotenv');
