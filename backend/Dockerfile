@@ -24,7 +24,9 @@ WORKDIR /app
 
 # Install production dependencies only
 COPY backend/package*.json ./
-RUN npm install --omit=dev --legacy-peer-deps
+RUN apk add --no-cache git && \
+    npm install --omit=dev --legacy-peer-deps && \
+    apk del git
 
 # Copy built assets (tsconfig rootDir=".." means output is dist/backend/src and dist/shared)
 # We copy from builder /app/backend/dist to /app/dist
