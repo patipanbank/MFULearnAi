@@ -1,7 +1,6 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { useAuthStore } from '@/stores/auth'
 import { useChatStore } from '@/stores/chat'
 import { useLanguage } from '@/composables/useSettings'
 import SettingsMenu from './SettingsMenu.vue'
@@ -20,7 +19,6 @@ const emit = defineEmits(['close-mobile'])
 
 // --- Core ---
 const router = useRouter()
-const authStore = useAuthStore()
 const chatStore = useChatStore()
 const { t } = useLanguage()
 
@@ -43,23 +41,30 @@ const isEffectiveCollapsed = computed(() => {
 const swipedSessionId = ref(null)
 const swipeStartX = ref(0)
 const swipeCurrentX = ref(0)
-const SWIPE_THRESHOLD = 80 // px ที่ต้อง swipe เพื่อ trigger delete
+const SWIPE_THRESHOLD = 80
+const didSwipe = ref(false) // guard: ถ้า swipe เกิน threshold ไม่ให้ click ทำงาน
 
 const getSwipeOffset = (sessionId) => {
   if (swipedSessionId.value !== sessionId) return 0
   const delta = swipeStartX.value - swipeCurrentX.value
-  return Math.max(0, Math.min(delta, SWIPE_THRESHOLD + 20)) // clamp
+  return Math.max(0, Math.min(delta, SWIPE_THRESHOLD + 20))
 }
 
 const onTouchStart = (e, sessionId) => {
+  // Reset previous swipe ของ session อื่นที่อาจค้างอยู่
   swipedSessionId.value = sessionId
   swipeStartX.value = e.touches[0].clientX
   swipeCurrentX.value = e.touches[0].clientX
+  didSwipe.value = false
 }
 
 const onTouchMove = (e, sessionId) => {
   if (swipedSessionId.value !== sessionId) return
   swipeCurrentX.value = e.touches[0].clientX
+  // Mark as swipe ถ้าขยับแนวนอนเกิน 10px เพื่อป้องกัน mis-tap
+  if (Math.abs(swipeStartX.value - swipeCurrentX.value) > 10) {
+    didSwipe.value = true
+  }
 }
 
 const onTouchEnd = async (sessionId) => {
@@ -67,10 +72,16 @@ const onTouchEnd = async (sessionId) => {
   if (offset >= SWIPE_THRESHOLD) {
     await handleDeleteSession(sessionId)
   }
-  // Reset swipe state
   swipedSessionId.value = null
   swipeStartX.value = 0
   swipeCurrentX.value = 0
+  // Reset didSwipe หลัง event loop เพื่อให้ click handler ตรวจได้
+  setTimeout(() => { didSwipe.value = false }, 0)
+}
+
+const handleSessionClick = (sessionId) => {
+  if (didSwipe.value) return // ป้องกัน click หลัง swipe
+  handleSelectSession(sessionId)
 }
 
 // --- Methods ---
@@ -163,23 +174,28 @@ const handleDeleteSession = async (sessionId) => {
               <Trash2 :size="16" />
             </div>
 
-            <!-- Session item (transforms on swipe) -->
-            <button
-              class="session-item"
+            <!-- Session row: flex container -->
+            <div
+              class="session-row"
               :class="{ active: session.sessionId === chatStore.currentSessionId }"
               :style="{ transform: `translateX(-${getSwipeOffset(session.sessionId)}px)` }"
-              :title="isEffectiveCollapsed ? (session.metadata?.title || t('newConversation')) : undefined"
-              @click="handleSelectSession(session.sessionId)"
               @touchstart.passive="onTouchStart($event, session.sessionId)"
               @touchmove.passive="onTouchMove($event, session.sessionId)"
               @touchend="onTouchEnd(session.sessionId)"
             >
-              <MessageSquare :size="14" class="session-icon" />
-              <span v-if="!isEffectiveCollapsed" class="session-text">
-                {{ session.metadata?.title || t('newConversation') }}
-              </span>
+              <!-- Main clickable area -->
+              <button
+                class="session-item"
+                :title="isEffectiveCollapsed ? (session.metadata?.title || t('newConversation')) : undefined"
+                @click="handleSessionClick(session.sessionId)"
+              >
+                <MessageSquare :size="14" class="session-icon" />
+                <span v-if="!isEffectiveCollapsed" class="session-text">
+                  {{ session.metadata?.title || t('newConversation') }}
+                </span>
+              </button>
 
-              <!-- Desktop delete (hover) -->
+              <!-- Desktop delete (hover reveal, outside session-item) -->
               <button
                 v-if="!isEffectiveCollapsed"
                 class="delete-btn"
@@ -188,7 +204,7 @@ const handleDeleteSession = async (sessionId) => {
               >
                 <Trash2 :size="13" />
               </button>
-            </button>
+            </div>
           </div>
         </div>
       </div>
@@ -359,7 +375,7 @@ const handleDeleteSession = async (sessionId) => {
 .session-wrapper {
   position: relative;
   border-radius: 6px;
-  overflow: hidden; /* clip swipe bg */
+  overflow: hidden;
 }
 
 .swipe-delete-bg {
@@ -375,36 +391,55 @@ const handleDeleteSession = async (sessionId) => {
   pointer-events: none;
 }
 
-.session-item {
-  position: relative; /* sits above swipe-delete-bg */
+/* Row = flex wrapper that slides on swipe */
+.session-row {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 10px;
-  width: 100%;
-  padding: 8px 12px;
   background: var(--color-bg-primary);
-  border: none;
-  text-align: left;
-  color: var(--color-text-muted);
   border-radius: 6px;
-  cursor: pointer;
-  font-size: 13px;
   transition: background 0.15s, color 0.15s, transform 0.05s linear;
   will-change: transform;
 }
 
-.session-item:hover {
+.session-row:hover {
   background: var(--color-bg-hover);
-  color: var(--color-text-primary);
 }
 
-.session-item:hover .delete-btn {
+.session-row:hover .delete-btn {
   opacity: 1;
 }
 
-.session-item.active {
-  color: var(--color-accent);
+.session-row.active {
   background: var(--color-accent-light);
+}
+
+.session-row.active .session-item {
+  color: var(--color-accent);
+}
+
+/* Session button = just the main content, fills remaining space */
+.session-item {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  background: none;
+  border: none;
+  text-align: left;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  font-size: 13px;
+  min-width: 0; /* allow text-overflow to work */
+}
+
+.session-row:hover .session-item {
+  color: var(--color-text-primary);
+}
+
+.session-row.active .session-item {
+  color: var(--color-accent);
 }
 
 .session-icon {
