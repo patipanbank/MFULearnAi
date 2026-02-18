@@ -1,27 +1,40 @@
 
-# Use official Node.js LTS image
-FROM node:20-alpine
+# Stage 1: Build
+FROM node:20-alpine AS builder
 
-# Set working directory
 WORKDIR /app
 
-# Install system dependencies (for potential native modules like sharp, canvas, or python for some libs)
+# Install build dependencies
 RUN apk add --no-cache python3 make g++
 
-# Copy package.json and package-lock.json
 COPY package*.json ./
+# Use npm install to generate lockfile if needed, or ci if lockfile exists and is reliable
+RUN npm install
 
-# Install dependencies
-RUN npm ci
-
-# Copy source code
 COPY . .
-
-# Build the application
 RUN npm run build
 
-# Expose port
+# Stage 2: Production
+FROM node:20-alpine AS production
+
+WORKDIR /app
+
+# Install production dependencies only
+COPY package*.json ./
+RUN npm install --omit=dev
+
+# Copy built assets
+COPY --from=builder /app/dist ./dist
+
+# Create non-root user
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+USER appuser
+
+# Healthcheck
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s \
+    CMD wget -qO- http://localhost:8080/health || exit 1
+
 EXPOSE 8080
 
-# Start command
-CMD ["npm", "start"]
+# Use node directly for signal handling
+CMD ["node", "dist/backend/src/index.js"]
