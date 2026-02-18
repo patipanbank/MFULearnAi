@@ -317,6 +317,22 @@ const closeEvidenceViewer = () => {
       
       <!-- Mode Toggle REMOVED -->
 
+      <!-- Scroll to Bottom Button -->
+      <Transition name="fade-up">
+        <button
+          v-if="showScrollBtn"
+          class="scroll-to-bottom-btn"
+          @click="scrollToBottom"
+          :title="t('scrollToBottom') || 'Scroll to bottom'"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
+            fill="none" stroke="currentColor" stroke-width="2.5"
+            stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="6 9 12 15 18 9"/>
+          </svg>
+        </button>
+      </Transition>
+
       <!-- Input Area -->
       <ChatInput
         ref="inputRef"
@@ -426,5 +442,47 @@ const closeEvidenceViewer = () => {
   background: var(--color-accent);
   color: white;
   font-weight: 500;
+}
+
+/* Scroll to Bottom Button */
+.scroll-to-bottom-btn {
+  position: absolute;
+  bottom: 90px; /* เหนือ ChatInput */
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid var(--color-border, #e0e0e0);
+  background: var(--color-bg-secondary, #fff);
+  color: var(--color-text-muted, #666);
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+  transition: all 0.2s ease;
+}
+
+.scroll-to-bottom-btn:hover {
+  background: var(--color-accent, #4f46e5);
+  color: white;
+  border-color: transparent;
+  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+}
+
+/* Transition animation */
+.fade-up-enter-active,
+.fade-up-leave-active {
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.fade-up-enter-from,
+.fade-up-leave-to {
+  opacity: 0;
+  transform: translateX(-50%) translateY(10px);
 }
 </style>
