@@ -1,7 +1,7 @@
 
-import { BedrockClient, ListFoundationModelsCommand } from "@aws-sdk/client-bedrock";
-import dotenv from 'dotenv';
-import path from 'path';
+const { BedrockClient, ListFoundationModelsCommand } = require("@aws-sdk/client-bedrock");
+const path = require('path');
+const dotenv = require('dotenv');
 
 // Load environment variables from backend directory
 dotenv.config({ path: path.join(__dirname, '../../.env') });
@@ -9,7 +9,7 @@ dotenv.config({ path: path.join(__dirname, '../../.env') });
 const region = process.env.AWS_REGION || 'ap-southeast-1';
 console.log(`Using AWS Region: ${region}`);
 
-const clientConfig: any = { region };
+const clientConfig = { region };
 
 if (process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY) {
     clientConfig.credentials = {
@@ -33,7 +33,7 @@ async function listModels() {
         if (response.modelSummaries) {
             console.log('\nAvailable Text Models:');
             console.log('------------------------');
-            response.modelSummaries.forEach((model: any) => {
+            response.modelSummaries.forEach(model => {
                 console.log(`Name: ${model.modelName}`);
                 console.log(`ID: ${model.modelId}`);
                 console.log(`Provider: ${model.providerName}`);
