@@ -36,5 +36,5 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=10s \
 
 EXPOSE 8080
 
-# Use node directly for signal handling
-CMD ["node", "dist/backend/src/index.js"]
+# Start command
+CMD ["node", "dist/index.js"]
