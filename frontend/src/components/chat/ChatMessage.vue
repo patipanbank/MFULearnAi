@@ -2,6 +2,9 @@
 import { useMarkdown } from '@/composables/useMarkdown'
 import { ref, computed } from 'vue'
 import api from '@/utils/api'
+import { useAuthStore } from '@/stores/auth'
+
+const authStore = useAuthStore()
 
 const props = defineProps({
   message: { type: Object, required: true },
