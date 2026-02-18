@@ -129,7 +129,7 @@ export class FileProcessor {
         const job = await queueService.ocrQueue.getJob(jobId);
         if (!job) throw new Error(`Job ${jobId} not found`);
 
-        const progressListener = ({ jobId: id, data }: { jobId: string; data: number | object }) => {
+        const progressListener = ({ jobId: id, data }: { jobId: string; data: any }) => {
             if (id === jobId) {
                 const percent = typeof data === 'number' ? data : 0;
                 emit(AGENT_EVENTS.FILE_PROGRESS, {
