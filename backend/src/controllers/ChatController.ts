@@ -66,7 +66,7 @@ export class ChatController {
         };
 
         if (isMultipart) {
-            const bb = busboy({ headers: req.headers });
+            const bb = busboy({ headers: req.headers, limits: { fieldSize: 10 * 1024 * 1024 } });
             const filePromises: Promise<any>[] = [];
 
             bb.on('field', (name: string, val: string) => {
