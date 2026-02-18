@@ -16,7 +16,7 @@ export class OAuthService {
         } else if (host.includes('localhost')) {
             redirectBase = 'http://localhost:3000';
         }
-        return `${redirectBase}/auth/callback`;
+        return `${redirectBase}/auth-callback`;
     }
 
     static getAuthUrl(redirectUri: string): string {
