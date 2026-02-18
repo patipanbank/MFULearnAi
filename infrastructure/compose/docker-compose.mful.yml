@@ -171,6 +171,20 @@ services:
       - mfulearnai-network
     restart: always
 
+  ocr-worker:
+    build:
+      context: ../../services/ocr-worker
+      dockerfile: Dockerfile
+    container_name: mfulearnai-ocr-worker
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    depends_on:
+      - redis
+    networks:
+      - mfulearnai-network
+    restart: unless-stopped
+
   bedrock-embedding:
     build:
       context: ../../services/bedrock-embedding

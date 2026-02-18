@@ -89,8 +89,18 @@ export class ResultPersister {
 
         // Background Summary & Title
         SummarizationService.runUpdate(userId, sessionId, [userMsgToSave, assistantMsgToSave], state.smartContext || {
-            canonical: '', rolling: { facts: [], intent: { primary: 'QUERY', confidence: 1 }, constraints: [], decisions: [], open_questions: [], confidence_score: 1 },
-            version: 0, hashes: { canonical: '', rolling: '', raw: '' }, lastCanonizedAt: new Date()
+            canonical: '',
+            rolling: {
+                facts: [],
+                intent: { primary: 'QUERY', secondary: [], confidence: 1.0 },
+                constraints: [],
+                decisions: [],
+                open_questions: [],
+                confidence_score: 1.0
+            },
+            version: 0,
+            hashes: { canonical: '', rolling: '', raw: '' },
+            lastCanonizedAt: new Date()
         }).catch((e: any) => LoggerService.error('Background Summary Failed', e));
 
         if (history.length === 0) {
