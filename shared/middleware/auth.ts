@@ -24,8 +24,12 @@ export const authenticateToken = (secret: string) => {
         req.correlationId = correlationId;
 
         // 2. Auth Check
-        const authHeader = req.headers['authorization'];
-        const token = authHeader && authHeader.split(' ')[1];
+        let token = req.headers['authorization'] && req.headers['authorization'].split(' ')[1];
+
+        // Fallback: Check query param (for <img> tags or direct download links)
+        if (!token && req.query && req.query.token) {
+            token = req.query.token as string;
+        }
 
         if (!token) {
             res.status(401).json({ error: 'No token provided' });
