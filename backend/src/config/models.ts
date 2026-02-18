@@ -21,7 +21,6 @@ export interface ModelConfig {
 export const RAW_MODELS = {
     // Anthropic
     CLAUDE_3_5_SONNET: 'anthropic.claude-3-5-sonnet-20240620-v1:0',
-    CLAUDE_3_HAIKU: 'anthropic.claude-3-haiku-20240307-v1:0',
     // Qwen (Aliyun)
     QWEN_2_5_VL_72B: 'qwen.qwen3-vl-235b-a22b',
     QWEN_80B_A3B: 'qwen.qwen3-next-80b-a3b',
@@ -38,7 +37,7 @@ export const RAW_MODELS = {
 // 2. ACTIVE SYSTEM CONFIGURATION (The "Configuration" of what to use)
 // This maps functional roles to specific valid model IDs.
 export const SYSTEM_MODELS = {
-    AGENT: RAW_MODELS.KIMI_K2_THINKING,
+    AGENT: RAW_MODELS.CLAUDE_3_5_SONNET,
     CHAT: RAW_MODELS.MISTRAL_LARGE_3,
     RERANK: RAW_MODELS.GEMMA_3_4B_IT,
     SUMMARIZE: RAW_MODELS.QWEN_80B_A3B,
@@ -53,13 +52,6 @@ export const AVAILABLE_MODELS: ModelConfig[] = [
         provider: 'anthropic',
         contextWindow: 200000,
         type: 'smart'
-    },
-    {
-        id: RAW_MODELS.CLAUDE_3_HAIKU,
-        name: 'Claude 3 Haiku',
-        provider: 'anthropic',
-        contextWindow: 200000,
-        type: 'fast'
     },
     {
         id: RAW_MODELS.QWEN_2_5_VL_72B,
