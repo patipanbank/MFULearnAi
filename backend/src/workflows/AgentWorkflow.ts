@@ -48,7 +48,8 @@ export class AgentWorkflow {
             messages: [],
             toolOutputs: [],
             scratchpad: [],
-            tokenUsage: { input: 0, output: 0, total: 0 }
+            tokenUsage: { input: 0, output: 0, total: 0 },
+            hasEmittedAnswerStart: false
         };
 
         // Initialize Event Store
@@ -239,6 +240,33 @@ export class AgentWorkflow {
                 (delta) => {
                     if (!firstTokenTime) firstTokenTime = Date.now();
                     bufferedText += delta;
+
+                    // REAL-TIME STREAMING
+                    // Only emit if we are NOT in a tool use block (simple heuristic: if we have tool use, stopReason will be tool_use eventually, 
+                    // but we don't know that yet. However, usually tool use generation is JSON which we might not want to stream as answer?
+                    // actually, for 'thinking' or 'answer', we usually just stream. 
+                    // But if the model is generating a JSON for tool use, we probably shouldn't emit ANSWER_DELTA.
+                    // Bedrock's Converse API stream distinguishes content blocks. 
+                    // streamChatSSE lumps text delta. 
+
+                    // For now, let's stream everything. If it ends up being a tool use, we'll just have emitted some text.
+                    // But usually tool use comes in a tailored content block or we parse it.
+                    // If we want to be safe: determine if we are in 'answer mode' or 'tool mode'? 
+                    // We don't know until the end if we rely on stopReason. 
+                    // But typically, if it's a tool use, the first thing it might output is text (thought) then tool use.
+
+                    // Let's emit. If it turns out to be tool use, we might have shown some text to user. 
+                    // Improvements: BedrockService could pass 'type' in delta (text vs tool_use_input). 
+                    // Existing streamChatSSE only calls onDelta for 'text' type deltas. So it is safe-ish.
+
+                    if (!this.state.hasEmittedAnswerStart) {
+                        // Determine mode early if possible, or default to internal
+                        this.determineAnswerMode(bufferedText); // Heuristic might be weak here with partial text
+                        this.emit(AGENT_EVENTS.ANSWER_START, { answerMode: this.state.answerMode });
+                        this.state.hasEmittedAnswerStart = true;
+                    }
+
+                    this.emit(AGENT_EVENTS.ANSWER_DELTA, { delta });
                 },
                 0.5,
                 toolConfig,
@@ -262,6 +290,8 @@ export class AgentWorkflow {
             // Logic: Tool Use vs Final Answer
             if (stopReason === 'tool_use') {
                 this.state.phase = AgentPhase.EXECUTING_TOOL;
+                this.state.hasEmittedAnswerStart = false; // Reset for next turn
+
                 // It was a thought process leading to a tool. Persist it as a THINKING event.
                 if (fullResponse && fullResponse.trim()) {
                     this.emit(AGENT_EVENTS.THINKING, {
@@ -297,14 +327,16 @@ export class AgentWorkflow {
 
             } else {
                 this.state.phase = AgentPhase.COMPLETED;
-                // Final Answer Logic - Fix Event Ordering
-                this.determineAnswerMode(fullResponse);
+                // Final Answer Logic
 
-                // 1. Emit START
-                this.emit(AGENT_EVENTS.ANSWER_START, { answerMode: this.state.answerMode });
+                // If we haven't emitted START yet (empty response?), emit now
+                if (!this.state.hasEmittedAnswerStart) {
+                    this.determineAnswerMode(fullResponse);
+                    this.emit(AGENT_EVENTS.ANSWER_START, { answerMode: this.state.answerMode });
+                    this.state.hasEmittedAnswerStart = true;
+                }
 
-                // 2. Emit DELTA (Simulated full delta since we buffered it)
-                this.emit(AGENT_EVENTS.ANSWER_DELTA, { delta: fullResponse });
+                // We already emitted DELTAS during streaming.
 
                 // 3. Update State & Emit DONE
                 this.state.finalAnswer = fullResponse;

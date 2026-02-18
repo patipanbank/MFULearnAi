@@ -35,6 +35,7 @@ export interface WorkflowState {
         output: number;
         total: number;
     };
+    hasEmittedAnswerStart: boolean;
 }
 
 export enum AgentPhase {
