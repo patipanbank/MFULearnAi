@@ -29,7 +29,9 @@ const worker = new Worker('ocr-queue', async (job: Job) => {
     fs.writeFileSync(tempFilePath, fileBuffer);
 
     try {
-        const result = await runPythonOcr(tempFilePath);
+        const result = await runPythonOcr(tempFilePath, (progress) => {
+            job.updateProgress(progress);
+        });
         console.log(`Job ${job.id} completed`);
         return result;
     } catch (e) {
@@ -43,7 +45,7 @@ const worker = new Worker('ocr-queue', async (job: Job) => {
     }
 }, { connection });
 
-function runPythonOcr(filePath: string): Promise<any> {
+function runPythonOcr(filePath: string, onProgress: (p: number) => void): Promise<any> {
     return new Promise((resolve, reject) => {
         const pythonProcess = spawn('python3', [path.join(__dirname, 'ocr.py'), filePath]);
 
@@ -51,7 +53,17 @@ function runPythonOcr(filePath: string): Promise<any> {
         let errorString = '';
 
         pythonProcess.stdout.on('data', (data) => {
-            dataString += data.toString();
+            const lines = data.toString().split('\n');
+            for (const line of lines) {
+                if (line.trim().startsWith('PROGRESS:')) {
+                    const progress = parseInt(line.split(':')[1].trim());
+                    if (!isNaN(progress)) {
+                        onProgress(progress);
+                    }
+                } else if (line.trim()) {
+                    dataString += line + '\n';
+                }
+            }
         });
 
         pythonProcess.stderr.on('data', (data) => {
@@ -63,7 +75,9 @@ function runPythonOcr(filePath: string): Promise<any> {
                 reject(new Error(`Python script exited with code ${code}: ${errorString}`));
             } else {
                 try {
-                    const result = JSON.parse(dataString);
+                    // Filter out progress lines from dataString just in case
+                    const jsonLines = dataString.trim().split('\n').filter(l => !l.startsWith('PROGRESS:'));
+                    const result = JSON.parse(jsonLines.join(''));
                     resolve(result);
                 } catch (e) {
                     reject(new Error(`Failed to parse Python output: ${dataString}`));

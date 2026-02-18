@@ -60,6 +60,13 @@ ${JSON.stringify(smartContext?.rolling || {}, null, 2)}`
         userContent.push({ type: 'text', text: message });
 
         if (images && images.length > 0) {
+            console.log('[PromptBuilder] Processing images:', JSON.stringify(images.map((i: any) => ({
+                type: i?.type,
+                format: i?.format,
+                sourceKeys: i?.source ? Object.keys(i.source) : 'missing',
+                hasBytes: i?.source?.bytes ? true : false
+            })), null, 2));
+
             userContent.push(...images.map((img: any) => ({ type: 'image', source: img })));
         }
 

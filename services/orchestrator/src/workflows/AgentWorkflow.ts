@@ -117,7 +117,11 @@ export class AgentWorkflow {
             if (fileJob.status === 'pending') {
                 this.state.phase = AgentPhase.OCR_WAIT;
                 this.emit(AGENT_EVENTS.STATUS, { message: 'Waiting for OCR processing...' });
-                const completedJob = await FileProcessor.waitForJob(fileJob.jobId, AGENT_CONSTANTS.OCR_JOB_TIMEOUT);
+                const completedJob = await FileProcessor.waitForJob(
+                    fileJob.jobId,
+                    this.emit.bind(this),
+                    AGENT_CONSTANTS.OCR_JOB_TIMEOUT
+                );
 
                 if (completedJob.status === 'failed') {
                     LoggerService.warn('OCR Job Failed', { jobId: fileJob.jobId }, this.ctx.userId);

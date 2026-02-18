@@ -119,11 +119,30 @@ export class FileProcessor {
         return result;
     }
 
-    static async waitForJob(jobId: string, timeoutMs: number = 60000): Promise<FileJobResult> {
+    static async waitForJob(
+        jobId: string,
+        emit: (type: string, payload: any) => void,
+        timeoutMs: number = 60000
+    ): Promise<FileJobResult> {
         // Poll Queue or Redis for result
         // For BullMQ, getting the job result:
         const job = await queueService.ocrQueue.getJob(jobId);
         if (!job) throw new Error(`Job ${jobId} not found`);
+
+        const progressListener = ({ jobId: id, data }: { jobId: string; data: number | object }) => {
+            if (id === jobId) {
+                const percent = typeof data === 'number' ? data : 0;
+                emit(AGENT_EVENTS.FILE_PROGRESS, {
+                    fileName: 'Processing...', // We might not have filename here easily without passing it or querying job
+                    fileIndex: 0,
+                    totalFiles: 1,
+                    stage: 'processing',
+                    percent: 20 + (percent * 0.8), // Scale 0-100 to 20-100 range
+                    detail: `OCR Processing: ${percent}%`
+                });
+            }
+        };
+        ocrQueueEvents.on('progress', progressListener);
 
         try {
             const output = await job.waitUntilFinished(ocrQueueEvents, timeoutMs);
@@ -156,6 +175,8 @@ export class FileProcessor {
                 extractedTextBlocks: [],
                 attachments: []
             };
+        } finally {
+            ocrQueueEvents.off('progress', progressListener);
         }
     }
 

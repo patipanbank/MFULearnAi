@@ -17,6 +17,8 @@ def extract_text(file_path):
         if ext == '.pdf':
             images = convert_from_path(file_path)
             for i, image in enumerate(images):
+                progress = int((i + 1) / len(images) * 100)
+                print(f"PROGRESS: {progress}", flush=True)
                 text += f"\n--- Page {i+1} ---\n"
                 text += pytesseract.image_to_string(image)
         elif ext in ['.png', '.jpg', '.jpeg', '.tiff', '.bmp']:
