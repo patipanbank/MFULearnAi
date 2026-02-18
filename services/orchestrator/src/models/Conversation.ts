@@ -50,7 +50,11 @@ const ConversationSchema = new mongoose.Schema({
         canonical: { type: String, default: '' }, // Long-term stable truth (Append-only conceptually)
         rolling: {
             facts: [String],
-            intent: String,
+            intent: {
+                primary: String,
+                secondary: [String],
+                confidence: Number
+            },
             constraints: [String],
             decisions: [String],
             open_questions: [String]
