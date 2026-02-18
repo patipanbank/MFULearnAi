@@ -62,9 +62,10 @@ const timelineEvents = computed(() => {
         ['thinking', 'tool_start', 'tool_complete', 'answer_start', 'agent_complete'].includes(e.type)
     )
 
-    // Merge logic for Thinking events
+    // Merge logic for Thinking and Tool events
     const mergedEvents = []
-    const thinkingByStep = {} // Map step -> event index in mergedEvents
+    const thinkingByStep = {} // Map step -> event index
+    const toolByStep = {}     // Map step -> event index
 
     // Identify current max step to know which is "active"
     const maxStep = Math.max(...rawEvents.map(e => e.step || 0), 0)
@@ -94,8 +95,41 @@ const timelineEvents = computed(() => {
                         mergedEvents.push({ ...evt, isActive: true })
                         thinkingByStep[step] = mergedEvents.length - 1
                     }
-                    // Otherwise skip (hides old/empty placeholders)
                 }
+            }
+        } else if (evt.type === 'tool_start') {
+            // Start of a tool execution
+            // We assume one tool per step usually, or distinct steps.
+            mergedEvents.push({ 
+                ...evt, 
+                result: null, 
+                isToolComplete: false, 
+                success: false 
+            })
+            if (evt.step) toolByStep[evt.step] = mergedEvents.length - 1
+
+        } else if (evt.type === 'tool_complete') {
+            // Completion of a tool
+            // Find corresponding start event
+            if (evt.step && toolByStep[evt.step] !== undefined) {
+                const idx = toolByStep[evt.step]
+                const startEvt = mergedEvents[idx]
+                
+                // Merge if tool names match
+                if (startEvt.toolName === evt.toolName) {
+                    mergedEvents[idx] = { 
+                        ...startEvt, 
+                        result: evt.output || evt.message || 'Completed', 
+                        isToolComplete: true, 
+                        success: evt.success 
+                    }
+                } else {
+                    // Mismatch (unlikely), treat as standalone
+                    mergedEvents.push(evt)
+                }
+            } else {
+                // No start found (orphan), treat as standalone
+                mergedEvents.push(evt)
             }
         } else {
             mergedEvents.push(evt)
@@ -413,25 +447,27 @@ const formatBytes = (bytes) => {
                                 </div>
                             </div>
 
-                            <!-- Tool Use Card -->
-                            <div v-else-if="evt.type === 'tool_start'" class="flow-card glass-card tool-card">
+                            <!-- Tool Use Card (Merged) -->
+                            <div v-else-if="evt.type === 'tool_start'" class="flow-card tool-card">
                                 <div class="card-header">
                                     <span class="header-title">Executing Tool</span>
                                 </div>
                                 <div class="tool-command-box">
                                     <span class="prompt">$</span> {{ evt.toolName }}
                                 </div>
+                                <!-- Merged Result -->
+                                <div v-if="evt.isToolComplete" class="card-body">
+                                    <div class="result-badge" :class="evt.success ? 'success' : 'failure'">
+                                        {{ evt.success ? 'Success' : 'Failed' }}
+                                    </div>
+                                    <div class="result-text" :style="{ marginTop: '4px', fontSize: '13px', color: 'var(--color-text-secondary)' }">
+                                        {{ evt.result }}
+                                    </div>
+                                </div>
                             </div>
 
-                            <!-- Tool Result Card -->
-                            <div v-else-if="evt.type === 'tool_complete'" class="flow-card glass-card result-card">
-                                <div class="result-badge" :class="evt.success ? 'success' : 'failure'">
-                                    {{ evt.success ? 'Success' : 'Failed' }}
-                                </div>
-                                <div v-if="evt.resultPreview" class="result-preview-text">
-                                    {{ evt.resultPreview.substring(0, 150) }}{{ evt.resultPreview.length > 150 ? '...' : '' }}
-                                </div>
-                            </div>
+                            <!-- Tool Complete Card (Removed/Hidden as it is merged) -->
+                            <!-- <div v-else-if="evt.type === 'tool_complete'" ... > -->
                         </div>
                     </div>
 
