@@ -177,7 +177,7 @@ body {
   font-weight: 700;
 }
 
-@import './code-block.css';
+
 
 /* === Code Blocks (Old Prose styles disabled/overridden by code-wrapper) === */
 /* Retain inline code styles */
