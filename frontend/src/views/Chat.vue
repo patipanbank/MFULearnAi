@@ -316,9 +316,10 @@ const closeEvidenceViewer = () => {
       </div>
       
       <!-- Mode Toggle REMOVED -->
-
+<div class="input-area-wrapper">
       <!-- Scroll to Bottom Button -->
       <Transition name="fade-up">
+        <div v-if="showScrollBtn" class="scroll-btn-row">
         <button
           v-if="showScrollBtn"
           class="scroll-to-bottom-btn"
@@ -331,6 +332,7 @@ const closeEvidenceViewer = () => {
             <polyline points="6 9 12 15 18 9"/>
           </svg>
         </button>
+        </div>
       </Transition>
 
       <!-- Input Area -->
@@ -347,6 +349,7 @@ const closeEvidenceViewer = () => {
         @upload="handleFileUpload"
         @remove-attachment="handleRemoveAttachment"
       />
+      </div>
     </main>
 
     <!-- PDF Viewer Modal -->
@@ -484,5 +487,16 @@ const closeEvidenceViewer = () => {
 .fade-up-leave-to {
   opacity: 0;
   transform: translateX(-50%) translateY(10px);
+}
+.input-area-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.scroll-btn-row {
+  display: flex;
+  justify-content: center;
+  padding-bottom: 6px;
 }
 </style>
