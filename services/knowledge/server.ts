@@ -786,8 +786,6 @@ app.post('/api/storage/upload', async (req: any, res: Response) => {
         hasFile = true;
         const { filename, mimeType } = info;
         console.log(`[Storage] Receiving file: ${filename} (${mimeType})`);
-        hasFile = true;
-        const { filename, mimeType } = info;
         // Key: {userId}/{date}/{uuid}-{filename}
         const dateStr = new Date().toISOString().split('T')[0];
         const safeName = filename.replace(/[^a-zA-Z0-9.-]/g, '_');
