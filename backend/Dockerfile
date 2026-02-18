@@ -6,15 +6,20 @@ WORKDIR /app
 # Install build dependencies
 RUN apk add --no-cache python3 make g++ git
 
-# Copy shared and backend
+# Copy package files first to leverage cache
 COPY backend/package*.json ./backend/
+COPY shared/package*.json ./shared/
+
+WORKDIR /app/backend
+# Install dependencies (cached unless package.json changes)
+RUN npm install --legacy-peer-deps
+
+# Copy source code after install
+WORKDIR /app
 COPY shared/ ./shared/
 COPY backend/ ./backend/
 
 WORKDIR /app/backend
-# Install dependencies
-RUN npm install --legacy-peer-deps
-
 RUN npm run build
 
 # Stage 2: Production
