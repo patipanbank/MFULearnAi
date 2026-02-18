@@ -226,9 +226,11 @@ const getFileEmoji = (att) => {
               v-for="(att, i) in message.attachments.filter(a => a.mimeType?.startsWith('image/'))"
               :key="'img-' + i"
               :src="`/api/chat/attachment/${att.key}?token=${authStore.token}`"
-              class="msg-image"
+              class="msg-image placeholder"
+              loading="lazy"
               @click="viewImage(`/api/chat/attachment/${att.key}?token=${authStore.token}`)"
               @error="$event.target.style.display='none'"
+              @load="$event.target.classList.remove('placeholder')"
             />
             <div
               v-for="(att, i) in message.attachments.filter(a => !a.mimeType?.startsWith('image/'))"
@@ -485,7 +487,12 @@ const getFileEmoji = (att) => {
   max-width: 180px; max-height: 180px;
   border-radius: 10px; object-fit: cover;
   border: 1px solid var(--color-border);
-  cursor: zoom-in; transition: transform 0.15s;
+  cursor: zoom-in; transition: transform 0.15s, opacity 0.2s;
+}
+.msg-image.placeholder {
+  background-color: var(--color-bg-tertiary);
+  min-width: 100px; min-height: 100px;
+  opacity: 0.5;
 }
 .msg-image:hover { transform: scale(1.02); }
 

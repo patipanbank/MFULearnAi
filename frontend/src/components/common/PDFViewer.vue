@@ -129,6 +129,7 @@ const close = () => {
   left: 0;
   width: 100vw;
   height: 100vh;
+  height: 100svh; /* Safari Fix */
   background: rgba(0, 0, 0, 0.75);
   z-index: 9999; /* Highest Z-index */
   display: flex;
@@ -140,6 +141,7 @@ const close = () => {
 .pdf-modal-container {
   width: 90vw;
   height: 90vh;
+  height: 90svh; /* Safari */
   background: white;
   border-radius: 8px;
   display: flex;

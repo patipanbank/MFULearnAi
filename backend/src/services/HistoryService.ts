@@ -41,7 +41,7 @@ export class HistoryService {
         if (rawHistory.length > 0) {
             messages = rawHistory
                 .map(item => JSON.parse(item))
-                .filter(msg => msg.content || msg.images?.length || msg.files?.length);
+                .filter(msg => msg.content || msg.images?.length || msg.files?.length || msg.attachments?.length);
         }
 
         return { messages, smartContext };

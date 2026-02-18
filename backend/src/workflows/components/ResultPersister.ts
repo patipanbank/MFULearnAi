@@ -55,19 +55,24 @@ export class ResultPersister {
 
         const userMsgToSave: any = { role: 'user' as const, content: ctx.message, timestamp: new Date() };
         if (uploadedAttachments.length > 0) {
-            // Filter out images from attachments to avoid visual duplication in frontend
-            // (Since we are populating 'images' with Base64 for reliable display)
-            userMsgToSave.attachments = uploadedAttachments.filter((a: any) => !a.mimeType.startsWith('image/'));
+            // Store ALL uploaded attachments (including images) as S3 keys
+            // This replaces the old behavior of filtering out images and storing them as base64
+            userMsgToSave.attachments = uploadedAttachments;
         }
 
         // Populate 'images' with Base64 from context for immediate/reliable display
         // MOVED OUTSIDE of uploadedAttachments check to ensure it runs even if no files were uploaded
+        // REMOVED: Do not double-store images as Base64. 
+        // We rely on `attachments` (S3 keys) for persistence and history loading.
+        // The frontend 'images' prop is only for immediate preview during the active session.
+        /*
         if (ctx.images && ctx.images.length > 0) {
             userMsgToSave.images = ctx.images.map((img: any) => ({
                 mediaType: img.format ? `image/${img.format}` : 'image/png',
                 data: img.source?.bytes ? Buffer.from(img.source.bytes).toString('base64') : ''
             }));
         }
+        */
 
         const assistantMsgToSave = {
             role: 'assistant' as const,
