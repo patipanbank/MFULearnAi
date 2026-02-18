@@ -179,15 +179,17 @@ const overlayGradient = computed(() => {
 }
 
 .login-card {
-  background: var(--color-bg-card);
-  border: 1px solid var(--color-border);
+  background: rgba(255, 255, 255, 0.1); /* Glass effect base */
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 24px;
   padding: 48px;
   width: 100%;
   max-width: 420px;
   position: relative;
   z-index: 10;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37); /* Enhanced shadow for depth */
 }
 
 .login-header {
@@ -215,13 +217,15 @@ const overlayGradient = computed(() => {
 .app-title {
   font-size: 28px;
   font-weight: 700;
-  color: var(--color-text);
+  color: #ffffff; /* Explicit white for contrast on glass */
   margin-bottom: 8px;
+  text-shadow: 0 2px 4px rgba(0,0,0,0.3);
 }
 
 .app-subtitle {
-  color: var(--color-text-muted);
+  color: rgba(255, 255, 255, 0.8); /* Semi-transparent white */
   font-size: 14px;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.2);
 }
 
 .login-buttons, .admin-form {
@@ -239,8 +243,9 @@ const overlayGradient = computed(() => {
 
 .form-group label {
     font-size: 14px;
-    color: var(--color-text);
+    color: rgba(255, 255, 255, 0.9);
     font-weight: 500;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.2);
 }
 
 .form-input {
