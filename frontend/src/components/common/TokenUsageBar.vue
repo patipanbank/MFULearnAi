@@ -1,6 +1,6 @@
 <script setup>
 import { ref, onMounted, watch } from 'vue'
-import axios from 'axios'
+import api from '@/utils/api'
 import { useAuthStore } from '@/stores/auth'
 
 const authStore = useAuthStore()
@@ -18,7 +18,7 @@ const fetchUsage = async () => {
     
     // Don't show loading spinner for background updates, just silent update
     try {
-        const response = await axios.get('/api/logs/usage/me', {
+        const response = await api.get('/logs/usage/me', {
             params: { userId: authStore.user._id }
         })
         usage.value = response.data
