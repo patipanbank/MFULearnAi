@@ -127,109 +127,107 @@ export class ChatController {
 
             executeAgent(); // Always use Agent
         }
-        executeAgent(); // Always use Agent
     }
-}
 
     private static transformImages(images: any[]): any[] {
-    if (!images || !Array.isArray(images)) return [];
-    return images.map((img: any) => {
-        // Already in Bedrock format?
-        if (img.source && img.format) return img;
+        if (!images || !Array.isArray(images)) return [];
+        return images.map((img: any) => {
+            // Already in Bedrock format?
+            if (img.source && img.format) return img;
 
-        // Frontend format: { data: "base64", mediaType: "image/png" }
-        if (img.data && img.mediaType) {
-            return {
-                format: img.mediaType.replace('image/', ''),
-                source: {
-                    bytes: img.data
-                }
-            };
-        }
-        return img;
-    });
-}
-
-    static async getModels(req: any, res: Response) {
-    try {
-        const data = await BedrockService.getModels();
-        res.json(data);
-    } catch (error: any) {
-        console.error('[ChatController] getModels Error:', error.message);
-        if (error.response) {
-            console.error('[ChatController] getModels Error Data:', error.response.data);
-            console.error('[ChatController] getModels Error Status:', error.response.status);
-        }
-        res.status(500).json({
-            error: 'Failed to fetch available models',
-            details: error.message,
-            status: error.response?.status
+            // Frontend format: { data: "base64", mediaType: "image/png" }
+            if (img.data && img.mediaType) {
+                return {
+                    format: img.mediaType.replace('image/', ''),
+                    source: {
+                        bytes: img.data
+                    }
+                };
+            }
+            return img;
         });
     }
-}
+
+    static async getModels(req: any, res: Response) {
+        try {
+            const data = await BedrockService.getModels();
+            res.json(data);
+        } catch (error: any) {
+            console.error('[ChatController] getModels Error:', error.message);
+            if (error.response) {
+                console.error('[ChatController] getModels Error Data:', error.response.data);
+                console.error('[ChatController] getModels Error Status:', error.response.status);
+            }
+            res.status(500).json({
+                error: 'Failed to fetch available models',
+                details: error.message,
+                status: error.response?.status
+            });
+        }
+    }
 
     static async getHistory(req: any, res: Response) {
-    const { sessionId } = req.params;
-    const userId = req.user.userId;
+        const { sessionId } = req.params;
+        const userId = req.user.userId;
 
-    try {
-        const messages = await HistoryService.getHistory(userId, sessionId);
-        // If from Redis/Cache, we might not get full metadata or source flag easily unless we check where it came from
-        // But HistoryService abstracts that.
-        // Server.ts returned { sessionId, messages, source: 'cache'/'database' }.
-        // For now, let's just return messages.
-        res.json({ sessionId, messages, source: 'unified' });
-    } catch (error) {
-        res.status(500).json({ error: 'Failed to retrieve history' });
+        try {
+            const messages = await HistoryService.getHistory(userId, sessionId);
+            // If from Redis/Cache, we might not get full metadata or source flag easily unless we check where it came from
+            // But HistoryService abstracts that.
+            // Server.ts returned { sessionId, messages, source: 'cache'/'database' }.
+            // For now, let's just return messages.
+            res.json({ sessionId, messages, source: 'unified' });
+        } catch (error) {
+            res.status(500).json({ error: 'Failed to retrieve history' });
+        }
     }
-}
 
     static async listSessions(req: any, res: Response) {
-    const userId = req.user.userId;
-    const limit = parseInt(req.query.limit as string) || 20;
+        const userId = req.user.userId;
+        const limit = parseInt(req.query.limit as string) || 20;
 
-    try {
-        const conversations = await Conversation.find({ userId })
-            .select('sessionId metadata createdAt updatedAt')
-            .sort({ updatedAt: -1 })
-            .limit(limit);
+        try {
+            const conversations = await Conversation.find({ userId })
+                .select('sessionId metadata createdAt updatedAt')
+                .sort({ updatedAt: -1 })
+                .limit(limit);
 
-        res.json({ conversations });
-    } catch (error) {
-        res.status(500).json({ error: 'Failed to retrieve sessions' });
+            res.json({ conversations });
+        } catch (error) {
+            res.status(500).json({ error: 'Failed to retrieve sessions' });
+        }
     }
-}
 
     static async clearSession(req: any, res: Response) {
-    const { sessionId } = req.params;
-    const userId = req.user.userId;
-    try {
-        await HistoryService.clearSession(userId, sessionId);
-        LoggerService.log('info', 'session_cleared', { sessionId }, userId);
-        res.json({ success: true });
-    } catch (error) {
-        res.status(500).json({ error: 'Failed to clear session' });
+        const { sessionId } = req.params;
+        const userId = req.user.userId;
+        try {
+            await HistoryService.clearSession(userId, sessionId);
+            LoggerService.log('info', 'session_cleared', { sessionId }, userId);
+            res.json({ success: true });
+        } catch (error) {
+            res.status(500).json({ error: 'Failed to clear session' });
+        }
     }
-}
     static async downloadAttachment(req: any, res: Response) {
-    const key = req.params[0]; // wildcard used in route
-    const userId = req.user.userId;
+        const key = req.params[0]; // wildcard used in route
+        const userId = req.user.userId;
 
-    if (!key) return res.status(400).json({ error: 'Key required' });
+        if (!key) return res.status(400).json({ error: 'Key required' });
 
-    // Security check: Key ownership
-    if (!key.startsWith(`${userId}/`)) {
-        console.warn(`[ChatController] Access Denied: User ${userId} tried to access ${key}`);
-        return res.status(403).json({ error: 'Access denied' });
+        // Security check: Key ownership
+        if (!key.startsWith(`${userId}/`)) {
+            console.warn(`[ChatController] Access Denied: User ${userId} tried to access ${key}`);
+            return res.status(403).json({ error: 'Access denied' });
+        }
+
+        console.log(`[ChatController] Downloading attachment: ${key} for user ${userId}`);
+
+        try {
+            await ChatAttachmentService.streamAttachment(key, res, userId, req.user.role || 'student');
+        } catch (error: any) {
+            console.error('Download Error:', error.message);
+            if (!res.headersSent) res.status(500).json({ error: 'Download failed' });
+        }
     }
-
-    console.log(`[ChatController] Downloading attachment: ${key} for user ${userId}`);
-
-    try {
-        await ChatAttachmentService.streamAttachment(key, res, userId, req.user.role || 'student');
-    } catch (error: any) {
-        console.error('Download Error:', error.message);
-        if (!res.headersSent) res.status(500).json({ error: 'Download failed' });
-    }
-}
 }
