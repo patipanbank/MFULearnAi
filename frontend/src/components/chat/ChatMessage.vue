@@ -59,7 +59,7 @@ const timelineEvents = computed(() => {
     
     // Filter to display-worthy events only
     const rawEvents = props.message.agentEvents.filter(e =>
-        ['thinking', 'tool_start', 'tool_complete', 'answer_start', 'agent_complete'].includes(e.type)
+        ['thinking', 'tool_start', 'tool_complete'].includes(e.type)
     )
 
     // Merge logic for Thinking and Tool events
