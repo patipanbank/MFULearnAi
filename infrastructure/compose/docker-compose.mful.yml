@@ -12,148 +12,75 @@ services:
     volumes:
       - ../gateway/nginx-mfulearnai.conf:/etc/nginx/nginx.conf:ro
     depends_on:
-      - identity-service
-      - sso-service
-      - oauth-service
-      - orchestrator-service
+      - backend-service
       - frontend-service
     networks:
       - mfulearnai-network
     restart: unless-stopped
 
-  identity-service:
+  backend-service:
     build:
-      context: ../../services/identity
+      context: ../../backend
       dockerfile: Dockerfile
-    container_name: mfulearnai-identity
-    environment:
-      - PORT=4001
-      - ENV_TYPE=TEST
-      - MONGO_URI=mongodb://mongo:27017/mfulearnai-auth
-      - JWT_SECRET=${JWT_SECRET:-test-jwt-secret-change-me}
-      - INTERNAL_API_KEY=${INTERNAL_API_KEY:-internal-secret-key}
-    depends_on:
-      - mongo
-    networks:
-      - mfulearnai-network
-    restart: unless-stopped
-
-  sso-service:
-    build:
-      context: ../../services/sso
-      dockerfile: Dockerfile
-    container_name: mfulearnai-sso
-    environment:
-      - PORT=4002
-      - IDENTITY_SERVICE_URL=http://identity-service:4001
-      - FRONTEND_URL=https://mfulearnai.mfu.ac.th
-      - API_GATEWAY_URL=${API_GATEWAY_URL:-https://mfulearnai.mfu.ac.th}
-      - INTERNAL_API_KEY=${INTERNAL_API_KEY:-internal-secret-key}
-      # SAML Config
-      - SAML_SP_ENTITY_ID=https://mfulearnai.mfu.ac.th
-      - SAML_SP_ACS_URL=https://mfulearnai.mfu.ac.th/api/auth/saml/callback
-      - SAML_IDP_SSO_URL=${SAML_IDP_SSO_URL:-https://authsso.mfu.ac.th/adfs/ls/}
-      - SAML_IDP_SLO_URL=${SAML_IDP_SLO_URL:-https://authsso.mfu.ac.th/adfs/ls/?wa=wsignout1.0}
-      - SAML_CERTIFICATE=${SAML_CERTIFICATE}
-    depends_on:
-      - identity-service
-      - knowledge-service
-      - redis
-    networks:
-      - mfulearnai-network
-    restart: unless-stopped
-
-  oauth-service:
-    build:
-      context: ../../services/oauth
-      dockerfile: Dockerfile
-    container_name: mfulearnai-oauth
-    environment:
-      - PORT=4003
-      - IDENTITY_SERVICE_URL=http://identity-service:4001
-      - FRONTEND_URL=https://mfulearnai.mfu.ac.th
-      - API_GATEWAY_URL=${API_GATEWAY_URL:-https://mfulearnai.mfu.ac.th}
-      - INTERNAL_API_KEY=${INTERNAL_API_KEY:-internal-secret-key}
-      # Google Config
-      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
-      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
-      - GOOGLE_CALLBACK_URL=https://mfulearnai.mfu.ac.th/api/auth/google/callback
-    depends_on:
-      - identity-service
-    networks:
-      - mfulearnai-network
-    restart: unless-stopped
-
-  orchestrator-service:
-    build:
-      context: ../../
-      dockerfile: services/orchestrator/Dockerfile
-    container_name: mfulearnai-orchestrator
+    container_name: mfulearnai-backend
     environment:
       - PORT=8080
       - ENV_TYPE=TEST
-      - BEDROCK_TEXT_URL=http://bedrock-text:5001/api/bedrock
-      - LOGGER_URL=http://logger-service:6000/api/logs
       - MONGO_URI=mongodb://mongo:27017/mfulearnai-chat
+      - MONGO_URI_LOGS=mongodb://mongo:27017/mfulearnai-logs
       - REDIS_URL=redis://redis:6379
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - JWT_SECRET=${JWT_SECRET:-test-jwt-secret-change-me}
-      - KNOWLEDGE_URL=http://knowledge-service:7000/api/knowledge
-      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
-      - OTEL_SERVICE_NAME=orchestrator
       - JWT_PRIVATE_KEY_PATH=/run/secrets/jwt_private_key
       - JWT_PUBLIC_KEY_PATH=/run/secrets/jwt_public_key
+      # Auth
+      - FRONTEND_URL=${FRONTEND_URL:-http://localhost:3000}
+      - INTERNAL_API_KEY=${INTERNAL_API_KEY:-internal-secret-key}
+      # SAML
+      - SAML_SP_ENTITY_ID=${SAML_SP_ENTITY_ID:-mfu-learn-ai}
+      - SAML_IDP_SSO_URL=${SAML_IDP_SSO_URL:-https://idp.mfu.ac.th/sso}
+      - SAML_CERTIFICATE=${SAML_CERTIFICATE}
+      # OAuth
+      - MFU_SSO_CLIENT_ID=${MFU_SSO_CLIENT_ID}
+      - MFU_SSO_CLIENT_SECRET=${MFU_SSO_CLIENT_SECRET}
+      - MFU_SSO_AUTH_URL=${MFU_SSO_AUTH_URL}
+      - MFU_SSO_TOKEN_URL=${MFU_SSO_TOKEN_URL}
+      # AWS Bedrock
+      - AWS_REGION=${AWS_REGION:-ap-southeast-1}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      # Chroma & MinIO
+      - CHROMA_URL=http://chroma:8000
+      - MINIO_ENDPOINT=minio
+      - MINIO_PORT=9000
+      - MINIO_ACCESS_KEY=minioadmin
+      - MINIO_SECRET_KEY=minioadmin
+      - MINIO_BUCKET=mfulearnai-knowledge
+      - MINIO_USE_SSL=false
+      # Observability
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
+      - OTEL_SERVICE_NAME=backend
     secrets:
       - jwt_private_key
       - jwt_public_key
-
     depends_on:
       - redis
       - mongo
-      - bedrock-text
-      - logger-service
-
+      - chroma
+      - minio
     networks:
       - mfulearnai-network
     restart: unless-stopped
 
-  # --- Bedrock Microservices ---
-  bedrock-text:
+  frontend-service:
     build:
-      context: ../../services/bedrock-text
+      context: ../../frontend
       dockerfile: Dockerfile
-    container_name: bedrock-text
+    container_name: mfulearnai-frontend
     environment:
-      - PORT=5001
-      - ENV_TYPE=TEST
-      - AWS_REGION=${AWS_REGION:-ap-southeast-1}
-      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
-      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
-      - JWT_PUBLIC_KEY_PATH=/run/secrets/jwt_public_key
-    secrets:
-      - jwt_public_key
-    ports:
-      - "5001:5001"
-    networks:
-      - mfulearnai-network
-    restart: unless-stopped
-
-  bedrock-image:
-    build:
-      context: ../../services/bedrock-image
-      dockerfile: Dockerfile
-    container_name: bedrock-image
-    environment:
-      - PORT=5002
-      - AWS_REGION=${AWS_REGION:-ap-southeast-1}
-      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
-      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
-      - JWT_PUBLIC_KEY_PATH=/run/secrets/jwt_public_key
-    secrets:
-      - jwt_public_key
-    ports:
-      - "5002:5002"
+      - VITE_API_URL=/api
+      - VITE_ENV=test
     networks:
       - mfulearnai-network
     restart: unless-stopped
@@ -183,89 +110,6 @@ services:
       - REDIS_PORT=6379
     depends_on:
       - redis
-    networks:
-      - mfulearnai-network
-    restart: unless-stopped
-
-  bedrock-embedding:
-    build:
-      context: ../../services/bedrock-embedding
-      dockerfile: Dockerfile
-    container_name: bedrock-embedding
-    environment:
-      - PORT=5003
-      - ENV_TYPE=TEST
-      - AWS_REGION=${AWS_REGION:-ap-southeast-1}
-      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
-      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
-      - JWT_PUBLIC_KEY_PATH=/run/secrets/jwt_public_key
-    secrets:
-      - jwt_public_key
-    ports:
-      - "5003:5003"
-    networks:
-      - mfulearnai-network
-    restart: unless-stopped
-
-  logger-service:
-    build:
-      context: ../../
-      dockerfile: services/logger/Dockerfile
-    container_name: mfulearnai-logger
-    environment:
-      - PORT=6000
-      - ENV_TYPE=TEST
-      - MONGO_URI=mongodb://mongo:27017/mfulearnai-logs
-    ports:
-      - "6000:6000"
-    depends_on:
-      - mongo
-    networks:
-      - mfulearnai-network
-    restart: unless-stopped
-
-  knowledge-service:
-    build:
-      context: ../../
-      dockerfile: services/knowledge/Dockerfile
-    container_name: mfulearnai-knowledge
-    environment:
-      - PORT=7000
-      - ENV_TYPE=TEST
-      - CHROMA_URL=http://chroma:8000
-      - BEDROCK_EMBEDDING_URL=http://bedrock-embedding:5003/api/bedrock
-      - BEDROCK_TEXT_URL=http://bedrock-text:5001/api/bedrock
-      - REDIS_URL=redis://redis:6379
-      - MINIO_ENDPOINT=minio
-      - MINIO_PORT=9000
-      - MINIO_ACCESS_KEY=minioadmin
-      - MINIO_SECRET_KEY=minioadmin
-      - MINIO_BUCKET=mfulearnai-knowledge
-      - MINIO_USE_SSL=false
-      - MINIO_EXTERNAL_URL=${MINIO_EXTERNAL_URL:-localhost:9000}
-      - JWT_PUBLIC_KEY_PATH=/run/secrets/jwt_public_key
-      - JWT_PRIVATE_KEY_PATH=/run/secrets/jwt_private_key
-      - JWT_SECRET=${JWT_SECRET:-test-jwt-secret-change-me}
-    secrets:
-      - jwt_public_key
-      - jwt_private_key
-    depends_on:
-      - chroma
-      - bedrock-embedding
-      - redis
-      - minio
-    networks:
-      - mfulearnai-network
-    restart: unless-stopped
-
-  frontend-service:
-    build:
-      context: ../../frontend
-      dockerfile: Dockerfile
-    container_name: mfulearnai-frontend
-    environment:
-      - VITE_API_URL=/api
-      - VITE_ENV=test
     networks:
       - mfulearnai-network
     restart: unless-stopped

@@ -1,0 +1,19 @@
+{
+    "compilerOptions": {
+        "target": "es2018",
+        "module": "commonjs",
+        "outDir": "./dist",
+        "rootDir": "../",
+        "strict": true,
+        "esModuleInterop": true,
+        "skipLibCheck": true,
+        "resolveJsonModule": true,
+        "typeRoots": [
+            "./node_modules/@types"
+        ]
+    },
+    "include": [
+        "src/**/*.ts",
+        "../shared/**/*.ts"
+    ]
+}
