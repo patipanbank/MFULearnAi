@@ -61,8 +61,8 @@ export const configureSaml = () => {
                         role = 'staff';
                     } else if (groupsArray.some((x: string) => x && x.includes('superadmin'))) {
                         role = 'superadmin';
-                    } else if (groupsArray.some((x: string) => x && x.includes('admin'))) {
-                        role = 'admin';
+                        // } else if (groupsArray.some((x: string) => x && x.includes('admin'))) {
+                        //    role = 'admin'; // Legacy sso-service ignores this and falls back to staff
                     } else {
                         role = 'staff';
                     }
