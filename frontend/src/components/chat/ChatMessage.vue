@@ -119,7 +119,7 @@ const timelineEvents = computed(() => {
                 if (startEvt.toolName === evt.toolName) {
                     mergedEvents[idx] = { 
                         ...startEvt, 
-                        result: evt.output || evt.message || 'Completed', 
+                        result: evt.resultPreview || evt.result || 'Completed', 
                         isToolComplete: true, 
                         success: evt.success 
                     }
