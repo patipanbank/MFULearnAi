@@ -1130,22 +1130,18 @@ const formatBytes = (bytes) => {
 
 /* Content Cards - GitHub Style */
 .flow-card {
-    border-radius: 6px; /* GitHub radius */
-    padding: 0; /* Header/Body structure requires 0 padding on wrapper */
+    border-radius: 6px;
+    padding: 0;
     width: 100%;
     overflow: hidden;
     border: 1px solid #d0d7de;
     background: #ffffff;
     box-shadow: none;
-}
-
-/* Specific Card Types */
-.thinking-card {
-    /* Standard GitHub Box */
+    margin-bottom: 8px; /* Add spacing between cards */
 }
 
 .card-header {
-    background: #f6f8fa;
+    background: #f3f6f9; /* Slightly darker than #f6f8fa */
     border-bottom: 1px solid #d0d7de;
     padding: 8px 12px;
     display: flex;
@@ -1158,32 +1154,70 @@ const formatBytes = (bytes) => {
 
 .card-body {
     padding: 12px;
+    font-size: 13px;
+    color: #24292f;
 }
+
+/* Tool Card: Dark Terminal Style Override?
+   User asked for "same color in all boxes" for header. 
+   If we truly standardise, we lose the terminal header look.
+   Let's standardise the STRUCTURE but keep Tool body dark for contrast?
+   Or make Tool body light too? GitHub Actions logs are dark.
+   I will keep Tool Body dark, but make Header standard? 
+   Actually, standardising header is safer for "Use this same color in all boxes".
+*/
 
 .tool-card {
-    background: #24292f; /* Dark terminal background for tools */
-    border-color: #24292f;
-}
-
-.tool-card .card-header {
-    background: #1f2428;
-    border-bottom: 1px solid #3e444d;
-    color: #c9d1d9;
-}
-
-.tool-card .tool-command-box {
-    color: #e6edf3;
-    padding: 12px;
-}
-
-.result-card {
+    /* If we want uniform headers, the wrapper border might need to match header?
+       Let's keep wrapper light border #d0d7de, header light #f3f6f9.
+       But Tool BODY needs to be dark? 
+       Let's try making Tool Card consistent with others (Light theme).
+    */
+    background: #ffffff;
     border-color: #d0d7de;
 }
 
-.glass-card {
-    /* Legacy override removal */
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
+.tool-card .card-header {
+    /* Enforce standard header */
+    background: #f3f6f9;
+    border-bottom: 1px solid #d0d7de;
+    color: #57606a;
+}
+
+.tool-card .tool-command-box {
+    background: #1f2428; /* Inner terminal box */
+    color: #e6edf3;
+    padding: 10px 12px;
+    font-family: ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, Liberation Mono, monospace;
+    border-top: none; 
+    /* The body IS the command box in current template structure? 
+       No, .tool-command-box is inside .tool-card div (which has no .card-body class in template).
+    */
+}
+
+/* Result Badge: Text Only, No Border */
+.result-badge {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 600;
+    margin-bottom: 4px;
+    /* Remove box styling */
+    background: transparent;
+    border: none;
+    padding: 0;
+}
+.result-badge.success { color: #1a7f37; }
+.result-badge.failure { color: #cf222e; }
+
+/* Result Preview */
+.result-preview-text {
+    font-family: ui-monospace, SFMono-Regular, monospace;
+    font-size: 12px;
+    color: #57606a;
+    background: #f6f8fa;
+    padding: 8px;
+    border-radius: 4px;
+    margin-top: 4px;
 }
 
 .ghost {
@@ -1196,25 +1230,43 @@ const formatBytes = (bytes) => {
     font-style: italic;
 }
 
-/* Dark Mode Overrides for Cards */
+/* Dark Mode Overrides */
 html[data-theme="dark"] .flow-card {
-    background: #0d1117; /* GitHub Dark Bg */
+    background: #0d1117;
     border-color: #30363d;
 }
 
 html[data-theme="dark"] .card-header {
-    background: #161b22; /* GitHub Dark Dimmed Header */
+    background: #161b22; /* Use standard dark header */
     border-bottom-color: #30363d;
     color: #768390;
 }
 
+html[data-theme="dark"] .card-body {
+    color: #c9d1d9;
+}
+
 html[data-theme="dark"] .tool-card {
-    background: #0d1117; 
+    background: #0d1117;
     border-color: #30363d;
 }
 
-html[data-theme="dark"] .thinking-card {
-    background: #0d1117;
+html[data-theme="dark"] .tool-card .card-header {
+    background: #161b22;
+    border-bottom-color: #30363d;
+    color: #768390;
+}
+
+html[data-theme="dark"] .tool-card .tool-command-box {
+    background: #0d1117; /* Or slightly distinct? */
+    border: 1px solid #30363d; /* Add border to inner box if needed, or just bg */
+    border-radius: 4px;
+    margin: 8px; /* spacing inside card */
+}
+
+html[data-theme="dark"] .result-preview-text {
+    background: #161b22;
+    color: #768390;
 }
 
 html[data-theme="dark"] .ghost {
@@ -1223,12 +1275,12 @@ html[data-theme="dark"] .ghost {
     color: #768390;
 }
 
-/* Remove old glass classes influence */
-.glass-card.thinking-card, 
-.glass-card.tool-card,
-.glass-card.result-card {
-    background: unset; 
-    /* allowed to be overridden by above specific styles */
+/* Cleanup */
+.glass-card, .glass-card.thinking-card, .glass-card.tool-card, .glass-card.result-card {
+    background: unset;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    box-shadow: none;
 }
 
 /* Dark Mode Overrides (assuming a class or media query, but let's stick to variables if possible) */
