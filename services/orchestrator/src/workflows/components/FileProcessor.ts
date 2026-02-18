@@ -85,12 +85,14 @@ export class FileProcessor {
                 emitProgress('queued', 20, 'Sending to OCR Worker...');
 
                 // Add to Queue
+                LoggerService.info('ocr_queue_add_start', { fileName }, userId);
                 const jobId = await queueService.addOcrJob({
                     buffer: file.buffer.toString('base64'),
                     fileName,
                     fileType: ext,
                     userId
                 });
+                LoggerService.info('ocr_queue_add_complete', { jobId }, userId);
 
                 // For now, we only support one job ID tracking per batch in the result interface.
                 // If multiple files need OCR, we really should have a batch job or multiple IDs.
@@ -102,7 +104,9 @@ export class FileProcessor {
         }
 
         try {
+            LoggerService.info('upload_wait_start', { count: uploadPromises.length }, userId);
             const uploaded = await Promise.all(uploadPromises);
+            LoggerService.info('upload_wait_complete', { count: uploaded.length }, userId);
             result.attachments = uploaded.filter(u => u !== null);
         } catch (e) {
             LoggerService.warn('upload_failed', e);
