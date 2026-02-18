@@ -44,7 +44,7 @@ if (process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY) {
 const client = new BedrockRuntimeClient(clientConfig);
 
 const MODELS_TO_CHECK = [
-    { name: 'qwen', id: 'qwen.qwen3-next-80b-a3b' },
+    { name: 'qwen', id: 'qwen.qwen3-vl-235b-a22b' },
 ];
 
 async function checkModel(model) {
