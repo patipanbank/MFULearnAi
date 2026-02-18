@@ -5,7 +5,7 @@ FROM node:20-alpine AS builder
 WORKDIR /app
 
 # Install build dependencies
-RUN apk add --no-cache python3 make g++
+RUN apk add --no-cache python3 make g++ git
 
 COPY package*.json ./
 # Use npm install to generate lockfile if needed, or ci if lockfile exists and is reliable
