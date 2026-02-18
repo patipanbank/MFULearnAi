@@ -9,6 +9,7 @@
         "build": "tsc"
     },
     "dependencies": {
+        "@aws-sdk/client-bedrock": "^3.992.0",
         "@aws-sdk/client-bedrock-runtime": "^3.986.0",
         "@bull-board/api": "^6.18.2",
         "@bull-board/express": "^6.18.2",
