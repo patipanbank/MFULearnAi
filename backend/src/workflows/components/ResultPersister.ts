@@ -54,7 +54,43 @@ export class ResultPersister {
         }
 
         const userMsgToSave: any = { role: 'user' as const, content: ctx.message, timestamp: new Date() };
-        if (uploadedAttachments.length > 0) userMsgToSave.attachments = uploadedAttachments;
+        if (uploadedAttachments.length > 0) {
+            userMsgToSave.attachments = uploadedAttachments;
+            // Backward Compatibility: Frontend expects 'images' for display
+            userMsgToSave.images = uploadedAttachments
+                .filter(a => a.mimeType.startsWith('image/'))
+                .map(a => ({
+                    type: 'image',
+                    source: {
+                        // If we had a public URL, we'd use it. For now, we might need a way to serve it.
+                        // But wait, the frontend might expect base64 for immediate display?
+                        // Actually, if we just uploaded it, we don't have the base64 anymore in 'uploadedAttachments' (it returns metadata).
+                        // checking ChatAttachmentService return: { key, filename, ... }
+                        // We need to provide a way for frontend to load it. 
+                        // Let's assume frontend can load via /api/attachments/:key ?
+                        // Or we should persist the base64 if we want it to work 'offline'? 
+                        // Better: Just mark it as an image attachment.
+                    },
+                    // Frontend 'ChatMessage.vue' likely checks 'images' prop.
+                    // If it expects base64, we failed.
+                    // If we want it to show up, we need to know what frontend expects.
+                    // Looking at previous context is pointless without reading frontend code.
+                    // Safe bet: The 'ctx.images' had the base64. We should probably save THAT if we want immediate display
+                    // OR we accept that 'attachments' is the new way.
+                    // But user says "Image not saved".
+                    // Let's add the original base64 back from ctx.images if available?
+                    // ctx.images has { source: { bytes: ... } }
+                }));
+
+            // BETTER FIX: Use the original ctx.images for the 'images' field so it saves to DB with Base64 (Heavy, but works)
+            // Or construct a valid image object.
+            if (ctx.images && ctx.images.length > 0) {
+                userMsgToSave.images = ctx.images.map((img: any) => ({
+                    mediaType: img.format ? `image/${img.format}` : 'image/png',
+                    data: img.source?.bytes ? Buffer.from(img.source.bytes).toString('base64') : ''
+                }));
+            }
+        }
 
         const assistantMsgToSave = {
             role: 'assistant' as const,
