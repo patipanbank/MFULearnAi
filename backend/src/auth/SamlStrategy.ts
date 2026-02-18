@@ -8,7 +8,7 @@ const SAML_IDP_SSO_URL = process.env.SAML_IDP_SSO_URL || 'https://idp.mfu.ac.th/
 const SAML_CERTIFICATE = process.env.SAML_CERTIFICATE || '';
 // Gateway URL should be the public entry point
 const GATEWAY_URL = process.env.API_GATEWAY_URL || 'https://mfulearnai.mfu.ac.th';
-const SAML_CALLBACK_URL = `${GATEWAY_URL}/api/auth/saml/callback`;
+const SAML_CALLBACK_URL = `${GATEWAY_URL}/auth/saml/callback`;
 
 export const configureSaml = () => {
     passport.use('saml', new SamlStrategy(

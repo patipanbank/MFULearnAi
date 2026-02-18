@@ -37,7 +37,5 @@ router.use('/knowledge', checkAuth, knowledgeRoutes);
 import logRoutes from './logs';
 router.use('/logs', checkAuth, logRoutes);
 
-import authRoutes from './auth';
-router.use('/auth', authRoutes);
 
 export default router;
