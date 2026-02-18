@@ -8,7 +8,7 @@
 // Analysis: Knowledge service already has getEmbedding which calls a Bedrock-Proxy.
 // I'll implement a simple sendChat counterpart in Knowledge service for re-ranking.
 
-import { BEDROCK_MODELS } from '../config/models';
+import { MODELS } from '../config/models';
 import axios from 'axios';
 const BEDROCK_ENDPOINT = process.env.BEDROCK_TEXT_URL || 'http://bedrock-text:5001/api/bedrock';
 import { TokenUtil } from './tokenUtils';
@@ -34,7 +34,7 @@ Task:
 `;
 
             const response = await axios.post(`${BEDROCK_ENDPOINT}/chat`, {
-                modelId: BEDROCK_MODELS.CLAUDE_3_5_SONNET,
+                modelId: MODELS.PRIMARY,
                 messages: [{ role: 'user', content: prompt }],
                 stream: false,
                 options: { temperature: 0.1 }

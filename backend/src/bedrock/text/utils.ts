@@ -3,14 +3,13 @@ import { BedrockRuntimeClient } from "@aws-sdk/client-bedrock-runtime";
 
 dotenv.config();
 
-import { MODELS, BEDROCK_MODELS } from '../../config/models';
+import { MODELS, BEDROCK_MODELS, AVAILABLE_MODELS, ModelConfig } from '../../config/models';
 
 dotenv.config();
 
 // Re-export for backward compatibility if needed, though direct import is better
-export { MODELS };
+export { MODELS, AVAILABLE_MODELS, ModelConfig };
 
-const APPROVED_PROD_MODELS = [MODELS.claude35, MODELS.claudeHaiku];
 const ENV_TYPE = process.env.ENV_TYPE || 'TEST';
 
 // --- Enhancement 3: Guardrails Config ---
@@ -25,11 +24,19 @@ export const CACHE_SUPPORTED_MODELS = [
 ];
 
 export const validateModel = (modelId: string): string => {
-    if (ENV_TYPE === 'PROD' && !APPROVED_PROD_MODELS.includes(modelId)) {
-        console.warn(`[Bedrock Text] Blocked model ${modelId} in PROD`);
-        return MODELS.claude35;
+    // Check if model exists in our config
+    const isValid = AVAILABLE_MODELS.some(m => m.id === modelId);
+
+    if (ENV_TYPE === 'PROD') {
+        // In PROD, could add extra checks here restricted models if needed
+        // For now, if it's in AVAILABLE_MODELS, it's allowed
+        if (!isValid) {
+            console.warn(`[Bedrock Text] Invalid or block model ${modelId} in PROD`);
+            return MODELS.PRIMARY;
+        }
     }
-    return modelId || MODELS.claude35;
+
+    return isValid ? modelId : MODELS.PRIMARY;
 };
 
 export const normalizeMessages = (messages: any[]) => {

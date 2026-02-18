@@ -7,7 +7,7 @@ import {
     ConverseStreamCommand
 } from "@aws-sdk/client-bedrock-runtime";
 
-import { MODELS, BEDROCK_MODELS } from '../../config/models';
+import { MODELS, BEDROCK_MODELS, AVAILABLE_MODELS } from '../../config/models';
 
 dotenv.config();
 
@@ -39,16 +39,21 @@ const client = new BedrockRuntimeClient({
     }
 });
 
-const APPROVED_PROD_MODELS = [MODELS.claude35, MODELS.claudeHaiku];
-
 // --- Helpers ---
 const validateModel = (modelId: string): string => {
-    if (ENV_TYPE === 'PROD' && !APPROVED_PROD_MODELS.includes(modelId)) {
-        console.warn(`[Bedrock Text] Blocked model ${modelId} in PROD`);
-        return MODELS.claude35;
+    // Check if model exists in our config
+    const isValid = AVAILABLE_MODELS.some(m => m.id === modelId);
+
+    if (ENV_TYPE === 'PROD') {
+        if (!isValid) {
+            console.warn(`[Bedrock Text] Invalid or blocked model ${modelId} in PROD`);
+            return MODELS.PRIMARY;
+        }
     }
-    return modelId || MODELS.claude35;
+    return isValid ? modelId : MODELS.PRIMARY;
 };
+
+
 
 const normalizeMessages = (messages: any[]) => {
     if (!messages || messages.length === 0) return [];
@@ -453,7 +458,8 @@ app.post('/api/bedrock/chat', async (req: Request, res: Response) => {
 // List Models
 app.get('/api/bedrock/models', (req, res) => {
     res.json({
-        models: [MODELS.claude35, MODELS.claudeHaiku],
+        models: AVAILABLE_MODELS.map(m => m.id),
+        modelConfigs: AVAILABLE_MODELS,
         environment: ENV_TYPE
     });
 });

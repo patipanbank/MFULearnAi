@@ -9,6 +9,7 @@ import {
     validateModel,
     normalizeMessages,
     MODELS,
+    AVAILABLE_MODELS,
     GUARDRAIL_ID,
     GUARDRAIL_VERSION,
     ENABLE_PROMPT_CACHE,
@@ -20,10 +21,11 @@ import { LoggerService } from './LoggerService';
 export class BedrockService {
 
     static async getModels() {
-        // Return static model list + environment info (compatible with old API response)
+        // Return dynamic model list + environment info
         const ENV_TYPE = process.env.ENV_TYPE || 'TEST';
         return {
-            models: [MODELS.claude35, MODELS.claudeHaiku],
+            models: AVAILABLE_MODELS.map(m => m.id),
+            modelConfigs: AVAILABLE_MODELS, // Optional: send full config if frontend needs it
             environment: ENV_TYPE
         };
     }
