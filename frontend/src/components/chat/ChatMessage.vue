@@ -293,10 +293,10 @@ const formatBytes = (bytes) => {
                      <template v-for="(att, index) in message.attachments" :key="'img-'+index">
                         <img 
                             v-if="att.mimeType && att.mimeType.startsWith('image/')"
-                            :src="`/api/chat/attachment/${att.key}`" 
+                            :src="`/api/chat/attachment/${att.key}?token=${authStore.token}`" 
                             class="msg-image clickable"
                             alt="Attached image"
-                            @click="viewImage(`/api/chat/attachment/${att.key}`)"
+                            @click="viewImage(`/api/chat/attachment/${att.key}?token=${authStore.token}`)"
                             @error="$event.target.style.display='none'"
                         />
                      </template>
