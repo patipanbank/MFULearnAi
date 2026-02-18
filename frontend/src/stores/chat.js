@@ -286,8 +286,39 @@ export const useChatStore = defineStore('chat', () => {
             }
 
             // ══ Answer Streaming (Token-by-token) ══
+            if (data.type === 'answer_start') {
+                messages.value[assistantIndex].answerMode = data.answerMode || 'text'
+            }
+
             if (data.type === 'answer_delta') {
-                messages.value[assistantIndex].content += data.delta
+                const msg = messages.value[assistantIndex]
+                const mode = msg?.answerMode || 'text'
+
+                if (mode === 'tool_use' || mode === 'agent') {
+                    ensureEvents()
+                    const events = msg.agentEvents
+                    const lastEvt = events[events.length - 1]
+
+                    if (lastEvt && lastEvt.type === 'thinking' && !lastEvt.isFinished) {
+                        lastEvt.message = (lastEvt.message || '') + data.delta
+                    } else {
+                        // Start new thinking block
+                        // Find max step
+                        const maxStep = events.length > 0 ? Math.max(...events.map(e => e.step || 0)) : 0
+
+                        msg.agentEvents.push({
+                            type: 'thinking',
+                            message: data.delta,
+                            step: maxStep + 1,
+                            receivedAt: Date.now(),
+                            isFinished: false,
+                            isActive: true
+                        })
+                    }
+                } else {
+                    // Normal text response
+                    if (msg) msg.content += data.delta
+                }
             }
 
             // Status Updates
