@@ -451,9 +451,12 @@ const formatBytes = (bytes) => {
                                     <span class="header-badge">Step {{ evt.step }}</span>
                                 </div>
                                 <div class="card-body markdown-body">
-                                    <div v-if="evt.isActive" class="thinking-placeholder">
-                                        <span class="dot-flashing"></span>
-                                        <span class="text">Analyzing...</span>
+                                    <div v-if="evt.isActive" class="thinking-active">
+                                        <div class="thinking-header">
+                                            <span class="dot-flashing"></span>
+                                            <span class="text">Analyzing...</span>
+                                        </div>
+                                        <div v-if="evt.message" class="thinking-content" v-html="render(evt.message)"></div>
                                     </div>
                                     <div v-else v-html="render(evt.message)"></div>
                                 </div>
@@ -1473,7 +1476,31 @@ html[data-theme="dark"] .ghost {
 }
 
 @keyframes dot-flashing {
-  0% { background-color: var(--color-primary); }
   50%, 100% { background-color: rgba(99, 102, 241, 0.2); }
+}
+
+/* Improved Thinking Card */
+.thinking-active {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.thinking-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--color-text-muted);
+    font-size: 13px;
+    font-weight: 500;
+}
+
+.thinking-content {
+    animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
 }
 </style>
