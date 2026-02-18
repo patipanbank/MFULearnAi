@@ -3,12 +3,21 @@
  * All model IDs are defined here to avoid hardcoding across the codebase.
  */
 
+export const BEDROCK_MODELS = {
+    CLAUDE_3_5_SONNET: process.env.BEDROCK_PRIMARY_MODEL || 'anthropic.claude-sonnet-4-6',
+    CLAUDE_3_HAIKU: process.env.BEDROCK_FAST_MODEL || 'anthropic.claude-haiku-4-5-20251001-v1:0',
+} as const;
+
 export const MODELS = {
     /** Primary model for complex tasks (agent loop, chat, summarization) */
-    PRIMARY: process.env.BEDROCK_PRIMARY_MODEL || 'anthropic.claude-3-5-sonnet-20240620-v1:0',
+    PRIMARY: BEDROCK_MODELS.CLAUDE_3_5_SONNET,
 
     /** Fast model for lightweight tasks (intent check, title generation) */
-    FAST: process.env.BEDROCK_FAST_MODEL || 'anthropic.claude-3-5-sonnet-20240620-v1:0',
+    FAST: BEDROCK_MODELS.CLAUDE_3_HAIKU,
+
+    // Legacy mapping for compatibility
+    claude35: BEDROCK_MODELS.CLAUDE_3_5_SONNET,
+    claudeHaiku: BEDROCK_MODELS.CLAUDE_3_HAIKU
 } as const;
 
 /** Agent loop configuration */

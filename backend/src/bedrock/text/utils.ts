@@ -3,10 +3,12 @@ import { BedrockRuntimeClient } from "@aws-sdk/client-bedrock-runtime";
 
 dotenv.config();
 
-export const MODELS = {
-    claude35: "anthropic.claude-3-5-sonnet-20240620-v1:0",
-    claudeHaiku: "anthropic.claude-3-haiku-20240307-v1:0"
-};
+import { MODELS, BEDROCK_MODELS } from '../../config/models';
+
+dotenv.config();
+
+// Re-export for backward compatibility if needed, though direct import is better
+export { MODELS };
 
 const APPROVED_PROD_MODELS = [MODELS.claude35, MODELS.claudeHaiku];
 const ENV_TYPE = process.env.ENV_TYPE || 'TEST';
@@ -18,8 +20,8 @@ export const GUARDRAIL_VERSION = process.env.BEDROCK_GUARDRAIL_VERSION || 'DRAFT
 // --- Enhancement 1: Prompt Caching (OPT-IN) ---
 export const ENABLE_PROMPT_CACHE = process.env.BEDROCK_ENABLE_CACHE === 'true';
 export const CACHE_SUPPORTED_MODELS = [
-    'anthropic.claude-3-5-sonnet-20240620-v1:0',
-    'anthropic.claude-3-haiku-20240307-v1:0'
+    BEDROCK_MODELS.CLAUDE_3_5_SONNET,
+    BEDROCK_MODELS.CLAUDE_3_HAIKU
 ];
 
 export const validateModel = (modelId: string): string => {

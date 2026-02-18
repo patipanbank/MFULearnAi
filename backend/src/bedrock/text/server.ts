@@ -7,6 +7,8 @@ import {
     ConverseStreamCommand
 } from "@aws-sdk/client-bedrock-runtime";
 
+import { MODELS, BEDROCK_MODELS } from '../../config/models';
+
 dotenv.config();
 
 const app = express();
@@ -24,8 +26,8 @@ const GUARDRAIL_VERSION = process.env.BEDROCK_GUARDRAIL_VERSION || 'DRAFT';
 // Set BEDROCK_ENABLE_CACHE=true to enable. Not all regions/models support this.
 const ENABLE_PROMPT_CACHE = process.env.BEDROCK_ENABLE_CACHE === 'true';
 const CACHE_SUPPORTED_MODELS = [
-    'anthropic.claude-3-5-sonnet-20240620-v1:0',
-    'anthropic.claude-3-haiku-20240307-v1:0'
+    BEDROCK_MODELS.CLAUDE_3_5_SONNET,
+    BEDROCK_MODELS.CLAUDE_3_HAIKU
 ];
 
 // --- Bedrock Client Setup ---
@@ -36,11 +38,6 @@ const client = new BedrockRuntimeClient({
         secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!
     }
 });
-
-const MODELS = {
-    claude35: "anthropic.claude-3-5-sonnet-20240620-v1:0",
-    claudeHaiku: "anthropic.claude-3-haiku-20240307-v1:0"
-};
 
 const APPROVED_PROD_MODELS = [MODELS.claude35, MODELS.claudeHaiku];
 
