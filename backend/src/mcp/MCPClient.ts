@@ -96,8 +96,8 @@ export class MCPClient {
             const initResponse = await this.request('initialize', {
                 protocolVersion: "2024-11-05",
                 capabilities: {},
-                client: {
-                    name: "mful-orchestrator",
+                clientInfo: {
+                    name: "mful-learnai",
                     version: "1.0.0"
                 }
             });
@@ -108,11 +108,7 @@ export class MCPClient {
 
             // 2. Send 'notifications/initialized'
             console.log(`[MCP Client] Sending notifications/initialized`);
-            await this.notify('notifications/initialized', {
-                // Some servers require repeating capabilities/version in notification
-                protocolVersion: "2024-11-05",
-                capabilities: {}
-            });
+            await this.notify('notifications/initialized');
 
             console.log(`[MCP Client] Handshake complete.`);
 
@@ -192,14 +188,16 @@ export class MCPClient {
         return textObj ? textObj.text : JSON.stringify(response.result.content);
     }
 
-    private async notify(method: string, params: any): Promise<void> {
+    private async notify(method: string, params?: any): Promise<void> {
         if (!this.endpoint) throw new Error("MCP Endpoint not initialized");
 
-        const body = {
+        const body: any = {
             jsonrpc: '2.0',
-            method,
-            params
+            method
         };
+        if (params !== undefined) {
+            body.params = params;
+        }
 
         try {
             await axios.post(this.endpoint!, body);
