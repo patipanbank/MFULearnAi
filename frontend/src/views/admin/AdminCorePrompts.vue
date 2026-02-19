@@ -128,7 +128,7 @@
                   :title="v.description"
                   :id="`var-${v.key}`"
                 >
-                  <code>{{ '{{' + v.key + '}}' }}</code>
+                  <code>{{ formatVarSyntax(v.key) }}</code>
                   <span class="var-label">{{ v.label }}</span>
                   <span class="var-sample">{{ v.sampleValue }}</span>
                 </button>
@@ -368,15 +368,17 @@ const variableCategories = computed(() => {
   return [...cats]
 })
 
+/** Format variable key into template syntax for display (avoids Vue parser issues) */
+const formatVarSyntax = (key) => `\u007B\u007B${key}\u007D\u007D`
+
 const renderedPreviewHtml = computed(() => {
-  // Simple text to HTML — preserve newlines and whitespace
   if (!renderedPreview.value) return '<span class="text-muted">Click "Refresh Preview" to render</span>'
   return renderedPreview.value
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/\n/g, '<br>')
-    .replace(/\{\{(\w+)\}\}/g, '<mark class="var-highlight">{{$1}}</mark>')
+    .replace(/\u007B\u007B(\w+)\u007D\u007D/g, '<mark class="var-highlight">\u007B\u007B$1\u007D\u007D</mark>')
 })
 
 // ── Helpers ───────────────────────────────────────────────────────
