@@ -15,7 +15,10 @@ export const knowledgeQueue = new Queue(KNOWLEDGE_QUEUE_NAME, { connection: conn
 export const initWorker = () => {
     const worker = new Worker(KNOWLEDGE_QUEUE_NAME, processKnowledgeJob, {
         connection: connection as any,
-        concurrency: 2 // Process 2 files at a time
+        concurrency: 2, // Process 2 files at a time
+        lockDuration: 600_000,    // 10 minutes — large PDFs with OCR + embedding take significant time
+        stalledInterval: 300_000, // 5 minutes — check for stalled jobs less frequently
+        maxStalledCount: 2        // Allow up to 2 stall recoveries before marking as failed
     });
 
     worker.on('completed', (job: any) => {
