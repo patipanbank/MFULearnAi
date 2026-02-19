@@ -37,6 +37,11 @@ ${smartContext?.canonical || 'First session.'}
 ${JSON.stringify(smartContext?.rolling || {}, null, 2)}`
         });
 
+        // --- Block: Policies ---
+        if (state.policyContext) {
+            systemBlocks.push({ text: state.policyContext });
+        }
+
         // --- Block 3: File Hints ---
         if (nativeDocBlocks.length > 0) {
             const names = nativeDocBlocks.map((d: NativeDocBlock) => d.name).join(', ');

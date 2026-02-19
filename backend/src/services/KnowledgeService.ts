@@ -26,6 +26,7 @@ export class KnowledgeService {
         if (type === 'personal') return true;
         if (type === 'department' && user.role === 'admin') return true;
         if (type === 'public' && user.role === 'admin') return true;
+        if (type === 'policy' && user.role === 'admin') return true;
         return false;
     }
 
@@ -33,11 +34,13 @@ export class KnowledgeService {
         if (kb.type === 'personal') return kb.ownerId === user.userId;
         if (kb.type === 'department') return user.role === 'admin' && user.department === kb.department;
         if (kb.type === 'public') return user.role === 'admin' && user.department === kb.department;
+        if (kb.type === 'policy') return user.role === 'admin'; // Any admin can manage policy? Or restricted? Assuming any admin for now as per request.
         return false;
     }
 
     static canReadKnowledge(user: UserContext, kb: IKnowledge): boolean {
         if (kb.type === 'public') return true;
+        if (kb.type === 'policy') return true; // Policies are readable by everyone? Assuming yes for RAG.
         if (kb.type === 'department') return user.department === kb.department;
         if (kb.type === 'personal') return kb.ownerId === user.userId;
         return false;
@@ -51,7 +54,17 @@ export class KnowledgeService {
     }
 
     // --- Search ---
-    static async search(query: string, userContext: any, collectionId?: string, intent: string = 'QUERY'): Promise<{ text: string, sources: Array<{ id: string, name: string }>, blocks: CanonicalIR['blocks'], maxScore?: number }> {
+    static async search(
+        query: string,
+        userContext: any,
+        options: {
+            collectionId?: string;
+            intent?: string;
+            minScore?: number;
+            metadataFilter?: any;
+        } = {}
+    ): Promise<{ text: string, sources: Array<{ id: string, name: string }>, blocks: CanonicalIR['blocks'], maxScore: number }> {
+        const { collectionId, intent = 'QUERY', minScore = 0, metadataFilter } = options;
         try {
             const col = await chroma.getCollection({ name: GLOBAL_CHROMA_COLLECTION, embeddingFunction: null as any });
 
@@ -60,10 +73,17 @@ export class KnowledgeService {
             const queryEmbedding = await getEmbedding(query);
 
             const nResults = 10;
-            const results = await col.query({
+            const queryParams: any = {
                 queryEmbeddings: [queryEmbedding],
                 nResults: nResults,
-            });
+            };
+
+            // Apply Metadata Filter (Chroma 'where' clause)
+            if (metadataFilter) {
+                queryParams.where = metadataFilter;
+            }
+
+            const results = await col.query(queryParams);
 
             if (results.ids && results.ids.length > 0) {
                 LoggerService.info('rag_search_internal_results', {
@@ -75,12 +95,13 @@ export class KnowledgeService {
                 const ids = results.ids[0];
                 const metadatas = results.metadatas[0];
                 const documents = results.documents[0];
+                const distances = results.distances?.[0]; // L2 Distances
 
                 const uniqueKnowledgeIds = new Set(metadatas.map((m: any) => m.knowledgeId));
                 const knowledgeDocs = await Knowledge.find({ _id: { $in: Array.from(uniqueKnowledgeIds) } });
                 const knowledgeMap = new Map(knowledgeDocs.map(k => [k._id.toString(), k]));
 
-                const validHits = [];
+                const validHits: any[] = [];
                 const sourceMap = new Map<string, any>();
 
                 for (let i = 0; i < ids.length; i++) {
@@ -94,10 +115,7 @@ export class KnowledgeService {
                     if (this.canReadKnowledge(userContext, kb)) {
                         // Collection Filter
                         if (collectionId) {
-                            // TODO: Add robust collection filtering.
-                            // For now, if collectionId is provided, we double check if KB is in collection.
-                            // This might be slow if we have to fetch collection first.
-                            // Optimization: Pass allowed KB IDs to search?
+                            // TODO: Add robust collection filtering if needed
                         }
 
                         if (!sourceMap.has(kb._id.toString())) {
@@ -108,14 +126,28 @@ export class KnowledgeService {
                             });
                         }
 
-                        validHits.push({
-                            id: ids[i],
-                            content: doc,
-                            metadata: metadata,
-                            score: 0
-                        });
+                        // Calculate Score: 1 / (1 + distance)
+                        // Chroma L2 distance logic
+                        const distance = distances ? distances[i] : 0;
+                        const score = distances ? (1 / (1 + distance)) : 0;
+
+                        if (score >= minScore) {
+                            validHits.push({
+                                id: ids[i],
+                                content: doc,
+                                metadata: metadata,
+                                score: score
+                            });
+                        }
                     }
                 }
+
+                if (validHits.length === 0) {
+                    return { text: '', sources: [], blocks: [], maxScore: 0 };
+                }
+
+                // Calculate Max Score
+                const maxScore = Math.max(...validHits.map(h => h.score));
 
                 const blocks = validHits.map((hit: any, index: number) => ({
                     id: hit.id || `search_b${index + 1}`,
@@ -125,19 +157,20 @@ export class KnowledgeService {
                         fileId: hit.metadata.knowledgeId,
                         fileName: hit.metadata.source,
                         page: hit.metadata.pageNumber,
+                        score: hit.score
                     }
                 }));
 
                 const text = validHits.map((hit: any, index: number) => {
                     const blockId = blocks[index].id;
-                    return `<block id="${blockId}">\n${hit.content}\n</block>`;
+                    return `<block id="${blockId}" score="${hit.score.toFixed(4)}">\n${hit.content}\n</block>`;
                 }).join('\n\n');
 
                 return {
                     text,
                     sources: Array.from(sourceMap.values()),
                     blocks,
-                    maxScore: 1
+                    maxScore
                 };
             }
 
@@ -152,17 +185,19 @@ export class KnowledgeService {
 
     // --- Knowledge List ---
     static async getKnowledgeList(user: UserContext) {
-        // Return personal + explicit department + public?
-        // Or just personal for now? 
-        // Let's return all readable by user.
+        // Return personal + explicit department + public + policy(if admin)
 
-        const query: any = {
-            $or: [
-                { type: 'public' },
-                { type: 'department', department: user.department },
-                { type: 'personal', ownerId: user.userId }
-            ]
-        };
+        const conditions: any[] = [
+            { type: 'public' },
+            { type: 'department', department: user.department },
+            { type: 'personal', ownerId: user.userId }
+        ];
+
+        if (user.role === 'admin') {
+            conditions.push({ type: 'policy' });
+        }
+
+        const query: any = { $or: conditions };
 
         return await Knowledge.find(query).sort({ createdAt: -1 });
     }

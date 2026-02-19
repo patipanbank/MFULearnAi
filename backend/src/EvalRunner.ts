@@ -13,7 +13,7 @@ export class EvalRunner {
         console.log(`\n--- RAG Static Evaluation (${dataset.length} cases) ---`);
 
         for (const test of dataset) {
-            const { text } = await KnowledgeService.search(test.query, { userId: 'eval_user', role: 'admin' }, undefined, test.intent);
+            const { text } = await KnowledgeService.search(test.query, { userId: 'eval_user', role: 'admin' }, { intent: test.intent });
 
             // Basic metric check: Are expected Doc IDs or keywords present in the flat text result?
             const foundCount = test.must_include.filter((keyword: string) => text.toLowerCase().includes(keyword.toLowerCase())).length;

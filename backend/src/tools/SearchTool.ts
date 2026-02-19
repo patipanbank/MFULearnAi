@@ -17,6 +17,10 @@ export class SearchTool extends AgentTool {
                     query: {
                         type: 'string',
                         description: 'The search query.'
+                    },
+                    context: {
+                        type: 'string',
+                        description: 'Additional context to refine the search (e.g., specific terms, policy names).'
                     }
                 },
                 required: ['query']
@@ -26,20 +30,31 @@ export class SearchTool extends AgentTool {
 
     async execute(args: any, context: AgentContext): Promise<ToolResult> {
         try {
-            const { query } = args;
+            const { query, context: queryContext } = args;
+
+            // Query Expansion
+            const expandedQuery = queryContext ? `${query} ${queryContext}` : query;
+
             const userContext = {
                 userId: context.userId,
                 role: context.role || 'student',
                 department: context.department || 'General'
             };
 
-            const { text, blocks } = await KnowledgeService.search(query, userContext, context.collectionId);
+            const { text, sources, blocks } = await KnowledgeService.search(expandedQuery, userContext, { collectionId: context.collectionId });
+
             if (!text && (!blocks || blocks.length === 0)) {
                 return { success: true, result: "No relevant information found in the knowledge base." };
             }
 
-            // R2: Return structured blocks for the agent to use as context
-            return { success: true, result: JSON.stringify(blocks) };
+            // Return formatted text + sources for citation
+            let result = text;
+            if (sources && sources.length > 0) {
+                const sourceList = sources.map((s: any) => `- [${s.id}] ${s.name}`).join('\n');
+                result += `\n\n=== SOURCES ===\n${sourceList}`;
+            }
+
+            return { success: true, result: result };
         } catch (error: any) {
             return { success: false, result: null, error: error.message };
         }
