@@ -18,13 +18,14 @@
 
 const path = require('path');
 
-// Load .env from backend root
-require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
+// dotenv is optional — container already has env vars via docker-compose
+try { require('dotenv').config({ path: path.resolve(__dirname, '../.env') }); } catch (e) { /* OK */ }
 
 const mongoose = require('mongoose');
 const { ChromaClient } = require('chromadb');
 
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/mfulearnai';
+// docker-compose uses MONGO_URI, fallback to MONGODB_URI for local dev
+const MONGODB_URI = process.env.MONGO_URI || process.env.MONGODB_URI || 'mongodb://localhost:27017/mfulearnai';
 const CHROMA_URL = process.env.CHROMA_URL || 'http://chromadb:8000';
 const GLOBAL_CHROMA_COLLECTION = 'mfulearnai-global-kb';
 
