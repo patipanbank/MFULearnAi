@@ -15,8 +15,10 @@ import { ToolExecutor } from './components/ToolExecutor';
 import { ContextLoader } from './components/ContextLoader';
 import { ResultPersister } from './components/ResultPersister';
 
+import { AgentTool } from '../tools/AgentTool';
+
 // Whitelist of tools for the Agent
-const AVAILABLE_TOOLS = [
+const AVAILABLE_TOOLS: AgentTool[] = [
     new CalculatorTool(),
     new SearchTool()
 ];
@@ -173,21 +175,30 @@ export class AgentWorkflow {
             const fileUploadPromises = fileJob.attachments.map(a => Promise.resolve(a));
             this.state.uploadPromises = [...fileUploadPromises, ...imageUploadPromises];
 
-            // 3. Build Prompt & Initial Messages
-            this.state.phase = AgentPhase.PLANNING;
-            this.state.messages = await PromptBuilder.buildInitialMessages(this.ctx, this.state);
+            // 3. Initialize Tools (General + MCP)
+            this.state.phase = AgentPhase.INIT;
+            const allTools = [...AVAILABLE_TOOLS];
 
             // 3.1 Initialize MCP Tools (CCTV)
             try {
                 this.cctvMcp = new CctvMcpTool(this.ctx.userId);
                 const newTools = await this.cctvMcp.init();
                 this.mcpTools.push(...newTools);
+                allTools.push(...newTools);
             } catch (error: any) {
                 LoggerService.error('mcp_init_fatal', { error: error.message });
             }
 
-            // 4. Main Agent Loop
-            await this.agentLoop();
+            // 3.2 Filter tools by user role
+            const userRole = this.ctx.userRole;
+            const allowedTools = allTools.filter(t => t.isAllowed(userRole));
+
+            // 4. Build Prompt & Initial Messages
+            this.state.phase = AgentPhase.PLANNING;
+            this.state.messages = await PromptBuilder.buildInitialMessages(this.ctx, this.state, allowedTools);
+
+            // 5. Main Agent Loop
+            await this.agentLoop(allowedTools);
 
             this.state.phase = AgentPhase.COMPLETED;
 
@@ -219,11 +230,7 @@ export class AgentWorkflow {
     /**
      * Main Agent Loop
      */
-    private async agentLoop() {
-        const { userRole } = this.ctx;
-        // Merge Static tools + MCP tools
-        const allTools = [...AVAILABLE_TOOLS, ...this.mcpTools];
-        const allowedTools = allTools.filter(t => t.isAllowed(userRole));
+    private async agentLoop(allowedTools: AgentTool[]) {
         const toolConfig = allowedTools.length > 0 ? {
             tools: allowedTools.map(t => ({ toolSpec: t.schemaJSON }))
         } : undefined;

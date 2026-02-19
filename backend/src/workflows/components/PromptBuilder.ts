@@ -17,9 +17,13 @@ export class PromptBuilder {
      * Build the initial message stack for the agent.
      * Now async — pulls the system prompt dynamically from DB via PromptService.
      */
-    static async buildInitialMessages(ctx: AgentContext, state: WorkflowState) {
+    static async buildInitialMessages(ctx: AgentContext, state: WorkflowState, allowedTools: any[] = []) {
         const { message, images } = ctx;
         const { smartContext, nativeDocBlocks, extractedTextBlocks, history } = state;
+
+        // Extract tool names for the prompt
+        const toolNames = allowedTools.map(t => t.schemaJSON?.name || t.name).filter(Boolean);
+        const toolListStr = toolNames.join(', ') || 'none';
 
         // --- Resolve environment & build variable values ---
         const envType = resolveEnvType();
@@ -35,7 +39,7 @@ export class PromptBuilder {
             modelId: SYSTEM_MODELS.AGENT,
             hasFiles: String(nativeDocBlocks.length > 0 || extractedTextBlocks.length > 0),
             hasPolicyContext: String(!!state.policyContext),
-            toolList: 'search, calculator',
+            toolList: toolListStr,
         };
 
         // --- Fetch dynamic persona prompt from DB ---
@@ -66,20 +70,34 @@ export class PromptBuilder {
 
         // --- Block 1: Persona & Rules ---
         const systemBlocks: Array<{ text: string }> = [];
+
+        // Dynamically build tool instructions
+        let toolInstructions = '';
+        if (toolNames.includes('search')) {
+            toolInstructions += '- Use the \'search\' tool if you need information about the University or System (but NOT for policies if Policy Context is already provided).\n';
+        }
+        if (toolNames.includes('calculator')) {
+            toolInstructions += '- Use the \'calculator\' tool for any math.\n';
+        }
+
+        // Generic instruction for other tools if they exist
+        const extraTools = toolNames.filter(name => name !== 'search' && name !== 'calculator');
+        if (extraTools.length > 0) {
+            toolInstructions += `- Use these additional tools when appropriate: ${extraTools.join(', ')}.\n`;
+        }
+
         systemBlocks.push({
             text: `${personaPrompt}
 You can see and analyze attached images. Use this capability to answer questions about visual content.
 === TRUTH PRIORITY ===
 1. University Policy Context (if provided below — this is AUTHORITATIVE for policy questions)
 2. Canonical Memory
-3. Tool Results (Search/Calc)
+3. Tool Results (from available tools: ${toolListStr})
 4. Attached Files
 5. Internal Knowledge
 
 === CRITICAL RULES ===
-- Use the 'search' tool if you need information about the University or System (but NOT for policies if Policy Context is already provided).
-- Use the 'calculator' tool for any math.
-${refusalRule}
+${toolInstructions}${refusalRule}
 - Always start by planning your next step if complex.
 - If the attached files or search results do NOT contain the answer, say so clearly. Do NOT guess.`
         });

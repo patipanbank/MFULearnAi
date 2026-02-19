@@ -1,10 +1,19 @@
 import { MCPClient } from './MCPClient';
+import { AgentTool, ToolResult, AgentContext } from '../tools/AgentTool';
 
-export class McpToolAdapter {
+export class McpToolAdapter extends AgentTool {
+    public name: string;
+    public description: string;
+    public allowedRoles = ['*'];
+
     constructor(
         private client: MCPClient,
         private toolDef: any
-    ) { }
+    ) {
+        super();
+        this.name = toolDef.name;
+        this.description = toolDef.description;
+    }
 
     get schemaJSON() {
         return {
@@ -16,12 +25,7 @@ export class McpToolAdapter {
         };
     }
 
-    // Checking permissions? For now assume all MCP tools are allowed if the server lists them.
-    isAllowed(userRole: string) {
-        return true;
-    }
-
-    async execute(input: any, context?: any) {
+    async execute(input: any, context?: AgentContext): Promise<ToolResult> {
         try {
             const rawResult = await this.client.callTool(this.toolDef.name, input);
 
@@ -42,6 +46,7 @@ export class McpToolAdapter {
         } catch (error: any) {
             return {
                 success: false,
+                result: null,
                 error: error.message
             };
         }
