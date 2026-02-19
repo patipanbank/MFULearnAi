@@ -23,7 +23,7 @@ const AVAILABLE_TOOLS: AgentTool[] = [
     new SearchTool()
 ];
 
-import { CctvMcpTool } from '../mcp/tools/CctvMcpTool';
+import { mcpManager } from '../mcp/McpManager';
 import path from 'path';
 
 export class AgentWorkflow {
@@ -61,8 +61,6 @@ export class AgentWorkflow {
         this.store = new AgentEventStore(ctx.userId, traceId);
     }
 
-    private cctvMcp: CctvMcpTool | null = null;
-    private mcpTools: any[] = [];
 
     /**
      * Public Entry Point
@@ -177,17 +175,8 @@ export class AgentWorkflow {
 
             // 3. Initialize Tools (General + MCP)
             this.state.phase = AgentPhase.INIT;
-            const allTools = [...AVAILABLE_TOOLS];
-
-            // 3.1 Initialize MCP Tools (CCTV)
-            try {
-                this.cctvMcp = new CctvMcpTool(this.ctx.userId);
-                const newTools = await this.cctvMcp.init();
-                this.mcpTools.push(...newTools);
-                allTools.push(...newTools);
-            } catch (error: any) {
-                LoggerService.error('mcp_init_fatal', { error: error.message });
-            }
+            const mcpTools = mcpManager.getTools();
+            const allTools = [...AVAILABLE_TOOLS, ...mcpTools];
 
             // 3.2 Filter tools by user role
             const userRole = this.ctx.userRole;
@@ -213,9 +202,6 @@ export class AgentWorkflow {
             this.emit('error', { error: 'Agent workflow failed', traceId: this.state.traceId });
         } finally {
             // 5. Finalize & Persist
-            if (this.cctvMcp) {
-                this.cctvMcp.disconnect();
-            }
             await ResultPersister.finalize(
                 this.ctx,
                 this.state,

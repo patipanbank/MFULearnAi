@@ -92,9 +92,14 @@ app.use('/admin/queues', serverAdapter.getRouter());
 // Initialize Socket.IO (must be after app setup, before listen)
 const io = setupSocketIO(httpServer);
 
+import { mcpManager } from './mcp/McpManager';
+
 // Start Server — use httpServer instead of app.listen for Socket.IO
-httpServer.listen(PORT, () => {
+httpServer.listen(PORT, async () => {
     console.log(`[Orchestrator] Server running on port ${PORT} (${ENV_TYPE})`);
     console.log(`[Orchestrator] Bull Board available at http://localhost:${PORT}/admin/queues`);
+
+    // Initialize MCP persistent connections
+    await mcpManager.init();
 });
 
