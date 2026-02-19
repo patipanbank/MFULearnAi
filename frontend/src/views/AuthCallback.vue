@@ -25,14 +25,11 @@ onMounted(async () => {
         redirect_uri: redirectUri
       })
 
-      const { token: authToken, user, sso_id_token } = response.data
+      const { token: authToken, user } = response.data
       
       if (authToken && user) {
         authStore.setAuth(authToken, user)
         localStorage.setItem('auth_provider', 'sso')
-        if (sso_id_token) {
-            localStorage.setItem('sso_id_token', sso_id_token)
-        }
         console.log('Auth successful:', user)
         router.push('/chat')
       } else {

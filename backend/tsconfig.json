@@ -12,13 +12,8 @@
             "./node_modules/@types"
         ]
     },
-    "ts-node": {
-        "files": true,
-        "transpileOnly": true
-    },
     "include": [
         "src/**/*.ts",
-        "scripts/**/*.ts",
         "../shared/**/*.ts"
     ]
 }

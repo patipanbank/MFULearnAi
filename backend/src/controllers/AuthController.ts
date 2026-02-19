@@ -94,19 +94,8 @@ export class AuthController {
     }
 
     static logout(req: Request, res: Response, next: NextFunction) {
-        // ADFS / SSO Logout
-        const idTokenHint = req.query.id_token_hint as string;
-        if (idTokenHint) {
-            const logoutUrl = 'https://authsso.mfu.ac.th/adfs/oauth2/logout';
-            const postLogoutRedirect = `${FRONTEND_URL}/login`;
-            const redirectParams = new URLSearchParams({
-                id_token_hint: idTokenHint,
-                post_logout_redirect_uri: postLogoutRedirect
-            });
-            return res.redirect(`${logoutUrl}?${redirectParams.toString()}`);
-        }
-
-        // Fallback for non-SSO or missing token
+        // Stateless JWT - Just redirect back to login
+        // If we needed to logout from ADFS, we would redirect to ADFS logout URL here
         res.redirect(`${FRONTEND_URL}/login`);
     }
 
