@@ -115,7 +115,7 @@
 
 <script setup>
 import { ref, onMounted, onBeforeUnmount, computed } from 'vue';
-import axios from 'axios';
+import api from '@/utils/api';
 import { useLanguage } from '@/composables/useSettings';
 import {
   Chart as ChartJS,
@@ -288,7 +288,7 @@ const fetchStats = async () => {
   loading.value = true;
   errorMessage.value = null;
   try {
-    const response = await axios.get('/api/logs/usage');
+    const response = await api.get('/logs/usage');
     stats.value = response.data;
     loaded.value = true;
     // Update chart colors after data load and DOM render
