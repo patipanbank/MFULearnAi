@@ -21,8 +21,14 @@ interface UserContext {
 
 export class KnowledgeService {
 
+    // --- Helpers ---
+    static isAdmin(user: UserContext): boolean {
+        return user.role === 'admin' || user.role === 'superadmin';
+    }
+
     // --- Permissions ---
     static canCreateKnowledge(user: UserContext, type: string): boolean {
+        if (user.role === 'superadmin') return true; // Superadmin can create any type
         if (type === 'personal') return true;
         if (type === 'department' && user.role === 'admin') return true;
         if (type === 'public' && user.role === 'admin') return true;
@@ -31,10 +37,11 @@ export class KnowledgeService {
     }
 
     static canManageKnowledge(user: UserContext, kb: IKnowledge): boolean {
+        if (user.role === 'superadmin') return true; // Superadmin can manage any knowledge regardless of owner
         if (kb.type === 'personal') return kb.ownerId === user.userId;
         if (kb.type === 'department') return user.role === 'admin' && user.department === kb.department;
         if (kb.type === 'public') return user.role === 'admin' && user.department === kb.department;
-        if (kb.type === 'policy') return user.role === 'admin'; // Any admin can manage policy? Or restricted? Assuming any admin for now as per request.
+        if (kb.type === 'policy') return user.role === 'admin';
         return false;
     }
 
@@ -47,6 +54,7 @@ export class KnowledgeService {
     }
 
     static canManageCollection(user: UserContext, col: ICollection): boolean {
+        if (user.role === 'superadmin') return true; // Superadmin can manage any collection
         if (col.type === 'default') return user.role === 'admin';
         if (col.type === 'department') return user.role === 'admin' && user.department === col.department;
         if (col.type === 'personal') return col.ownerId === user.userId;
@@ -187,15 +195,19 @@ export class KnowledgeService {
 
     // --- Knowledge List ---
     static async getKnowledgeList(user: UserContext) {
-        // Return personal + explicit department + public + policy(if admin)
+        // Superadmin sees ALL knowledge across all departments
+        if (user.role === 'superadmin') {
+            return await Knowledge.find({}).sort({ createdAt: -1 });
+        }
 
+        // Return personal + explicit department + public + policy(if admin)
         const conditions: any[] = [
             { type: 'public' },
             { type: 'department', department: user.department },
             { type: 'personal', ownerId: user.userId }
         ];
 
-        if (user.role === 'admin') {
+        if (this.isAdmin(user)) {
             conditions.push({ type: 'policy' });
         }
 
@@ -316,8 +328,11 @@ export class KnowledgeService {
         const kb = await Knowledge.findById(id);
         if (!kb) throw new Error('Not found');
 
-        if (user.role !== 'admin') throw new Error('Admin only');
-        if (user.department !== kb.department) throw new Error('Must be admin of owner department');
+        if (!this.isAdmin(user)) throw new Error('Admin only');
+        // Superadmin can approve cross-department; admin must match department
+        if (user.role !== 'superadmin' && user.department !== kb.department) {
+            throw new Error('Must be admin of owner department');
+        }
 
         if (action === 'approve') {
             if (kb.requestedType) {
@@ -334,8 +349,9 @@ export class KnowledgeService {
     // --- Collections ---
     static async createCollection(user: UserContext, data: { name: string, description?: string, type: string }) {
         let allowed = false;
-        if (data.type === 'personal') allowed = true;
-        else if (data.type === 'department' && user.role === 'admin') allowed = true;
+        if (user.role === 'superadmin') allowed = true; // Superadmin can create any collection type
+        else if (data.type === 'personal') allowed = true;
+        else if (data.type === 'department' && this.isAdmin(user)) allowed = true;
 
         if (!allowed) throw new Error('Not allowed to create this collection type');
 
@@ -391,6 +407,11 @@ export class KnowledgeService {
     }
 
     static async getCollections(user: UserContext) {
+        // Superadmin sees all collections
+        if (user.role === 'superadmin') {
+            return await Collection.find({}).sort({ type: 1, createdAt: -1 });
+        }
+
         const query = {
             $or: [
                 { type: 'default' },
@@ -406,7 +427,8 @@ export class KnowledgeService {
         if (!col) throw new Error('Not found');
 
         let canView = false;
-        if (col.type === 'default') canView = true;
+        if (user.role === 'superadmin') canView = true; // Superadmin sees all
+        else if (col.type === 'default') canView = true;
         else if (col.type === 'department' && col.department === user.department) canView = true;
         else if (col.type === 'personal' && col.ownerId === user.userId) canView = true;
 
