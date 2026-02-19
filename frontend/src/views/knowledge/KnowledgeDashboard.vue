@@ -97,22 +97,6 @@ const handleCollectionSuccess = () => {
       </div>
       
       <div class="header-actions">
-        <!-- Admin: Manage Requests Button -->
-        <button 
-          v-if="isAdmin"
-          class="btn-admin"
-          @click="showAdminModal = true"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-            <polyline points="14 2 14 8 20 8"></polyline>
-            <line x1="16" y1="13" x2="8" y2="13"></line>
-            <line x1="16" y1="17" x2="8" y2="17"></line>
-          </svg>
-          {{ t('manageRequests') }}
-          <span v-if="pendingCount > 0" class="badge-count">{{ pendingCount }}</span>
-        </button>
-
         <!-- Add Button depending on Tab -->
         <button 
           v-if="activeTab === 'knowledge'"
@@ -136,19 +120,37 @@ const handleCollectionSuccess = () => {
 
     <!-- Tabs -->
     <div class="tabs">
+      <div class="tabs-left">
+        <button 
+          class="tab-btn" 
+          :class="{ active: activeTab === 'knowledge' }"
+          @click="activeTab = 'knowledge'"
+        >
+          {{ t('knowledgeBase') }}
+        </button>
+        <button 
+          class="tab-btn" 
+          :class="{ active: activeTab === 'collections' }"
+          @click="activeTab = 'collections'"
+        >
+          {{ t('collections') }}
+        </button>
+      </div>
+
+      <!-- Admin: Manage Requests (right side of tab bar) -->
       <button 
-        class="tab-btn" 
-        :class="{ active: activeTab === 'knowledge' }"
-        @click="activeTab = 'knowledge'"
+        v-if="isAdmin"
+        class="btn-admin"
+        @click="showAdminModal = true"
       >
-        {{ t('knowledgeBase') }}
-      </button>
-      <button 
-        class="tab-btn" 
-        :class="{ active: activeTab === 'collections' }"
-        @click="activeTab = 'collections'"
-      >
-        {{ t('collections') }}
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+          <polyline points="14 2 14 8 20 8"></polyline>
+          <line x1="16" y1="13" x2="8" y2="13"></line>
+          <line x1="16" y1="17" x2="8" y2="17"></line>
+        </svg>
+        {{ t('manageRequests') }}
+        <span v-if="pendingCount > 0" class="badge-count">{{ pendingCount }}</span>
       </button>
     </div>
     
@@ -278,18 +280,19 @@ const handleCollectionSuccess = () => {
 .btn-admin {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 16px;
+  gap: 6px;
+  padding: 6px 14px;
   background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(168, 85, 247, 0.08));
   color: #818cf8;
   border: 1px solid rgba(99, 102, 241, 0.25);
-  border-radius: 10px;
+  border-radius: 8px;
   font-weight: 600;
-  font-size: 13px;
+  font-size: 12px;
   cursor: pointer;
-  margin-right: 8px;
+  margin-bottom: 4px;
   transition: all 0.2s ease;
   position: relative;
+  flex-shrink: 0;
 }
 
 .btn-admin:hover {
@@ -323,12 +326,18 @@ const handleCollectionSuccess = () => {
 /* Tabs */
 .tabs {
   display: flex;
-  gap: 2px;
-  background: var(--color-bg-tertiary); /* Container for tab strip */
-  padding: 4px 4px 0 4px; /* Slight padding to look integrated */
+  align-items: center;
+  justify-content: space-between;
+  background: var(--color-bg-tertiary);
+  padding: 4px 12px 0 4px;
   border-bottom: 1px solid var(--color-border);
   margin-bottom: 0;
   border-radius: 8px 8px 0 0;
+}
+
+.tabs-left {
+  display: flex;
+  gap: 2px;
 }
 
 .tab-btn {
