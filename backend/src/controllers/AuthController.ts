@@ -94,13 +94,9 @@ export class AuthController {
     }
 
     static logout(req: Request, res: Response, next: NextFunction) {
-        req.logout?.((err) => {
-            if (err) { return next(err); }
-            res.json({ success: true, message: 'Logged out' });
-        });
-        if (!req.logout) {
-            res.json({ success: true, message: 'Logged out' });
-        }
+        // Stateless JWT auth - no session to destroy on server
+        // Client should discard the token.
+        res.json({ success: true, message: 'Logged out' });
     }
 
     static async refresh(req: any, res: Response) {
