@@ -96,7 +96,7 @@ export class MCPClient {
             const initResponse = await this.request('initialize', {
                 protocolVersion: "2024-11-05",
                 capabilities: {},
-                clientInfo: {
+                client: {
                     name: "mful-orchestrator",
                     version: "1.0.0"
                 }
@@ -108,7 +108,11 @@ export class MCPClient {
 
             // 2. Send 'notifications/initialized'
             console.log(`[MCP Client] Sending notifications/initialized`);
-            await this.notify('notifications/initialized', {});
+            await this.notify('notifications/initialized', {
+                // Some servers require repeating capabilities/version in notification
+                protocolVersion: "2024-11-05",
+                capabilities: {}
+            });
 
             console.log(`[MCP Client] Handshake complete.`);
 
