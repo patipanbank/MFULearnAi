@@ -24,7 +24,8 @@ const adminNav = computed(() => [
   { id: 'dashboard', labelKey: 'dashboard', path: '/dashboard', icon: 'layout' },
   { id: 'users', labelKey: 'usersAndAdmins', path: '/dashboard/users', icon: 'users' },
   { id: 'departments', labelKey: 'departments', path: '/dashboard/departments', icon: 'briefcase' },
-  { id: 'prompts', labelKey: 'systemPrompts', path: '/dashboard/prompts', icon: 'type' }
+  { id: 'prompts', labelKey: 'systemPrompts', path: '/dashboard/prompts', icon: 'type' },
+  { id: 'api-keys', labelKey: 'apiKeys', path: '/dashboard/api-keys', icon: 'key' }
 ])
 
 const isSuperadmin = computed(() => authStore.user?.role === 'superadmin')
@@ -110,6 +111,8 @@ const isActive = (path) => route.path.startsWith(path)
                   <svg v-else-if="item.icon === 'briefcase'" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path></svg>
                   <!-- Type/Prompt Icon -->
                   <svg v-else-if="item.icon === 'type'" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 7 4 4 20 4 20 7"></polyline><line x1="9" y1="20" x2="15" y2="20"></line><line x1="12" y1="4" x2="12" y2="20"></line></svg>
+                  <!-- Key Icon -->
+                  <svg v-else-if="item.icon === 'key'" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"></path></svg>
               </div>
               <span class="btn-label">{{ t(item.labelKey) }}</span>
           </button>

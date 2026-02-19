@@ -8,6 +8,9 @@ const RATE_WINDOW = 60 * 1000;
 
 export class RateLimiter {
     static limit(req: any, res: Response, next: NextFunction) {
+        if (req.user?.isApiKey) {
+            return next();
+        }
         const userId = req.user?.userId || req.ip;
         const now = Date.now();
         const userLimit = rateLimits.get(userId);

@@ -5,6 +5,8 @@ import { KnowledgeController } from '../controllers/KnowledgeController';
 import { AuthController } from '../controllers/AuthController';
 import { AuthService } from '../auth/AuthService';
 import { RateLimiter } from '../middleware/rateLimiter';
+import { rateLimitByKey } from '../middleware/ApiKeyLimiter';
+import apiKeyRoutes from './api-keys';
 
 const router = Router();
 const checkAuth = AuthService.authenticateUser;
@@ -23,8 +25,12 @@ router.put('/departments/:id', checkAuth, AuthService.requireRole(['superadmin']
 router.delete('/departments/:id', checkAuth, AuthService.requireRole(['superadmin']), AuthController.deleteDepartment);
 
 
+
+// API Key Management Not restricted by RateLimiter but requires Auth
+router.use('/keys', apiKeyRoutes);
+
 // Chat Routes
-router.post('/chat', checkAuth, RateLimiter.limit, ChatController.chat);
+router.post('/chat', checkAuth, RateLimiter.limit, rateLimitByKey, ChatController.chat);
 router.get('/chat/models', checkAuth, ChatController.getModels);
 router.get('/chat/attachment/*', checkAuth, ChatController.downloadAttachment);
 router.get('/chat/:sessionId', checkAuth, ChatController.getHistory); // order matters
@@ -44,7 +50,7 @@ router.post('/prompts/:key/preview', checkAuth, PromptController.previewPrompt);
 router.post('/prompts/:key/rollback', checkAuth, PromptController.rollbackVersion);
 
 import knowledgeRoutes from './knowledge';
-router.use('/knowledge', checkAuth, knowledgeRoutes);
+router.use('/knowledge', checkAuth, rateLimitByKey, knowledgeRoutes);
 
 import logRoutes from './logs';
 router.use('/logs', checkAuth, logRoutes);

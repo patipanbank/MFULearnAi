@@ -3,6 +3,8 @@ import jwt from 'jsonwebtoken';
 import { Request, Response, NextFunction } from 'express';
 import User, { UserDocument, UserRole } from '../models/User';
 import Department from '../models/Department';
+import ApiKey from '../models/ApiKey';
+import crypto from 'crypto';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret';
 const JWT_EXPIRY = process.env.ENV_TYPE === 'PROD' ? '12h' : '24h';
@@ -55,6 +57,53 @@ export class AuthService {
 
         if (!token) return res.status(401).json({ error: 'No token' });
 
+        // --- API KEY CHECK ---
+        if (token.startsWith('sk_')) {
+            const rawKey = token;
+            const keyHash = crypto.createHash('sha256').update(rawKey).digest('hex');
+
+            // Find valid key
+            ApiKey.findOne({
+                keyHash,
+                revokedAt: { $exists: false },
+                $or: [
+                    { expiresAt: { $exists: false } },
+                    { expiresAt: { $gt: new Date() } }
+                ]
+            }).then(async (apiKey) => {
+                if (!apiKey) return res.status(401).json({ error: 'Invalid or expired API key' });
+
+                // Update usage stats (async)
+                ApiKey.updateOne({ _id: apiKey._id }, { lastUsedAt: new Date() }).exec();
+
+                // Fetch User
+                const user = await User.findById(apiKey.user);
+                if (!user) return res.status(401).json({ error: 'User not found' });
+
+                // Attach to Request
+                // @ts-ignore
+                req.apiKey = apiKey;
+                // @ts-ignore
+                req.user = {
+                    userId: user._id,
+                    role: user.role,
+                    email: user.email,
+                    department: user.department,
+                    departmentId: user.departmentId,
+                    permissions: user.permissions, // Or use apiKey.scopes if restrictive
+                    environment: process.env.ENV_TYPE,
+                    isApiKey: true // Flag
+                };
+
+                next();
+            }).catch(err => {
+                console.error('API Key Auth Error:', err);
+                return res.status(500).json({ error: 'Auth Error' });
+            });
+            return; // Stop here, async handles next()
+        }
+        // --- END API KEY CHECK ---
+
         jwt.verify(token, JWT_SECRET, (err: any, decoded: any) => {
             if (err) return res.status(403).json({ error: 'Invalid token' });
             // @ts-ignore - user extension
@@ -71,6 +120,29 @@ export class AuthService {
             // @ts-ignore
             if (!req.user || !roles.includes(req.user.role)) {
                 return res.status(403).json({ error: 'Insufficient permissions' });
+            }
+            next();
+        };
+    }
+
+    /**
+     * Middleware guard for API Key Scopes
+     */
+    static requireScope(scope: string) {
+        return (req: Request, res: Response, next: NextFunction) => {
+            // @ts-ignore
+            const apiKey = req.apiKey;
+
+            // If superadmin (JWT or Key), allow
+            // @ts-ignore
+            if (req.user?.role === 'superadmin') return next();
+
+            if (!apiKey) {
+                return res.status(403).json({ error: 'Access denied: Scope required' });
+            }
+
+            if (!apiKey.scopes.includes(scope)) {
+                return res.status(403).json({ error: `Missing scope: ${scope}` });
             }
             next();
         };
