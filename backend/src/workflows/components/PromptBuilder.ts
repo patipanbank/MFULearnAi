@@ -1,15 +1,11 @@
 import { AgentContext, WorkflowState, NativeDocBlock, ExtractedTextBlock } from '../types/AgentTypes';
+import { AGENT_CONSTANTS } from '../types/AgentConstants';
+import { LoggerService } from '../../services/LoggerService';
 
 export class PromptBuilder {
     static buildInitialMessages(ctx: AgentContext, state: WorkflowState) {
         const { message, images } = ctx;
         const { smartContext, nativeDocBlocks, extractedTextBlocks, history } = state;
-
-        // --- Logic: Refusal & Policy ---
-        const isOrganizationalQuery = /policy|regulation|guideline|document|files|contract|agreement|budget|contact|email|who is|fee|calendar|schedule|deadline|registration|course|gpa|grade/i.test(message);
-        const refusalRule = !isOrganizationalQuery
-            ? `- Basic factual questions may be answered using internal knowledge.\n- WARNING: If the question pertains to specific organizational policies absent in context, you MUST use the Search tool.`
-            : `- If the Knowledge Base or Context does not explicitly contain the answer, you MUST use the 'search' tool to find it. Do NOT say "I don't have enough information" without searching first.`;
 
         // --- Block 1: Persona & Rules ---
         const systemBlocks: Array<{ text: string }> = [];
@@ -17,15 +13,16 @@ export class PromptBuilder {
             text: `You are the DinDin Ai. You are efficient and helpful.
 You can see and analyze attached images. Use this capability to answer questions about visual content.
 === TRUTH PRIORITY ===
-1. Canonical Memory
-2. Tool Results (Search/Calc)
+1. Tool Results (Search/Calc)
+2. Canonical Memory
 3. Attached Files
 4. Internal Knowledge
 
 === CRITICAL RULES ===
-- Use the 'search' tool if you need information about the University, Policies, or System.
+- Use the 'search' tool if the user asks about specific University information, policies, regulations, fees, schedules, or personnel.
 - Use the 'calculator' tool for any math.
-${refusalRule}
+- Use 'search' when the question involves specific organizational data that may change over time.
+- Do NOT answer from internal knowledge alone for organization-specific questions.
 - Always start by planning your next step if complex.
 - If the attached files or search results do NOT contain the answer, say so clearly. Do NOT guess.`
         });
@@ -61,7 +58,7 @@ ${JSON.stringify(smartContext?.rolling || {}, null, 2)}`
         userContent.push({ type: 'text', text: message });
 
         if (images && images.length > 0) {
-            console.log('[PromptBuilder] Processing images:', JSON.stringify(images.map((i: any) => ({
+            LoggerService.debug('[PromptBuilder] Processing images', JSON.stringify(images.map((i: any) => ({
                 type: i?.type,
                 format: i?.format,
                 sourceKeys: i?.source ? Object.keys(i.source) : 'missing',
@@ -80,7 +77,7 @@ ${JSON.stringify(smartContext?.rolling || {}, null, 2)}`
         // --- Final Message Stack ---
         return [
             { role: 'system', content: systemBlocks },
-            ...history.slice(-10).map((m: any) => ({ role: m.role, content: m.content, images: m.images })),
+            ...history.slice(-AGENT_CONSTANTS.HISTORY_WINDOW_SIZE).map((m: any) => ({ role: m.role, content: m.content, images: m.images })),
             { role: 'user', content: userContent }
         ];
     }

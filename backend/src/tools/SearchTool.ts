@@ -3,7 +3,7 @@ import { KnowledgeService } from '../services/KnowledgeService';
 
 export class SearchTool extends AgentTool {
     name = 'search';
-    description = 'Search the knowledge base for information about the system, documents, or general facts.';
+    description = 'Search the university knowledge base for specific information about policies, regulations, curriculum, schedules, fees, and other organizational data.';
     allowedRoles = ['*'];
 
     // Native JSON Schema for Bedrock/Claude 3.5
