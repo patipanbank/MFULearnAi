@@ -146,7 +146,7 @@ const handleRetry = async (id) => {
                </div>
 
                <!-- Admin Approve/Reject -->
-               <div v-if="authStore.role === 'admin' && item.requestStatus === 'pending'" class="admin-actions">
+               <div v-if="(authStore.role === 'admin' || authStore.role === 'superadmin') && item.requestStatus === 'pending'" class="admin-actions">
                   <button class="btn-approve" @click="handleApprove(item._id)">✓</button>
                   <button class="btn-reject" @click="handleReject(item._id)">✗</button>
                </div>

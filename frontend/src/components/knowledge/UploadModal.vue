@@ -7,7 +7,7 @@ const emit = defineEmits(['close', 'success'])
 const knowledgeStore = useKnowledgeStore()
 const authStore = useAuthStore()
 
-const isAdmin = computed(() => authStore.role === 'admin') // Define isAdmin
+const isAdmin = computed(() => authStore.role === 'admin' || authStore.role === 'superadmin') // Include superadmin
 
 const file = ref(null)
 const type = ref('personal')
