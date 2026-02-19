@@ -1,9 +1,55 @@
 import { AgentContext, WorkflowState, NativeDocBlock, ExtractedTextBlock } from '../types/AgentTypes';
+import { PromptService, PromptVariableValues } from '../../services/PromptService';
+import { SYSTEM_MODELS } from '../../config/models';
+import { LoggerService } from '../../services/LoggerService';
+
+/**
+ * Determines the environment type from runtime context.
+ * Uses APP_ENV env var, falling back to 'TEST' for safety.
+ */
+function resolveEnvType(): 'TEST' | 'PROD' {
+    const env = process.env.APP_ENV || process.env.NODE_ENV || 'development';
+    return env === 'production' ? 'PROD' : 'TEST';
+}
 
 export class PromptBuilder {
-    static buildInitialMessages(ctx: AgentContext, state: WorkflowState) {
+    /**
+     * Build the initial message stack for the agent.
+     * Now async — pulls the system prompt dynamically from DB via PromptService.
+     */
+    static async buildInitialMessages(ctx: AgentContext, state: WorkflowState) {
         const { message, images } = ctx;
         const { smartContext, nativeDocBlocks, extractedTextBlocks, history } = state;
+
+        // --- Resolve environment & build variable values ---
+        const envType = resolveEnvType();
+        const variableValues: PromptVariableValues = {
+            userRole: ctx.userRole || 'user',
+            userDepartment: ctx.userDepartment || '',
+            userName: '', // Not available in current context — intentionally blank
+            sessionId: ctx.sessionId,
+            messageCount: String(history.length),
+            date: new Date().toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' }),
+            time: new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }),
+            environment: envType,
+            modelId: SYSTEM_MODELS.AGENT,
+            hasFiles: String(nativeDocBlocks.length > 0 || extractedTextBlocks.length > 0),
+            hasPolicyContext: String(!!state.policyContext),
+            toolList: 'search, calculator',
+        };
+
+        // --- Fetch dynamic persona prompt from DB ---
+        let personaPrompt: string;
+        try {
+            personaPrompt = await PromptService.getResolvedAgentPrompt(envType, variableValues);
+        } catch (err: any) {
+            LoggerService.warn('prompt_fetch_fallback', {
+                error: err.message,
+                envType
+            });
+            // Fallback to hardcoded prompt in case of DB/Redis failure
+            personaPrompt = this.getHardcodedFallback();
+        }
 
         // --- Logic: Refusal & Policy ---
         const hasPolicyContext = !!state.policyContext;
@@ -11,7 +57,6 @@ export class PromptBuilder {
 
         let refusalRule: string;
         if (hasPolicyContext) {
-            // Policy context already injected — DO NOT tell model to search for policies
             refusalRule = `- UNIVERSITY POLICY CONTEXT has been provided below. It was ALREADY RETRIEVED from the Knowledge Base. Answer policy questions using ONLY this context.\n- CRITICAL: The 'search' tool EXCLUDES policy documents by design. Using it for policy questions will return ZERO results and waste a step. Do NOT use 'search' for policy-related questions.\n- For non-policy questions, you may use the 'search' tool normally.`;
         } else if (isOrganizationalQuery) {
             refusalRule = `- If the Knowledge Base or Context does not explicitly contain the answer, you MUST use the 'search' tool to find it. Do NOT say "I don't have enough information" without searching first.`;
@@ -22,7 +67,7 @@ export class PromptBuilder {
         // --- Block 1: Persona & Rules ---
         const systemBlocks: Array<{ text: string }> = [];
         systemBlocks.push({
-            text: `You are the DinDin Ai. You are efficient and helpful.
+            text: `${personaPrompt}
 You can see and analyze attached images. Use this capability to answer questions about visual content.
 === TRUTH PRIORITY ===
 1. University Policy Context (if provided below — this is AUTHORITATIVE for policy questions)
@@ -82,9 +127,6 @@ ${JSON.stringify(smartContext?.rolling || {}, null, 2)}`
                 hasBytes: i?.source?.bytes ? true : false
             })), null, 2));
 
-            // Bedrock Converse API expects { image: { source: { bytes: ... }, format: ... } }
-            // But our 'bedrock-text' proxy expects { type: 'image', source: ... } to process it correctly.
-            // It will then unwrap it to { image: ... } and hopefully handle Base64 conversion.
             userContent.push(...images.map((img: any) => ({
                 type: 'image',
                 source: img
@@ -97,5 +139,13 @@ ${JSON.stringify(smartContext?.rolling || {}, null, 2)}`
             ...history.slice(-10).map((m: any) => ({ role: m.role, content: m.content, images: m.images })),
             { role: 'user', content: userContent }
         ];
+    }
+
+    /**
+     * Hardcoded fallback prompt — used when DB/Redis are unavailable.
+     * This ensures the agent never starts without a persona.
+     */
+    private static getHardcodedFallback(): string {
+        return `You are the DinDin AI. You are efficient and helpful.`;
     }
 }

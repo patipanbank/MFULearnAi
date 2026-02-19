@@ -169,7 +169,7 @@ export class AgentWorkflow {
 
             // 3. Build Prompt & Initial Messages
             this.state.phase = AgentPhase.PLANNING;
-            this.state.messages = PromptBuilder.buildInitialMessages(this.ctx, this.state);
+            this.state.messages = await PromptBuilder.buildInitialMessages(this.ctx, this.state);
 
             // 4. Main Agent Loop
             await this.agentLoop();

@@ -34,9 +34,14 @@ router.delete('/chat/:sessionId', checkAuth, ChatController.clearSession);
 // Prompt Routes
 router.get('/prompts', checkAuth, PromptController.listPrompts);
 router.post('/prompts', checkAuth, PromptController.createPrompt);
+// Static paths must come before parameterized /:key routes
+router.get('/prompts/meta/variables', checkAuth, PromptController.getVariables);
 router.get('/prompts/:key', checkAuth, PromptController.getPrompt);
 router.post('/prompts/:key/versions', checkAuth, PromptController.addVersion);
+router.get('/prompts/:key/versions', checkAuth, PromptController.getVersionHistory);
 router.post('/prompts/:key/toggle-active', checkAuth, PromptController.toggleActive);
+router.post('/prompts/:key/preview', checkAuth, PromptController.previewPrompt);
+router.post('/prompts/:key/rollback', checkAuth, PromptController.rollbackVersion);
 
 import knowledgeRoutes from './knowledge';
 router.use('/knowledge', checkAuth, knowledgeRoutes);
