@@ -80,8 +80,22 @@ export function useLanguage() {
 
             // Admin Dashboard
             adminTitle: 'แดชบอร์ดผู้ดูแลระบบ',
-            adminSubtitle: 'ตั้งค่าระบบและจัดการผู้ใช้',
+            adminSubtitle: 'สถิติการใช้งานระบบและตัวชี้วัดประสิทธิภาพ',
             adminPlaceholder: 'กำหนดค่าระบบและจัดการการเข้าถึง',
+            totalTokensAllTime: 'โทเค็นทั้งหมด (ตลอดกาล)',
+            tokensToday: 'โทเค็น (วันนี้)',
+            activeUsersToday: 'ผู้ใช้งาน (วันนี้)',
+            totalRequestsToday: 'คำขอทั้งหมด (วันนี้)',
+            usageTrend: 'แนวโน้มการใช้งาน (7 วันล่าสุด)',
+            modelDistribution: 'สัดส่วนโมเดล',
+            tokensUsed: 'โทเค็นที่ใช้',
+            requests: 'คำขอ',
+            refresh: 'รีเฟรช',
+            loadingData: 'กำลังโหลดข้อมูล...',
+            errorLoadingData: 'ไม่สามารถโหลดข้อมูลได้',
+            retry: 'ลองอีกครั้ง',
+            noUsageData: 'ไม่มีข้อมูลการใช้งาน',
+            manageRequests: 'จัดการคำขอ',
 
             // Login & Auth
             appSubtitle: 'ผู้ช่วย AI ขับเคลื่อนโดย MFU',
@@ -146,8 +160,22 @@ export function useLanguage() {
 
             // Admin Dashboard
             adminTitle: 'Admin Dashboard',
-            adminSubtitle: 'System settings and user management',
+            adminSubtitle: 'System usage statistics and performance metrics',
             adminPlaceholder: 'Configure system preferences and manage access',
+            totalTokensAllTime: 'Total Tokens (All Time)',
+            tokensToday: 'Tokens (Today)',
+            activeUsersToday: 'Active Users (Today)',
+            totalRequestsToday: 'Total Requests (Today)',
+            usageTrend: 'Usage Trend (Last 7 Days)',
+            modelDistribution: 'Model Distribution',
+            tokensUsed: 'Tokens Used',
+            requests: 'Requests',
+            refresh: 'Refresh',
+            loadingData: 'Loading data...',
+            errorLoadingData: 'Failed to load data',
+            retry: 'Retry',
+            noUsageData: 'No usage data',
+            manageRequests: 'Manage Requests',
 
             // Login & Auth
             appSubtitle: 'AI Assistant powered by MFU',

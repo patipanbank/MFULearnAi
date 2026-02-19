@@ -1,15 +1,15 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useLanguage } from '@/composables/useSettings'
 import { useKnowledgeStore } from '@/stores/knowledge'
 import { useAuthStore } from '@/stores/auth'
-import KnowledgeList from '../../components/knowledge/KnowledgeList.vue'
-import CollectionGrid from '../../components/knowledge/CollectionGrid.vue'
-import UploadModal from '../../components/knowledge/UploadModal.vue'
-import CreateCollectionModal from '../../components/knowledge/CreateCollectionModal.vue'
-import KnowledgeDetailModal from '../../components/knowledge/KnowledgeDetailModal.vue'
-import CollectionDetailModal from '../../components/knowledge/CollectionDetailModal.vue'
-import AdminRequestsModal from '../../components/knowledge/AdminRequestsModal.vue'
+import KnowledgeList from '@/components/knowledge/KnowledgeList.vue'
+import CollectionGrid from '@/components/knowledge/CollectionGrid.vue'
+import UploadModal from '@/components/knowledge/UploadModal.vue'
+import CreateCollectionModal from '@/components/knowledge/CreateCollectionModal.vue'
+import KnowledgeDetailModal from '@/components/knowledge/KnowledgeDetailModal.vue'
+import CollectionDetailModal from '@/components/knowledge/CollectionDetailModal.vue'
+import AdminRequestsModal from '@/components/knowledge/AdminRequestsModal.vue'
 
 const { t } = useLanguage()
 const knowledgeStore = useKnowledgeStore()
@@ -26,40 +26,49 @@ const selectedKnowledge = ref(null)
 const showCollectionDetail = ref(false)
 const selectedCollection = ref(null)
 
-const isAdmin = authStore.role === 'admin' || authStore.role === 'superadmin'
+const editingCollection = ref(null)
+
+// Reactive: updates if user role changes after initial load
+const isAdmin = computed(() => authStore.role === 'admin' || authStore.role === 'superadmin')
 
 onMounted(() => {
-    // Initial fetch
-    knowledgeStore.fetchKnowledge()
-    knowledgeStore.fetchCollections()
+  knowledgeStore.fetchKnowledge()
+  knowledgeStore.fetchCollections()
 })
 
 const openKnowledge = (item) => {
-    selectedKnowledge.value = item
-    showKnowledgeDetail.value = true
+  selectedKnowledge.value = item
+  showKnowledgeDetail.value = true
 }
 
 const openCollection = (col) => {
-    selectedCollection.value = col
-    showCollectionDetail.value = true
+  selectedCollection.value = col
+  showCollectionDetail.value = true
 }
 
 const handleCollectionItemOpen = (item) => {
-    // Open knowledge detail FROM collection detail
-    selectedKnowledge.value = item
-    showKnowledgeDetail.value = true
+  selectedKnowledge.value = item
+  showKnowledgeDetail.value = true
 }
 
-const editingCollection = ref(null)
-
 const openEditCollection = (col) => {
-    editingCollection.value = col
-    showCollectionModal.value = true
+  editingCollection.value = col
+  showCollectionModal.value = true
 }
 
 const closeCollectionModal = () => {
-    showCollectionModal.value = false
-    editingCollection.value = null
+  showCollectionModal.value = false
+  editingCollection.value = null
+}
+
+const handleUploadSuccess = () => {
+  showUploadModal.value = false
+  knowledgeStore.fetchKnowledge()
+}
+
+const handleCollectionSuccess = () => {
+  closeCollectionModal()
+  knowledgeStore.fetchCollections()
 }
 
 </script>
@@ -133,18 +142,18 @@ const closeCollectionModal = () => {
       </div>
     </div>
 
-      <Teleport to="body">
-      <UploadModal 
-        v-if="showUploadModal" 
+    <Teleport to="body">
+      <UploadModal
+        v-if="showUploadModal"
         @close="showUploadModal = false"
-        @success="showUploadModal = false; knowledgeStore.fetchKnowledge()"
+        @success="handleUploadSuccess"
       />
-      
-      <CreateCollectionModal 
+
+      <CreateCollectionModal
         v-if="showCollectionModal"
         :collection="editingCollection"
         @close="closeCollectionModal"
-        @success="closeCollectionModal(); knowledgeStore.fetchCollections()"
+        @success="handleCollectionSuccess"
       />
 
       <KnowledgeDetailModal
@@ -160,13 +169,12 @@ const closeCollectionModal = () => {
         @close="showCollectionDetail = false"
         @open-item="handleCollectionItemOpen"
       />
-      
-      <AdminRequestsModal 
+
+      <AdminRequestsModal
         v-if="showAdminModal"
         @close="showAdminModal = false"
       />
     </Teleport>
-
   </div>
 </template>
 
@@ -228,20 +236,21 @@ const closeCollectionModal = () => {
 }
 
 .btn-secondary {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 8px 16px;
-    background: transparent;
-    color: var(--color-text-primary);
-    border: 1px solid var(--color-border);
-    border-radius: 8px;
-    font-weight: 500;
-    cursor: pointer;
-    margin-right: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: transparent;
+  color: var(--color-text-primary);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  font-weight: 500;
+  cursor: pointer;
+  margin-right: 8px;
 }
+
 .btn-secondary:hover {
-    background: var(--color-bg-hover);
+  background: var(--color-bg-hover);
 }
 
 /* Tabs */
