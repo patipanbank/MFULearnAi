@@ -94,9 +94,9 @@ export class AuthController {
     }
 
     static logout(req: Request, res: Response, next: NextFunction) {
-        // Stateless JWT auth - no session to destroy on server
-        // Client should discard the token.
-        res.json({ success: true, message: 'Logged out' });
+        // Stateless JWT - Just redirect back to login
+        // If we needed to logout from ADFS, we would redirect to ADFS logout URL here
+        res.redirect(`${FRONTEND_URL}/login`);
     }
 
     static async refresh(req: any, res: Response) {
