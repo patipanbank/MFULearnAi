@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useChatStore } from '@/stores/chat'
 import { useLanguage } from '@/composables/useSettings'
@@ -41,6 +41,13 @@ const isEffectiveCollapsed = computed(() => {
 })
 
 // ─── Methods ────────────────────────────────────────────────────
+
+// Load chat sessions when sidebar mounts (ensures history is visible on any page, not just /chat)
+onMounted(() => {
+    if (chatStore.sessions.length === 0) {
+        chatStore.loadSessions()
+    }
+})
 
 const handleNewChat = () => {
     chatStore.resetSession()
