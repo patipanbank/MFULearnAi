@@ -7,14 +7,11 @@ const emit = defineEmits(['close', 'success'])
 const knowledgeStore = useKnowledgeStore()
 const authStore = useAuthStore()
 
-<<<<<<< HEAD
 // Upload constraints — aligned with nginx client_max_body_size (100M) for knowledge route
 const MAX_FILE_SIZE_MB = 50
 const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024
 const ALLOWED_EXTENSIONS = ['pdf', 'txt']
-=======
-const isAdmin = computed(() => authStore.role === 'admin' || authStore.role === 'superadmin') // Include superadmin
->>>>>>> c6c19599a216eb8cf83e7e0f02bb421e4f003f9b
+
 
 const file = ref(null)
 const type = ref('personal')
