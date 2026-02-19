@@ -31,7 +31,7 @@ export class CctvMcpTool {
             return this.adapterTools;
 
         } catch (error: any) {
-            LoggerService.error('mcp_cctv_error', { error: error.message }, this.userId);
+            LoggerService.warn('mcp_cctv_skipped', { reason: error.message }, this.userId);
             return [];
         }
     }

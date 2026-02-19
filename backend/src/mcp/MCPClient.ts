@@ -19,6 +19,15 @@ export class MCPClient {
     }
 
     async connect() {
+        return Promise.race([
+            this._connect(),
+            new Promise<void>((_, reject) =>
+                setTimeout(() => reject(new Error('MCP connect timeout')), 10_000)
+            )
+        ]);
+    }
+
+    private async _connect() {
         console.log(`[MCP Client] Connecting to SSE at ${this.sseUrl}...`);
 
         try {
