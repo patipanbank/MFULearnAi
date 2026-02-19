@@ -61,8 +61,9 @@ export const useAuthStore = defineStore('auth', () => {
 
         // Redirect to SSO Logout if applicable (SLO)
         if (authProvider === 'sso') {
-            window.open('/login', '_blank')
-            window.location.href = `/auth/logout`
+            const idToken = localStorage.getItem('sso_id_token')
+            localStorage.removeItem('sso_id_token')
+            window.location.href = `/auth/logout?id_token_hint=${idToken || ''}`
         } else if (authProvider === 'google') {
             // For Google, we just clear local data (which is done above)
             // and redirect to login. authenticating again will force new token.

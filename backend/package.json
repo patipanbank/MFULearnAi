@@ -6,7 +6,8 @@
     "scripts": {
         "start": "node dist/backend/src/index.js",
         "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
-        "build": "tsc"
+        "build": "tsc",
+        "create-user": "node scripts/create-user.js"
     },
     "dependencies": {
         "@aws-sdk/client-bedrock": "^3.992.0",
