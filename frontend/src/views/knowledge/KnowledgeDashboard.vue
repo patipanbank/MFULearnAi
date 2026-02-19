@@ -31,9 +31,24 @@ const editingCollection = ref(null)
 // Reactive: updates if user role changes after initial load
 const isAdmin = computed(() => authStore.role === 'admin' || authStore.role === 'superadmin')
 
+// Pending request count for admin badge
+const pendingCount = ref(0)
+
+const fetchPendingCount = async () => {
+    if (!isAdmin.value) return
+    try {
+        const items = await knowledgeStore.fetchPendingRequests()
+        pendingCount.value = items?.length || 0
+    } catch (e) {
+        // Non-critical: badge count failure should not block UI
+        console.warn('Failed to fetch pending count', e)
+    }
+}
+
 onMounted(() => {
   knowledgeStore.fetchKnowledge()
   knowledgeStore.fetchCollections()
+  fetchPendingCount()
 })
 
 const openKnowledge = (item) => {
@@ -82,13 +97,20 @@ const handleCollectionSuccess = () => {
       </div>
       
       <div class="header-actions">
-        <!-- Admin Button -->
+        <!-- Admin: Manage Requests Button -->
         <button 
           v-if="isAdmin"
-          class="btn-secondary"
+          class="btn-admin"
           @click="showAdminModal = true"
         >
-           <span class="icon">⚡</span> Manage Requests
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+            <polyline points="14 2 14 8 20 8"></polyline>
+            <line x1="16" y1="13" x2="8" y2="13"></line>
+            <line x1="16" y1="17" x2="8" y2="17"></line>
+          </svg>
+          {{ t('manageRequests') }}
+          <span v-if="pendingCount > 0" class="badge-count">{{ pendingCount }}</span>
         </button>
 
         <!-- Add Button depending on Tab -->
@@ -172,7 +194,7 @@ const handleCollectionSuccess = () => {
 
       <AdminRequestsModal
         v-if="showAdminModal"
-        @close="showAdminModal = false"
+        @close="showAdminModal = false; fetchPendingCount()"
       />
     </Teleport>
   </div>
@@ -251,6 +273,51 @@ const handleCollectionSuccess = () => {
 
 .btn-secondary:hover {
   background: var(--color-bg-hover);
+}
+
+.btn-admin {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(168, 85, 247, 0.08));
+  color: #818cf8;
+  border: 1px solid rgba(99, 102, 241, 0.25);
+  border-radius: 10px;
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  margin-right: 8px;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.btn-admin:hover {
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.18), rgba(168, 85, 247, 0.15));
+  border-color: rgba(99, 102, 241, 0.4);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.15);
+}
+
+.badge-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  color: white;
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: 20px;
+  line-height: 1;
+  animation: badge-pulse 2s ease-in-out infinite;
+}
+
+@keyframes badge-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.1); }
 }
 
 /* Tabs */
