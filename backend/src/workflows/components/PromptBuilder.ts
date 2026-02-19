@@ -12,7 +12,7 @@ export class PromptBuilder {
         let refusalRule: string;
         if (hasPolicyContext) {
             // Policy context already injected — DO NOT tell model to search for policies
-            refusalRule = `- UNIVERSITY POLICY CONTEXT has been provided below. Use it as your PRIMARY source for policy-related questions. Do NOT re-search for policies.\n- For non-policy questions, use the 'search' tool if the answer is not in context.`;
+            refusalRule = `- UNIVERSITY POLICY CONTEXT has been provided below. It was ALREADY RETRIEVED from the Knowledge Base. Answer policy questions using ONLY this context.\n- CRITICAL: The 'search' tool EXCLUDES policy documents by design. Using it for policy questions will return ZERO results and waste a step. Do NOT use 'search' for policy-related questions.\n- For non-policy questions, you may use the 'search' tool normally.`;
         } else if (isOrganizationalQuery) {
             refusalRule = `- If the Knowledge Base or Context does not explicitly contain the answer, you MUST use the 'search' tool to find it. Do NOT say "I don't have enough information" without searching first.`;
         } else {

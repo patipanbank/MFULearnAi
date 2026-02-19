@@ -83,9 +83,9 @@ Keywords:`;
 
             LoggerService.info('policy_hit', { query, expandedQuery, maxScore, blocks: blocks.length });
 
-            // 4. Construct Context
-            let context = `=== UNIVERSITY POLICY CONTEXT (Relevance: ${maxScore.toFixed(2)}) ===\n`;
-            context += `The following official regulations may apply to the user's request. STRICTLY FOLLOW THESE RULES.\n\n`;
+            // 4. Construct Context — explicitly tell AI this is KB-sourced
+            let context = `=== UNIVERSITY POLICY CONTEXT (Retrieved from Knowledge Base, Relevance: ${maxScore.toFixed(2)}) ===\n`;
+            context += `IMPORTANT: This policy content was ALREADY SEARCHED AND RETRIEVED from the Knowledge Base for you. The 'search' tool EXCLUDES policy documents by design — do NOT use it to re-search for policies. Base your answer on the content below.\n\n`;
 
             // Group by Source to be clean
             const contentBySource = new Map<string, string[]>();
