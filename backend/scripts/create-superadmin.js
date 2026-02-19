@@ -45,7 +45,7 @@ require('dotenv').config({ path: path.join(__dirname, '../../infrastructure/comp
 // Usage: node create-superadmin.js <username> <password> [email] [department]
 // Example: node create-superadmin.js admin password123 admin@mfu.ac.th IT
 
-const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/mfulearnai-auth';
+const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/mfulearnai-chat';
 const SALT_ROUNDS = 10;
 
 if (process.argv.length < 4) {
