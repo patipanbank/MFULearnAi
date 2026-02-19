@@ -1,11 +1,16 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { useKnowledgeStore } from '@/stores/knowledge'
 import { useAuthStore } from '@/stores/auth'
 
 const emit = defineEmits(['close', 'success'])
 const knowledgeStore = useKnowledgeStore()
 const authStore = useAuthStore()
+
+// Upload constraints — aligned with nginx client_max_body_size (100M) for knowledge route
+const MAX_FILE_SIZE_MB = 50
+const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024
+const ALLOWED_EXTENSIONS = ['pdf', 'txt']
 
 const file = ref(null)
 const type = ref('personal')
@@ -15,8 +20,35 @@ const error = ref(null)
 const uploadProgress = ref(0)
 const uploadStage = ref('')
 
+// Admin check — visibility options depend on this
+const isAdmin = computed(() => {
+    const role = authStore.role || authStore.user?.role
+    return role === 'admin' || role === 'superadmin'
+})
+
 const handleFileChange = (e) => {
-    file.value = e.target.files[0]
+    const selected = e.target.files[0]
+    if (!selected) { file.value = null; return }
+
+    // Validate file extension
+    const ext = selected.name.split('.').pop()?.toLowerCase()
+    if (!ALLOWED_EXTENSIONS.includes(ext)) {
+        error.value = `รองรับเฉพาะไฟล์ ${ALLOWED_EXTENSIONS.join(', ').toUpperCase()} เท่านั้น`
+        file.value = null
+        e.target.value = ''
+        return
+    }
+
+    // Validate file size
+    if (selected.size > MAX_FILE_SIZE_BYTES) {
+        error.value = `ไฟล์มีขนาดเกิน ${MAX_FILE_SIZE_MB} MB`
+        file.value = null
+        e.target.value = ''
+        return
+    }
+
+    error.value = null
+    file.value = selected
     uploadProgress.value = 0
 }
 
@@ -35,7 +67,7 @@ const handleUpload = async () => {
         })
         emit('success')
     } catch (e) {
-        error.value = e.message
+        error.value = e.response?.data?.error || e.message || 'Upload failed'
     } finally {
         loading.value = false
         uploadStage.value = ''

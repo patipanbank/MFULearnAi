@@ -5,6 +5,13 @@ import { AGENT_EVENTS, FileJobResult, NativeDocBlock, ExtractedTextBlock } from 
 import { queueService, ocrQueueEvents } from '../../services/QueueService';
 import * as crypto from 'crypto';
 
+// Max size for Bedrock native document attachment (before base64 encoding)
+const MAX_NATIVE_DOC_SIZE = 4.5 * 1024 * 1024;
+
+// File types that need OCR/parser processing (not suitable for Bedrock native doc block)
+const IMAGE_EXTENSIONS = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'bmp', 'tiff']);
+const OCR_REQUIRED_EXTENSIONS = new Set(['pdf', ...IMAGE_EXTENSIONS]);
+
 export class FileProcessor {
     static async processFiles(
         files: any[],
@@ -30,7 +37,6 @@ export class FileProcessor {
             }))
         }, userId);
 
-        const MAX_NATIVE_SIZE = 4.5 * 1024 * 1024;
         const totalFiles = files.length;
         const uploadPromises: Promise<any>[] = [];
         let needsAsyncProcessing = false;
@@ -38,8 +44,9 @@ export class FileProcessor {
         for (let fi = 0; fi < files.length; fi++) {
             const file = files[fi];
             const fileName = file.originalname || file.name || 'file';
-            const fileSizeMB = ((file.buffer?.length || 0) / (1024 * 1024)).toFixed(1);
-            const ext = (fileName).split('.').pop()?.toLowerCase() || 'pdf';
+            const fileSize = file.buffer?.length || 0;
+            const fileSizeMB = (fileSize / (1024 * 1024)).toFixed(1);
+            const ext = fileName.split('.').pop()?.toLowerCase() || '';
 
             const emitProgress = (stage: string, percent: number, detail?: string) => {
                 emit(AGENT_EVENTS.FILE_PROGRESS, {
@@ -49,67 +56,71 @@ export class FileProcessor {
 
             emitProgress('preparing', 5, `${fileSizeMB} MB`);
 
-            if (!file.buffer) {
+            if (!file.buffer || fileSize === 0) {
                 emitProgress('error', 0, 'ไม่พบข้อมูลไฟล์');
+                LoggerService.warn('file_empty_buffer', { fileName, fileIndex: fi }, userId);
                 continue;
             }
 
-            // Upload in background
+            // Upload to MinIO in background (all file types)
             uploadPromises.push(
-                ChatAttachmentService.uploadFile(file.buffer, fileName, file.mediaType || 'application/pdf', userId)
+                ChatAttachmentService.uploadFile(
+                    file.buffer, fileName, file.mediaType || 'application/octet-stream', userId
+                )
                     .then(meta => {
                         emit(AGENT_EVENTS.FILE_UPLOADED, { fileName, metadata: meta });
                         return { ...meta, fileType: ext };
                     })
                     .catch(e => {
-                        LoggerService.error('file_upload_error', { fileName, error: e.message });
+                        LoggerService.error('file_upload_error', { fileName, error: e.message }, userId);
                         return null;
                     })
             );
 
-            // Decision: Native vs Async OCR
-            if (file.buffer.length < MAX_NATIVE_SIZE && ext !== 'pdf' && ext !== 'png' && ext !== 'jpg' && ext !== 'jpeg') {
-                // Native Text/Code/MD
+            // Decision: Native text/code vs OCR/Parser required
+            const needsOcr = OCR_REQUIRED_EXTENSIONS.has(ext) || fileSize >= MAX_NATIVE_DOC_SIZE;
+
+            if (!needsOcr) {
+                // Small text/code/markdown files — encode directly for Bedrock
                 emitProgress('encoding', 50, 'Processing locally...');
-                const rawName = this.sanitizeFileName(fileName);
+                const sanitizedName = this.sanitizeFileName(fileName);
                 result.nativeDocBlocks.push({
                     type: 'document',
-                    format: ext,
-                    name: rawName,
+                    format: ext || 'txt',
+                    name: sanitizedName,
                     data: Buffer.from(file.buffer).toString('base64')
                 });
                 emitProgress('done', 100, 'Ready');
             } else {
-                // Heavy File or PDF/Image -> Send to Queue
+                // PDF, images, or large files — send to OCR queue
                 needsAsyncProcessing = true;
                 emitProgress('queued', 20, 'Sending to OCR Worker...');
 
-                // Add to Queue
-                LoggerService.info('ocr_queue_add_start', { fileName }, userId);
+                LoggerService.info('ocr_queue_add_start', { fileName, ext, fileSize }, userId);
                 const jobId = await queueService.addOcrJob({
                     buffer: file.buffer.toString('base64'),
                     fileName,
                     fileType: ext,
                     userId
                 });
-                LoggerService.info('ocr_queue_add_complete', { jobId }, userId);
+                LoggerService.info('ocr_queue_add_complete', { jobId, fileName }, userId);
 
-                // For now, we only support one job ID tracking per batch in the result interface.
-                // If multiple files need OCR, we really should have a batch job or multiple IDs.
-                // For Phase 3 iteration, let's assume one main job tracks the batch or the last one wins,
-                // OR better: The AgentWorkflow waits for this specific jobId. 
-                // Let's update result.jobId to this real one.
+                // Track last job ID for waitForJob — batched multi-file OCR is a future enhancement
                 result.jobId = jobId;
             }
         }
 
+        // Wait for all MinIO uploads to complete
         try {
-            LoggerService.info('upload_wait_start', { count: uploadPromises.length }, userId);
+            LoggerService.info('upload_batch_wait_start', { count: uploadPromises.length }, userId);
             const uploaded = await Promise.all(uploadPromises);
-            LoggerService.info('upload_wait_complete', { count: uploaded.length }, userId);
             result.attachments = uploaded.filter(u => u !== null);
-        } catch (e) {
-            LoggerService.warn('upload_failed', e);
+            LoggerService.info('upload_batch_wait_complete', {
+                total: uploadPromises.length,
+                successful: result.attachments.length
+            }, userId);
+        } catch (e: any) {
+            LoggerService.warn('upload_batch_partial_failure', { error: e.message }, userId);
         }
 
         if (needsAsyncProcessing) {

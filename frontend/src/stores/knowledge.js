@@ -290,7 +290,6 @@ export const useKnowledgeStore = defineStore('knowledge', () => {
         updateCollection,
         deleteCollection,
         fetchCollectionDetails,
-        fetchCollectionDetails,
         mapKnowledge,
         fetchPendingRequests,
         extractText

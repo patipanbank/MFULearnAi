@@ -113,19 +113,21 @@ export class ChatController {
 
             req.pipe(bb);
         } else {
+            // JSON body — file uploads are NOT supported via this path
             message = req.body.message;
             sessionId = req.body.sessionId;
             modelId = req.body.modelId;
             collectionId = req.body.collectionId;
             context = req.body.context;
-            context = req.body.context;
-            images = ChatController.transformImages(req.body.images);
-            files = req.body.files;
-            files = req.body.files;
             scenarioId = req.body.scenarioId;
             mode = req.body.mode || 'chat';
+            images = ChatController.transformImages(req.body.images);
+            // Files via JSON body lack Buffer data — warn if present
+            if (req.body.files?.length) {
+                console.warn('[ChatController] Files sent via JSON body will not have buffer data. Use multipart/form-data for file uploads.');
+            }
 
-            executeAgent(); // Always use Agent
+            executeAgent();
         }
     }
 

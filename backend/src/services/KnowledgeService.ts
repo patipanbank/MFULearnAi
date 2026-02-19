@@ -178,23 +178,18 @@ export class KnowledgeService {
             throw new Error('Insufficient permissions');
         }
 
-        const kbId = new mongoose.Types.ObjectId();
-        // Since we already uploaded with a generated ID in controller?
-        // Wait, Controller generated `kbId` for S3 key.
-        // But Controller passes `s3Key`.
-        // Controller used `kbId`. Does it pass it? 
-        // Controller implementation: `const s3Key = .../kbId/...`. It doesn't pass kbId to this function explicitly, 
-        // but this function generates a NEW kbId. THIS IS A BUG.
-        // We must use the SAME ID if the S3 key depends on it.
-        // Fix: Extract ID from s3Key or pass it.
-        // Controller: `const s3Key = knowledge/${kbId}/...`
-        // We can extract it or pass it. Let's extract from S3 Key or just generate a new one? 
-        // If we generate new one, s3 key won't match.
-        // Let's pass `id` in fileInfo or fields?
-
-        // Actually, let's just parse it from S3 key if possible, or better, pass it.
-        const idFromKey = fileInfo.s3Key.split('/')[1];
-        const finalId = idFromKey || kbId.toString();
+        // Fix: Extract existing ID from S3 key (format: knowledge/<ID>/filename)
+        // The Controller generated this ID for the S3 path, so we MUST use it for the record ID
+        // to ensure the Worker can find the record later.
+        const pathParts = fileInfo.s3Key.split('/');
+        let finalId = '';
+        if (pathParts.length >= 2 && mongoose.Types.ObjectId.isValid(pathParts[1])) {
+            finalId = pathParts[1];
+        } else {
+            // Fallback (should not happen if Controller logic is correct)
+            finalId = new mongoose.Types.ObjectId().toString();
+            LoggerService.warn('knowledge_id_mismatch', { s3Key: fileInfo.s3Key, generatedId: finalId }, user.userId);
+        }
 
         const kb = new Knowledge({
             _id: finalId,

@@ -5,6 +5,13 @@ import { FileText, FileSpreadsheet, FileImage, File } from 'lucide-vue-next'
 
 const chatStore = useChatStore()
 
+// Upload constraints — aligned with nginx client_max_body_size (100M)
+const MAX_FILE_SIZE_MB = 25
+const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024
+const MAX_TOTAL_SIZE_MB = 100
+const MAX_TOTAL_SIZE_BYTES = MAX_TOTAL_SIZE_MB * 1024 * 1024
+const MAX_FILE_COUNT = 10
+
 const props = defineProps({
   modelValue: { type: String, default: '' },
   attachments: { type: Array, default: () => [] },
@@ -45,7 +52,11 @@ const handleKeydown = (e) => {
 
 const handleSend = () => {
   if (props.streaming) { emit('stop'); return }
-  if (!inputValue.value.trim() || props.disabled || props.loading) return
+  if (props.disabled || props.loading) return
+  // Allow sending if there's text OR attachments
+  const hasText = inputValue.value.trim().length > 0
+  const hasAttachments = props.attachments && props.attachments.length > 0
+  if (!hasText && !hasAttachments) return
   emit('send', inputValue.value)
   inputValue.value = ''
   nextTick(() => autoResize())
@@ -55,7 +66,34 @@ const handleFileClick = () => fileInputRef.value?.click()
 
 const handleFileChange = (e) => {
   const files = e.target.files
-  if (files?.length) { emit('upload', files); e.target.value = '' }
+  if (!files?.length) return
+
+  // Validate file count
+  const currentCount = props.attachments?.length || 0
+  if (currentCount + files.length > MAX_FILE_COUNT) {
+    alert(`สามารถแนบไฟล์ได้สูงสุด ${MAX_FILE_COUNT} ไฟล์`)
+    e.target.value = ''
+    return
+  }
+
+  // Validate individual file size and total
+  let totalSize = (props.attachments || []).reduce((sum, a) => sum + (a.size || 0), 0)
+  for (const file of files) {
+    if (file.size > MAX_FILE_SIZE_BYTES) {
+      alert(`ไฟล์ "${file.name}" มีขนาดเกิน ${MAX_FILE_SIZE_MB} MB`)
+      e.target.value = ''
+      return
+    }
+    totalSize += file.size
+  }
+  if (totalSize > MAX_TOTAL_SIZE_BYTES) {
+    alert(`ขนาดไฟล์รวมเกิน ${MAX_TOTAL_SIZE_MB} MB`)
+    e.target.value = ''
+    return
+  }
+
+  emit('upload', files)
+  e.target.value = ''
 }
 
 const canSend = computed(() =>
