@@ -367,6 +367,7 @@ const isActive = (path) => route.path.startsWith(path)
 /* Logout */
 .logout-btn {
   margin-top: auto;
+  margin-bottom: 16px;
   display: flex;
   align-items: center;
   justify-content: center;

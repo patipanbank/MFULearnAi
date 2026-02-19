@@ -33,6 +33,7 @@
       <table class="data-table" role="table" :aria-label="t('deptPageTitle')">
         <thead>
           <tr>
+            <th scope="col">{{ t('deptCode') }}</th>
             <th scope="col">{{ t('deptName') }}</th>
             <th scope="col">{{ t('deptCreatedAt') }}</th>
             <th v-if="isSuperAdmin" scope="col">{{ t('deptActions') }}</th>
@@ -42,6 +43,7 @@
           <!-- Loading skeleton -->
           <template v-if="loading && departments.length === 0">
             <tr v-for="i in 3" :key="'skeleton-' + i" class="skeleton-row">
+              <td><div class="skeleton-text skeleton-short" /></td>
               <td><div class="skeleton-text" /></td>
               <td><div class="skeleton-text skeleton-short" /></td>
               <td v-if="isSuperAdmin"><div class="skeleton-text skeleton-icon" /></td>
@@ -50,7 +52,7 @@
 
           <!-- Empty state -->
           <tr v-else-if="departments.length === 0">
-            <td :colspan="isSuperAdmin ? 3 : 2" class="empty-row">
+            <td :colspan="isSuperAdmin ? 4 : 3" class="empty-row">
               <div class="empty-state">
                 <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24"
                   fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"
@@ -73,6 +75,7 @@
             :aria-label="t('deptEditAria') + dept.name"
             @keydown.enter="openEditModal(dept)"
           >
+            <td class="text-code">{{ dept.code }}</td>
             <td class="font-medium">{{ dept.name }}</td>
             <td class="text-date">{{ formatDate(dept.createdAt) }}</td>
             <td v-if="isSuperAdmin" class="actions-cell" @click.stop>
@@ -526,6 +529,12 @@ onBeforeUnmount(() => {
 .text-date {
   color: var(--color-text-secondary, #d1d5db);
   font-size: 13px;
+}
+
+.text-code {
+  font-family: 'SFMono-Regular', 'Consolas', 'Liberation Mono', monospace;
+  font-size: 12px;
+  color: var(--color-text-muted, #9ca3af);
 }
 
 .actions-cell {
