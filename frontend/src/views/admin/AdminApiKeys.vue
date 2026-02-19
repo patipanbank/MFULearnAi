@@ -221,7 +221,7 @@ const isCopied = ref(false)
 const fetchKeys = async () => {
   loading.value = true
   try {
-    const res = await api.get('/api/keys')
+    const res = await api.get('/keys')
     apiKeys.value = res.data || []
   } catch (e) {
     console.error('Failed to fetch keys:', e)
@@ -239,7 +239,7 @@ const createKey = async () => {
         else if (newItem.value.expiration === '90d') expiresAt = new Date(now.setDate(now.getDate() + 90))
         else if (newItem.value.expiration === '1y') expiresAt = new Date(now.setFullYear(now.getFullYear() + 1))
 
-        const res = await api.post('/api/keys', {
+        const res = await api.post('/keys', {
             name: newItem.value.name,
             expiresAt: expiresAt
         })
@@ -261,7 +261,7 @@ const revokeKey = async (key) => {
     if (!confirm(t('confirmRevoke'))) return
     
     try {
-        await api.delete(`/api/keys/${key._id}`)
+        await api.delete(`/keys/${key._id}`)
         // Optimistic update
         const idx = apiKeys.value.findIndex(k => k._id === key._id)
         if (idx !== -1) {
