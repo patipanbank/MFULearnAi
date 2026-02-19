@@ -24,6 +24,13 @@ export const useChatStore = defineStore('chat', () => {
     const isStreaming = ref(false)
     const availableModels = ref([])
 
+    // Pagination State
+    const hasMoreHistory = ref(true)
+    const isLoadingHistory = ref(false)
+    const oldestMessageTimestamp = computed(() =>
+        messages.value[0]?.timestamp ?? null
+    )
+
     const currentSession = computed(() =>
         sessions.value.find(s => s.sessionId === currentSessionId.value)
     )
@@ -63,10 +70,19 @@ export const useChatStore = defineStore('chat', () => {
         if (!sessionId || currentSessionId.value === sessionId && messages.value.length > 0) return
 
         isLoading.value = true
+        // Reset pagination state on new session load
+        hasMoreHistory.value = true
         try {
             const response = await api.get(`/chat/${sessionId}`)
             messages.value = response.data.messages || []
             currentSessionId.value = sessionId
+
+            // If we got fewer than limit (e.g. 50 from Redis), assumption: might be more in Mongo?
+            // Actually, simplest logic: if < 20, assume end. If >= 20, assume more.
+            // Redis returns 50. So if >= 50, hasMore = true.
+            if (messages.value.length < 20) {
+                hasMoreHistory.value = false
+            }
 
             // If the session isn't in our list yet (e.g. deep link), we should reload list
             const exists = sessions.value.some(s => s.sessionId === sessionId)
@@ -80,6 +96,41 @@ export const useChatStore = defineStore('chat', () => {
             messages.value = []
         } finally {
             isLoading.value = false
+        }
+    }
+
+    // Load older history (Reverse Lazy Load)
+    async function loadMoreHistory() {
+        if (isLoadingHistory.value || !hasMoreHistory.value) return
+        if (!currentSessionId.value || !oldestMessageTimestamp.value) return
+
+        isLoadingHistory.value = true
+        try {
+            console.log('[ChatStore] Loading more history before:', oldestMessageTimestamp.value)
+            const response = await api.get(`/chat/${currentSessionId.value}`, {
+                params: {
+                    before: oldestMessageTimestamp.value,
+                    limit: 20
+                }
+            })
+
+            const olderMessages = response.data.messages || []
+
+            if (olderMessages.length === 0) {
+                hasMoreHistory.value = false
+                return
+            }
+
+            // Prepend older messages
+            messages.value = [...olderMessages, ...messages.value]
+
+            if (olderMessages.length < 20) {
+                hasMoreHistory.value = false
+            }
+        } catch (error) {
+            console.error('Failed to load more history:', error)
+        } finally {
+            isLoadingHistory.value = false
         }
     }
 
@@ -286,8 +337,39 @@ export const useChatStore = defineStore('chat', () => {
             }
 
             // ══ Answer Streaming (Token-by-token) ══
+            if (data.type === 'answer_start') {
+                messages.value[assistantIndex].answerMode = data.answerMode || 'text'
+            }
+
             if (data.type === 'answer_delta') {
-                messages.value[assistantIndex].content += data.delta
+                const msg = messages.value[assistantIndex]
+                const mode = msg?.answerMode || 'text'
+
+                if (mode === 'tool_use' || mode === 'agent') {
+                    ensureEvents()
+                    const events = msg.agentEvents
+                    const lastEvt = events[events.length - 1]
+
+                    if (lastEvt && lastEvt.type === 'thinking' && !lastEvt.isFinished) {
+                        lastEvt.message = (lastEvt.message || '') + data.delta
+                    } else {
+                        // Start new thinking block
+                        // Find max step
+                        const maxStep = events.length > 0 ? Math.max(...events.map(e => e.step || 0)) : 0
+
+                        msg.agentEvents.push({
+                            type: 'thinking',
+                            message: data.delta,
+                            step: maxStep + 1,
+                            receivedAt: Date.now(),
+                            isFinished: false,
+                            isActive: true
+                        })
+                    }
+                } else {
+                    // Normal text response
+                    if (msg) msg.content += data.delta
+                }
             }
 
             // Status Updates
@@ -344,6 +426,35 @@ export const useChatStore = defineStore('chat', () => {
                 if (session) {
                     if (!session.metadata) session.metadata = {}
                     session.metadata.title = data.title
+                }
+            }
+
+            // Content Reset (Retract)
+            if (data.type === 'content_reset') {
+                console.log('[ChatStore] Resetting content (migrated to thinking)')
+                messages.value[assistantIndex].content = ''
+            }
+
+            // Thinking Delta (Real-time updates for Thinking Card)
+            if (data.type === 'thinking_delta') {
+                ensureEvents()
+                const events = messages.value[assistantIndex].agentEvents
+                const lastEvt = events[events.length - 1]
+
+                if (lastEvt && lastEvt.type === 'thinking' && !lastEvt.isFinished) {
+                    lastEvt.message = (lastEvt.message || '') + data.delta
+                } else {
+                    // Create new thinking block if none active
+                    const maxStep = events.length > 0 ? Math.max(...events.map(e => e.step || 0)) : 0
+
+                    messages.value[assistantIndex].agentEvents.push({
+                        type: 'thinking',
+                        message: data.delta,
+                        step: maxStep + 1,
+                        receivedAt: Date.now(),
+                        isFinished: false,
+                        isActive: true
+                    })
                 }
             }
 
@@ -534,6 +645,12 @@ export const useChatStore = defineStore('chat', () => {
         sendMessage,
         stopGeneration,
         clearSession,
-        deleteSession
+        sendMessage,
+        stopGeneration,
+        clearSession,
+        deleteSession,
+        hasMoreHistory,
+        isLoadingHistory,
+        loadMoreHistory
     }
 })

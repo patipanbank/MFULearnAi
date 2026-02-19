@@ -3,6 +3,7 @@ import { useMarkdown } from '@/composables/useMarkdown'
 import { ref, computed } from 'vue'
 import api from '@/utils/api'
 import { useAuthStore } from '@/stores/auth'
+import LazyImage from '@/components/common/LazyImage.vue'
 
 const authStore = useAuthStore()
 
@@ -20,176 +21,126 @@ const { render, copyToClipboard } = useMarkdown()
 const copied = ref(false)
 const viewingImage = ref(null)
 const messageRef = ref(null)
-const flowManualToggle = ref(null) // null = auto, true/false = user override
+const flowManualToggle = ref(null)
 
-// Auto-expand during streaming, collapse when done. User can override.
 const flowExpanded = computed(() => {
-    if (flowManualToggle.value !== null) return flowManualToggle.value
-    // Auto-expand while streaming, auto-collapse when agent_complete received
-    if (props.isStreaming && hasAgentEvents.value) return true
-    return false
+  if (flowManualToggle.value !== null) return flowManualToggle.value
+  if (props.isStreaming && hasAgentEvents.value) return true
+  return false
 })
 
 const toggleFlow = () => {
-    flowManualToggle.value = flowManualToggle.value === null ? !flowExpanded.value : !flowManualToggle.value
+  flowManualToggle.value = flowManualToggle.value === null
+    ? !flowExpanded.value
+    : !flowManualToggle.value
 }
 
-// ── Agent Flow Timeline computeds ──
-const hasAgentEvents = computed(() => {
-    return props.message.agentEvents && props.message.agentEvents.length > 0
-})
-
-
+const hasAgentEvents = computed(() =>
+  props.message.agentEvents && props.message.agentEvents.length > 0
+)
 
 const agentSummary = computed(() => {
-    if (!hasAgentEvents.value) return null
-    const events = props.message.agentEvents
-    const completeEvt = events.find(e => e.type === 'agent_complete')
-    const totalSteps = completeEvt?.totalSteps || events.filter(e => e.type === 'agent_step').length
-    const totalDuration = completeEvt?.durationMs
-    const toolsUsed = [...new Set(events.filter(e => e.type === 'tool_complete').map(e => e.toolName))]
-    return {
-        steps: totalSteps,
-        durationMs: totalDuration,
-        durationStr: totalDuration ? (totalDuration / 1000).toFixed(1) + 's' : null,
-        toolsUsed,
-        isComplete: !!completeEvt
-    }
+  if (!hasAgentEvents.value) return null
+  const events = props.message.agentEvents
+  const completeEvt = events.find(e => e.type === 'agent_complete')
+  const totalSteps = completeEvt?.totalSteps || events.filter(e => e.type === 'agent_step').length
+  const totalDuration = completeEvt?.durationMs
+  const toolsUsed = [...new Set(events.filter(e => e.type === 'tool_complete').map(e => e.toolName))]
+  return {
+    steps: totalSteps,
+    durationMs: totalDuration,
+    durationStr: totalDuration ? (totalDuration / 1000).toFixed(1) + 's' : null,
+    toolsUsed,
+    isComplete: !!completeEvt
+  }
 })
 
 const timelineEvents = computed(() => {
-    if (!hasAgentEvents.value) return []
-    
-    // Filter to display-worthy events only
-    const rawEvents = props.message.agentEvents.filter(e =>
-        ['thinking', 'tool_start', 'tool_complete'].includes(e.type)
-    )
+  if (!hasAgentEvents.value) return []
+  const rawEvents = props.message.agentEvents.filter(e =>
+    ['thinking', 'tool_start', 'tool_complete'].includes(e.type)
+  )
+  const mergedEvents = []
+  const thinkingByStep = {}
+  const toolByStep = {}
+  const maxStep = Math.max(...rawEvents.map(e => e.step || 0), 0)
+  const isComplete = props.message.agentEvents.some(e =>
+    e.type === 'agent_complete' || e.type === 'answer_done'
+  )
 
-    // Merge logic for Thinking and Tool events
-    const mergedEvents = []
-    const thinkingByStep = {} // Map step -> event index
-    const toolByStep = {}     // Map step -> event index
-
-    // Identify current max step to know which is "active"
-    const maxStep = Math.max(...rawEvents.map(e => e.step || 0), 0)
-    const isComplete = props.message.agentEvents.some(e => e.type === 'agent_complete' || e.type === 'answer_done')
-
-    rawEvents.forEach(evt => {
-        if (evt.type === 'thinking') {
-            const step = evt.step
-            const isPlaceholder = evt.message && evt.message.startsWith('กำลังวิเคราะห์...')
-
-            if (thinkingByStep[step] !== undefined) {
-                // If we already have a thinking event for this step
-                const existingIndex = thinkingByStep[step]
-                // If new one is NOT a placeholder, replace the existing one
-                if (!isPlaceholder && evt.message && evt.message.trim()) {
-                    mergedEvents[existingIndex] = { ...evt, isActive: false }
-                }
-            } else {
-                // New step for thinking
-                if (!isPlaceholder && evt.message && evt.message.trim()) {
-                    // Has content -> Add it
-                    mergedEvents.push({ ...evt, isActive: false })
-                    thinkingByStep[step] = mergedEvents.length - 1
-                } else {
-                    // Is placeholder. Only add if it's potentially active (latest step & not complete)
-                    if (!isComplete && step === maxStep) {
-                        mergedEvents.push({ ...evt, isActive: true })
-                        thinkingByStep[step] = mergedEvents.length - 1
-                    }
-                }
-            }
-        } else if (evt.type === 'tool_start') {
-            // Start of a tool execution
-            // We assume one tool per step usually, or distinct steps.
-            mergedEvents.push({ 
-                ...evt, 
-                result: null, 
-                isToolComplete: false, 
-                success: false 
-            })
-            if (evt.step) toolByStep[evt.step] = mergedEvents.length - 1
-
-        } else if (evt.type === 'tool_complete') {
-            // Completion of a tool
-            // Find corresponding start event
-            if (evt.step && toolByStep[evt.step] !== undefined) {
-                const idx = toolByStep[evt.step]
-                const startEvt = mergedEvents[idx]
-                
-                // Merge if tool names match
-                if (startEvt.toolName === evt.toolName) {
-                    mergedEvents[idx] = { 
-                        ...startEvt, 
-                        result: evt.resultPreview || evt.result || 'Completed', 
-                        isToolComplete: true, 
-                        success: evt.success 
-                    }
-                } else {
-                    // Mismatch (unlikely), treat as standalone
-                    mergedEvents.push(evt)
-                }
-            } else {
-                // No start found (orphan), treat as standalone
-                mergedEvents.push(evt)
-            }
+  rawEvents.forEach(evt => {
+    if (evt.type === 'thinking') {
+      const step = evt.step
+      const isPlaceholder = evt.message && evt.message.startsWith('กำลังวิเคราะห์...')
+      if (thinkingByStep[step] !== undefined) {
+        if (!isPlaceholder && evt.message?.trim()) {
+          mergedEvents[thinkingByStep[step]] = { ...evt, isActive: false }
+        }
+      } else {
+        if (!isPlaceholder && evt.message?.trim()) {
+          mergedEvents.push({ ...evt, isActive: false })
+          thinkingByStep[step] = mergedEvents.length - 1
+        } else if (!isComplete && step === maxStep) {
+          mergedEvents.push({ ...evt, isActive: true })
+          thinkingByStep[step] = mergedEvents.length - 1
+        }
+      }
+    } else if (evt.type === 'tool_start') {
+      mergedEvents.push({ ...evt, result: null, isToolComplete: false, success: false })
+      if (evt.step) toolByStep[evt.step] = mergedEvents.length - 1
+    } else if (evt.type === 'tool_complete') {
+      if (evt.step && toolByStep[evt.step] !== undefined) {
+        const idx = toolByStep[evt.step]
+        const startEvt = mergedEvents[idx]
+        if (startEvt.toolName === evt.toolName) {
+          mergedEvents[idx] = {
+            ...startEvt,
+            result: evt.resultPreview || evt.result || 'Completed',
+            resultCount: evt.resultCount,
+            durationMs: evt.durationMs,
+            isToolComplete: true,
+            success: evt.success
+          }
         } else {
-            mergedEvents.push(evt)
+          mergedEvents.push(evt)
         }
-    })
-
-    return mergedEvents
+      } else {
+        mergedEvents.push(evt)
+      }
+    }
+  })
+  return mergedEvents
 })
 
-// Show Agent Flow immediately when streaming starts (before events arrive) Or if we have valid timeline events
-const showAgentFlow = computed(() => {
-    return props.isStreaming || (hasAgentEvents.value && timelineEvents.value.length > 0)
+const showAgentFlow = computed(() =>
+  props.isStreaming || (hasAgentEvents.value && timelineEvents.value.length > 0)
+)
+
+// Flow header summary text
+const flowHeaderText = computed(() => {
+  if (!agentSummary.value?.isComplete) return 'Working...'
+  const parts = ['Thought']
+  if (agentSummary.value.durationStr) parts.push(`for ${agentSummary.value.durationStr}`)
+  if (agentSummary.value.steps) parts.push(`· ${agentSummary.value.steps} steps`)
+  return parts.join(' ')
 })
 
-const eventIcon = (type) => {
-    const icons = {
-        context_loaded: '📝',
-        agent_step: '🔄',
-        thinking: '🧠',
-        tool_start: '🔧',
-        tool_complete: '✅',
-        answer_start: '💬',
-        answer_done: '✨',
-        agent_complete: '🏁',
-        step_usage: '📊'
-    }
-    return icons[type] || '•'
+// Tool label mapping
+const toolLabel = (name) => {
+  const labels = {
+    search: 'Searching knowledge base',
+    calculator: 'Calculating',
+    mcp: 'Querying university data'
+  }
+  return labels[name] || `Using ${name}`
 }
 
-const eventLabel = (evt) => {
-    switch (evt.type) {
-        case 'thinking':
-            return evt.message || 'Thinking...'
-        case 'tool_start':
-            return `Used Tool: ${evt.toolName}` // Simplified
-        case 'tool_complete': {
-            const status = evt.success ? 'Success' : 'Failed'
-            return `Tool ${evt.toolName}: ${status}`
-        }
-        case 'answer_start':
-            return `Compiling answer...`
-        case 'agent_complete': {
-            return `Finished`
-        }
-        default:
-            return evt.type
-    }
+const toolIcon = (name) => {
+  const icons = { search: '🔍', calculator: '🧮', mcp: '🏫' }
+  return icons[name] || '🔧'
 }
 
-const isToolEvent = (type) => type === 'tool_start' || type === 'tool_complete'
-const isSubEvent = (type) => ['thinking', 'tool_start', 'tool_complete', 'step_usage'].includes(type)
-
-
-
-const viewImage = (src) => {
-    viewingImage.value = src
-}
+const viewImage = (src) => { viewingImage.value = src }
 
 const handleCopy = async () => {
   const success = await copyToClipboard(props.message.content)
@@ -200,321 +151,109 @@ const handleCopy = async () => {
   }
 }
 
-const formatTime = (timestamp) => {
-  if (!timestamp) return ''
-  return new Date(timestamp).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })
-}
-
 const downloadAttachment = async (att) => {
-    if (att.key) {
-        try {
-            // Use api.get to ensure Auth header is sent
-            const response = await api.get(`/chat/attachment/${att.key}`, { responseType: 'blob' });
-            
-            // Create download link
-            const url = window.URL.createObjectURL(new Blob([response.data], { type: response.headers['content-type'] }));
-            const link = document.createElement('a');
-            link.href = url;
-            link.setAttribute('download', att.fileName || 'download'); // Browser will use header if available, but this helps fallbacks
-            document.body.appendChild(link);
-            link.click();
-            
-            // Cleanup
-            link.parentNode.removeChild(link);
-            window.URL.revokeObjectURL(url);
-        } catch (error) {
-            console.error('Download failed', error);
-            alert('Download failed. ' + (error.response?.data?.error || 'Access Denied or Server Error'));
-        }
-    } else if (att.url) {
-        window.open(att.url, '_blank');
-    } else {
-        console.warn('No key or URL for attachment', att);
+  if (att.key) {
+    try {
+      const response = await api.get(`/chat/attachment/${att.key}`, { responseType: 'blob' })
+      const url = window.URL.createObjectURL(new Blob([response.data], { type: response.headers['content-type'] }))
+      const link = document.createElement('a')
+      link.href = url
+      link.setAttribute('download', att.fileName || 'download')
+      document.body.appendChild(link)
+      link.click()
+      link.parentNode.removeChild(link)
+      window.URL.revokeObjectURL(url)
+    } catch (error) {
+      console.error('Download failed', error)
     }
+  } else if (att.url) {
+    window.open(att.url, '_blank')
+  }
 }
 
 const formatBytes = (bytes) => {
-    if (bytes === 0) return '0 B';
-    const k = 1024;
-    const sizes = ['B', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+  if (!bytes) return ''
+  const k = 1024
+  const sizes = ['B', 'KB', 'MB', 'GB']
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i]
 }
 
-
-
+const getFileEmoji = (att) => {
+  if (!att.mimeType && !att.fileName) return '📎'
+  const name = att.fileName || ''
+  if (att.mimeType?.includes('pdf') || name.endsWith('.pdf')) return '📄'
+  if (att.mimeType?.includes('sheet') || att.mimeType?.includes('excel') || name.match(/\.xlsx?$/)) return '📊'
+  if (name.match(/\.docx?$/)) return '📝'
+  return '📎'
+}
 </script>
 
 <template>
   <div class="message-wrapper" :class="message.role">
-    <!-- USER: Bubble style -->
+
+    <!-- ══ USER MESSAGE ══ -->
     <template v-if="message.role === 'user'">
       <div class="user-row">
         <div class="content-stack">
-            <!-- Images (Outside Bubble) -->
-            <div v-if="message.images && message.images.length > 0" class="message-images outside">
-                <img 
-                    v-for="(img, index) in message.images" 
-                    :key="index"
-                    :src="`data:${img.mediaType};base64,${img.data}`" 
-                    class="msg-image clickable"
-                    alt="Attached image"
-                    @click="viewImage(`data:${img.mediaType};base64,${img.data}`)"
-                />
-            </div>
 
-            <!-- Documents (Outside Bubble) -->
-            <div v-if="message.files && message.files.length > 0" class="message-files outside">
-                <div v-for="(file, index) in message.files" :key="index" class="msg-file">
-                    <div class="file-icon">
-                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                            <polyline points="14 2 14 8 20 8"></polyline>
-                        </svg>
-                    </div>
-                    <div class="file-info-stack">
-                        <span class="file-name" :title="file.name">{{ file.name }}</span>
-                        <!-- Embedded Progress Bar -->
-                        <div v-if="message.fileProgress && message.fileProgress.currentFile === file.name" class="embedded-progress">
-                             <div class="progress-bar-track small">
-                                <div class="progress-bar-fill" :style="{ width: message.fileProgress.percent + '%' }"></div>
-                             </div>
-                             <span class="progress-text">{{ message.fileProgress.percent }}% - {{ message.fileProgress.detail }}</span>
-                        </div>
-                        <div v-else class="file-size">Uploading...</div>
-                    </div>
+          <!-- Images -->
+          <div v-if="message.images?.length" class="media-row">
+            <LazyImage
+              v-for="(img, i) in message.images" :key="i"
+              :src="`data:${img.mediaType};base64,${img.data}`"
+              class="msg-image"
+              @click="viewImage(`data:${img.mediaType};base64,${img.data}`)"
+            />
+          </div>
+
+          <!-- Files (uploading) -->
+          <div v-if="message.files?.length" class="files-row">
+            <div v-for="(file, i) in message.files" :key="i" class="file-chip">
+              <span class="file-emoji">📄</span>
+              <div class="file-info">
+                <span class="file-name">{{ file.name }}</span>
+                <div v-if="message.fileProgress?.currentFile === file.name" class="progress-track">
+                  <div class="progress-fill" :style="{ width: message.fileProgress.percent + '%' }" />
                 </div>
-            </div>
-
-            <!-- Persisted Attachments (History) -->
-            <div v-if="message.attachments && message.attachments.length > 0" class="message-files outside">
-                <!-- 1. Images -->
-                <div class="message-images" style="width: 100%; justify-content: flex-end;">
-                     <template v-for="(att, index) in message.attachments" :key="'img-'+index">
-                        <img 
-                            v-if="att.mimeType && att.mimeType.startsWith('image/')"
-                            :src="`/api/chat/attachment/${att.key}?token=${authStore.token}`" 
-                            class="msg-image clickable"
-                            alt="Attached image"
-                            @click="viewImage(`/api/chat/attachment/${att.key}?token=${authStore.token}`)"
-                            @error="$event.target.style.display='none'"
-                        />
-                     </template>
-                </div>
-
-                <!-- 2. Other Files -->
-                <template v-for="(att, index) in message.attachments" :key="'file-'+index">
-                    <div v-if="!att.mimeType || !att.mimeType.startsWith('image/')" class="msg-file clickable" @click="downloadAttachment(att)" :title="att.fileName">
-                        <div class="file-icon">
-                            <span v-if="att.mimeType && (att.mimeType.includes('pdf') || att.fileName.endsWith('.pdf'))">📄</span>
-                            <span v-else-if="att.mimeType && (att.mimeType.includes('sheet') || att.mimeType.includes('excel'))">📊</span>
-                            <span v-else>📎</span>
-                        </div>
-                        <div class="file-info-stack">
-                            <span class="file-name">{{ att.fileName }}</span>
-                            <div class="file-size">{{ formatBytes(att.fileSize) }}</div>
-                        </div>
-                    </div>
-                </template>
-            </div>
-
-            <div class="bubble user">
-                <p v-if="message.content">{{ message.content }}</p>
-                <p v-else-if="!(message.images?.length > 0) && !(message.files?.length > 0)" class="empty-content">Sent a file</p>
-            </div>
-            <!-- Copy Button Below Bubble -->
-            <div class="user-actions">
-                <button class="btn-icon-copy fade-hover" @click="handleCopy" :class="{ copied }" :title="t('copy')">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <rect v-if="!copied" x="9" y="9" width="13" height="13" rx="2"/>
-                    <path v-if="!copied" d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
-                    <polyline v-else points="20 6 9 17 4 12"/>
-                    </svg>
-                </button>
-            </div>
-        </div>
-
-        <!-- Avatar -->
-        <div class="avatar-circle user">
-             <img v-if="userAvatarUrl" :src="userAvatarUrl" class="avatar-img" alt="User" referrerpolicy="no-referrer" />
-             <span v-else>{{ userInitial }}</span>
-        </div>
-      </div>
-
-    <!-- Lightbox Modal -->
-    <Teleport to="body">
-        <div v-if="viewingImage" class="lightbox-overlay" @click="viewingImage = null">
-            <button class="btn-close-lightbox">&times;</button>
-            <img :src="viewingImage" class="lightbox-img" @click.stop />
-        </div>
-    </Teleport>
-    </template>
-    
-    <!-- ASSISTANT: Canvas style (improved) -->
-    <template v-else>
-      <div class="assistant-canvas">
-        <div class="avatar-circle assistant">
-          <img src="@/assets/dindin-ai.png" alt="AI Avatar" class="avatar-img" />
-        </div>
-        
-        <div class="content-col">
-          <div class="assistant-header">
-            <span class="name">{{ t('aiAssistant') }}</span>
-            <div v-if="message.meta?.confidence" class="confidence-badge" :class="message.meta.confidence.toLowerCase()">
-                <div class="badge-content">
-                    <span class="conf-dot"></span>
-                    <span class="conf-text">{{ message.meta.confidence }} Confidence</span>
-                </div>
-                
-                <div class="explanation-tooltip" v-if="message.meta.explanation">
-                    <div class="tooltip-header" :class="message.meta.confidence.toLowerCase()">
-                        {{ message.meta.confidence }} Confidence
-                    </div>
-                    <div class="tooltip-row"><strong>Basis:</strong> {{ message.meta.explanation.basis }}</div>
-                    <div class="tooltip-row" v-if="message.meta.confidence === 'Low' && message.meta.explanation.missing_info?.length">
-                         <strong>Gap:</strong> {{ message.meta.explanation.missing_info[0] }}
-                    </div>
-                </div>
+                <span v-else class="file-sub">Uploading...</span>
+              </div>
             </div>
           </div>
-          
-          
-          <!-- ══ Agent Flow (Redesigned Round 3) ══ -->
-          <div v-if="showAgentFlow" class="agent-flow-container">
-            <!-- Collapsed Header (DIV instead of BUTTON to avoid global styles) -->
-            <div 
-                class="agent-flow-header" 
-                @click="toggleFlow"
-                role="button"
-                tabindex="0"
+
+          <!-- Persisted attachments -->
+          <div v-if="message.attachments?.length" class="files-row">
+            <LazyImage
+              v-for="(att, i) in message.attachments.filter(a => a.mimeType?.startsWith('image/'))"
+              :key="'img-' + i"
+              :src="`/api/chat/attachment/${att.key}?token=${authStore.token}`"
+              class="msg-image"
+              @click="viewImage(`/api/chat/attachment/${att.key}?token=${authStore.token}`)"
+            />
+            <div
+              v-for="(att, i) in message.attachments.filter(a => !a.mimeType?.startsWith('image/'))"
+              :key="'file-' + i"
+              class="file-chip clickable"
+              @click="downloadAttachment(att)"
             >
-                <div class="header-left">
-                    <span class="icon-indicator">
-                        <svg v-if="flowExpanded" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <polyline points="6 9 12 15 18 9"></polyline>
-                        </svg>
-                        <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                             <polyline points="9 18 15 12 9 6"></polyline>
-                        </svg>
-                    </span>
-                    <span class="status-text no-wrap">
-                        {{ agentSummary?.isComplete ? 'Thoughts' : 'Working...' }}
-                    </span>
-                </div>
-            </div>
-
-            <!-- Expanded Content: Premium Timeline with Animations -->
-            <div v-if="flowExpanded" class="agent-flow-content custom-scroll">
-                <TransitionGroup name="list" tag="div" class="timeline-container">
-                    <div v-for="(evt, idx) in timelineEvents" :key="evt.id || idx" class="timeline-item">
-                        <!-- Timeline Left: Icon & Line -->
-                        <div class="timeline-left">
-                            <div class="timeline-line"></div>
-                            
-                            <!-- Icon: Thinking -->
-                            <div v-if="evt.type === 'thinking'" class="timeline-icon thinking" :class="{ 'pulse-active': evt.isActive }">
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path>
-                                </svg>
-                            </div>
-                            
-                            <!-- Icon: Tool Start -->
-                            <div v-else-if="evt.type === 'tool_start'" class="timeline-icon tool">
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
-                                </svg>
-                            </div>
-                            
-                            <!-- Icon: Tool Complete -->
-                            <div v-else-if="evt.type === 'tool_complete'" class="timeline-icon success">
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <polyline points="20 6 9 17 4 12"></polyline>
-                                </svg>
-                            </div>
-
-                            <!-- Icon: Default -->
-                            <div v-else class="timeline-icon">
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <circle cx="12" cy="12" r="1"></circle>
-                                    <circle cx="19" cy="12" r="1"></circle>
-                                    <circle cx="5" cy="12" r="1"></circle>
-                                </svg>
-                            </div>
-                        </div>
-
-                        <!-- Timeline Right: Premium Content Card -->
-                        <div class="timeline-right">
-                            <!-- Thinking Card -->
-                            <div v-if="evt.type === 'thinking'" class="flow-card glass-card thinking-card">
-                                <div class="card-header">
-                                    <span class="header-title">Thinking Process</span>
-                                    <span class="header-badge">Step {{ evt.step }}</span>
-                                </div>
-                                <div class="card-body markdown-body">
-                                    <div v-if="evt.isActive" class="thinking-placeholder">
-                                        <span class="dot-flashing"></span>
-                                        <span class="text">Analyzing...</span>
-                                    </div>
-                                    <div v-else v-html="render(evt.message)"></div>
-                                </div>
-                            </div>
-
-                            <!-- Tool Use Card (Merged) -->
-                            <div v-else-if="evt.type === 'tool_start'" class="flow-card tool-card">
-                                <div class="card-header">
-                                    <span class="header-title">Executing Tool</span>
-                                </div>
-                                <div class="tool-command-box">
-                                    <span class="prompt">$</span> {{ evt.toolName }}
-                                </div>
-                                <!-- Merged Result -->
-                                <div v-if="evt.isToolComplete" class="card-body">
-                                    <div class="result-badge" :class="evt.success ? 'success' : 'failure'">
-                                        {{ evt.success ? 'Success' : 'Failed' }}
-                                    </div>
-                                    <div class="result-text" :style="{ marginTop: '4px', fontSize: '13px', color: 'var(--color-text-secondary)' }">
-                                        {{ evt.result }}
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Tool Complete Card (Removed/Hidden as it is merged) -->
-                            <!-- <div v-else-if="evt.type === 'tool_complete'" ... > -->
-                        </div>
-                    </div>
-
-                    <!-- Streaming Pulse Indicator -->
-                    <div v-if="!agentSummary?.isComplete && isStreaming" key="streaming-pulse" class="timeline-item">
-                        <div class="timeline-left">
-                            <div class="timeline-icon pulse">
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <circle cx="12" cy="12" r="10"></circle>
-                                    <polyline points="12 6 12 12 16 14"></polyline>
-                                </svg>
-                            </div>
-                        </div>
-                         <div class="timeline-right">
-                            <div class="flow-card glass-card ghost">
-                                <div class="card-body fade-text">Processing...</div>
-                            </div>
-                        </div>
-                    </div>
-                </TransitionGroup>
+              <span class="file-emoji">{{ getFileEmoji(att) }}</span>
+              <div class="file-info">
+                <span class="file-name">{{ att.fileName }}</span>
+                <span class="file-sub">{{ formatBytes(att.fileSize) }}</span>
+              </div>
             </div>
           </div>
 
-          <!-- Answer content -->
-          <div ref="messageRef" class="prose-content prose markdown-body" v-if="message.content" v-html="render(message.content)"></div>
-          
-          <!-- Typing Indicator (Legacy/Fallback) -->
-          <div v-if="!message.content && !showAgentFlow" class="typing-indicator">
-             <div class="dots"><span></span><span></span><span></span></div>
+          <!-- Bubble -->
+          <div class="bubble">
+            <p v-if="message.content">{{ message.content }}</p>
+            <p v-else class="muted-text">Sent a file</p>
           </div>
 
-          <!-- AI Actions -->
-          <div class="actions" v-if="message.content">
-            <button class="btn-icon-copy" @click="handleCopy" :class="{ copied }" :title="t('copy')">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <!-- Copy -->
+          <div class="user-actions">
+            <button class="action-btn fade-in-hover" @click="handleCopy" :class="{ copied }">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <rect v-if="!copied" x="9" y="9" width="13" height="13" rx="2"/>
                 <path v-if="!copied" d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
                 <polyline v-else points="20 6 9 17 4 12"/>
@@ -522,958 +261,450 @@ const formatBytes = (bytes) => {
             </button>
           </div>
         </div>
+
+        <!-- Avatar -->
+        <div class="avatar user">
+          <img v-if="userAvatarUrl" :src="userAvatarUrl" class="avatar-img" referrerpolicy="no-referrer" />
+          <span v-else>{{ userInitial }}</span>
+        </div>
+      </div>
+
+      <!-- Lightbox -->
+      <Teleport to="body">
+        <div v-if="viewingImage" class="lightbox" @click="viewingImage = null">
+          <button class="lightbox-close">&times;</button>
+          <img :src="viewingImage" class="lightbox-img" @click.stop />
+        </div>
+      </Teleport>
+    </template>
+
+    <!-- ══ ASSISTANT MESSAGE ══ -->
+    <template v-else>
+      <div class="assistant-row">
+        <div class="avatar assistant">
+          <img src="@/assets/dindin-ai.png" alt="AI" class="avatar-img" />
+        </div>
+
+        <div class="content-col">
+          <!-- Name -->
+          <div class="assistant-name">{{ t('aiAssistant') }}</div>
+
+          <!-- Agent Flow -->
+          <div v-if="showAgentFlow" class="agent-flow">
+            <!-- Toggle Header -->
+            <div class="flow-toggle" @click="toggleFlow" role="button" tabindex="0">
+              <svg
+                class="toggle-chevron"
+                :class="{ expanded: flowExpanded }"
+                width="14" height="14" viewBox="0 0 24 24"
+                fill="none" stroke="currentColor" stroke-width="2.5"
+              >
+                <polyline points="9 18 15 12 9 6"/>
+              </svg>
+              <span class="flow-toggle-label">{{ flowHeaderText }}</span>
+            </div>
+
+            <!-- Timeline -->
+            <div v-if="flowExpanded" class="flow-body">
+              <TransitionGroup name="flow" tag="div">
+                <div
+                  v-for="(evt, idx) in timelineEvents"
+                  :key="evt.id || idx"
+                  class="tl-item"
+                >
+                  <!-- Spine -->
+                  <div class="tl-spine">
+                    <div class="tl-line" />
+
+                    <!-- Thinking icon -->
+                    <div v-if="evt.type === 'thinking'" class="tl-dot thinking" :class="{ active: evt.isActive }">
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                      </svg>
+                    </div>
+
+                    <!-- Tool icon -->
+                    <div v-else-if="evt.type === 'tool_start'" class="tl-dot tool">
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+                      </svg>
+                    </div>
+
+                    <div v-else class="tl-dot" />
+                  </div>
+
+                  <!-- Content -->
+                  <div class="tl-content">
+
+                    <!-- Thinking -->
+                    <template v-if="evt.type === 'thinking'">
+                      <div class="tl-label thinking-label">
+                        Thinking · Step {{ evt.step }}
+                      </div>
+                      <div v-if="evt.isActive" class="thinking-active">
+                        <span class="dot-pulse" /><span class="dot-pulse" /><span class="dot-pulse" />
+                        <span class="thinking-live" v-if="evt.message">{{ evt.message }}</span>
+                      </div>
+                      <div v-else class="thinking-text markdown-body" v-html="render(evt.message)" />
+                    </template>
+
+                    <!-- Tool -->
+                    <template v-else-if="evt.type === 'tool_start'">
+                      <div class="tl-label tool-label">
+                        {{ toolIcon(evt.toolName) }} {{ toolLabel(evt.toolName) }}
+                      </div>
+                      <div v-if="evt.input?.query" class="tool-query">"{{ evt.input.query }}"</div>
+                      <div v-if="evt.isToolComplete" class="tool-result">
+                        <span class="result-status" :class="evt.success ? 'ok' : 'err'">
+                          {{ evt.success ? '✓' : '✗' }}
+                          {{ evt.success ? 'Success' : 'Failed' }}
+                        </span>
+                        <span v-if="evt.durationMs" class="result-meta">· {{ evt.durationMs }}ms</span>
+                      </div>
+                    </template>
+
+                  </div>
+                </div>
+
+                <!-- Live pulse -->
+                <div v-if="!agentSummary?.isComplete && isStreaming" key="pulse" class="tl-item">
+                  <div class="tl-spine">
+                    <div class="tl-dot pulsing" />
+                  </div>
+                  <div class="tl-content">
+                    <span class="processing-text">Processing...</span>
+                  </div>
+                </div>
+              </TransitionGroup>
+            </div>
+          </div>
+
+          <!-- Answer -->
+          <div
+            ref="messageRef"
+            class="prose markdown-body"
+            v-if="message.content"
+            v-html="render(message.content)"
+          />
+
+          <!-- Typing dots (fallback when no agent flow) -->
+          <div v-if="!message.content && !showAgentFlow && isStreaming" class="typing-dots">
+            <span /><span /><span />
+          </div>
+
+          <!-- Action Bar -->
+          <div class="action-bar" v-if="message.content">
+            <!-- Copy -->
+            <button class="action-btn" @click="handleCopy" :class="{ copied }" :title="t('copy')">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect v-if="!copied" x="9" y="9" width="13" height="13" rx="2"/>
+                <path v-if="!copied" d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                <polyline v-else points="20 6 9 17 4 12"/>
+              </svg>
+              <span>{{ copied ? 'Copied' : 'Copy' }}</span>
+            </button>
+
+            <!-- Metadata separator -->
+            <template v-if="message.meta || agentSummary?.isComplete">
+              <span class="action-sep" />
+
+              <!-- Answer mode -->
+              <span v-if="message.meta?.answer_mode" class="meta-chip">
+                {{ message.meta.answer_mode === 'rag' ? 'RAG' :
+                   message.meta.answer_mode === 'file_grounded' ? 'File' : 'Internal' }}
+              </span>
+
+              <!-- Confidence -->
+              <span
+                v-if="message.meta?.confidence"
+                class="meta-chip confidence"
+                :class="message.meta.confidence.toLowerCase()"
+              >
+                {{ message.meta.confidence }} confidence
+              </span>
+
+              <!-- Steps -->
+              <span v-if="agentSummary?.steps" class="meta-chip">
+                {{ agentSummary.steps }} steps
+              </span>
+
+              <!-- Duration -->
+              <span v-if="agentSummary?.durationStr" class="meta-chip">
+                {{ agentSummary.durationStr }}
+              </span>
+            </template>
+          </div>
+
+        </div>
       </div>
     </template>
   </div>
 </template>
 
 <style scoped>
-.message-wrapper {
-  margin-bottom: 32px;
-}
+/* ── Base ── */
+.message-wrapper { margin-bottom: 28px; }
 
-/* Common Avatar */
-.avatar-circle {
-  width: 36px;
-  height: 36px;
+.avatar {
+  width: 34px; height: 34px;
   border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 14px;
-  flex-shrink: 0;
-  font-weight: 600;
-  overflow: hidden;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 600;
+  flex-shrink: 0; overflow: hidden;
 }
+.avatar.user { background: var(--color-user-gradient, #6366f1); color: white; }
+.avatar.assistant { background: var(--color-bg-secondary); border: 1px solid var(--color-border); }
+.avatar-img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
 
-.avatar-circle.user {
-  background: var(--color-user-gradient);
-  color: white;
-}
-
-.avatar-circle.assistant {
-  background: var(--color-bg-secondary);
-  border: 1px solid var(--color-border);
-  padding: 2px;
-}
-
-.avatar-img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  border-radius: 50%;
-}
-
-/* === USER STYLES === */
+/* ── User ── */
 .user-row {
-  display: flex;
-  justify-content: flex-end;
-  gap: 12px;
-  padding-left: 20%;
+  display: flex; justify-content: flex-end; gap: 10px;
 }
 
 .content-stack {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end; /* Align bubble and copy button to right */
-    gap: 4px;
-    max-width: 100%; /* Ensure it takes space but respects parent flex */
-}
-
-.bubble.user {
-  background: var(--color-bg-secondary); 
-  color: var(--color-text-primary);
-  padding: 12px 18px;
-  border-radius: 18px;
-  border-bottom-right-radius: 4px;
-  box-shadow: var(--shadow-sm);
-  /* removed flex/gap since button moved out */
-}
-
-.bubble.user p {
-  margin: 0;
-  font-size: 15px;
-  line-height: 1.6;
-  white-space: pre-wrap;
-}
-
-.user-actions {
-    height: 24px; /* fixed height to prevent jumping */
-    display: flex;
-    align-items: center;
-}
-
-@media (max-width: 768px) {
-    .user-row {
-        padding-left: 10%; 
-    }
-    
-    .bubble.user {
-        padding: 10px 14px;
-        font-size: 14px; 
-    }
-}
-
-/* === ASSISTANT STYLES === */
-.assistant-canvas {
-  display: flex;
-  gap: 16px;
-  padding-right: 5%;
-}
-
-@media (max-width: 768px) {
-    .assistant-canvas {
-        gap: 12px;
-        padding-right: 2%;
-    }
-    .avatar-circle {
-        width: 32px;
-        height: 32px;
-        font-size: 16px;
-    }
-}
-
-.content-col {
-  flex: 1;
-  min-width: 0;
-}
-
-.assistant-header {
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-  margin-bottom: 8px;
-}
-
-.assistant-header .name {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--color-text-primary);
-  text-decoration: none;
-}
-
-
-
-
-/* Improved Prose (Markdown) */
-.prose-content {
-  font-size: 15px;
-  line-height: 1.75;
-  color: var(--color-text-primary);
-}
-
-/* Typing Indicator */
-.typing-indicator {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 0;
-}
-
-.dots {
-  display: flex;
+  display: flex; flex-direction: column; align-items: flex-end;
   gap: 4px;
+  max-width: min(78%, 600px);
 }
 
-.dots span {
-  width: 6px;
-  height: 6px;
-  background: var(--color-text-muted);
-  border-radius: 50%;
-  animation: bounce 1.4s infinite ease-in-out both;
+.bubble {
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  padding: 10px 16px;
+  border-radius: 18px; border-bottom-right-radius: 4px;
+  box-shadow: var(--shadow-sm);
 }
+.bubble p { margin: 0; font-size: 15px; line-height: 1.65; white-space: pre-wrap; }
+.muted-text { color: var(--color-text-muted); font-style: italic; font-size: 13px; }
 
-.dots span:nth-child(1) { animation-delay: -0.32s; }
-.dots span:nth-child(2) { animation-delay: -0.16s; }
-
-@keyframes bounce {
-  0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
-  40% { transform: scale(1); opacity: 1; }
+/* Media */
+.media-row {
+  display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end;
 }
-
-.typing-indicator .text {
-  font-size: 13px;
-  color: var(--color-text-muted);
-  font-weight: 500;
-}
-
-.animate-flicker {
-    animation: flicker 2s infinite ease-in-out;
-}
-
-@keyframes flicker {
-    0%, 100% { opacity: 0.6; }
-    50% { opacity: 1; }
-}
-
-.intent-badge-mini {
-    font-size: 11px;
-    padding: 1px 8px;
-    border-radius: 10px;
-    background: var(--color-bg-tertiary);
-    color: var(--color-text-secondary);
-    border: 1px solid var(--color-border);
-    font-weight: 500;
-    letter-spacing: 0.2px;
-}
-
-.intent-badge-mini.fact_lookup { border-color: #3b82f6; color: #3b82f6; background: rgba(59, 130, 246, 0.05); }
-.intent-badge-mini.debugging { border-color: #ef4444; color: #ef4444; background: rgba(239, 68, 68, 0.05); }
-.intent-badge-mini.research { border-color: #8b5cf6; color: #8b5cf6; background: rgba(139, 92, 246, 0.05); }
-
-
-
-
-.actions {
-  margin-top: 8px;
-  display: flex;
-}
-
-/* === SHARED BUTTON STYLES === */
-.btn-icon-copy {
-  background: transparent;
-  border: none;
-  color: var(--color-text-muted);
-  cursor: pointer;
-  padding: 4px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 4px;
-  transition: all 0.2s ease;
-}
-
-.btn-icon-copy:hover {
-  color: var(--color-primary);
-  background: var(--color-bg-tertiary);
-}
-
-.btn-icon-copy.copied {
-  color: var(--color-success);
-}
-
-/* Fade Hover Effect for User Actions */
-.fade-hover {
-    opacity: 0;
-    transition: opacity 0.2s ease, color 0.2s ease, background 0.2s ease;
-}
-
-.user-row:hover .fade-hover {
-    opacity: 1;
-}
-
-.message-images {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    margin-bottom: 4px;
-    justify-content: flex-end; /* Align right for user */
-}
-
 .msg-image {
-    max-width: 200px;
-    max-height: 200px;
-    border-radius: 12px;
-    object-fit: cover;
-    border: 1px solid var(--color-border);
-    transition: transform 0.2s;
-}
-
-.msg-image.clickable {
-    cursor: zoom-in;
-}
-
-.msg-image.clickable:hover {
-    transform: scale(1.02);
-}
-
-.empty-content {
-    color: var(--color-text-muted);
-    font-style: italic;
-    font-size: 13px;
-    margin: 0;
-}
-
-/* Lightbox */
-.lightbox-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
-    background: rgba(0, 0, 0, 0.85);
-    z-index: 9999;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    animation: fadeIn 0.2s ease;
-}
-
-.lightbox-img {
-    max-width: 90vw;
-    max-height: 90vh;
-    border-radius: 8px;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.5);
-    animation: zoomIn 0.2s ease;
-}
-
-.btn-close-lightbox {
-    position: absolute;
-    top: 20px;
-    right: 20px;
-    background: rgba(255,255,255,0.2);
-    border: none;
-    color: white;
-    font-size: 30px;
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: background 0.2s;
-}
-
-.btn-close-lightbox:hover {
-    background: rgba(255,255,255,0.4);
-}
-
-@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-@keyframes zoomIn { from { transform: scale(0.9); } to { transform: scale(1); } }
-
-.message-images {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    margin-bottom: 4px;
-    justify-content: flex-end; /* Align right for user */
-}
-
-.message-files {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    margin-bottom: 8px;
-    align-items: flex-end;
-}
-
-.msg-file {
-    display: flex;
-    align-items: center;
-    background: var(--color-bg-secondary);
-    border: 1px solid var(--color-border);
-    border-radius: 8px;
-    padding: 8px 12px;
-    gap: 8px;
-    max-width: 250px;
-}
-
-.msg-file.clickable {
-    cursor: pointer;
-    transition: background 0.2s, border-color 0.2s;
-}
-
-.msg-file.clickable:hover {
-    background: var(--color-bg-tertiary);
-    border-color: var(--color-primary-light, #a5b4fc);
-}
-
-.msg-file .file-icon {
-    color: var(--color-text-muted);
-    font-size: 16px;
-    display: flex;
-    align-items: center;
-}
-
-.file-info-stack {
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-}
-
-.msg-file .file-name {
-    font-size: 13px;
-    color: var(--color-text-primary);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    font-weight: 500;
-}
-
-.msg-file .file-size {
-    font-size: 11px;
-    color: var(--color-text-muted);
-}
-
-.msg-image {
-    max-width: 200px;
-    max-height: 200px;
-    border-radius: 8px;
-    object-fit: cover;
-    border: 1px solid rgba(255,255,255,0.1);
-}
-
-/* Confidence Badge & Tooltip Styles */
-.confidence-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 11px;
-    font-weight: 600;
-    padding: 2px 8px;
-    border-radius: 12px;
-    margin-left: 8px;
-    cursor: help;
-    position: relative;
-    user-select: none;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    
-    /* Ghost Behavior: Invisible by default */
-    opacity: 0;
-    transition: opacity 0.2s ease, transform 0.2s ease;
-}
-
-/* Show badge when hovering the entire Assistant Message Row */
-.assistant-canvas:hover .confidence-badge {
-    opacity: 1;
-}
-
-.badge-content {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-}
-
-.conf-dot {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: currentColor;
-}
-
-.confidence-badge.high {
-    background: #ecfdf5;
-    color: #059669;
-    border: 1px solid #a7f3d0;
-}
-
-.confidence-badge.medium {
-    background: #fffbeb;
-    color: #d97706;
-    border: 1px solid #fde68a;
-}
-
-.confidence-badge.low {
-    background: #fef2f2;
-    color: #dc2626;
-    border: 1px solid #fecaca;
-}
-
-/* Explanation Tooltip */
-.explanation-tooltip {
-    display: none;
-    position: absolute;
-    top: 100%;
-    left: 0;
-    width: 280px; /* Restored width for text */
-    background: var(--color-bg-tertiary, #ffffff);
-    color: var(--color-text-primary, #111827);
-    border: 1px solid var(--color-border);
-    border-radius: 8px;
-    padding: 12px;
-    box-shadow: var(--shadow-lg);
-    z-index: 100;
-    margin-top: 8px;
-    text-transform: none;
-    letter-spacing: normal;
-    font-weight: 400;
-    font-size: 12px;
-}
-
-.tooltip-header {
-    font-weight: 600;
-    margin-bottom: 4px;
-    padding-bottom: 4px;
-    border-bottom: 1px solid var(--color-border);
-    display: flex;
-    justify-content: space-between;
-}
-
-.tooltip-header.high { color: #059669; }
-.tooltip-header.medium { color: #d97706; }
-.tooltip-header.low { color: #dc2626; }
-
-.confidence-badge:hover .explanation-tooltip {
-    display: block;
-}
-
-/* File Progress Bar */
-.file-progress-container {
-    margin: 8px 0;
-    padding: 12px;
-    background: var(--color-bg-secondary);
-    border: 1px solid var(--color-border);
-    border-radius: 8px;
-    width: 280px;
-    font-size: 13px;
-}
-
-.progress-info {
-    display: flex;
-    justify-content: space-between;
-    margin-bottom: 6px;
-    font-weight: 500;
-    color: var(--color-text-primary);
-}
-
-.progress-info .icon { margin-right: 6px; }
-
-.progress-bar-track {
-    height: 6px;
-    background: var(--color-bg-tertiary);
-    border-radius: 3px;
-    overflow: hidden;
-    margin-bottom: 6px;
-}
-
-.progress-bar-fill {
-    height: 100%;
-    background: var(--color-accent);
-    transition: width 0.3s ease;
-}
-
-.progress-detail {
-    font-size: 12px;
-    color: var(--color-text-muted);
-}
-
-/* Embedded Progress Bar */
-.embedded-progress {
-    width: 100%;
-}
-
-.progress-bar-track.small {
-    height: 4px;
-    background: var(--color-bg-tertiary);
-    border-radius: 2px;
-    overflow: hidden;
-    margin-top: 4px;
-}
-
-.progress-text {
-    font-size: 10px;
-    color: var(--color-text-muted);
-    margin-top: 2px;
-    display: block;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-/* ══════════════════ Agent Flow Timeline (Premium) ══════════════════ */
-.agent-flow-container {
-    margin-top: 12px;
-    padding-top: 8px;
-    width: 100%;
-    display: flex;
-    flex-direction: column;
-}
-
-/* Header */
-.agent-flow-header {
-    appearance: none; -webkit-appearance: none;
-    background: transparent; border: none; padding: 6px 0;
-    cursor: pointer;
-    display: flex; align-items: center;
-    color: var(--color-text-muted);
-    font-size: 13px; font-weight: 500;
-    transition: color 0.2s;
-    outline: none;
-    width: 100%;
-    user-select: none;
-}
-.agent-flow-header:hover { color: var(--color-text-primary); }
-.header-left { display: flex; align-items: center; gap: 8px; width: 100%; }
-.status-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 13px; }
-.icon-indicator { display: flex; align-items: center; justify-content: center; }
-
-/* Timeline Area */
-.agent-flow-content {
-    margin-top: 12px;
-    display: flex; flex-direction: column;
-    gap: 0;
-    padding-left: 4px;
-    max-height: 500px;
-    overflow-y: auto; overflow-x: hidden;
-    padding-bottom: 8px;
-    /* Custom Scrollbar */
-    scrollbar-width: thin;
-    scrollbar-color: var(--color-border) transparent;
-}
-
-.timeline-item {
-    display: flex;
-    gap: 16px;
-    position: relative;
-    padding-bottom: 24px;
-    /* animation: flowSlideIn 0.3s ease-out forwards; */
-}
-
-/* List Transitions */
-.list-move,
-.list-enter-active,
-.list-leave-active {
-  transition: all 0.3s ease;
-}
-
-.list-enter-from,
-.list-leave-to {
-  opacity: 0;
-  transform: translateY(10px);
-}
-
-.list-leave-active {
-  position: absolute;
-}
-
-.timeline-left {
-    display: flex; flex-direction: column; align-items: center;
-    width: 24px; flex-shrink: 0;
-    position: relative;
-    padding-top: 2px;
-}
-
-.timeline-line {
-    position: absolute;
-    top: 28px; bottom: -20px;
-    width: 2px;
-    background: var(--color-border);
-    opacity: 0.3;
-    z-index: 1;
-}
-.timeline-item:last-child .timeline-line { display: none; }
-
-.timeline-icon {
-    width: 24px; height: 24px;
-    border-radius: 50%;
-    display: flex; align-items: center; justify-content: center;
-    background: var(--color-bg-primary);
-    border: 1px solid var(--color-border);
-    color: var(--color-text-muted);
-    z-index: 2;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
-}
-
-.timeline-icon.thinking { color: #0866ff; background: #e7f3ff; border-color: #cce4ff; }
-.timeline-icon.tool { color: #f97316; background: #ffedd5; border-color: #fed7aa; }
-
-.timeline-icon.success { color: #16a34a; background: #dcfce7; border-color: #bbf7d0; }
-.timeline-icon.pulse { animation: pulse 1.5s infinite; color: var(--color-primary); border-color: var(--color-primary); }
-
-.timeline-right {
-    flex: 1;
-    min-width: 0;
-}
-
-/* Content Cards - GitHub Style */
-.flow-card {
-    border-radius: 6px;
-    padding: 0;
-    width: 100%;
-    overflow: hidden;
-    border: 1px solid #d0d7de;
-    background: transparent; /* Transparent as requested */
-    box-shadow: none;
-    margin-bottom: 8px; /* Add spacing between cards */
-}
-
-.card-header {
-    background: transparent; /* Transparent as requested */
-    border-bottom: 1px solid #d0d7de;
-    padding: 8px 12px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    font-size: 11px;
-    font-weight: 600;
-    color: #57606a;
-}
-
-.card-body {
-    padding: 12px;
-    font-size: 13px;
-    color: #24292f;
-}
-
-/* Tool Card: Dark Terminal Style Override?
-   User asked for "same color in all boxes" for header. 
-   If we truly standardise, we lose the terminal header look.
-   Let's standardise the STRUCTURE but keep Tool body dark for contrast?
-   Or make Tool body light too? GitHub Actions logs are dark.
-   I will keep Tool Body dark, but make Header standard? 
-   Actually, standardising header is safer for "Use this same color in all boxes".
-*/
-
-.tool-card {
-    /* If we want uniform headers, the wrapper border might need to match header?
-       Let's keep wrapper light border #d0d7de, header light #f3f6f9.
-       But Tool BODY needs to be dark? 
-       Let's try making Tool Card consistent with others (Light theme).
-    */
-    background: transparent;
-    border-color: #d0d7de;
-}
-
-.tool-card .card-header {
-    /* Enforce standard header */
-    background: transparent;
-    border-bottom: 1px solid #d0d7de;
-    color: #57606a;
-}
-
-.tool-card .tool-command-box {
-    background: transparent; /* No separate box */
-    color: #24292f; /* Dark text for light mode */
-    padding: 10px 12px;
-    font-family: ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, Liberation Mono, monospace;
-    border: none; 
-}
-
-/* Result Badge: Text Only, No Border */
-.result-badge {
-    display: inline-block;
-    font-size: 11px;
-    font-weight: 600;
-    margin-bottom: 4px;
-    /* Remove box styling */
-    background: transparent;
-    border: none;
-    padding: 0;
-}
-.result-badge.success { color: #1a7f37; }
-.result-badge.failure { color: #cf222e; }
-
-/* Result Preview */
-.result-preview-text {
-    font-family: ui-monospace, SFMono-Regular, monospace;
-    font-size: 12px;
-    color: #57606a;
-    background: #f6f8fa;
-    padding: 8px;
-    border-radius: 4px;
-    margin-top: 4px;
-}
-
-.ghost {
-    background: #f6f8fa;
-    border: 1px dashed #d0d7de;
-    color: #57606a;
-}
-.ghost .card-body {
-    padding: 8px 12px;
-    font-style: italic;
-}
-
-/* Dark Mode Overrides */
-html[data-theme="dark"] .flow-card {
-    background: transparent;
-    border-color: #30363d;
-}
-
-html[data-theme="dark"] .card-header {
-    background: transparent; /* Use standard dark header */
-    border-bottom-color: #30363d;
-    color: #768390;
-}
-
-html[data-theme="dark"] .card-body {
-    color: #c9d1d9;
-}
-
-html[data-theme="dark"] .tool-card {
-    background: transparent;
-    border-color: #30363d;
-}
-
-html[data-theme="dark"] .tool-card .card-header {
-    background: transparent;
-    border-bottom-color: #30363d;
-    color: #768390;
-}
-
-html[data-theme="dark"] .tool-card .tool-command-box {
-    background: transparent;
-    color: #c9d1d9;
-    border: none;
-    margin: 0;
-}
-
-html[data-theme="dark"] .result-preview-text {
-    background: #161b22;
-    color: #768390;
-}
-
-html[data-theme="dark"] .ghost {
-    background: #161b22;
-    border-color: #30363d;
-    color: #768390;
-}
-
-/* Cleanup */
-.glass-card, .glass-card.thinking-card, .glass-card.tool-card, .glass-card.result-card {
-    background: unset;
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
-    box-shadow: none;
-}
-
-/* Dark Mode Overrides (assuming a class or media query, but let's stick to variables if possible) */
-/* Ideally we'd use CSS variables for these RGBA values if the app supports it.
-   Start by using variables if available, otherwise fallback.
-   I'll assume standard app variables for now.
-*/
-
-.card-header {
-    display: flex; align-items: center; justify-content: space-between;
-    font-size: 11px; font-weight: 700;
-    color: var(--color-text-muted);
-    margin-bottom: 8px;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
-.header-badge {
-    background: rgba(0,0,0,0.05);
-    padding: 2px 6px;
-    border-radius: 4px;
-    font-size: 10px;
-}
-
-.card-body.markdown-body {
-    font-size: 14px;
-    line-height: 1.6;
-    color: var(--color-text-secondary);
-    white-space: pre-wrap;
-}
-
-.tool-command-box {
-    font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
-    font-size: 13px;
-    line-height: 1.5;
-    color: #e5e7eb; /* Light text for dark terminal */
-}
-.prompt { color: #4ade80; margin-right: 8px; user-select: none;}
-
-.result-badge {
-    display: inline-flex;
-    font-size: 11px; font-weight: 600;
-    padding: 2px 8px; border-radius: 4px;
-    margin-bottom: 6px;
-}
-.result-badge.success { background: #dcfce7; color: #166534; }
-.result-badge.failure { background: #fee2e2; color: #991b1b; }
-
-.result-preview-text {
-    font-size: 13px;
-    color: var(--color-text-secondary);
-    font-family: monospace;
-    opacity: 0.85;
-}
-
-.fade-text {
-    color: var(--color-text-muted);
-    font-style: italic;
-    font-size: 13px;
-    animation: flicker 2s infinite;
-}
-
-@keyframes flicker {
-    0%, 100% { opacity: 0.5; }
-    50% { opacity: 1; }
-}
-
-@keyframes pulse {
-    0% { box-shadow: 0 0 0 0 rgba(var(--color-primary-rgb), 0.4); }
-    70% { box-shadow: 0 0 0 6px rgba(var(--color-primary-rgb), 0); }
-}
-
-/* Scrollbar */
-.agent-flow-content::-webkit-scrollbar { width: 4px; }
-.agent-flow-content::-webkit-scrollbar-track { background: transparent; }
-.agent-flow-content::-webkit-scrollbar-thumb { background: var(--color-border); border-radius: 4px; }
-
-/* Responsive */
-@media (max-width: 768px) {
-    .agent-flow-content {
-        max-height: 350px;
-    }
-}
-</style>
-
-
-
-<style scoped>
-/* Thinking Placeholder Animation */
-.thinking-placeholder {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 8px 0;
-    color: var(--color-text-muted);
-    font-style: italic;
-}
-
-.timeline-icon.thinking.pulse-active {
-    color: var(--color-primary);
-    animation: pulse-ring 2s infinite;
-}
+  max-width: 180px; max-height: 180px;
+  border-radius: 10px; object-fit: cover;
+  border: 1px solid var(--color-border);
+  cursor: zoom-in; transition: transform 0.15s, opacity 0.2s;
+}
+.msg-image.placeholder {
+  background-color: var(--color-bg-tertiary);
+  min-width: 100px; min-height: 100px;
+  opacity: 0.5;
+}
+.msg-image:hover { transform: scale(1.02); }
+
+/* File chips */
+.files-row { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
+.file-chip {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--color-bg-secondary); border: 1px solid var(--color-border);
+  border-radius: 10px; padding: 6px 10px; max-width: 220px;
+}
+.file-chip.clickable { cursor: pointer; transition: background 0.15s; }
+.file-chip.clickable:hover { background: var(--color-bg-tertiary); }
+.file-emoji { font-size: 18px; flex-shrink: 0; }
+.file-info { display: flex; flex-direction: column; overflow: hidden; }
+.file-name { font-size: 12px; font-weight: 500; color: var(--color-text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.file-sub { font-size: 11px; color: var(--color-text-muted); }
+.progress-track { height: 3px; background: var(--color-border); border-radius: 2px; margin-top: 4px; overflow: hidden; }
+.progress-fill { height: 100%; background: var(--color-accent); border-radius: 2px; transition: width 0.3s; }
+
+/* User actions */
+.user-actions { height: 22px; display: flex; align-items: center; }
+.fade-in-hover { opacity: 0; transition: opacity 0.2s; }
+.user-row:hover .fade-in-hover { opacity: 1; }
+
+/* ── Assistant ── */
+.assistant-row { display: flex; gap: 14px; padding-right: 4%; }
+.content-col { flex: 1; min-width: 0; }
+.assistant-name {
+  font-size: 13px; font-weight: 600;
+  color: var(--color-text-primary); margin-bottom: 8px;
+}
+
+/* ── Agent Flow ── */
+.agent-flow {
+  margin-bottom: 12px;
+  border-left: 2px solid var(--color-border);
+  padding-left: 12px;
+}
+
+.flow-toggle {
+  display: flex; align-items: center; gap: 6px;
+  cursor: pointer; padding: 2px 0; user-select: none;
+  color: var(--color-text-muted);
+  transition: color 0.15s;
+}
+.flow-toggle:hover { color: var(--color-text-primary); }
+
+.toggle-chevron {
+  transition: transform 0.2s ease;
+  transform: rotate(0deg);
+  flex-shrink: 0;
+}
+.toggle-chevron.expanded { transform: rotate(90deg); }
+
+.flow-toggle-label { font-size: 13px; font-weight: 500; }
+
+.flow-body { margin-top: 12px; display: flex; flex-direction: column; }
+
+/* Timeline */
+.tl-item {
+  display: flex; gap: 12px;
+  padding-bottom: 16px;
+  position: relative;
+}
+
+.tl-spine {
+  display: flex; flex-direction: column; align-items: center;
+  width: 20px; flex-shrink: 0; padding-top: 2px;
+  position: relative;
+}
+
+.tl-line {
+  position: absolute; top: 22px; bottom: -10px;
+  width: 1px; background: var(--color-border); opacity: 0.5;
+}
+.tl-item:last-child .tl-line { display: none; }
+
+.tl-dot {
+  width: 20px; height: 20px; border-radius: 50%; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--color-bg-secondary); border: 1px solid var(--color-border);
+  color: var(--color-text-muted); z-index: 1;
+}
+.tl-dot.thinking { background: #eff6ff; border-color: #bfdbfe; color: #3b82f6; }
+.tl-dot.thinking.active { animation: pulse-ring 2s infinite; }
+.tl-dot.tool { background: #fff7ed; border-color: #fed7aa; color: #f97316; }
+.tl-dot.pulsing { background: var(--color-bg-tertiary); animation: pulse-ring 1.5s infinite; }
 
 @keyframes pulse-ring {
-    0% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.4); }
-    70% { box-shadow: 0 0 0 6px rgba(99, 102, 241, 0); }
-    100% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0); }
+  0% { box-shadow: 0 0 0 0 color-mix(in srgb, currentColor 30%, transparent); }
+  70% { box-shadow: 0 0 0 5px transparent; }
+  100% { box-shadow: 0 0 0 0 transparent; }
 }
 
-.dot-flashing {
-  position: relative;
-  width: 6px;
-  height: 6px;
-  border-radius: 5px;
-  background-color: var(--color-primary);
-  color: var(--color-primary);
-  animation: dot-flashing 1s infinite linear alternate;
-  animation-delay: 0.5s;
+.tl-content { flex: 1; min-width: 0; padding-top: 1px; }
+
+.tl-label {
+  font-size: 12px; font-weight: 600; margin-bottom: 4px;
+  text-transform: uppercase; letter-spacing: 0.4px;
 }
-.dot-flashing::before, .dot-flashing::after {
-  content: "";
-  display: inline-block;
-  position: absolute;
-  top: 0;
+.thinking-label { color: #3b82f6; }
+.tool-label { color: #f97316; }
+
+/* Thinking content */
+.thinking-active {
+  display: flex; align-items: center; gap: 4px; padding: 4px 0;
 }
-.dot-flashing::before {
-  left: -10px;
-  width: 6px;
-  height: 6px;
-  border-radius: 5px;
-  background-color: var(--color-primary);
-  color: var(--color-primary);
-  animation: dot-flashing 1s infinite alternate;
-  animation-delay: 0s;
+.dot-pulse {
+  width: 5px; height: 5px; border-radius: 50%;
+  background: var(--color-text-muted);
+  animation: bounce 1.4s infinite ease-in-out both;
 }
-.dot-flashing::after {
-  left: 10px;
-  width: 6px;
-  height: 6px;
-  border-radius: 5px;
-  background-color: var(--color-primary);
-  color: var(--color-primary);
-  animation: dot-flashing 1s infinite alternate;
-  animation-delay: 1s;
+.dot-pulse:nth-child(1) { animation-delay: -0.32s; }
+.dot-pulse:nth-child(2) { animation-delay: -0.16s; }
+@keyframes bounce {
+  0%, 80%, 100% { transform: scale(0.5); opacity: 0.4; }
+  40% { transform: scale(1); opacity: 1; }
+}
+.thinking-live {
+  font-size: 12px; color: var(--color-text-muted);
+  font-style: italic; margin-left: 4px;
+}
+.thinking-text {
+  font-size: 13px; line-height: 1.6; color: var(--color-text-secondary);
 }
 
-@keyframes dot-flashing {
-  0% { background-color: var(--color-primary); }
-  50%, 100% { background-color: rgba(99, 102, 241, 0.2); }
+/* Tool content */
+.tool-query {
+  font-size: 13px; color: var(--color-text-secondary);
+  font-style: italic; margin-bottom: 6px;
+}
+.tool-result { display: flex; align-items: center; gap: 6px; }
+.result-status { font-size: 12px; font-weight: 600; }
+.result-status.ok { color: #16a34a; }
+.result-status.err { color: #dc2626; }
+.result-meta { font-size: 11px; color: var(--color-text-muted); }
+
+/* Processing */
+.processing-text { font-size: 12px; color: var(--color-text-muted); font-style: italic; }
+
+/* Flow transitions */
+.flow-enter-active { transition: all 0.25s ease; }
+.flow-enter-from { opacity: 0; transform: translateY(8px); }
+
+/* ── Answer ── */
+.prose { font-size: 15px; line-height: 1.75; color: var(--color-text-primary); }
+
+/* Typing fallback */
+.typing-dots { display: flex; gap: 4px; padding: 8px 0; }
+.typing-dots span {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--color-text-muted);
+  animation: bounce 1.4s infinite ease-in-out both;
+}
+.typing-dots span:nth-child(1) { animation-delay: -0.32s; }
+.typing-dots span:nth-child(2) { animation-delay: -0.16s; }
+
+/* ── Action Bar ── */
+.action-bar {
+  display: flex; align-items: center; flex-wrap: wrap;
+  gap: 6px; margin-top: 10px;
+}
+
+.action-btn {
+  display: flex; align-items: center; gap: 5px;
+  background: transparent; border: none;
+  color: var(--color-text-muted); cursor: pointer;
+  font-size: 12px; padding: 3px 6px; border-radius: 5px;
+  transition: background 0.15s, color 0.15s;
+}
+.action-btn:hover { background: var(--color-bg-tertiary); color: var(--color-text-primary); }
+.action-btn.copied { color: var(--color-success, #16a34a); }
+
+.action-sep { width: 1px; height: 14px; background: var(--color-border); flex-shrink: 0; }
+
+.meta-chip {
+  font-size: 11px; color: var(--color-text-muted);
+  padding: 2px 0; font-weight: 500;
+}
+
+.meta-chip.confidence.high { color: #16a34a; }
+.meta-chip.confidence.medium { color: #d97706; }
+.meta-chip.confidence.low { color: #dc2626; }
+
+/* ── Lightbox ── */
+.lightbox {
+  position: fixed; inset: 0; z-index: 9999;
+  background: rgba(0,0,0,0.88);
+  display: flex; align-items: center; justify-content: center;
+  animation: fadeIn 0.2s ease;
+}
+.lightbox-img {
+  max-width: 90vw; max-height: 90vh;
+  border-radius: 8px; box-shadow: 0 8px 40px rgba(0,0,0,0.5);
+  animation: zoomIn 0.2s ease;
+}
+.lightbox-close {
+  position: absolute; top: 20px; right: 20px;
+  background: rgba(255,255,255,0.15); border: none;
+  color: white; font-size: 28px; width: 40px; height: 40px;
+  border-radius: 50%; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: background 0.15s;
+}
+.lightbox-close:hover { background: rgba(255,255,255,0.3); }
+
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes zoomIn { from { transform: scale(0.92); } to { transform: scale(1); } }
+
+/* ── Responsive ── */
+@media (max-width: 768px) {
+  .content-stack { max-width: 88%; }
+  .assistant-row { gap: 10px; padding-right: 0; }
+  .avatar { width: 30px; height: 30px; }
+  .prose { font-size: 14px; }
 }
 </style>

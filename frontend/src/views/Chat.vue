@@ -5,7 +5,7 @@
  * - Header: Title Left, User Dropdown Right
  * - Context Bar: Select Knowledge Base
  */
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import axios from 'axios'
 import { useAuthStore } from '@/stores/auth'
@@ -14,6 +14,7 @@ import { useKnowledgeStore } from '@/stores/knowledge'
 import { useTheme, useLanguage } from '@/composables/useSettings'
 import { useScrollToBottom } from '@/composables/useUtils'
 import PDFViewer from '@/components/common/PDFViewer.vue'
+
 
 import {
   ChatMessage,
@@ -57,6 +58,49 @@ const userInitial = computed(() =>
 )
 const userName = computed(() => authStore.displayName || 'Guest')
 
+// Scroll State
+const showScrollBtn = ref(false)
+const isUserScrolledUp = ref(false)
+
+// Handle Scroll Event
+const handleScroll = () => {
+  const el = messagesRef.value
+  if (!el) return
+  
+  const distFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight
+  
+  // "Stuck" to bottom threshold: strict (e.g. 30px)
+  // If user scrolls up even a little, we stop auto-scrolling
+  isUserScrolledUp.value = distFromBottom > 30
+
+  // "Show Button" threshold: loose (e.g. 200px)
+  // Don't show button for minor scroll ups
+  showScrollBtn.value = distFromBottom > 200
+
+  // --- Reverse Lazy Load (Pagination) ---
+  if (el.scrollTop < 80 && chatStore.hasMoreHistory && !chatStore.isLoadingHistory) {
+    loadMoreWithAnchor()
+  }
+}
+
+// Load older messages while maintaining scroll position
+const loadMoreWithAnchor = async () => {
+  const el = messagesRef.value
+  if (!el) return
+
+  const prevScrollHeight = el.scrollHeight
+  
+  await chatStore.loadMoreHistory()
+  
+  await nextTick()
+  
+  // Adjust scroll position to prevent jumping
+  // (Safari 26+ handles this via overflow-anchor: auto, but manual adjustment is safer for cross-browser)
+  if (el.scrollHeight > prevScrollHeight) {
+     el.scrollTop = el.scrollHeight - prevScrollHeight
+  }
+}
+
 // Lifecycle
 onMounted(async () => {
   initTheme()
@@ -74,6 +118,14 @@ onMounted(async () => {
   if (route.params.sessionId) {
     chatStore.loadSession(route.params.sessionId)
   }
+  nextTick(() => {
+    messagesRef.value?.addEventListener('scroll', handleScroll)
+  })
+})
+
+// cleanup
+onBeforeUnmount(() => {
+  messagesRef.value?.removeEventListener('scroll', handleScroll)
 })
 
 // Watchers
@@ -87,8 +139,36 @@ watch(() => route.params.sessionId, (newId) => {
   }
 })
 
-watch(() => chatStore.messages.length, () => scrollToBottom())
-watch(() => chatStore.messages[chatStore.messages.length - 1]?.content, () => scrollToBottom())
+// Auto-scroll logic
+watch(() => chatStore.messages.length, () => {
+    // New message added: Always scroll to bottom if it's from user, 
+    // or if we were already at bottom.
+    // Actually, usually beneficial to scroll on new message.
+    // If user sent it, definitely scroll.
+    const lastMsg = chatStore.messages[chatStore.messages.length - 1]
+    if (lastMsg?.role === 'user') {
+        isUserScrolledUp.value = false // force reset
+        scrollToBottom(true)
+    } else if (!isUserScrolledUp.value) {
+        scrollToBottom(true)
+    }
+})
+
+// Watch last message content (streaming)
+watch(() => chatStore.messages[chatStore.messages.length - 1]?.content, () => {
+    // Only auto-scroll if user hasn't scrolled up
+    if (!isUserScrolledUp.value) {
+        // Disable smooth scroll for streaming to prevent jitter/lag
+        scrollToBottom(false) 
+    }
+})
+
+// Also watch for agent events/tools updates to keep scrolling
+watch(() => chatStore.messages[chatStore.messages.length - 1]?.agentEvents?.length, () => {
+     if (!isUserScrolledUp.value) {
+        scrollToBottom(false)
+    }
+}, { deep: true })
 
 // Methods
 const handleNewChat = () => {
@@ -279,6 +359,19 @@ const closeEvidenceViewer = () => {
         />
         
         <div v-else class="messages-list">
+          
+          <!-- History Loading Indicator -->
+          <div v-if="chatStore.isLoadingHistory" class="history-loading">
+            <div class="history-loading-dots">
+              <span /><span /><span />
+            </div>
+          </div>
+
+          <!-- End of History -->
+          <div v-if="!chatStore.hasMoreHistory && chatStore.messages.length > 0" class="history-end">
+            <span>เริ่มต้นการสนทนา</span>
+          </div>
+
           <TransitionGroup name="fade-slide">
             <ChatMessage
               v-for="(msg, idx) in chatStore.messages"
@@ -291,26 +384,46 @@ const closeEvidenceViewer = () => {
               @copy="handleCopyMessage"
             />
           </TransitionGroup>
-          
+          <!-- Scroll Anchor for Safari 26+ overflow-anchor: auto -->
+          <div class="scroll-anchor" />
         </div>
       </div>
       
       <!-- Mode Toggle REMOVED -->
 
-      <!-- Input Area -->
-      <ChatInput
-        ref="inputRef"
-        v-model="inputMessage"
-        :attachments="attachments"
-        :disabled="chatStore.isStreaming"
-        :loading="isProcessingFile"
-        :streaming="chatStore.isStreaming"
-        :t="t"
-        @send="handleSendMessage"
-        @stop="handleStop"
-        @upload="handleFileUpload"
-        @remove-attachment="handleRemoveAttachment"
-      />
+      <!-- Input Container -->
+      <div class="chat-input-container">
+        <!-- Scroll to Bottom Button -->
+        <Transition name="fade-up">
+          <button
+            v-if="showScrollBtn"
+            class="scroll-to-bottom-btn"
+            @click="scrollToBottom"
+            :title="t('scrollToBottom') || 'Scroll to bottom'"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
+              fill="none" stroke="currentColor" stroke-width="2.5"
+              stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="6 9 12 15 18 9"/>
+            </svg>
+          </button>
+        </Transition>
+
+        <!-- Input Area -->
+        <ChatInput
+          ref="inputRef"
+          v-model="inputMessage"
+          :attachments="attachments"
+          :disabled="chatStore.isStreaming"
+          :loading="isProcessingFile"
+          :streaming="chatStore.isStreaming"
+          :t="t"
+          @send="handleSendMessage"
+          @stop="handleStop"
+          @upload="handleFileUpload"
+          @remove-attachment="handleRemoveAttachment"
+        />
+      </div>
     </main>
 
     <!-- PDF Viewer Modal -->
@@ -339,6 +452,7 @@ const closeEvidenceViewer = () => {
   display: flex;
   flex-direction: column;
   min-width: 0; /* Prevents flex items from overflowing */
+  min-height: 0; /* Safari fix: prevent flex overflow */
   background: var(--color-bg-primary);
   position: relative;
 }
@@ -346,13 +460,59 @@ const closeEvidenceViewer = () => {
 .messages-area {
   flex: 1;
   overflow-y: auto;
+  min-height: 0; /* Safari fix */
   scroll-behavior: smooth;
+  /* Safari 26: Support safe area for notch/dynamic island */
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  /* Safari 26: Prevent jump on prepend */
+  overflow-anchor: auto;
 }
 
 .messages-list {
   max-width: 800px;
   margin: 0 auto;
   padding: 24px;
+  /* Anchor point at latest message */
+  overflow-anchor: none;
+}
+
+.scroll-anchor {
+  overflow-anchor: auto;
+  height: 1px;
+}
+
+.history-loading {
+  display: flex;
+  justify-content: center;
+  padding: 16px;
+}
+
+.history-loading-dots {
+  display: flex;
+  gap: 6px;
+}
+
+.history-loading-dots span {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-text-muted);
+  animation: bounce 1s infinite;
+}
+
+.history-loading-dots span:nth-child(2) { animation-delay: 0.15s; }
+.history-loading-dots span:nth-child(3) { animation-delay: 0.3s; }
+
+@keyframes bounce {
+  0%, 80%, 100% { transform: translateY(0); opacity: 0.4; }
+  40%           { transform: translateY(-6px); opacity: 1; }
+}
+
+.history-end {
+  text-align: center;
+  padding: 16px;
+  font-size: 12px;
+  color: var(--color-text-muted);
 }
 
 /* Transitions */
@@ -406,5 +566,56 @@ const closeEvidenceViewer = () => {
   background: var(--color-accent);
   color: white;
   font-weight: 500;
+}
+
+/* Scroll to Bottom Button */
+.chat-input-container {
+  position: relative;
+  width: 100%;
+  z-index: 20;
+  /* Prevent input from being hidden by virtual keyboard or home indicator */
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.scroll-to-bottom-btn {
+  position: absolute;
+  bottom: 100%; /* Anchor to top of container */
+  margin-bottom: 16px; /* Space above input */
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid var(--color-border, #e0e0e0);
+  background: var(--color-bg-secondary, #fff);
+  color: var(--color-text-muted, #666);
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+  transition: all 0.2s ease;
+}
+
+.scroll-to-bottom-btn:hover {
+  background: var(--color-accent, #4f46e5);
+  color: white;
+  border-color: transparent;
+  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+}
+
+/* Transition animation */
+.fade-up-enter-active,
+.fade-up-leave-active {
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.fade-up-enter-from,
+.fade-up-leave-to {
+  opacity: 0;
+  transform: translateX(-50%) translateY(10px);
 }
 </style>

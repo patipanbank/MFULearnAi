@@ -4,6 +4,7 @@ import { KnowledgeController } from '../controllers/KnowledgeController';
 const router = Router();
 
 // Knowledge CRUD
+router.get('/', KnowledgeController.listKnowledge);
 router.post('/', KnowledgeController.create);
 router.post('/extract', KnowledgeController.extract);
 router.delete('/:id', KnowledgeController.delete);

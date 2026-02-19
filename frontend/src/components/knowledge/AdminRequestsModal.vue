@@ -108,6 +108,7 @@ const handleReject = async (id) => {
   width: 600px;
   max-width: 90%;
   max-height: 80vh;
+  max-height: 80svh; /* Safari */
   display: flex;
   flex-direction: column;
   border: 1px solid var(--color-border);

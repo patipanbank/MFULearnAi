@@ -173,10 +173,13 @@ const closeCollectionModal = () => {
 <style scoped>
 .knowledge-dashboard {
   height: 100%;
+  height: 100svh; /* Safari Fix */
   display: flex;
   flex-direction: column;
   padding: 24px;
   overflow: hidden;
+  /* Safari Safe Area */
+  padding-bottom: env(safe-area-inset-bottom, 24px);
 }
 
 .dashboard-header {

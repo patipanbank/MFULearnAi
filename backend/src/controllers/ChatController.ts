@@ -66,7 +66,7 @@ export class ChatController {
         };
 
         if (isMultipart) {
-            const bb = busboy({ headers: req.headers });
+            const bb = busboy({ headers: req.headers, limits: { fieldSize: 10 * 1024 * 1024 } });
             const filePromises: Promise<any>[] = [];
 
             bb.on('field', (name: string, val: string) => {
@@ -169,13 +169,11 @@ export class ChatController {
     static async getHistory(req: any, res: Response) {
         const { sessionId } = req.params;
         const userId = req.user.userId;
+        const limit = parseInt(req.query.limit as string) || 20;
+        const before = req.query.before as string;
 
         try {
-            const messages = await HistoryService.getHistory(userId, sessionId);
-            // If from Redis/Cache, we might not get full metadata or source flag easily unless we check where it came from
-            // But HistoryService abstracts that.
-            // Server.ts returned { sessionId, messages, source: 'cache'/'database' }.
-            // For now, let's just return messages.
+            const messages = await HistoryService.getHistoryWithPagination(userId, sessionId, limit, before);
             res.json({ sessionId, messages, source: 'unified' });
         } catch (error) {
             res.status(500).json({ error: 'Failed to retrieve history' });

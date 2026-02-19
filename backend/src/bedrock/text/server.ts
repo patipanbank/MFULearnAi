@@ -7,6 +7,8 @@ import {
     ConverseStreamCommand
 } from "@aws-sdk/client-bedrock-runtime";
 
+import { MODELS, BEDROCK_MODELS, AVAILABLE_MODELS, SYSTEM_MODELS } from '../../config/models';
+
 dotenv.config();
 
 const app = express();
@@ -24,8 +26,8 @@ const GUARDRAIL_VERSION = process.env.BEDROCK_GUARDRAIL_VERSION || 'DRAFT';
 // Set BEDROCK_ENABLE_CACHE=true to enable. Not all regions/models support this.
 const ENABLE_PROMPT_CACHE = process.env.BEDROCK_ENABLE_CACHE === 'true';
 const CACHE_SUPPORTED_MODELS = [
-    'anthropic.claude-3-5-sonnet-20240620-v1:0',
-    'anthropic.claude-3-haiku-20240307-v1:0'
+    BEDROCK_MODELS.CLAUDE_3_5_SONNET,
+    BEDROCK_MODELS.CLAUDE_3_HAIKU
 ];
 
 // --- Bedrock Client Setup ---
@@ -37,21 +39,21 @@ const client = new BedrockRuntimeClient({
     }
 });
 
-const MODELS = {
-    claude35: "anthropic.claude-3-5-sonnet-20240620-v1:0",
-    claudeHaiku: "anthropic.claude-3-haiku-20240307-v1:0"
-};
-
-const APPROVED_PROD_MODELS = [MODELS.claude35, MODELS.claudeHaiku];
-
 // --- Helpers ---
 const validateModel = (modelId: string): string => {
-    if (ENV_TYPE === 'PROD' && !APPROVED_PROD_MODELS.includes(modelId)) {
-        console.warn(`[Bedrock Text] Blocked model ${modelId} in PROD`);
-        return MODELS.claude35;
+    // Check if model exists in our config
+    const isValid = AVAILABLE_MODELS.some(m => m.id === modelId);
+
+    if (ENV_TYPE === 'PROD') {
+        if (!isValid) {
+            console.warn(`[Bedrock Text] Invalid or blocked model ${modelId} in PROD`);
+            return SYSTEM_MODELS.CHAT;
+        }
     }
-    return modelId || MODELS.claude35;
+    return isValid ? modelId : SYSTEM_MODELS.CHAT;
 };
+
+
 
 const normalizeMessages = (messages: any[]) => {
     if (!messages || messages.length === 0) return [];
@@ -456,7 +458,8 @@ app.post('/api/bedrock/chat', async (req: Request, res: Response) => {
 // List Models
 app.get('/api/bedrock/models', (req, res) => {
     res.json({
-        models: [MODELS.claude35, MODELS.claudeHaiku],
+        models: AVAILABLE_MODELS.map(m => m.id),
+        modelConfigs: AVAILABLE_MODELS,
         environment: ENV_TYPE
     });
 });

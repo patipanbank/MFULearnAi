@@ -14,7 +14,8 @@ export class PromptBuilder {
         // --- Block 1: Persona & Rules ---
         const systemBlocks: Array<{ text: string }> = [];
         systemBlocks.push({
-            text: `You are the MFU Learn AI Agent. You are efficient and helpful.
+            text: `You are the DinDin Ai. You are efficient and helpful.
+You can see and analyze attached images. Use this capability to answer questions about visual content.
 === TRUTH PRIORITY ===
 1. Canonical Memory
 2. Tool Results (Search/Calc)

@@ -11,22 +11,14 @@ router.get('/login/saml', AuthController.startSamlLogin);
 router.post('/saml/callback', AuthController.handleSamlCallback);
 router.get('/login/sso', AuthController.startSsoLogin);
 router.post('/sso/callback', AuthController.handleSsoCallback);
+
 router.post('/refresh', AuthController.refresh);
+router.post('/logout', AuthController.logout); // Post usually preferred for actions, but Nginx might allow GET if simple link?
+router.get('/logout', AuthController.logout);  // Supporting GET for simple link/redirect compatibility
 
 // Protected
 router.get('/me', AuthService.authenticateUser, AuthController.me);
 
-// Admin - Users
-router.get('/users', AuthService.authenticateUser, AuthService.requireRole(['admin', 'superadmin']), AuthController.listUsers);
-router.post('/users', AuthService.authenticateUser, AuthService.requireRole(['superadmin']), AuthController.createUser);
-router.put('/users/:id', AuthService.authenticateUser, AuthService.requireRole(['superadmin']), AuthController.updateUser);
-router.delete('/users/:id', AuthService.authenticateUser, AuthService.requireRole(['superadmin']), AuthController.deleteUser);
-router.post('/users/create-admin', AuthService.authenticateUser, AuthService.requireRole(['superadmin']), AuthController.createUser); // Alias
-
-// Admin - Departments
-router.get('/departments', AuthService.authenticateUser, AuthController.listDepartments); // Public-ish? Or need auth? Identity service required auth.
-router.post('/departments', AuthService.authenticateUser, AuthService.requireRole(['superadmin']), AuthController.createDepartment);
-router.put('/departments/:id', AuthService.authenticateUser, AuthService.requireRole(['superadmin']), AuthController.updateDepartment);
-router.delete('/departments/:id', AuthService.authenticateUser, AuthService.requireRole(['superadmin']), AuthController.deleteDepartment);
+// Note: User and Department management routes moved to /api/users and /api/departments in index.ts
 
 export default router;

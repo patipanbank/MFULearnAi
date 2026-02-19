@@ -164,6 +164,8 @@ const handleDeleteSession = async (sessionId) => {
   color: var(--color-text-muted); 
   z-index: 50;
   position: relative;
+  /* Safari Safe Area */
+  padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 .app-sidebar.collapsed {
@@ -176,6 +178,7 @@ const handleDeleteSession = async (sessionId) => {
   top: 0;
   left: 0;
   height: 100vh;
+  height: 100svh; /* Safari Fix */
   width: 280px; /* Full width sidebar on mobile */
   transform: translateX(-100%);
   transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -269,6 +272,7 @@ const handleDeleteSession = async (sessionId) => {
 /* 3. Content Area */
 .sidebar-content {
   flex: 1;
+  min-height: 0; /* Safari Fix */
   overflow-y: auto;
   padding: 0 12px;
   /* Scrollbar Styling */

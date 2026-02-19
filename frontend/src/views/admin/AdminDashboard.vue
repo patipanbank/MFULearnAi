@@ -258,11 +258,14 @@ onMounted(() => {
 <style scoped>
 .admin-dashboard {
   height: 100%;
+  height: 100svh; /* Safari Fix */
   display: flex;
   flex-direction: column;
   padding: 24px;
   overflow: hidden;
   background-color: var(--color-bg-primary); /* Ensure explicit bg */
+  /* Safari Safe Area */
+  padding-bottom: env(safe-area-inset-bottom, 24px);
 }
 
 .dashboard-header {

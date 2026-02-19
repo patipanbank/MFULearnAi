@@ -13,505 +13,426 @@ const searchQuery = ref('')
 const dropdownRef = ref(null)
 const dropdownPosition = reactive({ top: 0, left: 0, maxHeight: 400 })
 
-// Computed for current selection display
-const currentCollectionName = computed(() => {
-    if (!chatStore.currentCollectionId) return t('defaultCollection')
-    const col = knowledgeStore.collections.find(c => c._id === chatStore.currentCollectionId)
-    return col ? col.name : t('defaultCollection')
+// ── Current selection ──
+const currentCollection = computed(() =>
+  knowledgeStore.collections.find(c => c._id === chatStore.currentCollectionId) || null
+)
+
+const currentName = computed(() => {
+  if (!currentCollection.value) return t('defaultCollection')
+  return currentCollection.value.name
 })
 
-const mobileLabel = computed(() => {
-    const full = currentCollectionName.value
-    // Shorten default names
-    if (full.includes('Default Collection') || full.includes('คอลเลกชันมาตรฐาน')) {
-        return lang.value === 'th' ? 'ค่าเริ่มต้น' : 'Default'
-    }
-    return full
+const mobileName = computed(() => {
+  if (!currentCollection.value) return lang.value === 'th' ? 'ค่าเริ่มต้น' : 'Default'
+  const n = currentCollection.value.name
+  return n.length > 12 ? n.slice(0, 10) + '…' : n
 })
 
-const currentIcon = computed(() => {
-    if (!chatStore.currentCollectionId) return 'globe'
-    const col = knowledgeStore.collections.find(c => c._id === chatStore.currentCollectionId)
-    if (!col) return 'globe'
-    if (col.type === 'personal') return 'user'
-    if (col.type === 'department') return 'building'
-    return 'book'
-})
+const collectionType = computed(() => currentCollection.value?.type || 'default')
 
-// Filter collections based on search query
+// ── Filter ──
 const filteredCollections = computed(() => {
-    if (!knowledgeStore.collections) return []
-    
-    // First filter out duplicate 'Default Collection'
-    let result = knowledgeStore.collections.filter(c => c.name !== 'Default Collection')
-    
-    // Then filter by search query if it exists
-    if (searchQuery.value.trim()) {
-        const query = searchQuery.value.toLowerCase()
-        result = result.filter(c => 
-            c.name.toLowerCase().includes(query) || 
-            (c.type && c.type.toLowerCase().includes(query))
-        )
-    }
-    
-    return result
+  let list = knowledgeStore.collections.filter(c => c.name !== 'Default Collection')
+  if (searchQuery.value.trim()) {
+    const q = searchQuery.value.toLowerCase()
+    list = list.filter(c =>
+      c.name.toLowerCase().includes(q) ||
+      c.type?.toLowerCase().includes(q)
+    )
+  }
+  return list
 })
 
+// ── Dropdown positioning ──
 const updatePosition = () => {
-    if (dropdownRef.value) {
-        const rect = dropdownRef.value.getBoundingClientRect()
-        const spaceBelow = window.innerHeight - rect.bottom
-        
-        dropdownPosition.top = rect.bottom + 8
-        dropdownPosition.left = rect.left
-        
-        // Ensure it doesn't go off screen
-        if (dropdownPosition.left + 320 > window.innerWidth) {
-            dropdownPosition.left = window.innerWidth - 330
-        }
-        
-        dropdownPosition.maxHeight = Math.min(spaceBelow - 20, 400)
-    }
+  if (!dropdownRef.value) return
+  const rect = dropdownRef.value.getBoundingClientRect()
+  const spaceBelow = window.innerHeight - rect.bottom
+
+  dropdownPosition.top = rect.bottom + 6
+  dropdownPosition.left = rect.left
+
+  if (dropdownPosition.left + 320 > window.innerWidth) {
+    dropdownPosition.left = window.innerWidth - 328
+  }
+  dropdownPosition.maxHeight = Math.min(spaceBelow - 16, 380)
 }
 
 const toggleDropdown = async () => {
-    if (!isOpen.value) {
-        isOpen.value = true
-        searchQuery.value = '' // Reset search on open
-        await nextTick()
-        updatePosition()
-        
-        // Focus search input
-        const input = document.getElementById('knowledge-search-input')
-        if (input) input.focus()
-    } else {
-        isOpen.value = false
-    }
+  if (!isOpen.value) {
+    isOpen.value = true
+    searchQuery.value = ''
+    await nextTick()
+    updatePosition()
+    document.getElementById('ks-search')?.focus()
+  } else {
+    isOpen.value = false
+  }
 }
 
 const selectCollection = (id) => {
-    chatStore.currentCollectionId = id
-    isOpen.value = false
+  chatStore.currentCollectionId = id
+  isOpen.value = false
 }
 
-const closeDropdown = () => {
-    isOpen.value = false
-}
+const closeDropdown = () => { isOpen.value = false }
 
-const handleScrollResize = () => {
-    if (isOpen.value) updatePosition()
-}
+const onScrollResize = () => { if (isOpen.value) updatePosition() }
 
 onMounted(() => {
-    window.addEventListener('resize', handleScrollResize)
-    window.addEventListener('scroll', handleScrollResize, true)
+  window.addEventListener('resize', onScrollResize)
+  window.addEventListener('scroll', onScrollResize, true)
+})
+onUnmounted(() => {
+  window.removeEventListener('resize', onScrollResize)
+  window.removeEventListener('scroll', onScrollResize, true)
 })
 
-onUnmounted(() => {
-    window.removeEventListener('resize', handleScrollResize)
-    window.removeEventListener('scroll', handleScrollResize, true)
-})
+// ── Helpers ──
+const typeIcon = (type) => ({
+  personal: 'user', department: 'building', public: 'book', default: 'globe'
+}[type] || 'book')
+
+const typeColor = (type) => ({
+  personal: 'icon-personal', department: 'icon-dept',
+  public: 'icon-public', default: 'icon-default'
+}[type] || 'icon-public')
 </script>
 
 <template>
-    <div class="knowledge-selector" ref="dropdownRef">
-        <!-- Trigger Button -->
-        <button 
-            @click.stop="toggleDropdown"
-            class="selector-trigger group"
-            :class="{ 'active': isOpen }"
-        >
-            <div class="icon-wrapper">
-                <svg v-if="currentIcon === 'globe'" width="16" height="16" viewBox="0 0 24 24" fill="none" class="w-4 h-4 text-[var(--color-success)]" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
-                <svg v-else-if="currentIcon === 'user'" width="16" height="16" viewBox="0 0 24 24" fill="none" class="w-4 h-4 text-[var(--color-accent)]" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
-                <svg v-else-if="currentIcon === 'building'" width="16" height="16" viewBox="0 0 24 24" fill="none" class="w-4 h-4 text-[var(--color-warning)]" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect><line x1="9" y1="22" x2="9" y2="22.01"></line><line x1="15" y1="22" x2="15" y2="22.01"></line><line x1="12" y1="18" x2="12" y2="18.01"></line><line x1="12" y1="14" x2="12" y2="14.01"></line><line x1="12" y1="10" x2="12" y2="10.01"></line><line x1="12" y1="6" x2="12" y2="6.01"></line><line x1="8" y1="18" x2="8" y2="18.01"></line><line x1="8" y1="14" x2="8" y2="14.01"></line><line x1="8" y1="10" x2="8" y2="10.01"></line><line x1="8" y1="6" x2="8" y2="6.01"></line><line x1="16" y1="18" x2="16" y2="18.01"></line><line x1="16" y1="14" x2="16" y2="14.01"></line><line x1="16" y1="10" x2="16" y2="10.01"></line><line x1="16" y1="6" x2="16" y2="6.01"></line></svg>
-                <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="none" class="w-4 h-4 text-[var(--color-text-secondary)]" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
+  <div class="ks-root" ref="dropdownRef">
+
+    <!-- Trigger -->
+    <button
+      class="ks-trigger"
+      :class="{ open: isOpen }"
+      @click.stop="toggleDropdown"
+    >
+      <!-- Type icon -->
+      <div class="trigger-icon" :class="typeColor(collectionType)">
+        <svg v-if="typeIcon(collectionType) === 'globe'" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/>
+          <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+        </svg>
+        <svg v-else-if="typeIcon(collectionType) === 'user'" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+        </svg>
+        <svg v-else-if="typeIcon(collectionType) === 'building'" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="4" y="2" width="16" height="20" rx="2"/><line x1="12" y1="6" x2="12" y2="6.01"/>
+          <line x1="12" y1="10" x2="12" y2="10.01"/><line x1="12" y1="14" x2="12" y2="14.01"/>
+        </svg>
+        <svg v-else width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+        </svg>
+      </div>
+
+      <!-- Label -->
+      <span class="trigger-label desktop-only">{{ currentName }}</span>
+      <span class="trigger-label mobile-only">{{ mobileName }}</span>
+
+      <!-- Chevron -->
+      <svg class="trigger-chevron" :class="{ rotated: isOpen }"
+        width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+        <polyline points="6 9 12 15 18 9"/>
+      </svg>
+    </button>
+
+    <!-- Dropdown (Teleported) -->
+    <Teleport to="body">
+      <Transition name="dropdown">
+        <div v-if="isOpen" class="ks-overlay">
+          <div class="ks-backdrop" @click="closeDropdown" />
+
+          <div
+            class="ks-dropdown"
+            :style="{
+              top: dropdownPosition.top + 'px',
+              left: dropdownPosition.left + 'px',
+              maxHeight: dropdownPosition.maxHeight + 'px'
+            }"
+          >
+            <!-- Header -->
+            <div class="dd-header">{{ t('selectContext') }}</div>
+
+            <!-- Search -->
+            <div class="dd-search">
+              <svg class="search-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+              </svg>
+              <input
+                id="ks-search"
+                v-model="searchQuery"
+                type="text"
+                placeholder="Filter collections..."
+                class="search-input"
+                @click.stop
+              />
+              <button v-if="searchQuery" class="search-clear" @click.stop="searchQuery = ''">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+              </button>
             </div>
 
-            <div class="label-wrapper">
-                <span class="label-main desktop-label">{{ currentCollectionName }}</span>
-                <span class="label-main mobile-label">{{ mobileLabel }}</span>
-            </div>
+            <!-- List -->
+            <div class="dd-list">
 
-            <svg 
-                class="chevron" 
-                :class="{ 'rotate-180': isOpen }"
-                width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-            >
-                <polyline points="6 9 12 15 18 9"></polyline>
-            </svg>
-        </button>
-
-        <!-- Use body for max reliability against container styles -->
-        <Teleport to="body">
-            <div v-if="isOpen" class="overlay-container">
-                <!-- Backdrop -->
-                <div class="backdrop" @click="closeDropdown"></div>
-                
-                <!-- Dropdown -->
-                <div 
-                    class="dropdown-menu"
-                    id="knowledge-dropdown-menu"
-                    :style="{
-                        top: `${dropdownPosition.top}px`,
-                        left: `${dropdownPosition.left}px`,
-                        maxHeight: `${dropdownPosition.maxHeight}px`,
-                        display: 'block' 
-                    }"
-                >
-                    <div class="menu-header">
-                        <span>{{ t('selectContext') }}</span>
-                    </div>
-
-                    <!-- Search Input -->
-                    <div class="search-container">
-                        <div class="search-input-wrapper">
-                            <svg class="search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-                            <input 
-                                id="knowledge-search-input"
-                                type="text" 
-                                v-model="searchQuery" 
-                                placeholder="Filter collections..." 
-                                class="search-input"
-                                @click.stop
-                            />
-                            <button v-if="searchQuery" @click.stop="searchQuery = ''" class="clear-search">
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                            </button>
-                        </div>
-                    </div>
-                    
-                    <div class="menu-list custom-scrollbar">
-                        <!-- Default Option (Only show if no search or matches 'default') -->
-                        <button 
-                            v-if="!searchQuery || 'default'.includes(searchQuery.toLowerCase())"
-                            @click="selectCollection(null)"
-                            class="menu-item"
-                            :class="{ 'selected': !chatStore.currentCollectionId }"
-                        >
-                            <div class="item-icon default-icon">
-                                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
-                            </div>
-                            <div class="item-content">
-                                <span class="item-title">{{ t('defaultCollection') }}</span>
-                                <span class="item-desc">General knowledge base</span>
-                            </div>
-                            <div v-if="!chatStore.currentCollectionId" class="check-icon">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                            </div>
-                        </button>
-
-                        <div v-if="!searchQuery" class="divider"></div>
-
-                        <!-- Render dynamic options manually to avoid v-for issues in debug -->
-                        <template v-if="filteredCollections.length > 0">
-                             <button 
-                                v-for="col in filteredCollections" 
-                                :key="col._id"
-                                @click="selectCollection(col._id)"
-                                class="menu-item"
-                                :class="{ 'selected': chatStore.currentCollectionId === col._id }"
-                            >
-                                <div class="item-icon" 
-                                     :class="{
-                                         'personal-icon': col.type === 'personal',
-                                         'dept-icon': col.type === 'department',
-                                         'public-icon': col.type === 'public'
-                                     }">
-                                    <svg v-if="col.type === 'personal'" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
-                                    <svg v-else-if="col.type === 'department'" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect><line x1="9" y1="22" x2="9" y2="22.01"></line><line x1="15" y1="22" x2="15" y2="22.01"></line><line x1="12" y1="18" x2="12" y2="18.01"></line><line x1="12" y1="14" x2="12" y2="14.01"></line></svg>
-                                    <svg v-else width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
-                                </div>
-                                <div class="item-content">
-                                    <span class="item-title">{{ col.name }}</span>
-                                    <span class="item-desc capitalize">{{ col.type }} Collection</span>
-                                </div>
-                                <div v-if="chatStore.currentCollectionId === col._id" class="check-icon">
-                                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                                </div>
-                            </button>
-                        </template>
-                        <div v-else-if="searchQuery" class="p-4 text-xs text-center text-gray-500">
-                             No collections match "{{ searchQuery }}"
-                        </div>
-                        <div v-else-if="!knowledgeStore.collections || knowledgeStore.collections.length === 0" class="p-2 text-xs text-center text-gray-500">
-                             No collections loaded
-                        </div>
-                    </div>
+              <!-- Default option -->
+              <button
+                v-if="!searchQuery || 'default'.includes(searchQuery.toLowerCase())"
+                class="dd-item"
+                :class="{ selected: !chatStore.currentCollectionId }"
+                @click="selectCollection(null)"
+              >
+                <div class="item-icon icon-default">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/>
+                    <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+                  </svg>
                 </div>
+                <div class="item-body">
+                  <span class="item-name">{{ t('defaultCollection') }}</span>
+                  <span class="item-type">General knowledge base</span>
+                </div>
+                <svg v-if="!chatStore.currentCollectionId" class="item-check" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                  <polyline points="20 6 9 17 4 12"/>
+                </svg>
+              </button>
+
+              <div v-if="!searchQuery" class="dd-divider" />
+
+              <!-- Dynamic collections -->
+              <template v-if="filteredCollections.length > 0">
+                <button
+                  v-for="col in filteredCollections"
+                  :key="col._id"
+                  class="dd-item"
+                  :class="{ selected: chatStore.currentCollectionId === col._id }"
+                  @click="selectCollection(col._id)"
+                >
+                  <div class="item-icon" :class="typeColor(col.type)">
+                    <svg v-if="col.type === 'personal'" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+                    </svg>
+                    <svg v-else-if="col.type === 'department'" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <rect x="4" y="2" width="16" height="20" rx="2"/>
+                      <line x1="12" y1="6" x2="12" y2="6.01"/><line x1="12" y1="10" x2="12" y2="10.01"/>
+                      <line x1="12" y1="14" x2="12" y2="14.01"/><line x1="8" y1="10" x2="8" y2="10.01"/>
+                    </svg>
+                    <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+                    </svg>
+                  </div>
+                  <div class="item-body">
+                    <span class="item-name">{{ col.name }}</span>
+                    <span class="item-type capitalize">{{ col.type }} collection</span>
+                  </div>
+                  <svg v-if="chatStore.currentCollectionId === col._id" class="item-check" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <polyline points="20 6 9 17 4 12"/>
+                  </svg>
+                </button>
+              </template>
+
+              <!-- Empty states -->
+              <div v-else-if="searchQuery" class="dd-empty">
+                No results for "{{ searchQuery }}"
+              </div>
+              <div v-else class="dd-empty">No collections available</div>
+
             </div>
-        </Teleport>
-    </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
+  </div>
 </template>
 
 <style scoped>
-.knowledge-selector {
-    position: relative;
+/* ── Root ── */
+.ks-root { position: relative; }
+
+/* ── Trigger ── */
+.ks-trigger {
+  display: flex; align-items: center; gap: 8px;
+  padding: 5px 10px 5px 5px;
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: 99px;
+  cursor: pointer; color: var(--color-text-primary);
+  max-width: 220px; min-width: 0;
+  transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
+}
+.ks-trigger:hover, .ks-trigger.open {
+  background: var(--color-bg-tertiary);
+  border-color: var(--color-accent, #6366f1);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent, #6366f1) 10%, transparent);
 }
 
-.selector-trigger {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 6px 16px 6px 6px;
-    background: var(--color-bg-tertiary);
-    border: 1px solid var(--color-border);
-    border-radius: 9999px;
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-    cursor: pointer;
-    cursor: pointer;
-    min-width: 0; /* Allow shrinking */
-    max-width: 240px;
-    color: var(--color-text-primary);
+.trigger-icon {
+  width: 28px; height: 28px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
 }
 
+.trigger-label {
+  font-size: 13px; font-weight: 500;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  flex: 1; min-width: 0;
+}
+
+.trigger-chevron {
+  flex-shrink: 0; color: var(--color-text-muted);
+  transition: transform 0.2s ease;
+}
+.trigger-chevron.rotated { transform: rotate(180deg); }
+
+/* ── Mobile/Desktop label toggle ── */
+.mobile-only { display: none; }
+.desktop-only { display: block; }
+@media (max-width: 1024px) {
+  .mobile-only { display: block; }
+  .desktop-only { display: none; }
+  .ks-trigger { max-width: 160px; }
+}
 @media (max-width: 640px) {
-    .selector-trigger {
-        width: 100%; /* Fill the parent container (which is ~80% of screen) */
-        max-width: none; /* Remove caps */
-        padding-right: 8px;
-        min-width: 0;
-    }
+  .ks-trigger { max-width: none; width: 100%; }
 }
 
-.selector-trigger:hover, .selector-trigger.active {
-    background: var(--color-bg-hover);
-    border-color: var(--color-border-light);
-    box-shadow: var(--shadow-sm);
+/* ── Icon color variants ── */
+.icon-default  { background: rgba(34,197,94,0.12);  color: #16a34a; }
+.icon-personal { background: rgba(99,102,241,0.12); color: #6366f1; }
+.icon-dept     { background: rgba(245,158,11,0.12); color: #d97706; }
+.icon-public   { background: rgba(100,116,139,0.1); color: var(--color-text-secondary); }
+
+/* ── Overlay / Backdrop ── */
+.ks-overlay {
+  position: fixed; inset: 0; z-index: 9999;
+  pointer-events: none;
+}
+.ks-backdrop {
+  position: absolute; inset: 0;
+  pointer-events: auto;
 }
 
-.icon-wrapper {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 32px;
-    height: 32px;
-    background: var(--color-bg-primary);
-    border-radius: 50%;
-    border: 1px solid var(--color-border);
+/* ── Dropdown ── */
+.ks-dropdown {
+  position: fixed;
+  width: 300px;
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  box-shadow: 0 8px 32px -4px rgba(0,0,0,0.18), 0 2px 8px -2px rgba(0,0,0,0.1);
+  overflow: hidden;
+  pointer-events: auto;
+  display: flex; flex-direction: column;
 }
 
-.label-wrapper {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    flex: 1;
-    min-width: 0;
+/* Dropdown transition */
+.dropdown-enter-active { transition: opacity 0.15s ease, transform 0.15s ease; }
+.dropdown-leave-active { transition: opacity 0.1s ease, transform 0.1s ease; }
+.dropdown-enter-from, .dropdown-leave-to {
+  opacity: 0; transform: translateY(-6px) scale(0.98);
 }
 
-.label-main {
-    font-size: 14px;
-    font-weight: 500;
-    color: var(--color-text-primary);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    width: 100%; /* Fill flex parent */
-    max-width: 100%; /* DO NOT hardcode pixels on desktop if flex is sufficient, but keeping for safety in other contexts */
+.dd-header {
+  padding: 10px 14px;
+  font-size: 10px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.6px;
+  color: var(--color-text-muted);
+  background: var(--color-bg-secondary);
+  border-bottom: 1px solid var(--color-border);
+  flex-shrink: 0;
 }
 
-@media (max-width: 1024px) {
-    .label-main {
-        font-size: 13px;
-    }
+/* Search */
+.dd-search {
+  display: flex; align-items: center; gap: 0;
+  padding: 8px 10px;
+  background: var(--color-bg-secondary);
+  border-bottom: 1px solid var(--color-border);
+  flex-shrink: 0; position: relative;
 }
-
-.mobile-label { display: none; }
-.desktop-label { display: block; }
-
-@media (max-width: 1024px) {
-    .mobile-label { display: block; }
-    .desktop-label { display: none; }
-}
-
-.chevron {
-    color: var(--color-text-secondary);
-    transition: transform 0.2s ease;
-    flex-shrink: 0; /* Never shrink the arrow */
-}
-
-.selector-trigger:hover .chevron {
-    color: var(--color-text-primary);
-}
-
-/* Overlay Container */
-.overlay-container {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    z-index: 2147483647; /* Max z-index */
-    pointer-events: none; /* Let clicks pass through empty areas but not backdrop */
-}
-
-.backdrop {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.05); /* Slight dim to prove visibility */
-    pointer-events: auto;
-}
-
-/* Dropdown Menu */
-.dropdown-menu {
-    position: fixed;
-    width: 320px;
-    background: var(--color-bg-primary);
-    border: 1px solid var(--color-border);
-    border-radius: 16px;
-    box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.5);
-    overflow: hidden;
-    transform-origin: top left;
-    pointer-events: auto;
-    /* Ensure content is visible against any background */
-    background-color: var(--color-bg-primary, #ffffff); 
-}
-
-.menu-header {
-    padding: 12px 16px;
-    border-bottom: 1px solid var(--color-border);
-    font-size: 11px;
-    font-weight: 600;
-    text-transform: uppercase;
-    color: var(--color-text-secondary);
-    letter-spacing: 0.05em;
-    background: var(--color-bg-secondary);
-}
-
-/* Search Styles */
-.search-container {
-    padding: 8px 12px;
-    border-bottom: 1px solid var(--color-border);
-    background: var(--color-bg-secondary);
-}
-
-.search-input-wrapper {
-    position: relative;
-    display: flex;
-    align-items: center;
-}
-
 .search-icon {
-    position: absolute;
-    left: 10px;
-    color: var(--color-text-muted);
-    pointer-events: none;
+  position: absolute; left: 22px;
+  color: var(--color-text-muted); pointer-events: none;
 }
-
 .search-input {
-    width: 100%;
-    padding: 8px 32px 8px 32px;
-    background: var(--color-bg-input);
-    border: 1px solid var(--color-border);
-    border-radius: 8px;
-    font-size: 13px;
-    color: var(--color-text-primary);
-    outline: none;
-    transition: all 0.2s;
+  flex: 1; padding: 6px 28px 6px 28px;
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  font-size: 13px; color: var(--color-text-primary);
+  outline: none; transition: border-color 0.15s, box-shadow 0.15s;
+  width: 100%;
 }
-
 .search-input:focus {
-    border-color: var(--color-accent);
-    box-shadow: 0 0 0 2px var(--color-accent-light);
+  border-color: var(--color-accent, #6366f1);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-accent, #6366f1) 12%, transparent);
 }
-
-.clear-search {
-    position: absolute;
-    right: 8px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 20px;
-    height: 20px;
-    border: none;
-    background: transparent;
-    color: var(--color-text-muted);
-    cursor: pointer;
-    border-radius: 50%;
+.search-clear {
+  position: absolute; right: 18px;
+  width: 20px; height: 20px; border-radius: 50%;
+  background: transparent; border: none;
+  color: var(--color-text-muted); cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: background 0.15s;
 }
+.search-clear:hover { background: var(--color-bg-tertiary); color: var(--color-text-primary); }
 
-.clear-search:hover {
-    background: var(--color-bg-active);
-    color: var(--color-text-primary);
+/* List */
+.dd-list {
+  overflow-y: auto; padding: 6px;
+  flex: 1;
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border) transparent;
 }
+.dd-list::-webkit-scrollbar { width: 4px; }
+.dd-list::-webkit-scrollbar-thumb { background: var(--color-border); border-radius: 4px; }
 
-.menu-list {
-    overflow-y: auto;
-    padding: 6px;
+.dd-divider { height: 1px; background: var(--color-border); margin: 4px 8px; }
+
+.dd-item {
+  width: 100%; display: flex; align-items: center; gap: 10px;
+  padding: 8px 10px; border-radius: 10px;
+  border: 1px solid transparent; background: transparent;
+  cursor: pointer; text-align: left;
+  transition: background 0.12s, border-color 0.12s;
 }
-
-.menu-item {
-    width: 100%;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 10px;
-    border-radius: 12px;
-    transition: all 0.15s ease;
-    text-align: left;
-    border: 1px solid transparent;
-    background: transparent;
-    cursor: pointer;
-}
-
-.menu-item:hover {
-    background: var(--color-bg-hover);
-}
-
-.menu-item.selected {
-    background: var(--color-accent-light);
-    border-color: var(--color-accent-light);
+.dd-item:hover { background: var(--color-bg-tertiary); }
+.dd-item.selected {
+  background: color-mix(in srgb, var(--color-accent, #6366f1) 8%, transparent);
+  border-color: color-mix(in srgb, var(--color-accent, #6366f1) 20%, transparent);
 }
 
 .item-icon {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 36px;
-    height: 36px;
-    border-radius: 10px;
-    flex-shrink: 0;
-    background: var(--color-bg-tertiary);
-    color: var(--color-text-secondary);
+  width: 34px; height: 34px; border-radius: 9px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
 }
 
-.default-icon { background: rgba(34, 197, 94, 0.1); color: var(--color-success); }
-.personal-icon { background: rgba(59, 130, 246, 0.1); color: var(--color-accent); }
-.dept-icon { background: rgba(245, 158, 11, 0.1); color: var(--color-warning); }
-.public-icon { background: rgba(100, 116, 139, 0.1); color: var(--color-text-secondary); }
+.item-body { flex: 1; min-width: 0; }
+.item-name {
+  display: block; font-size: 13px; font-weight: 500;
+  color: var(--color-text-primary);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.item-type { display: block; font-size: 11px; color: var(--color-text-muted); margin-top: 1px; }
 
-.item-content { flex: 1; min-width: 0; }
-.item-title { display: block; font-size: 14px; font-weight: 500; color: var(--color-text-primary); }
-.item-desc { display: block; font-size: 12px; color: var(--color-text-secondary); margin-top: 1px; }
+.item-check { color: var(--color-accent, #6366f1); flex-shrink: 0; }
 
-.check-icon {
-    color: var(--color-accent);
+.dd-empty {
+  padding: 16px; text-align: center;
+  font-size: 12px; color: var(--color-text-muted);
+  font-style: italic;
 }
 
-.divider {
-    height: 1px;
-    background: var(--color-border);
-    margin: 4px 10px;
-}
-
-/* Scrollbar */
-.custom-scrollbar::-webkit-scrollbar { width: 4px; }
-.custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-.custom-scrollbar::-webkit-scrollbar-thumb { background: var(--color-border); border-radius: 4px; }
-
+/* ── Responsive ── */
 @media (max-width: 768px) {
-    .dropdown-menu {
-        width: 90%;
-        max-width: 320px;
-        left: 50% !important;
-        transform: translateX(-50%) !important;
-    }
+  .ks-dropdown {
+    width: 88vw; max-width: 300px;
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+  }
 }
 </style>

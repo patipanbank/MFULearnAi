@@ -3,7 +3,7 @@ import { BedrockService } from '../services/BedrockService';
 import { LoggerService } from '../services/LoggerService';
 import { CalculatorTool } from '../tools/CalculatorTool';
 import { SearchTool } from '../tools/SearchTool';
-import { MODELS, AGENT_CONFIG } from '../config/models';
+import { SYSTEM_MODELS, AGENT_CONFIG } from '../config/models';
 import * as crypto from 'crypto';
 
 // New Components & Types
@@ -48,7 +48,8 @@ export class AgentWorkflow {
             messages: [],
             toolOutputs: [],
             scratchpad: [],
-            tokenUsage: { input: 0, output: 0, total: 0 }
+            tokenUsage: { input: 0, output: 0, total: 0 },
+            hasEmittedAnswerStart: false
         };
 
         // Initialize Event Store
@@ -234,11 +235,15 @@ export class AgentWorkflow {
 
             // --- STREAMING CALL ---
             const { text: fullResponse, content: contentBlocks, usage: stepUsage, stopReason } = await BedrockService.streamChatSSE(
-                MODELS.PRIMARY,
+                SYSTEM_MODELS.AGENT,
                 this.state.messages,
                 (delta) => {
                     if (!firstTokenTime) firstTokenTime = Date.now();
                     bufferedText += delta;
+
+                    // LEGACY STYLE: Stream thoughts to sidebar only.
+                    // DO NOT emit ANSWER_DELTA here to keep main chat bubble clean.
+                    this.emit(AGENT_EVENTS.THINKING_DELTA, { delta });
                 },
                 0.5,
                 toolConfig,
@@ -254,7 +259,7 @@ export class AgentWorkflow {
                 traceId: this.state.traceId,
                 ttftMs,
                 totalDurationMs: stepDurationMs,
-                model: MODELS.PRIMARY
+                model: SYSTEM_MODELS.AGENT
             }, this.ctx.userId);
 
             this.updateUsage(stepUsage, stepDurationMs);
@@ -262,6 +267,8 @@ export class AgentWorkflow {
             // Logic: Tool Use vs Final Answer
             if (stopReason === 'tool_use') {
                 this.state.phase = AgentPhase.EXECUTING_TOOL;
+                this.state.hasEmittedAnswerStart = false; // Reset for next turn
+
                 // It was a thought process leading to a tool. Persist it as a THINKING event.
                 if (fullResponse && fullResponse.trim()) {
                     this.emit(AGENT_EVENTS.THINKING, {
@@ -269,6 +276,9 @@ export class AgentWorkflow {
                         message: fullResponse.trim()
                     });
                 }
+
+                // Reset content in frontend bubble as it was just thinking
+                this.emit(AGENT_EVENTS.CONTENT_RESET, {});
 
                 const { usedTools, toolResults } = await ToolExecutor.executeTools(
                     fullResponse,
@@ -297,13 +307,17 @@ export class AgentWorkflow {
 
             } else {
                 this.state.phase = AgentPhase.COMPLETED;
-                // Final Answer Logic - Fix Event Ordering
-                this.determineAnswerMode(fullResponse);
+                // Final Answer Logic
 
-                // 1. Emit START
-                this.emit(AGENT_EVENTS.ANSWER_START, { answerMode: this.state.answerMode });
+                // If we haven't emitted START yet (empty response?), emit now
+                if (!this.state.hasEmittedAnswerStart) {
+                    this.determineAnswerMode(fullResponse);
+                    this.emit(AGENT_EVENTS.ANSWER_START, { answerMode: this.state.answerMode });
+                    this.state.hasEmittedAnswerStart = true;
+                }
 
-                // 2. Emit DELTA (Simulated full delta since we buffered it)
+                // LEGACY: We didn't emit DELTAS during streaming (we emitted THINKING_DELTA).
+                // So now we must emit the full answer.
                 this.emit(AGENT_EVENTS.ANSWER_DELTA, { delta: fullResponse });
 
                 // 3. Update State & Emit DONE

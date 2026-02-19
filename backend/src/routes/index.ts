@@ -2,25 +2,32 @@ import { Router } from 'express';
 import { ChatController } from '../controllers/ChatController';
 import { PromptController } from '../controllers/PromptController';
 import { KnowledgeController } from '../controllers/KnowledgeController';
-import { authenticateToken } from '../../../shared/middleware/auth';
+import { AuthController } from '../controllers/AuthController';
+import { AuthService } from '../auth/AuthService';
 import { RateLimiter } from '../middleware/rateLimiter';
 
 const router = Router();
-const ENV_TYPE = process.env.ENV_TYPE || 'TEST';
-const JWT_SECRET = process.env.JWT_SECRET || (ENV_TYPE === 'PROD' ? '' : 'dev-secret');
+const checkAuth = AuthService.authenticateUser;
 
-if (!JWT_SECRET) {
-    console.error('[FATAL] JWT_SECRET is required in PROD environment');
-    process.exit(1);
-}
+// --- User Management (Moved from /auth to /api for Nginx alignment) ---
+router.get('/users', checkAuth, AuthService.requireRole(['admin', 'superadmin']), AuthController.listUsers);
+router.post('/users', checkAuth, AuthService.requireRole(['superadmin']), AuthController.createUser);
+router.put('/users/:id', checkAuth, AuthService.requireRole(['superadmin']), AuthController.updateUser);
+router.delete('/users/:id', checkAuth, AuthService.requireRole(['superadmin']), AuthController.deleteUser);
+router.get('/users/me', checkAuth, AuthController.me); // Alias for /auth/me
 
-const checkAuth = authenticateToken(JWT_SECRET);
+// --- Departments ---
+router.get('/departments', checkAuth, AuthController.listDepartments);
+router.post('/departments', checkAuth, AuthService.requireRole(['superadmin']), AuthController.createDepartment);
+router.put('/departments/:id', checkAuth, AuthService.requireRole(['superadmin']), AuthController.updateDepartment);
+router.delete('/departments/:id', checkAuth, AuthService.requireRole(['superadmin']), AuthController.deleteDepartment);
+
 
 // Chat Routes
 router.post('/chat', checkAuth, RateLimiter.limit, ChatController.chat);
 router.get('/chat/models', checkAuth, ChatController.getModels);
 router.get('/chat/attachment/*', checkAuth, ChatController.downloadAttachment);
-router.get('/chat/:sessionId', checkAuth, ChatController.getHistory); // order matters, :sessionId vs models usually handled by express correctly if fixed path is first
+router.get('/chat/:sessionId', checkAuth, ChatController.getHistory); // order matters
 router.get('/chat', checkAuth, ChatController.listSessions);
 router.delete('/chat/:sessionId', checkAuth, ChatController.clearSession);
 
