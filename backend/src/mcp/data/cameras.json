@@ -1,0 +1,32 @@
+[
+    {
+        "id": "CAM-01",
+        "location": "หน้าประตู",
+        "status": "online",
+        "resolution": "1080p"
+    },
+    {
+        "id": "CAM-02",
+        "location": "หน้าประตู",
+        "status": "online",
+        "resolution": "4k"
+    },
+    {
+        "id": "CAM-03",
+        "location": "หน้าประตู",
+        "status": "offline",
+        "resolution": "720p"
+    },
+    {
+        "id": "CAM-04",
+        "location": "ลานจอดรถ",
+        "status": "online",
+        "resolution": "1080p"
+    },
+    {
+        "id": "CAM-05",
+        "location": "โรงอาหาร",
+        "status": "maintenance",
+        "resolution": "1080p"
+    }
+]

@@ -21,6 +21,9 @@ const AVAILABLE_TOOLS = [
     new SearchTool()
 ];
 
+import { CctvMcpTool } from '../mcp/tools/CctvMcpTool';
+import path from 'path';
+
 export class AgentWorkflow {
     private ctx: AgentContext;
     private state: WorkflowState;
@@ -55,6 +58,9 @@ export class AgentWorkflow {
         // Initialize Event Store
         this.store = new AgentEventStore(ctx.userId, traceId);
     }
+
+    private cctvMcp: CctvMcpTool | null = null;
+    private mcpTools: any[] = [];
 
     /**
      * Public Entry Point
@@ -171,6 +177,15 @@ export class AgentWorkflow {
             this.state.phase = AgentPhase.PLANNING;
             this.state.messages = await PromptBuilder.buildInitialMessages(this.ctx, this.state);
 
+            // 3.1 Initialize MCP Tools (CCTV)
+            try {
+                this.cctvMcp = new CctvMcpTool(this.ctx.userId);
+                const newTools = await this.cctvMcp.init();
+                this.mcpTools.push(...newTools);
+            } catch (error: any) {
+                LoggerService.error('mcp_init_fatal', { error: error.message });
+            }
+
             // 4. Main Agent Loop
             await this.agentLoop();
 
@@ -187,6 +202,9 @@ export class AgentWorkflow {
             this.emit('error', { error: 'Agent workflow failed', traceId: this.state.traceId });
         } finally {
             // 5. Finalize & Persist
+            if (this.cctvMcp) {
+                this.cctvMcp.disconnect();
+            }
             await ResultPersister.finalize(
                 this.ctx,
                 this.state,
@@ -203,7 +221,9 @@ export class AgentWorkflow {
      */
     private async agentLoop() {
         const { userRole } = this.ctx;
-        const allowedTools = AVAILABLE_TOOLS.filter(t => t.isAllowed(userRole));
+        // Merge Static tools + MCP tools
+        const allTools = [...AVAILABLE_TOOLS, ...this.mcpTools];
+        const allowedTools = allTools.filter(t => t.isAllowed(userRole));
         const toolConfig = allowedTools.length > 0 ? {
             tools: allowedTools.map(t => ({ toolSpec: t.schemaJSON }))
         } : undefined;
