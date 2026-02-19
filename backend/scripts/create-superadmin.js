@@ -1,45 +1,6 @@
-const path = require('path');
-const { execSync } = require('child_process');
-
-// ---------------------------------------------------------------------------
-// Self-bootstrapping: auto-install dependencies if node_modules is missing
-// ---------------------------------------------------------------------------
-const BACKEND_DIR = path.resolve(__dirname, '..');
-const REQUIRED_PACKAGES = ['mongoose', 'bcryptjs', 'dotenv'];
-
-function ensureDependencies() {
-    const missing = REQUIRED_PACKAGES.filter((pkg) => {
-        try {
-            require.resolve(pkg, { paths: [BACKEND_DIR] });
-            return false;
-        } catch {
-            return true;
-        }
-    });
-
-    if (missing.length > 0) {
-        console.log(`[bootstrap] Missing packages: ${missing.join(', ')}`);
-        console.log('[bootstrap] Running "npm install" in', BACKEND_DIR, '...');
-        try {
-            execSync('npm install --omit=dev', {
-                cwd: BACKEND_DIR,
-                stdio: 'inherit',
-            });
-            console.log('[bootstrap] npm install completed.');
-        } catch (err) {
-            console.error('[bootstrap] npm install failed:', err.message);
-            process.exit(1);
-        }
-    }
-}
-
-ensureDependencies();
-
-// ---------------------------------------------------------------------------
-// Actual imports (now guaranteed to exist)
-// ---------------------------------------------------------------------------
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
+const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '../../infrastructure/compose/.env') });
 
 // Usage: node create-superadmin.js <username> <password> [email] [department]
