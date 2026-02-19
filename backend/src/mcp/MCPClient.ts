@@ -80,9 +80,37 @@ export class MCPClient {
                 this.connected = false;
             });
 
-            // Initialize handshake logic - wait slightly for endpoint event?
-            // Actually, usually send 'initialize' immediately to the fallback endpoint or wait.
-            // Let's rely on the endpoint event for the *next* calls, but initial might go to default.
+            // Wait until endpoint is set (emitted by Server)
+            let waitCount = 0;
+            while (!this.endpoint && waitCount < 50) {
+                await new Promise(r => setTimeout(r, 100));
+                waitCount++;
+            }
+
+            if (!this.endpoint) {
+                throw new Error("MCP Endpoint not received via SSE");
+            }
+
+            // 1. Send 'initialize'
+            console.log(`[MCP Client] Sending initialize to ${this.endpoint}`);
+            const initResponse = await this.request('initialize', {
+                protocolVersion: "2024-11-05",
+                capabilities: {},
+                clientInfo: {
+                    name: "mful-orchestrator",
+                    version: "1.0.0"
+                }
+            });
+
+            if (initResponse.error) {
+                throw new Error(`Initialize failed: ${initResponse.error.message}`);
+            }
+
+            // 2. Send 'notifications/initialized'
+            console.log(`[MCP Client] Sending notifications/initialized`);
+            await this.notify('notifications/initialized', {});
+
+            console.log(`[MCP Client] Handshake complete.`);
 
         } catch (error: any) {
             console.error("[MCP Client] Connection Failed:", error.message);
@@ -160,9 +188,24 @@ export class MCPClient {
         return textObj ? textObj.text : JSON.stringify(response.result.content);
     }
 
+    private async notify(method: string, params: any): Promise<void> {
+        if (!this.endpoint) throw new Error("MCP Endpoint not initialized");
+
+        const body = {
+            jsonrpc: '2.0',
+            method,
+            params
+        };
+
+        try {
+            await axios.post(this.endpoint!, body);
+        } catch (e: any) {
+            console.error(`[MCP Client] Notification failed: ${e.message}`);
+        }
+    }
+
     private request(method: string, params: any): Promise<any> {
         // If endpoint is not ready, wait or fail.
-        // For simplicity, fail if null (but ctor sets default)
         if (!this.endpoint) throw new Error("MCP Endpoint not initialized");
 
         const id = this.requestId++;
@@ -172,7 +215,7 @@ export class MCPClient {
             const timeout = setTimeout(() => {
                 if (this.pendingRequests.has(id)) {
                     this.pendingRequests.delete(id);
-                    reject(new Error("RPC Request Timeout"));
+                    reject(new Error(`RPC Request Timeout (${method} with id ${id})`));
                 }
             }, 10000);
 
