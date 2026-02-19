@@ -1,27 +1,23 @@
 import axios from 'axios';
-import { v4 as uuidv4 } from 'uuid';
 
 export class MCPClient {
     private endpoint: string | null = null;
     private sseUrl: string;
-    private requestId = 0;
+    private requestId = 1;
     private pendingRequests = new Map<number, (response: any) => void>();
     private eventSourceStream: any = null;
     private connected = false;
 
     constructor(baseUrl: string) {
-        // e.g. http://localhost:3001
-        // Ensure no trailing slash
         const cleanBase = baseUrl.replace(/\/$/, "");
         this.sseUrl = `${cleanBase}/sse`;
-        // We wait for the 'endpoint' event via SSE to set this.endpoint
     }
 
     async connect() {
         return Promise.race([
             this._connect(),
             new Promise<void>((_, reject) =>
-                setTimeout(() => reject(new Error('MCP connect timeout')), 10_000)
+                setTimeout(() => reject(new Error('MCP connect timeout (30s)')), 30_000)
             )
         ]);
     }
@@ -37,7 +33,7 @@ export class MCPClient {
                     'Cache-Control': 'no-cache',
                     'Connection': 'keep-alive'
                 },
-                timeout: 0 // Keep alive indefinitely
+                timeout: 0
             });
 
             this.eventSourceStream = response.data;
@@ -45,30 +41,28 @@ export class MCPClient {
 
             let buffer = '';
 
-            // Stream Processor with buffering for partial lines
             this.eventSourceStream.on('data', (chunk: Buffer) => {
                 const text = chunk.toString();
                 buffer += text;
 
                 const lines = buffer.split('\n');
-                // The last element is potentially incomplete, keep it in buffer
                 buffer = lines.pop() || '';
 
-                let currentEvent = 'message'; // Default event type
+                let currentEvent = 'message';
 
                 for (const line of lines) {
-                    if (line.trim() === '') {
-                        // End of event block
-                        currentEvent = 'message'; // Reset default
+                    const trimmedLine = line.trim();
+                    if (trimmedLine === '') {
+                        currentEvent = 'message';
                         continue;
                     }
 
-                    if (line.startsWith('event: ')) {
-                        currentEvent = line.substring(7).trim();
-                    } else if (line.startsWith('data: ')) {
-                        const dataStr = line.substring(6).trim();
+                    if (trimmedLine.startsWith('event: ')) {
+                        currentEvent = trimmedLine.substring(7).trim();
+                    } else if (trimmedLine.startsWith('data: ')) {
+                        const dataStr = trimmedLine.substring(6).trim();
                         if (!dataStr) continue;
-
+                        console.debug(`[MCP Client] Received Data: ${dataStr}`);
                         this.processEvent(currentEvent, dataStr);
                     }
                 }
@@ -79,9 +73,9 @@ export class MCPClient {
                 this.connected = false;
             });
 
-            // Wait until endpoint is set (emitted by Server)
+            // Wait until endpoint is set
             let waitCount = 0;
-            while (!this.endpoint && waitCount < 50) {
+            while (!this.endpoint && waitCount < 100) {
                 await new Promise(r => setTimeout(r, 100));
                 waitCount++;
             }
@@ -91,7 +85,7 @@ export class MCPClient {
             }
 
             // 1. Send 'initialize'
-            console.log(`[MCP Client] Sending initialize to ${this.endpoint}`);
+            console.log(`[MCP Client] Sending initialize (id=${this.requestId}) to ${this.endpoint}`);
             const initResponse = await this.request('initialize', {
                 protocolVersion: "2024-11-05",
                 capabilities: {},
@@ -120,15 +114,7 @@ export class MCPClient {
     private processEvent(event: string, dataStr: string) {
         try {
             if (event === 'endpoint') {
-                // Server tells us where to post messages
-                // It might send a full URL or relative path
-                // "data: /message?sessionId=..."
-                // or "data: http://..."
-                // Sometimes it is NOT JSON stringified if it's just a string, but standard is data: <data>
-
                 let endpointPath = dataStr;
-                // Try JSON parse if it looks like a string wrapped in quotes? 
-                // data: "/message?..." could be parsed.
                 if (dataStr.startsWith('"')) {
                     try { endpointPath = JSON.parse(dataStr); } catch (e) { }
                 }
@@ -137,7 +123,6 @@ export class MCPClient {
                     this.endpoint = endpointPath;
                 } else {
                     const base = new URL(this.sseUrl);
-                    // Ensure slash
                     const path = endpointPath.startsWith('/') ? endpointPath : `/${endpointPath}`;
                     this.endpoint = `${base.protocol}//${base.host}${path}`;
                 }
@@ -157,7 +142,6 @@ export class MCPClient {
             const resolver = this.pendingRequests.get(message.id);
             if (resolver) {
                 resolver(message);
-                // this.pendingRequests.delete(message.id); // Done by the resolver caller? No, done here.
                 this.pendingRequests.delete(message.id);
             }
         }
@@ -179,9 +163,7 @@ export class MCPClient {
             throw new Error(`Tool call failed: ${response.error.message}`);
         }
 
-        // MCP usually returns content array
         const textObj = response.result.content?.find((c: any) => c.type === 'text');
-        // Handle result being just an object or string
         if (!textObj && response.result) return JSON.stringify(response.result);
 
         return textObj ? textObj.text : JSON.stringify(response.result.content);
@@ -206,19 +188,17 @@ export class MCPClient {
     }
 
     private request(method: string, params: any): Promise<any> {
-        // If endpoint is not ready, wait or fail.
         if (!this.endpoint) throw new Error("MCP Endpoint not initialized");
 
         const id = this.requestId++;
 
         return new Promise(async (resolve, reject) => {
-            // Set timeout for request
             const timeout = setTimeout(() => {
                 if (this.pendingRequests.has(id)) {
                     this.pendingRequests.delete(id);
-                    reject(new Error(`RPC Request Timeout (${method} with id ${id})`));
+                    reject(new Error(`RPC Request Timeout (${method} with id ${id}) (30s)`));
                 }
-            }, 10000);
+            }, 30000);
 
             this.pendingRequests.set(id, (response) => {
                 clearTimeout(timeout);
@@ -233,11 +213,36 @@ export class MCPClient {
             };
 
             try {
-                await axios.post(this.endpoint!, body);
+                const postRes = await axios.post(this.endpoint!, body);
+
+                // HYBRID MODE: Check if server returned result directly in POST response body
+                if (postRes.data && postRes.data.id === id) {
+                    console.debug(`[MCP Client] Resolved ${method} (id:${id}) via direct POST response`);
+                    if (this.pendingRequests.has(id)) {
+                        clearTimeout(timeout);
+                        const response = postRes.data;
+                        this.pendingRequests.delete(id);
+                        resolve(response);
+                    }
+                }
             } catch (e: any) {
+                // Check if error response contains a JSON-RPC error with matching ID
+                if (e.response && e.response.data && e.response.data.id === id) {
+                    console.debug(`[MCP Client] Received error for ${method} (id:${id}) via direct POST response`);
+                    if (this.pendingRequests.has(id)) {
+                        clearTimeout(timeout);
+                        const response = e.response.data;
+                        this.pendingRequests.delete(id);
+                        resolve(response);
+                        return;
+                    }
+                }
+
                 clearTimeout(timeout);
-                this.pendingRequests.delete(id);
-                reject(new Error(`Failed to send request: ${e.message}`));
+                if (this.pendingRequests.has(id)) {
+                    this.pendingRequests.delete(id);
+                    reject(new Error(`Failed to send request: ${e.message}`));
+                }
             }
         });
     }
@@ -246,9 +251,7 @@ export class MCPClient {
         if (this.eventSourceStream) {
             try {
                 this.eventSourceStream.destroy();
-            } catch (e) {
-                // ignore
-            }
+            } catch (e) { }
         }
         this.connected = false;
     }
