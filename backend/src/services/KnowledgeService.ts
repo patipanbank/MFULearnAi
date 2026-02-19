@@ -128,8 +128,10 @@ export class KnowledgeService {
 
                         // Calculate Score: 1 / (1 + distance)
                         // Chroma L2 distance logic
-                        const distance = (distances && distances[i] !== undefined && distances[i] !== null) ? distances[i] : 0;
-                        const score = (distances && distances[i] !== undefined && distances[i] !== null) ? (1 / (1 + distance)) : 0;
+                        const distVal = distances?.[i];
+                        const isValidDistance = typeof distVal === 'number';
+                        const distance = isValidDistance ? (distVal as number) : 0;
+                        const score = isValidDistance ? (1 / (1 + distance)) : 0;
 
                         if (score >= minScore) {
                             validHits.push({
