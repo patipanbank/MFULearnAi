@@ -40,12 +40,13 @@ export const processKnowledgeJob = async (job: Job) => {
     console.log(`[Worker] Processing Job ${job.id}: ${originalName} (${knowledgeId})`);
 
     try {
-        // 1. Update Status to Processing
-        await Knowledge.findByIdAndUpdate(knowledgeId, {
+        // 1. Update Status to Processing & get document type
+        const knowledgeDoc = await Knowledge.findByIdAndUpdate(knowledgeId, {
             processingStatus: 'processing',
             processingStage: 'extracting',
             errorReason: ''
-        });
+        }, { new: true });
+        const docType = knowledgeDoc?.type || 'personal'; // Used in chunk metadata for filtering
 
         // 2. Download from MinIO
         const stream = await minioClient.getObject(MINIO_BUCKET, s3Key);
@@ -203,6 +204,8 @@ export const processKnowledgeJob = async (job: Job) => {
                 metadatas.push({
                     knowledgeId: knowledgeId.toString(),
                     source: originalName,
+                    type: docType,           // Critical: enables PolicyService { type: 'policy' } filter
+                    fileName: originalName,   // Alias for consistent metadata access
                     pageNumber: p.pageNumber,
                     chunkIndex: chunkGlobalIndex
                 });

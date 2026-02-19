@@ -2,6 +2,7 @@ import { Queue, Worker } from 'bullmq';
 import Redis from 'ioredis';
 import dotenv from 'dotenv';
 import { processKnowledgeJob } from './worker';
+import { Knowledge } from './models';
 
 dotenv.config();
 
@@ -25,8 +26,21 @@ export const initWorker = () => {
         console.log(`[Worker] Job ${job.id} completed!`);
     });
 
-    worker.on('failed', (job: any, err: any) => {
+    worker.on('failed', async (job: any, err: any) => {
         console.error(`[Worker] Job ${job?.id} failed:`, err);
+        // Sync MongoDB status — critical for stalled jobs where worker.ts catch block doesn't run
+        if (job?.data?.knowledgeId) {
+            try {
+                await Knowledge.findByIdAndUpdate(job.data.knowledgeId, {
+                    processingStatus: 'failed',
+                    errorReason: err?.message || 'Job failed (stalled or unrecoverable)',
+                    processingStage: 'completed'
+                });
+                console.log(`[Worker] MongoDB status synced to 'failed' for ${job.data.knowledgeId}`);
+            } catch (dbErr: any) {
+                console.error(`[Worker] Failed to sync MongoDB status:`, dbErr.message);
+            }
+        }
     });
 
     console.log('[Worker] Knowledge Processing Worker started.');
