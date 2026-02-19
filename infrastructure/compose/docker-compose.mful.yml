@@ -24,6 +24,7 @@ services:
       dockerfile: backend/Dockerfile
     container_name: mfulearnai-backend
     environment:
+      - MCP_CCTV_URL=https://cctvmap.mfu.ac.th/mcp/sse
       - PORT=8080
       - ENV_TYPE=TEST
       - MONGO_URI=mongodb://mongo:27017/mfulearnai-chat
