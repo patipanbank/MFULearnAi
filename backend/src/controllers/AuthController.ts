@@ -21,7 +21,7 @@ export class AuthController {
                 isActive: true
             });
 
-            if (!user || !(await user.comparePassword?.(password))) {
+            if (!user || !user.password || !(await bcrypt.compare(password, user.password))) {
                 return res.status(401).json({ error: 'Invalid credentials' });
             }
 
@@ -94,13 +94,9 @@ export class AuthController {
     }
 
     static logout(req: Request, res: Response, next: NextFunction) {
-        req.logout?.((err) => {
-            if (err) { return next(err); }
-            res.json({ success: true, message: 'Logged out' });
-        });
-        if (!req.logout) {
-            res.json({ success: true, message: 'Logged out' });
-        }
+        // Stateless JWT - Just redirect back to login
+        // If we needed to logout from ADFS, we would redirect to ADFS logout URL here
+        res.redirect(`${FRONTEND_URL}/login`);
     }
 
     static async refresh(req: any, res: Response) {

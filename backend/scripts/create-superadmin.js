@@ -1,12 +1,51 @@
+const path = require('path');
+const { execSync } = require('child_process');
+
+// ---------------------------------------------------------------------------
+// Self-bootstrapping: auto-install dependencies if node_modules is missing
+// ---------------------------------------------------------------------------
+const BACKEND_DIR = path.resolve(__dirname, '..');
+const REQUIRED_PACKAGES = ['mongoose', 'bcryptjs', 'dotenv'];
+
+function ensureDependencies() {
+    const missing = REQUIRED_PACKAGES.filter((pkg) => {
+        try {
+            require.resolve(pkg, { paths: [BACKEND_DIR] });
+            return false;
+        } catch {
+            return true;
+        }
+    });
+
+    if (missing.length > 0) {
+        console.log(`[bootstrap] Missing packages: ${missing.join(', ')}`);
+        console.log('[bootstrap] Running "npm install" in', BACKEND_DIR, '...');
+        try {
+            execSync('npm install --omit=dev', {
+                cwd: BACKEND_DIR,
+                stdio: 'inherit',
+            });
+            console.log('[bootstrap] npm install completed.');
+        } catch (err) {
+            console.error('[bootstrap] npm install failed:', err.message);
+            process.exit(1);
+        }
+    }
+}
+
+ensureDependencies();
+
+// ---------------------------------------------------------------------------
+// Actual imports (now guaranteed to exist)
+// ---------------------------------------------------------------------------
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
-const path = require('path');
-require('dotenv').config({ path: path.join(__dirname, '../.env') });
+require('dotenv').config({ path: path.join(__dirname, '../../infrastructure/compose/.env') });
 
 // Usage: node create-superadmin.js <username> <password> [email] [department]
 // Example: node create-superadmin.js admin password123 admin@mfu.ac.th IT
 
-const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/mfulearnai-auth';
+const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/mfulearnai-chat';
 const SALT_ROUNDS = 10;
 
 if (process.argv.length < 4) {
@@ -26,6 +65,7 @@ const UserSchema = new mongoose.Schema({
     firstName: { type: String },
     lastName: { type: String },
     department: { type: String },
+    departmentId: { type: String },
     role: { type: String, enum: ['student', 'staff', 'admin', 'superadmin'], default: 'student' },
     groups: [{ type: String }],
     googleId: { type: String },
@@ -52,46 +92,59 @@ const DepartmentSchema = new mongoose.Schema({
 
 const Department = mongoose.model('Department', DepartmentSchema);
 
+// Helper to resolve Department ID
+const resolveDepartmentId = async (deptName) => {
+    if (!deptName) return '';
+
+    // Check if department exists by name
+    let dept = await Department.findOne({ name: deptName });
+
+    // If found, return its code
+    if (dept) return dept.code;
+
+    // If not found, generate code and create
+    const code = deptName.trim().toUpperCase().replace(/\s+/g, '_');
+    console.log(`Creating new department: ${deptName} (${code})`);
+
+    dept = await Department.create({
+        code,
+        name: deptName,
+        faculty: 'System'
+    });
+
+    return dept.code;
+};
+
 async function run() {
     try {
         console.log(`Connecting to MongoDB at ${MONGO_URI}...`);
         await mongoose.connect(MONGO_URI);
         console.log('Connected successfully.');
 
-        // 1. Create/Update Department
-        if (department) {
-            console.log(`Ensuring department '${department}' exists...`);
-            await Department.findOneAndUpdate(
-                { code: department },
-                {
-                    code: department,
-                    name: department,
-                    faculty: 'System'
-                },
-                { upsert: true, new: true, setDefaultsOnInsert: true }
-            );
-        }
+        // 1. Resolve Department
+        const deptId = await resolveDepartmentId(department);
 
         // 2. Create/Update Superadmin
         console.log(`Creating superadmin '${username}'...`);
         console.log('Hashing password...');
         const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
-        console.log('Password hashed.');
 
         const userData = {
-            nameID: username,
             username: username,
             email: email,
             firstName: 'Super',
             lastName: 'Admin',
             role: 'superadmin',
-            groups: ['admin_grp', 'superadmin_grp'],
+            // permissions: ['*'], // Removed: specific permissions handled via role logic usually
             department: department,
+            departmentId: deptId,
             password: hashedPassword,
             isActive: true,
-            permissions: ['*'] // wildcard permission for superadmin
+            loginCount: 0
         };
 
+        // Check if user exists to preserve some fields if needed, but for superadmin script usually we overwrite/upsert
+        // Using findOneAndUpdate with upsert
         console.log('Upserting User to DB...');
         const result = await User.findOneAndUpdate(
             { username: username },
@@ -105,16 +158,8 @@ async function run() {
         console.log(`ID: ${result._id}`);
         console.log(`Username: ${result.username}`);
         console.log(`Role: ${result.role}`);
-        console.log(`Department: ${result.department}`);
+        console.log(`Department: ${result.department} (${result.departmentId})`);
         console.log('-----------------------------------');
-
-        // SELF-VERIFICATION
-        console.log('Performing immediate self-verification...');
-        const isMatch = await bcrypt.compare(password, result.password);
-        console.log(`Self-verification result: ${isMatch ? 'PASS' : 'FAIL'}`);
-        if (!isMatch) {
-            console.error('CRITICAL ERROR: Generated hash does not match input password!');
-        }
 
     } catch (err) {
         console.error('Error creating SuperAdmin:', err);

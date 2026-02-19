@@ -196,23 +196,23 @@ const getRoleBadge = (role) => {
 };
 
 const fetchUsers = async () => {
-    loading.value = true;
+    loading.value = true
     try {
-        const response = await api.get('/users');
-        users.value = response.data.users || [];
+        const response = await api.get('/auth/users', { baseURL: '/' })
+        users.value = response.data.users
     } catch (err) {
-        console.error('Failed to fetch users:', err);
+        console.error('Failed to fetch users', err)
     } finally {
-        loading.value = false;
+        loading.value = false
     }
 };
 
 const fetchDepartments = async () => {
     try {
-        const response = await api.get('/departments');
-        departments.value = response.data.departments || [];
+        const response = await api.get('/auth/departments', { baseURL: '/' })
+        departments.value = response.data.departments
     } catch (err) {
-        console.error('Failed to fetch departments:', err);
+        console.error('Failed to fetch departments', err)
     }
 };
 
@@ -249,13 +249,13 @@ const handleSubmit = async () => {
 
     try {
         if (isEditing.value) {
-            await api.put(`/users/${form.value._id}`, {
+            await api.put(`/auth/users/${form.value._id}`, {
                 role: form.value.role,
                 department: form.value.department,
                 isActive: form.value.isActive
-            });
+            }, { baseURL: '/' });
         } else {
-            await api.post('/users', {
+            await api.post('/auth/users', {
                 username: form.value.username,
                 password: form.value.password,
                 firstName: form.value.firstName,
@@ -263,7 +263,7 @@ const handleSubmit = async () => {
                 role: form.value.role,
                 department: form.value.department,
                 isActive: form.value.isActive
-            });
+            }, { baseURL: '/' });
         }
         await fetchUsers();
         closeModal();
@@ -278,7 +278,7 @@ const handleDelete = async (id) => {
     if (!confirm('Are you sure you want to delete this user? This cannot be undone.')) return;
     
     try {
-        await api.delete(`/users/${id}`);
+        await api.delete(`/auth/users/${id}`, { baseURL: '/' })
         users.value = users.value.filter(u => u._id !== id);
         closeModal();
     } catch (err) {

@@ -40,6 +40,7 @@ export const processKnowledgeJob = async (job: Job) => {
     console.log(`[Worker] Processing Job ${job.id}: ${originalName} (${knowledgeId})`);
 
     try {
+<<<<<<< HEAD
         try {
             // 1. Update Status to Processing
             const kb = await Knowledge.findByIdAndUpdate(knowledgeId, {
@@ -47,6 +48,15 @@ export const processKnowledgeJob = async (job: Job) => {
                 processingStage: 'extracting',
                 errorReason: ''
             }, { new: true });
+=======
+        // 1. Update Status to Processing & get document type
+        const knowledgeDoc = await Knowledge.findByIdAndUpdate(knowledgeId, {
+            processingStatus: 'processing',
+            processingStage: 'extracting',
+            errorReason: ''
+        }, { new: true });
+        const docType = knowledgeDoc?.type || 'personal'; // Used in chunk metadata for filtering
+>>>>>>> c6c19599a216eb8cf83e7e0f02bb421e4f003f9b
 
             if (!kb) {
                 console.error(`[Worker] Knowledge ID ${knowledgeId} not found in DB!`);
@@ -234,6 +244,7 @@ export const processKnowledgeJob = async (job: Job) => {
             });
             console.log(`[Worker] Job ${job.id} Success.`);
 
+<<<<<<< HEAD
         } catch (err: any) {
             console.error(`[Worker] Job ${job.id} Failed:`, err);
             try {
@@ -243,6 +254,42 @@ export const processKnowledgeJob = async (job: Job) => {
                 } as any);
             } catch (dbErr) {
                 console.error(`[Worker] Failed to update status to failed for ${knowledgeId}`, dbErr);
+=======
+        // Calculate Hash
+        const hash = crypto.createHash('sha256').update(fullText).digest('hex');
+
+        // 4. Update Content & Hash
+        await Knowledge.findByIdAndUpdate(knowledgeId, {
+            content: fullText,
+            textHash: hash,
+            processingStage: 'chunking'
+        });
+
+        // 5. Vectorize with Page Metadata
+        const ids = [], embeddings = [], metadatas = [], documents = [];
+
+        // Chunk each page separately to preserve page context? 
+        // Or Chunk full text? 
+        // Better: Chunk per page to keep correct page numbers.
+        let chunkGlobalIndex = 0;
+
+        for (const p of pages) {
+            const pageChunks = await chunkText(p.text);
+            for (const chunk of pageChunks) {
+                const vec = await getEmbedding(chunk);
+                ids.push(`${knowledgeId}-${chunkGlobalIndex}`);
+                embeddings.push(vec);
+                documents.push(chunk);
+                metadatas.push({
+                    knowledgeId: knowledgeId.toString(),
+                    source: originalName,
+                    type: docType,           // Critical: enables PolicyService { type: 'policy' } filter
+                    fileName: originalName,   // Alias for consistent metadata access
+                    pageNumber: p.pageNumber,
+                    chunkIndex: chunkGlobalIndex
+                });
+                chunkGlobalIndex++;
+>>>>>>> c6c19599a216eb8cf83e7e0f02bb421e4f003f9b
             }
 
             throw err; // Retry in BullMQ?

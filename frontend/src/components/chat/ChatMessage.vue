@@ -5,6 +5,8 @@ import api from '@/utils/api'
 import { useAuthStore } from '@/stores/auth'
 import LazyImage from '@/components/common/LazyImage.vue'
 
+import { FileText, FileSpreadsheet, FileImage, File } from 'lucide-vue-next'
+
 const authStore = useAuthStore()
 
 const props = defineProps({
@@ -179,13 +181,25 @@ const formatBytes = (bytes) => {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i]
 }
 
-const getFileEmoji = (att) => {
-  if (!att.mimeType && !att.fileName) return '📎'
-  const name = att.fileName || ''
-  if (att.mimeType?.includes('pdf') || name.endsWith('.pdf')) return '📄'
-  if (att.mimeType?.includes('sheet') || att.mimeType?.includes('excel') || name.match(/\.xlsx?$/)) return '📊'
-  if (name.match(/\.docx?$/)) return '📝'
-  return '📎'
+const getFileIcon = (file) => {
+  // Try to determine by mimeType or extension
+  const name = file.fileName || file.name || ''
+  const ext = name.split('.').pop()?.toLowerCase()
+  
+  if (file.mimeType?.startsWith('image/') || ['jpg','jpeg','png','gif','webp'].includes(ext)) {
+      return { component: FileImage, color: '#10b981' }
+  }
+
+  const map = {
+    pdf:  { component: FileText,        color: '#ef4444' },
+    doc:  { component: FileText,        color: '#3b82f6' },
+    docx: { component: FileText,        color: '#3b82f6' },
+    txt:  { component: FileText,        color: '#6b7280' },
+    xls:  { component: FileSpreadsheet, color: '#22c55e' },
+    xlsx: { component: FileSpreadsheet, color: '#22c55e' },
+    csv:  { component: FileSpreadsheet, color: '#22c55e' },
+  }
+  return map[ext] || { component: File, color: '#9ca3af' }
 }
 </script>
 
@@ -236,7 +250,13 @@ const getFileEmoji = (att) => {
               class="file-chip clickable"
               @click="downloadAttachment(att)"
             >
-              <span class="file-emoji">{{ getFileEmoji(att) }}</span>
+              <div class="chip-icon">
+                <component
+                  :is="getFileIcon(att).component"
+                  :color="getFileIcon(att).color"
+                  :size="24"
+                />
+              </div>
               <div class="file-info">
                 <span class="file-name">{{ att.fileName }}</span>
                 <span class="file-sub">{{ formatBytes(att.fileSize) }}</span>
@@ -503,8 +523,17 @@ const getFileEmoji = (att) => {
 }
 .file-chip.clickable { cursor: pointer; transition: background 0.15s; }
 .file-chip.clickable:hover { background: var(--color-bg-tertiary); }
-.file-emoji { font-size: 18px; flex-shrink: 0; }
-.file-info { display: flex; flex-direction: column; overflow: hidden; }
+.chip-icon {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: var(--color-bg-tertiary);
+  border-radius: 8px;
+}
+.file-info { display: flex; flex-direction: column; overflow: hidden; gap: 2px; }
 .file-name { font-size: 12px; font-weight: 500; color: var(--color-text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .file-sub { font-size: 11px; color: var(--color-text-muted); }
 .progress-track { height: 3px; background: var(--color-border); border-radius: 2px; margin-top: 4px; overflow: hidden; }

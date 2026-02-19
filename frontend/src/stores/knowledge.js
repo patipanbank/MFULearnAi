@@ -133,6 +133,20 @@ export const useKnowledgeStore = defineStore('knowledge', () => {
         }
     }
 
+    async function retryKnowledge(id) {
+        loading.value = true
+        try {
+            await axios.post(`${API_URL}/knowledge/${id}/retry`, {}, getHeaders())
+            await fetchKnowledge() // Refresh list
+            startPolling() // Start polling for the retried job
+        } catch (e) {
+            error.value = e.response?.data?.error || e.message
+            throw e
+        } finally {
+            loading.value = false
+        }
+    }
+
     async function requestPublish(id, targetType) {
         loading.value = true
         try {
@@ -283,6 +297,7 @@ export const useKnowledgeStore = defineStore('knowledge', () => {
         fetchKnowledge,
         uploadKnowledge,
         deleteKnowledge,
+        retryKnowledge,
         requestPublish,
         approvePublish,
         fetchCollections,

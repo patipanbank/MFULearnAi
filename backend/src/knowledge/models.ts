@@ -6,13 +6,13 @@ import mongoose, { Schema, Document } from 'mongoose';
 export interface IKnowledge extends Document {
     title: string;
     description?: string;
-    type: 'public' | 'department' | 'personal';
+    type: 'public' | 'department' | 'personal' | 'policy';
     contentSource: string; // Filename for now
     ownerId: string;
     department: string;
     visibility: 'active' | 'archived';
     requestStatus: 'none' | 'pending' | 'approved' | 'rejected';
-    requestedType?: 'public' | 'department';
+    requestedType?: 'public' | 'department' | 'policy';
     content?: string; // Store full text content
     createdAt: Date;
     processingStatus: 'none' | 'pending' | 'processing' | 'completed' | 'failed';
@@ -27,14 +27,14 @@ export interface IKnowledge extends Document {
 const KnowledgeSchema = new Schema({
     title: { type: String, required: true },
     description: String,
-    type: { type: String, enum: ['public', 'department', 'personal'], required: true },
+    type: { type: String, enum: ['public', 'department', 'personal', 'policy'], required: true },
     contentSource: String,
     content: String, // New field
     ownerId: { type: String, required: true },
     department: { type: String, required: true },
     visibility: { type: String, default: 'active' },
     requestStatus: { type: String, enum: ['none', 'pending', 'approved', 'rejected'], default: 'none' },
-    requestedType: { type: String, enum: ['public', 'department'] },
+    requestedType: { type: String, enum: ['public', 'department', 'policy'] },
     // Async Processing Fields
     processingStatus: { type: String, enum: ['none', 'pending', 'processing', 'completed', 'failed'], default: 'none' },
     processingStage: { type: String, enum: ['none', 'uploading', 'queued', 'extracting', 'chunking', 'embedding', 'indexing', 'completed'], default: 'none' },

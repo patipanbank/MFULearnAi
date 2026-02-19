@@ -368,9 +368,7 @@ const closeEvidenceViewer = () => {
           </div>
 
           <!-- End of History -->
-          <div v-if="!chatStore.hasMoreHistory && chatStore.messages.length > 0" class="history-end">
-            <span>เริ่มต้นการสนทนา</span>
-          </div>
+
 
           <TransitionGroup name="fade-slide">
             <ChatMessage

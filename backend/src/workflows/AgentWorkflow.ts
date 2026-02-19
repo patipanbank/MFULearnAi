@@ -99,12 +99,12 @@ export class AgentWorkflow {
             await new Promise(resolve => setTimeout(resolve, 0));
 
             const contextResult = await ContextLoader.loadContext(
-                this.ctx.userId,
-                this.ctx.sessionId,
+                this.ctx,
                 this.emit.bind(this)
             );
             this.state.history = contextResult.history;
             this.state.smartContext = contextResult.smartContext;
+            this.state.policyContext = contextResult.policyContext;
 
             // 2. Process Files
             this.state.phase = AgentPhase.UPLOADING;

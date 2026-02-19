@@ -26,7 +26,7 @@ const selectedKnowledge = ref(null)
 const showCollectionDetail = ref(false)
 const selectedCollection = ref(null)
 
-const isAdmin = authStore.role === 'admin'
+const isAdmin = authStore.role === 'admin' || authStore.role === 'superadmin'
 
 onMounted(() => {
     // Initial fetch
