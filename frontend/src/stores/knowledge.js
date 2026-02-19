@@ -87,7 +87,17 @@ export const useKnowledgeStore = defineStore('knowledge', () => {
     }
 
     async function fetchPendingRequests() {
-        return await fetchKnowledge({ requestStatus: 'pending' })
+        // Separate API call — does NOT overwrite the main knowledge list
+        try {
+            const res = await axios.get(`${API_URL}/knowledge`, {
+                params: { requestStatus: 'pending' },
+                ...getHeaders()
+            })
+            return res.data.knowledge || []
+        } catch (e) {
+            console.error('Fetch pending requests failed:', e)
+            throw e
+        }
     }
 
     async function uploadKnowledge(file, type, onProgress) {

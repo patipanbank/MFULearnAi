@@ -32,12 +32,22 @@ const extractUser = (req: Request): UserContext | null => {
 export class KnowledgeController {
 
     // 0. LIST KNOWLEDGE
+    // Supports query params: ?type=personal|department|public|policy  &requestStatus=pending|approved|rejected
     static async listKnowledge(req: Request, res: Response) {
         const user = extractUser(req);
         if (!user) return res.status(401).json({ error: 'Unauthorized' });
 
         try {
-            const knowledge = await KnowledgeService.getKnowledgeList(user);
+            const filters: { type?: string; requestStatus?: string } = {};
+
+            if (req.query.type && typeof req.query.type === 'string') {
+                filters.type = req.query.type;
+            }
+            if (req.query.requestStatus && typeof req.query.requestStatus === 'string') {
+                filters.requestStatus = req.query.requestStatus;
+            }
+
+            const knowledge = await KnowledgeService.getKnowledgeList(user, filters);
             res.json({ knowledge });
         } catch (e: any) {
             res.status(500).json({ error: e.message });
@@ -194,11 +204,22 @@ export class KnowledgeController {
     static async requestPublish(req: Request, res: Response) {
         const user = extractUser(req);
         if (!user) return res.status(401).json({ error: 'Unauthorized' });
+
+        const { targetType } = req.body;
+        if (!targetType || !['department', 'public'].includes(targetType)) {
+            return res.status(400).json({ error: 'Invalid or missing targetType. Must be "department" or "public".' });
+        }
+
         try {
-            const kb = await KnowledgeService.requestPublish(req.params.id, user, req.body.targetType);
+            const kb = await KnowledgeService.requestPublish(req.params.id, user, targetType);
             res.json({ success: true, knowledge: kb });
         } catch (e: any) {
-            res.status(500).json({ error: e.message });
+            const msg = e.message || 'Request publish failed';
+            if (msg.includes('Not found')) return res.status(404).json({ error: msg });
+            if (msg.includes('owner') || msg.includes('Permission') || msg.includes('personal')) {
+                return res.status(403).json({ error: msg });
+            }
+            res.status(500).json({ error: msg });
         }
     }
 
@@ -206,11 +227,22 @@ export class KnowledgeController {
     static async approvePublish(req: Request, res: Response) {
         const user = extractUser(req);
         if (!user) return res.status(401).json({ error: 'Unauthorized' });
+
+        const { action } = req.body;
+        if (!action || !['approve', 'reject'].includes(action)) {
+            return res.status(400).json({ error: 'Invalid or missing action. Must be "approve" or "reject".' });
+        }
+
         try {
-            const kb = await KnowledgeService.approvePublish(req.params.id, user, req.body.action);
+            const kb = await KnowledgeService.approvePublish(req.params.id, user, action);
             res.json({ success: true, knowledge: kb });
         } catch (e: any) {
-            res.status(500).json({ error: e.message });
+            const msg = e.message || 'Approve action failed';
+            if (msg.includes('Not found')) return res.status(404).json({ error: msg });
+            if (msg.includes('Admin') || msg.includes('admin') || msg.includes('Permission')) {
+                return res.status(403).json({ error: msg });
+            }
+            res.status(500).json({ error: msg });
         }
     }
 

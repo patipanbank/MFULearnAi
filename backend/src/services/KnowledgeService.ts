@@ -194,13 +194,44 @@ export class KnowledgeService {
 
 
     // --- Knowledge List ---
-    static async getKnowledgeList(user: UserContext) {
-        // Superadmin sees ALL knowledge across all departments
-        if (user.role === 'superadmin') {
-            return await Knowledge.find({}).sort({ createdAt: -1 });
+    // Supports optional filters: { type?, requestStatus? }
+    static async getKnowledgeList(user: UserContext, filters: { type?: string; requestStatus?: string } = {}) {
+        const { type, requestStatus } = filters;
+
+        // --- Special case: requestStatus filter (used by Manage Requests modal) ---
+        if (requestStatus) {
+            const statusFilter: any = { requestStatus };
+
+            if (user.role === 'superadmin') {
+                // Superadmin sees all items with this requestStatus
+                return await Knowledge.find(statusFilter).sort({ createdAt: -1 });
+            }
+
+            if (this.isAdmin(user)) {
+                // Admin sees pending requests from their department
+                return await Knowledge.find({
+                    ...statusFilter,
+                    department: user.department
+                }).sort({ createdAt: -1 });
+            }
+
+            // Non-admin: see only their own pending requests
+            return await Knowledge.find({
+                ...statusFilter,
+                ownerId: user.userId
+            }).sort({ createdAt: -1 });
         }
 
-        // Return personal + explicit department + public + policy(if admin)
+        // --- Standard list (with optional type filter) ---
+
+        // Superadmin sees ALL knowledge across all departments
+        if (user.role === 'superadmin') {
+            const query: any = {};
+            if (type) query.type = type;
+            return await Knowledge.find(query).sort({ createdAt: -1 });
+        }
+
+        // Build permission-based conditions
         const conditions: any[] = [
             { type: 'public' },
             { type: 'department', department: user.department },
@@ -212,6 +243,23 @@ export class KnowledgeService {
         }
 
         const query: any = { $or: conditions };
+
+        // Apply type filter: narrow down the $or conditions to only the matching type
+        if (type) {
+            query.type = type;
+            // Remove conflicting $or — instead apply direct permission check for the requested type
+            delete query.$or;
+
+            // Validate the user can see this type
+            if (type === 'personal') {
+                query.ownerId = user.userId;
+            } else if (type === 'department') {
+                query.department = user.department;
+            } else if (type === 'policy' && !this.isAdmin(user)) {
+                return []; // Non-admin cannot filter by policy type
+            }
+            // 'public' needs no additional filter
+        }
 
         return await Knowledge.find(query).sort({ createdAt: -1 });
     }
