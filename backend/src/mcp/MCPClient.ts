@@ -14,8 +14,7 @@ export class MCPClient {
         // Ensure no trailing slash
         const cleanBase = baseUrl.replace(/\/$/, "");
         this.sseUrl = `${cleanBase}/sse`;
-        // Fallback endpoint, should be updated by 'endpoint' event
-        this.endpoint = `${cleanBase}/message`;
+        // We wait for the 'endpoint' event via SSE to set this.endpoint
     }
 
     async connect() {
