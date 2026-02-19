@@ -1,11 +1,13 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { useKnowledgeStore } from '@/stores/knowledge'
 import { useAuthStore } from '@/stores/auth'
 
 const emit = defineEmits(['close', 'success'])
 const knowledgeStore = useKnowledgeStore()
 const authStore = useAuthStore()
+
+const isAdmin = computed(() => authStore.role === 'admin') // Define isAdmin
 
 const file = ref(null)
 const type = ref('personal')
@@ -59,10 +61,12 @@ const handleUpload = async () => {
               <option value="personal">Personal (Private)</option>
               <option v-if="isAdmin" value="department">Department</option>
               <option v-if="isAdmin" value="public">Public (All)</option>
+              <option v-if="isAdmin" value="policy">Policy (System)</option>
           </select>
           <p class="hint" v-if="type === 'personal'">Only you can see this.</p>
           <p class="hint" v-if="type === 'department'">Visible to everyone in {{ authStore.department }}</p>
           <p class="hint" v-if="type === 'public'">Visible to everyone in the university.</p>
+          <p class="hint" v-if="type === 'policy'">Enforced system-wide context (Admin Only).</p>
        </div>
 
        <!-- Progress Bar -->

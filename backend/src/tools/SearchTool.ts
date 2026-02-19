@@ -41,7 +41,14 @@ export class SearchTool extends AgentTool {
                 department: context.department || 'General'
             };
 
-            const { text, sources, blocks } = await KnowledgeService.search(expandedQuery, userContext, { collectionId: context.collectionId });
+            const { text, sources, blocks } = await KnowledgeService.search(
+                expandedQuery,
+                userContext,
+                {
+                    collectionId: context.collectionId,
+                    metadataFilter: { type: { $ne: 'policy' } } // Exclude policies
+                }
+            );
 
             if (!text && (!blocks || blocks.length === 0)) {
                 return { success: true, result: "No relevant information found in the knowledge base." };

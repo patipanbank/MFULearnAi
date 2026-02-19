@@ -22,6 +22,7 @@ const getBadgeClass = (type) => {
         case 'public': return 'badge-public'
         case 'department': return 'badge-dept'
         case 'personal': return 'badge-personal'
+        case 'policy': return 'badge-policy'
         default: return 'badge-default'
     }
 }
@@ -49,7 +50,8 @@ const filterOptions = [
     { value: 'all', label: 'All' },
     { value: 'personal', label: 'Personal' },
     { value: 'department', label: 'Department' },
-    { value: 'public', label: 'Public' }
+    { value: 'public', label: 'Public' },
+    { value: 'policy', label: 'Policy' }
 ]
 
 const handleRequestPublish = async (id, type) => {
@@ -327,7 +329,10 @@ const handleRetry = async (id) => {
 
 .badge-personal { background: rgba(59, 130, 246, 0.1); color: #3b82f6; }
 .badge-dept { background: rgba(16, 185, 129, 0.1); color: #10b981; }
+.badge-personal { background: rgba(59, 130, 246, 0.1); color: #3b82f6; }
+.badge-dept { background: rgba(16, 185, 129, 0.1); color: #10b981; }
 .badge-public { background: rgba(245, 158, 11, 0.1); color: #f59e0b; }
+.badge-policy { background: rgba(139, 92, 246, 0.1); color: #8b5cf6; }
 
 .status-badge {
     font-size: 12px;
