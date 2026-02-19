@@ -4,6 +4,8 @@
     "description": "Unified Backend for MFULearnAI",
     "main": "dist/backend/src/index.js",
     "scripts": {
+        "create-user": "node scripts/create-user.js",
+        "create-superadmin": "node scripts/create-superadmin.js",
         "start": "node dist/backend/src/index.js",
         "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
         "build": "tsc"
