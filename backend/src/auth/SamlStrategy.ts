@@ -11,6 +11,11 @@ const GATEWAY_URL = process.env.API_GATEWAY_URL || 'https://mfulearnai.mfu.ac.th
 const SAML_CALLBACK_URL = `${GATEWAY_URL}/auth/saml/callback`;
 
 export const configureSaml = () => {
+    if (!SAML_CERTIFICATE) {
+        console.warn('[SAML] Skipping configuration: No Certificate Provided');
+        return;
+    }
+
     passport.use('saml', new SamlStrategy(
         {
             issuer: SAML_SP_ENTITY_ID,
