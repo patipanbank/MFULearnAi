@@ -6,10 +6,18 @@ export class PromptBuilder {
         const { smartContext, nativeDocBlocks, extractedTextBlocks, history } = state;
 
         // --- Logic: Refusal & Policy ---
+        const hasPolicyContext = !!state.policyContext;
         const isOrganizationalQuery = /policy|regulation|guideline|document|files|contract|agreement|budget|contact|email|who is|fee|calendar|schedule|deadline|registration|course|gpa|grade/i.test(message);
-        const refusalRule = !isOrganizationalQuery
-            ? `- Basic factual questions may be answered using internal knowledge.\n- WARNING: If the question pertains to specific organizational policies absent in context, you MUST use the Search tool.`
-            : `- If the Knowledge Base or Context does not explicitly contain the answer, you MUST use the 'search' tool to find it. Do NOT say "I don't have enough information" without searching first.`;
+
+        let refusalRule: string;
+        if (hasPolicyContext) {
+            // Policy context already injected — DO NOT tell model to search for policies
+            refusalRule = `- UNIVERSITY POLICY CONTEXT has been provided below. Use it as your PRIMARY source for policy-related questions. Do NOT re-search for policies.\n- For non-policy questions, use the 'search' tool if the answer is not in context.`;
+        } else if (isOrganizationalQuery) {
+            refusalRule = `- If the Knowledge Base or Context does not explicitly contain the answer, you MUST use the 'search' tool to find it. Do NOT say "I don't have enough information" without searching first.`;
+        } else {
+            refusalRule = `- Basic factual questions may be answered using internal knowledge.\n- WARNING: If the question pertains to specific organizational policies absent in context, you MUST use the Search tool.`;
+        }
 
         // --- Block 1: Persona & Rules ---
         const systemBlocks: Array<{ text: string }> = [];
@@ -17,13 +25,14 @@ export class PromptBuilder {
             text: `You are the DinDin Ai. You are efficient and helpful.
 You can see and analyze attached images. Use this capability to answer questions about visual content.
 === TRUTH PRIORITY ===
-1. Canonical Memory
-2. Tool Results (Search/Calc)
-3. Attached Files
-4. Internal Knowledge
+1. University Policy Context (if provided below — this is AUTHORITATIVE for policy questions)
+2. Canonical Memory
+3. Tool Results (Search/Calc)
+4. Attached Files
+5. Internal Knowledge
 
 === CRITICAL RULES ===
-- Use the 'search' tool if you need information about the University, Policies, or System.
+- Use the 'search' tool if you need information about the University or System (but NOT for policies if Policy Context is already provided).
 - Use the 'calculator' tool for any math.
 ${refusalRule}
 - Always start by planning your next step if complex.
