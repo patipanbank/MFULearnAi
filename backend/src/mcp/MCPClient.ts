@@ -1,20 +1,19 @@
-import axios from 'axios';
+import WebSocket from 'ws';
 
 const CONNECT_TIMEOUT_MS = 30_000;
 const REQUEST_TIMEOUT_MS = 30_000;
-const ENDPOINT_WAIT_INTERVAL_MS = 100;
-const ENDPOINT_WAIT_MAX_ATTEMPTS = 100;
 
 export class MCPClient {
-    private endpoint: string | null = null;
-    private readonly sseUrl: string;
+    private ws: WebSocket | null = null;
+    private readonly wsUrl: string;
     private requestId = 1;
     private pendingRequests = new Map<number, (response: any) => void>();
-    private eventSourceStream: any = null;
     private connected = false;
 
     constructor(baseUrl: string) {
-        this.sseUrl = `${baseUrl.replace(/\/$/, '')}/sse`;
+        // Convert http/https to ws/wss and append /ws endpoint
+        const base = baseUrl.replace(/\/$/, '');
+        this.wsUrl = base.replace(/^http/, 'ws') + '/ws';
     }
 
     // -------------------------------------------------------------------------
@@ -22,9 +21,13 @@ export class MCPClient {
     // -------------------------------------------------------------------------
 
     async connect(): Promise<void> {
+        if (this.connected && this.ws?.readyState === WebSocket.OPEN) return;
+
+        console.log(`[MCP Client] Connecting to WebSocket at ${this.wsUrl}...`);
+
         return Promise.race([
             this._connect(),
-            this._timeoutPromise(CONNECT_TIMEOUT_MS, 'MCP connect timeout')
+            this._timeoutPromise(CONNECT_TIMEOUT_MS, 'MCP WebSocket connect timeout')
         ]);
     }
 
@@ -49,91 +52,57 @@ export class MCPClient {
     }
 
     disconnect(): void {
-        try {
-            this.eventSourceStream?.destroy();
-        } catch (_) { }
+        if (this.ws) {
+            this.ws.close();
+            this.ws = null;
+        }
         this.connected = false;
-        this.endpoint = null;
     }
 
     // -------------------------------------------------------------------------
-    // Connection
+    // Connection & Handshake
     // -------------------------------------------------------------------------
 
     private async _connect(): Promise<void> {
-        console.log(`[MCP Client] Connecting to SSE at ${this.sseUrl}...`);
+        return new Promise((resolve, reject) => {
+            const ws = new WebSocket(this.wsUrl);
 
-        const response = await axios.get(this.sseUrl, {
-            responseType: 'stream',
-            headers: {
-                Accept: 'text/event-stream',
-                'Cache-Control': 'no-cache',
-                Connection: 'keep-alive'
-            },
-            timeout: 0
-        });
-
-        this.eventSourceStream = response.data;
-        this.connected = true;
-        this._listenToStream(this.eventSourceStream);
-
-        await this._waitForEndpoint();
-        await this._handshake();
-
-        console.log('[MCP Client] Handshake complete.');
-    }
-
-    private _listenToStream(stream: any): void {
-        let buffer = '';
-        let currentEvent = 'message';
-
-        stream.on('data', (chunk: Buffer) => {
-            buffer += chunk.toString();
-            const lines = buffer.split('\n');
-            buffer = lines.pop() ?? '';
-
-            for (const line of lines) {
-                const trimmed = line.trim();
-
-                if (trimmed === '') {
-                    currentEvent = 'message'; // reset event type on blank line
-                    continue;
+            ws.on('open', async () => {
+                this.ws = ws;
+                this.connected = true;
+                try {
+                    await this._handshake();
+                    console.log('[MCP Client] Handshake complete.');
+                    resolve();
+                } catch (err) {
+                    reject(err);
                 }
+            });
 
-                if (trimmed.startsWith('event: ')) {
-                    currentEvent = trimmed.slice(7).trim();
-                } else if (trimmed.startsWith('data: ')) {
-                    const data = trimmed.slice(6).trim();
-                    if (data) this._processEvent(currentEvent, data);
+            ws.on('message', (data: Buffer) => {
+                this._handleIncomingMessage(data.toString());
+            });
+
+            ws.on('error', (err: Error) => {
+                console.error('[MCP Client] WebSocket error:', err.message);
+                this.connected = false;
+                reject(err);
+            });
+
+            ws.on('close', () => {
+                if (this.connected) {
+                    console.warn('[MCP Client] WebSocket connection closed.');
                 }
-                // ignore comment lines (": ...")
-            }
+                this.connected = false;
+            });
         });
-
-        stream.on('error', (err: Error) => {
-            console.error('[MCP Client] SSE stream error:', err.message);
-            this.connected = false;
-        });
-
-        stream.on('end', () => {
-            console.warn('[MCP Client] SSE stream ended unexpectedly.');
-            this.connected = false;
-        });
-    }
-
-    private async _waitForEndpoint(): Promise<void> {
-        for (let i = 0; i < ENDPOINT_WAIT_MAX_ATTEMPTS; i++) {
-            if (this.endpoint) return;
-            await this._sleep(ENDPOINT_WAIT_INTERVAL_MS);
-        }
-        throw new Error('MCP endpoint not received via SSE');
     }
 
     private async _handshake(): Promise<void> {
         const initResponse = await this.request('initialize', {
             protocolVersion: '2024-11-05',
             capabilities: {},
-            clientInfo: { name: 'mful-learnai', version: '1.0.0' }
+            clientInfo: { name: 'mful-learnai-ws', version: '1.1.0' }
         });
 
         if (initResponse.error) {
@@ -143,45 +112,17 @@ export class MCPClient {
         await this._notify('notifications/initialized');
     }
 
-    // -------------------------------------------------------------------------
-    // SSE event processing
-    // -------------------------------------------------------------------------
-
-    private _processEvent(event: string, dataStr: string): void {
+    private _handleIncomingMessage(dataStr: string): void {
         try {
-            if (event === 'endpoint') {
-                this.endpoint = this._resolveEndpoint(dataStr);
-                console.log(`[MCP Client] Endpoint updated to: ${this.endpoint}`);
-                return;
-            }
+            const message = JSON.parse(dataStr);
+            const { id } = message;
 
-            if (event === 'message') {
-                const message = JSON.parse(dataStr);
-                this._handleIncomingMessage(message);
+            if (id !== undefined && this.pendingRequests.has(id)) {
+                this.pendingRequests.get(id)!(message);
+                this.pendingRequests.delete(id);
             }
         } catch (err) {
-            console.error('[MCP Client] Failed to parse SSE event:', dataStr, err);
-        }
-    }
-
-    private _resolveEndpoint(raw: string): string {
-        let path = raw;
-        // strip surrounding quotes if present
-        if (raw.startsWith('"')) {
-            try { path = JSON.parse(raw); } catch (_) { }
-        }
-
-        if (path.startsWith('http')) return path;
-
-        const base = new URL(this.sseUrl);
-        return `${base.protocol}//${base.host}${path.startsWith('/') ? path : `/${path}`}`;
-    }
-
-    private _handleIncomingMessage(message: any): void {
-        const { id } = message;
-        if (id !== undefined && this.pendingRequests.has(id)) {
-            this.pendingRequests.get(id)!(message);
-            this.pendingRequests.delete(id);
+            console.error('[MCP Client] Failed to parse WebSocket message:', dataStr, err);
         }
     }
 
@@ -190,11 +131,12 @@ export class MCPClient {
     // -------------------------------------------------------------------------
 
     private request(method: string, params: any): Promise<any> {
-        if (!this.endpoint) throw new Error('MCP endpoint not initialized');
+        if (!this.connected || !this.ws) throw new Error('MCP Client not connected');
 
         const id = this.requestId++;
+        const body = { jsonrpc: '2.0', id, method, params };
 
-        return new Promise(async (resolve, reject) => {
+        return new Promise((resolve, reject) => {
             const timer = setTimeout(() => {
                 if (this.pendingRequests.has(id)) {
                     this.pendingRequests.delete(id);
@@ -207,45 +149,23 @@ export class MCPClient {
                 resolve(response);
             });
 
-            const body = { jsonrpc: '2.0', id, method, params };
-
             try {
-                const postRes = await axios.post(this.endpoint!, body, {
-                    timeout: REQUEST_TIMEOUT_MS - 5_000,
-                    headers: { 'Content-Type': 'application/json' }
-                });
-
-                // Hybrid mode: server returned result directly in POST body
-                if (postRes.data?.id !== undefined && this.pendingRequests.has(postRes.data.id)) {
-                    clearTimeout(timer);
-                    this.pendingRequests.delete(postRes.data.id);
-                    resolve(postRes.data);
-                }
-                // Otherwise wait for SSE message event
-
+                this.ws!.send(JSON.stringify(body));
             } catch (err: any) {
-                // Server may return JSON-RPC error in response body even on 4xx/5xx
-                const errorData = err.response?.data;
-                if (errorData?.id !== undefined && this.pendingRequests.has(errorData.id)) {
-                    clearTimeout(timer);
-                    this.pendingRequests.delete(errorData.id);
-                    resolve(errorData);
-                    return;
-                }
-
                 clearTimeout(timer);
                 this.pendingRequests.delete(id);
-                reject(new Error(`POST failed (${method}): ${err.message}`));
+                reject(new Error(`WebSocket send failed (${method}): ${err.message}`));
             }
         });
     }
 
     private async _notify(method: string, params?: any): Promise<void> {
-        if (!this.endpoint) throw new Error('MCP endpoint not initialized');
+        if (!this.connected || !this.ws) return;
         const body: any = { jsonrpc: '2.0', method };
         if (params !== undefined) body.params = params;
+
         try {
-            await axios.post(this.endpoint, body);
+            this.ws.send(JSON.stringify(body));
         } catch (err: any) {
             console.warn(`[MCP Client] Notification "${method}" failed:`, err.message);
         }
@@ -254,10 +174,6 @@ export class MCPClient {
     // -------------------------------------------------------------------------
     // Utilities
     // -------------------------------------------------------------------------
-
-    private _sleep(ms: number): Promise<void> {
-        return new Promise(r => setTimeout(r, ms));
-    }
 
     private _timeoutPromise(ms: number, message: string): Promise<never> {
         return new Promise((_, reject) => setTimeout(() => reject(new Error(message)), ms));
