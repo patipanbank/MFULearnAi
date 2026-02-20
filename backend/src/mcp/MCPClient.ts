@@ -2,8 +2,7 @@ import WebSocket from 'ws';
 
 const CONNECT_TIMEOUT_MS = 15_000;
 const REQUEST_TIMEOUT_MS = 30_000;
-const MAX_CONNECT_RETRIES = 5;
-const INITIAL_RETRY_DELAY = 1_000; // 1 second
+const RETRY_DELAY_MS = 10_000; // Fixed 10 seconds
 
 export class MCPClient {
     private ws: WebSocket | null = null;
@@ -23,26 +22,24 @@ export class MCPClient {
     // -------------------------------------------------------------------------
 
     /**
-     * Connect with retry logic and exponential backoff.
+     * Connect with infinite retry logic and fixed 10s delay.
      */
-    async connect(retries = MAX_CONNECT_RETRIES, delay = INITIAL_RETRY_DELAY): Promise<void> {
+    async connect(): Promise<void> {
         if (this.connected && this.ws?.readyState === WebSocket.OPEN) return;
 
         try {
-            console.log(`[MCP Client] Connecting to ${this.wsUrl} (Attempts left: ${retries})...`);
+            console.log(`[MCP Client] Connecting to ${this.wsUrl}...`);
             await Promise.race([
                 this._connect(),
                 this._timeoutPromise(CONNECT_TIMEOUT_MS, 'MCP WebSocket connect timeout')
             ]);
             // Reset state on success
             this.isReconnecting = false;
+            console.log('[MCP Client] Successfully connected to MCP server.');
         } catch (err: any) {
-            if (retries > 0) {
-                console.warn(`[MCP Client] Connection failed: ${err.message}. Retrying in ${delay}ms...`);
-                await new Promise(res => setTimeout(res, delay));
-                return this.connect(retries - 1, delay * 2);
-            }
-            throw new Error(`MCP Client failed to connect after multiple attempts: ${err.message}`);
+            console.warn(`[MCP Client] Connection failed: ${err.message}. Retrying in ${RETRY_DELAY_MS / 1000}s...`);
+            await new Promise(res => setTimeout(res, RETRY_DELAY_MS));
+            return this.connect(); // Recursive call for infinite retries
         }
     }
 
