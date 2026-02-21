@@ -5,13 +5,14 @@ import { LoggerService } from '../services/LoggerService';
 import { SYSTEM_MODELS } from '../config/models';
 
 /**
- * PolicyCheckerTool — Agent tool for checking university policy compliance.
+ * PolicyCheckerTool — Agent tool for checking policy compliance.
+ *
+ * Searches ALL policy documents in the Knowledge Base (KB) —
+ * not just university rules, but any policy admins have uploaded:
+ * PDPA, data protection, academic regulations, HR policies, etc.
  *
  * Architecture: Agent decides when to call this tool.
  * Internally: RAG retrieval → LLM compliance check → structured result.
- *
- * The Agent (Claude) is trusted to identify policy-related questions
- * and call this tool accordingly. This avoids false-positive pre-filtering.
  */
 
 /** Severity levels for policy check results */
@@ -28,25 +29,27 @@ interface ComplianceResult {
 /** Score threshold below which policy results are considered irrelevant */
 const MIN_POLICY_SCORE = 0.50;
 
-const COMPLIANCE_CHECK_PROMPT = `You are a university policy compliance checker for Mae Fah Luang University (MFU).
+const COMPLIANCE_CHECK_PROMPT = `You are a policy compliance checker.
 
 User's question or action: {query}
 
-Retrieved policy documents:
+Retrieved policy documents from our Knowledge Base:
 {policies}
 
 Task:
-1. Determine if the question/action relates to any of the retrieved policies.
+1. Determine if any of the retrieved policies are relevant to the user's question or action.
 2. If relevant policies are found, answer the question BASED ONLY on the policy content.
 3. Classify the severity:
-   - PASS: The question is answered by the policies, or the action is allowed.
-   - WARN: The action may have restrictions or conditions — inform the user.
-   - BLOCK: The action clearly violates a policy — explain which policy and why.
+   - PASS: The question is answered by the policies, or the action is allowed under these policies.
+   - WARN: The action may have restrictions or conditions under the relevant policies — inform the user.
+   - BLOCK: The action clearly violates one or more policies — explain which policy and why.
 
 IMPORTANT:
+- These policies may cover ANY domain: data protection (PDPA), organizational rules, academic regulations, HR policies, legal compliance, etc.
+- Do NOT limit your analysis to only one type of policy. Check ALL retrieved documents.
 - Answer in the SAME LANGUAGE as the user's question.
 - If the retrieved policies do NOT contain relevant information, return severity "PASS" with answer stating no relevant policy was found.
-- Always cite the source document when referencing a policy.
+- Always cite the source document name when referencing a policy.
 
 Return ONLY valid JSON (no markdown, no code fences):
 {
@@ -60,23 +63,23 @@ Return ONLY valid JSON (no markdown, no code fences):
 
 export class PolicyCheckerTool extends AgentTool {
     name = 'check_policy';
-    description = 'Check if a question or action relates to university policies, rules, or regulations. Returns the relevant policy information and compliance status. Use this for any question about rules, regulations, leave policies, disciplinary matters, academic requirements, fees, or any official university procedures.';
+    description = 'Search and check against all policy documents in the Knowledge Base. This includes any policies uploaded by admins: PDPA, data protection, organizational rules, academic regulations, HR policies, disciplinary rules, legal compliance, and more. Use this whenever the question may relate to rules, regulations, compliance, or official procedures of any kind.';
     allowedRoles = ['*'];
 
     schemaJSON = {
         name: 'check_policy',
-        description: 'Search and check university policy documents for official rules, regulations, and guidelines. Returns structured compliance result.',
+        description: 'Search and check against all policy documents in the Knowledge Base for compliance. Covers all policy domains: PDPA, organizational rules, academic regulations, HR policies, and more.',
         inputSchema: {
             json: {
                 type: 'object',
                 properties: {
                     query: {
                         type: 'string',
-                        description: 'The question or action to check against university policies.'
+                        description: 'The question or action to check against policies in the Knowledge Base.'
                     },
                     context: {
                         type: 'string',
-                        description: 'Optional additional context about the situation (e.g., user role, department).'
+                        description: 'Optional additional context about the situation.'
                     }
                 },
                 required: ['query']
@@ -88,7 +91,7 @@ export class PolicyCheckerTool extends AgentTool {
         const { query, context: additionalContext } = args;
 
         try {
-            // Step 1: RAG — Retrieve relevant policy documents
+            // Step 1: RAG — Retrieve relevant policy documents from KB
             const userContext = {
                 userId: context.userId,
                 role: context.role || 'student',
@@ -121,9 +124,9 @@ export class PolicyCheckerTool extends AgentTool {
                     success: true,
                     result: JSON.stringify({
                         severity: 'PASS',
-                        answer: 'ไม่พบนโยบายหรือระเบียบที่เกี่ยวข้องกับคำถามนี้ในฐานข้อมูลนโยบายของมหาวิทยาลัย',
+                        answer: 'ไม่พบนโยบายหรือระเบียบที่เกี่ยวข้องกับคำถามนี้ในฐานข้อมูล',
                         relevantPolicies: [],
-                        reason: 'No matching policy documents found'
+                        reason: 'No matching policy documents found in KB'
                     } satisfies ComplianceResult)
                 };
             }
@@ -139,10 +142,10 @@ export class PolicyCheckerTool extends AgentTool {
                 .replace('{policies}', policyTexts);
 
             const { text: llmResponse } = await BedrockService.sendChat(
-                SYSTEM_MODELS.RERANK,  // Lightweight model (Gemma 4B) for speed + cost
+                SYSTEM_MODELS.RERANK,
                 [{ role: 'user', content: prompt }],
                 undefined,
-                0.1   // Low temperature for deterministic compliance checking
+                0.1
             );
 
             LoggerService.info('policy_checker_compliance', {
@@ -197,7 +200,6 @@ export class PolicyCheckerTool extends AgentTool {
                 reason: parsed.reason || ''
             };
         } catch {
-            // If JSON parsing fails, treat the raw response as a PASS with the text as answer
             LoggerService.warn('policy_checker_parse_fallback', {
                 rawLength: llmResponse.length
             });
