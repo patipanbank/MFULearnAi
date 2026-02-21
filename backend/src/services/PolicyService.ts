@@ -12,16 +12,26 @@ export class PolicyService {
      */
     private static async rewriteQuery(userQuery: string): Promise<string> {
         try {
-            const prompt = `You are a search keyword generator. Given a user's question, generate 5-8 concise search keywords in BOTH Thai and English that would match formal policy/regulation documents.
+            const prompt = `You are a university policy search assistant.
+
+Step 1 - Analyze: Identify what policy, regulation, or rule aspects are implied by the question.
+Step 2 - Generate: Create 5-8 search keywords focused ONLY on the policy/regulatory angle, in both Thai and English.
 
 Rules:
-- Output ONLY comma-separated keywords. No explanation.
-- Include the Thai term AND its English equivalent.
-- Focus on the specific topic, not generic terms.
-- Include abbreviations and formal names if applicable.
+- Output format: "Analysis: <one line> | Keywords: <comma-separated>"
+- Keywords must reflect policy/regulatory terms, NOT general topic terms
+- Include formal Thai legal/regulatory terminology where applicable
 
-Question: "${userQuery}"
-Keywords:`;
+Examples:
+Q: "ผมขโมยกระเป๋าเงินมาผมผิดอะไรบ้าง"
+Analysis: relates to theft which may involve student disciplinary rules and legal liability
+Keywords: ระเบียบวินัยนักศึกษา, misconduct, disciplinary action, บทลงโทษ, ความรับผิดทางกฎหมาย, student conduct
+
+Q: "ลาป่วยได้กี่วัน"
+Analysis: relates to leave policy and attendance regulations
+Keywords: การลาป่วย, sick leave policy, ระเบียบการลา, leave of absence, attendance regulation
+
+Question: "${userQuery}"`;
 
             const { text } = await BedrockService.sendChat(
                 SYSTEM_MODELS.UTILITY,
@@ -30,11 +40,16 @@ Keywords:`;
                 0.1 // low temp for deterministic output
             );
 
-            const keywords = text.trim();
+            const output = text.trim();
+            const keywordMatch = output.match(/Keywords:\s*(.+)/);
+            const keywords = keywordMatch?.[1]?.trim() || '';
+
             LoggerService.info('policy_query_rewrite', {
                 original: userQuery,
+                analysis: output.match(/Analysis:\s*(.+)/)?.[1]?.trim(),
                 keywords
             });
+
             return keywords;
 
         } catch (error: any) {
