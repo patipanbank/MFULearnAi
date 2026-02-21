@@ -4,6 +4,10 @@ export const AGENT_CONSTANTS = {
     MAX_EXTRACTED_TEXT_CHARS: 100_000,
     SUPPORTED_FILE_FORMATS: ['pdf', 'txt', 'md', 'html', 'csv', 'doc', 'docx', 'xls', 'xlsx'],
 
+    // Agent Loop
+    MAX_AGENT_STEPS: 20,
+    AGENT_TIMEOUT_MS: 300_000, // 5 minutes
+
     // Timeouts (ms)
     OCR_JOB_TIMEOUT: 60_000,
 

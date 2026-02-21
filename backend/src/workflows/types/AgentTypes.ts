@@ -15,7 +15,7 @@ export interface WorkflowState {
     phase: AgentPhase;
     traceId: string;
     steps: number;
-    totalUsage: { input: 0, output: 0, total: 0 };
+    totalUsage: { input: number, output: number, total: number };
     usedTools: Set<string>;
     answerMode: string;
     answerState: string;
@@ -109,4 +109,8 @@ export const AGENT_EVENTS = {
     TITLE: 'title',
     CONTENT_RESET: 'content_reset',
     THINKING_DELTA: 'thinking_delta',
+    ERROR: 'error',
 } as const;
+
+/** Union type of all valid agent event names */
+export type AgentEventType = typeof AGENT_EVENTS[keyof typeof AGENT_EVENTS];

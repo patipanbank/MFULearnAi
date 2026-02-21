@@ -199,7 +199,14 @@ export class AgentWorkflow {
                 traceId: this.state.traceId
             });
             this.state.finalAnswer = 'เกิดข้อผิดพลาดในการประมวลผล กรุณาลองใหม่อีกครั้ง';
-            this.emit('error', { error: 'Agent workflow failed', traceId: this.state.traceId });
+            this.state.answerMode = 'internal';
+            this.state.answerState = 'ERROR';
+
+            // Emit answer events so frontend bubble shows the error message
+            this.emit(AGENT_EVENTS.ANSWER_START, { answerMode: 'internal' });
+            this.emit(AGENT_EVENTS.ANSWER_DELTA, { delta: this.state.finalAnswer });
+            this.emit(AGENT_EVENTS.ANSWER_DONE, { fullLength: this.state.finalAnswer.length });
+            this.emit(AGENT_EVENTS.ERROR, { error: 'Agent workflow failed', traceId: this.state.traceId });
         } finally {
             // 5. Finalize & Persist
             await ResultPersister.finalize(
@@ -226,16 +233,16 @@ export class AgentWorkflow {
             guardrailVersion: process.env.BEDROCK_GUARDRAIL_VERSION || 'DRAFT'
         } : undefined;
 
-        while (this.state.steps < AGENT_CONSTANTS.HISTORY_WINDOW_SIZE * 2) { // Use constant or separate MAX_STEPS
+        while (this.state.steps < AGENT_CONSTANTS.MAX_AGENT_STEPS) {
             // Check Timeout
-            if (Date.now() - this.state.startTime > 300_000) { // 5 mins max
+            if (Date.now() - this.state.startTime > AGENT_CONSTANTS.AGENT_TIMEOUT_MS) {
                 this.handleTimeout();
                 break;
             }
             if (this.state.clientDisconnected) return;
 
             this.state.steps++;
-            this.emit(AGENT_EVENTS.AGENT_STEP, { step: this.state.steps, maxSteps: 10 });
+            this.emit(AGENT_EVENTS.AGENT_STEP, { step: this.state.steps, maxSteps: AGENT_CONSTANTS.MAX_AGENT_STEPS });
             this.emit(AGENT_EVENTS.THINKING, { step: this.state.steps, message: `กำลังวิเคราะห์... (ขั้นตอนที่ ${this.state.steps})` });
 
             LoggerService.info('agent_step', { step: this.state.steps, traceId: this.state.traceId }, this.ctx.userId);
@@ -362,6 +369,11 @@ export class AgentWorkflow {
         this.state.finalAnswer = 'ขออภัยครับ คำขอใช้เวลาเกินกำหนด กรุณาลองถามใหม่อีกครั้ง';
         this.state.answerMode = 'internal';
         this.state.answerState = 'TIMEOUT';
+
+        // Emit answer events so frontend bubble shows the timeout message
+        this.emit(AGENT_EVENTS.ANSWER_START, { answerMode: 'internal' });
+        this.emit(AGENT_EVENTS.ANSWER_DELTA, { delta: this.state.finalAnswer });
+        this.emit(AGENT_EVENTS.ANSWER_DONE, { fullLength: this.state.finalAnswer.length });
         this.emit(AGENT_EVENTS.STATUS, { message: 'หมดเวลาดำเนินการ' });
     }
 

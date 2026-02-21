@@ -382,10 +382,6 @@ export const useChatStore = defineStore('chat', () => {
                 messages.value[assistantIndex].status = data.message
             }
 
-            // Intent Detection
-            if (data.type === 'intent') {
-                messages.value[assistantIndex].intent = data.intent
-            }
 
             // Final Metadata
             if (data.type === 'metadata') {

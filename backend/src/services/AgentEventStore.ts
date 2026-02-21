@@ -35,8 +35,9 @@ export class AgentEventStore {
             console.error(`[AgentEventStore] Failed to emit event: ${type}`, err);
         }
 
-        // Store for MongoDB persistence (skip high-frequency deltas)
-        if (type !== 'answer_delta') {
+        // Store for MongoDB persistence (skip high-frequency deltas and transient UI signals)
+        const SKIP_PERSISTENCE = new Set(['answer_delta', 'thinking_delta', 'content_reset', 'status']);
+        if (!SKIP_PERSISTENCE.has(type)) {
             this.eventLog.push(event);
         }
     }
