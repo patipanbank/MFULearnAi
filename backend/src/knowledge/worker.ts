@@ -177,7 +177,7 @@ export const processKnowledgeJob = async (job: Job) => {
                 metadatas.push({
                     knowledgeId: knowledgeId.toString(),
                     source: originalName,
-                    type: docType,           // Critical: enables PolicyService { type: 'policy' } filter
+                    type: docType,           // Critical: enables PolicyCheckerTool { type: 'policy' } filter
                     fileName: originalName,   // Alias for consistent metadata access
                     pageNumber: p.pageNumber,
                     chunkIndex: chunkGlobalIndex

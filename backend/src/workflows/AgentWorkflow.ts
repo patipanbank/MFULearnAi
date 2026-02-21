@@ -3,6 +3,7 @@ import { BedrockService } from '../services/BedrockService';
 import { LoggerService } from '../services/LoggerService';
 import { CalculatorTool } from '../tools/CalculatorTool';
 import { SearchTool } from '../tools/SearchTool';
+import { PolicyCheckerTool } from '../tools/PolicyCheckerTool';
 import { SYSTEM_MODELS, AGENT_CONFIG } from '../config/models';
 import * as crypto from 'crypto';
 
@@ -20,7 +21,8 @@ import { AgentTool } from '../tools/AgentTool';
 // Whitelist of tools for the Agent
 const AVAILABLE_TOOLS: AgentTool[] = [
     new CalculatorTool(),
-    new SearchTool()
+    new SearchTool(),
+    new PolicyCheckerTool()
 ];
 
 import { mcpManager } from '../mcp/McpManager';
@@ -110,7 +112,6 @@ export class AgentWorkflow {
             );
             this.state.history = contextResult.history;
             this.state.smartContext = contextResult.smartContext;
-            this.state.policyContext = contextResult.policyContext;
 
             // 2. Process Files
             this.state.phase = AgentPhase.UPLOADING;
@@ -178,7 +179,7 @@ export class AgentWorkflow {
             const mcpTools = mcpManager.getTools();
             const allTools = [...AVAILABLE_TOOLS, ...mcpTools];
 
-            // 3.2 Filter tools by user role
+            // 3.1 Filter tools by user role
             const userRole = this.ctx.userRole;
             const allowedTools = allTools.filter(t => t.isAllowed(userRole));
 
@@ -351,9 +352,11 @@ export class AgentWorkflow {
     }
 
     private determineAnswerMode(response: string) {
-        // Simple heuristic - can be moved to a Helper if complex
         if (this.state.nativeDocBlocks.length > 0) {
             this.state.answerMode = 'file_grounded';
+            this.state.answerState = 'VERIFIED';
+        } else if (this.state.usedTools.has('check_policy')) {
+            this.state.answerMode = 'policy_grounded';
             this.state.answerState = 'VERIFIED';
         } else if (this.state.usedTools.has('search')) {
             this.state.answerMode = 'rag';

@@ -38,7 +38,7 @@ export class PromptBuilder {
             environment: envType,
             modelId: SYSTEM_MODELS.AGENT,
             hasFiles: String(nativeDocBlocks.length > 0 || extractedTextBlocks.length > 0),
-            hasPolicyContext: String(!!state.policyContext),
+            hasPolicyContext: 'false', // Policy is now tool-based, never pre-injected
             toolList: toolListStr,
         };
 
@@ -55,33 +55,24 @@ export class PromptBuilder {
             personaPrompt = this.getHardcodedFallback();
         }
 
-        // --- Logic: Refusal & Policy ---
-        const hasPolicyContext = !!state.policyContext;
-        const isOrganizationalQuery = /policy|regulation|guideline|document|files|contract|agreement|budget|contact|email|who is|fee|calendar|schedule|deadline|registration|course|gpa|grade/i.test(message);
-
-        let refusalRule: string;
-        if (hasPolicyContext) {
-            refusalRule = `- UNIVERSITY POLICY CONTEXT has been provided below. It was ALREADY RETRIEVED from the Knowledge Base. Answer policy questions using ONLY this context.\n- CRITICAL: The 'search' tool EXCLUDES policy documents by design. Using it for policy questions will return ZERO results and waste a step. Do NOT use 'search' for policy-related questions.\n- For non-policy questions, you may use the 'search' tool normally.`;
-        } else if (isOrganizationalQuery) {
-            refusalRule = `- If the Knowledge Base or Context does not explicitly contain the answer, you MUST use the 'search' tool to find it. Do NOT say "I don't have enough information" without searching first.`;
-        } else {
-            refusalRule = `- Basic factual questions may be answered using internal knowledge.\n- WARNING: If the question pertains to specific organizational policies absent in context, you MUST use the Search tool.`;
-        }
-
         // --- Block 1: Persona & Rules ---
         const systemBlocks: Array<{ text: string }> = [];
 
         // Dynamically build tool instructions
         let toolInstructions = '';
         if (toolNames.includes('search')) {
-            toolInstructions += '- Use the \'search\' tool if you need information about the University or System (but NOT for policies if Policy Context is already provided).\n';
+            toolInstructions += '- Use the \'search\' tool to find information about the University or System.\n';
+        }
+        if (toolNames.includes('check_policy')) {
+            toolInstructions += '- Use the \'check_policy\' tool when the question involves university rules, regulations, policies, leave/absence, disciplinary matters, academic requirements, fees, registration, or any official procedures. Do NOT answer policy questions from internal knowledge — always verify with check_policy first.\n';
         }
         if (toolNames.includes('calculator')) {
             toolInstructions += '- Use the \'calculator\' tool for any math.\n';
         }
 
         // Generic instruction for other tools if they exist
-        const extraTools = toolNames.filter(name => name !== 'search' && name !== 'calculator');
+        const knownTools = ['search', 'check_policy', 'calculator'];
+        const extraTools = toolNames.filter(name => !knownTools.includes(name));
         if (extraTools.length > 0) {
             toolInstructions += `- Use these additional tools when appropriate: ${extraTools.join(', ')}.\n`;
         }
@@ -90,16 +81,15 @@ export class PromptBuilder {
             text: `${personaPrompt}
 You can see and analyze attached images. Use this capability to answer questions about visual content.
 === TRUTH PRIORITY ===
-1. University Policy Context (if provided below — this is AUTHORITATIVE for policy questions)
+1. Tool Results (check_policy for policies, search for general info)
 2. Canonical Memory
-3. Tool Results (from available tools: ${toolListStr})
-4. Attached Files
-5. Internal Knowledge
+3. Attached Files
+4. Internal Knowledge
 
 === CRITICAL RULES ===
-${toolInstructions}${refusalRule}
-- Always start by planning your next step if complex.
-- If the attached files or search results do NOT contain the answer, say so clearly. Do NOT guess.`
+${toolInstructions}- Always start by planning your next step if complex.
+- If the attached files or search results do NOT contain the answer, say so clearly. Do NOT guess.
+- For any question about university policies, rules, or regulations: you MUST use check_policy. Never answer from internal knowledge alone.`
         });
 
         // --- Block 2: Session Context ---
@@ -108,11 +98,6 @@ ${toolInstructions}${refusalRule}
 ${smartContext?.canonical || 'First session.'}
 ${JSON.stringify(smartContext?.rolling || {}, null, 2)}`
         });
-
-        // --- Block: Policies ---
-        if (state.policyContext) {
-            systemBlocks.push({ text: state.policyContext });
-        }
 
         // --- Block 3: File Hints ---
         if (nativeDocBlocks.length > 0) {
