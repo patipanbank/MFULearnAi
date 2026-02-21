@@ -64,7 +64,8 @@ export class PromptBuilder {
             toolInstructions += '- Use the \'search\' tool to find information about the University or System.\n';
         }
         if (toolNames.includes('check_policy')) {
-            toolInstructions += '- Use the \'check_policy\' tool when the question may relate to ANY policy, rule, or regulation in the Knowledge Base — including PDPA, data protection, organizational rules, academic regulations, HR policies, disciplinary matters, legal compliance, or any official procedures. Do NOT answer policy questions from internal knowledge — always verify with check_policy first.\n';
+            toolInstructions += `- Use the 'check_policy' tool when the question may relate to ANY policy, rule, or regulation in the Knowledge Base — including PDPA, data protection, organizational rules, academic regulations, HR policies, disciplinary matters, legal compliance, or any official procedures. Do NOT answer policy questions from internal knowledge — always verify with check_policy first.
+  - IMPORTANT: When calling check_policy, pass the query BROADLY. Do NOT add "ในมหาวิทยาลัย" or "มหาวิทยาลัย" to the query. The Knowledge Base contains policies from multiple domains (PDPA, legal, HR, etc.) — narrowing the query will miss relevant results. Example: user asks "ขโมยของโดนโทษแบบไหน" → pass "บทลงโทษสำหรับการขโมยของ" NOT "บทลงโทษสำหรับการขโมยของในมหาวิทยาลัย"\n`;
         }
         if (toolNames.includes('calculator')) {
             toolInstructions += '- Use the \'calculator\' tool for any math.\n';
