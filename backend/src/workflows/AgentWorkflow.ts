@@ -330,15 +330,18 @@ export class AgentWorkflow {
                 this.state.phase = AgentPhase.COMPLETED;
                 // Final Answer Logic
 
-                // If we haven't emitted START yet (empty response?), emit now
+                // If we haven't emitted START yet, emit now
                 if (!this.state.hasEmittedAnswerStart) {
                     this.determineAnswerMode(fullResponse);
                     this.emit(AGENT_EVENTS.ANSWER_START, { answerMode: this.state.answerMode });
                     this.state.hasEmittedAnswerStart = true;
                 }
 
-                // LEGACY: We didn't emit DELTAS during streaming (we emitted THINKING_DELTA).
-                // So now we must emit the full answer.
+                // During streaming, THINKING_DELTA events created a thinking card
+                // with the final answer text. Clear it before sending the real answer.
+                this.emit(AGENT_EVENTS.CONTENT_RESET, {});
+
+                // Now emit the full answer to the answer bubble
                 this.emit(AGENT_EVENTS.ANSWER_DELTA, { delta: fullResponse });
 
                 // 3. Update State & Emit DONE

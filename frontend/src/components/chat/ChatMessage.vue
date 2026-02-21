@@ -131,7 +131,7 @@ const flowHeaderText = computed(() => {
 const toolLabel = (name) => {
   const labels = {
     search: 'Searching knowledge base',
-    check_policy: 'Checking university policies',
+    check_policy: 'ตรวจสอบนโยบาย',
     calculator: 'Calculating',
     mcp: 'Querying university data'
   }

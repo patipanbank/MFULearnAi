@@ -68,14 +68,14 @@ export class PolicyCheckerTool extends AgentTool {
 
     schemaJSON = {
         name: 'check_policy',
-        description: 'Search and check against all policy documents in the Knowledge Base for compliance. Covers all policy domains: PDPA, organizational rules, academic regulations, HR policies, and more.',
+        description: 'Search and check against ALL policy documents in the Knowledge Base for compliance. Covers all domains: PDPA, data protection, organizational rules, academic regulations, HR policies, legal compliance, and more.',
         inputSchema: {
             json: {
                 type: 'object',
                 properties: {
                     query: {
                         type: 'string',
-                        description: 'The question or action to check against policies in the Knowledge Base.'
+                        description: 'The question or action to check against policies. IMPORTANT: Pass the user\'s question broadly — do NOT narrow it by adding "university" or "มหาวิทยาลัย". The KB contains policies from multiple domains (PDPA, legal, HR, academic, etc.) and narrowing the query may miss relevant policies.'
                     },
                     context: {
                         type: 'string',

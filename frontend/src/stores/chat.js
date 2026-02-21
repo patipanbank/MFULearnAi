@@ -425,10 +425,22 @@ export const useChatStore = defineStore('chat', () => {
                 }
             }
 
-            // Content Reset (Retract)
+            // Content Reset (Retract thinking that leaked into content)
             if (data.type === 'content_reset') {
                 console.log('[ChatStore] Resetting content (migrated to thinking)')
                 messages.value[assistantIndex].content = ''
+
+                // Also remove the last unfinished thinking block if it exists,
+                // because it contains the final answer text that was streamed
+                // via THINKING_DELTA before we knew it was the final answer.
+                ensureEvents()
+                const events = messages.value[assistantIndex].agentEvents
+                if (events.length > 0) {
+                    const lastEvt = events[events.length - 1]
+                    if (lastEvt.type === 'thinking' && !lastEvt.isFinished) {
+                        events.pop()
+                    }
+                }
             }
 
             // Thinking Delta (Real-time updates for Thinking Card)
