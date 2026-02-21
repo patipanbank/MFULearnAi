@@ -131,6 +131,7 @@ const flowHeaderText = computed(() => {
 const toolLabel = (name) => {
   const labels = {
     search: 'Searching knowledge base',
+    check_policy: 'Checking university policies',
     calculator: 'Calculating',
     mcp: 'Querying university data'
   }
@@ -138,7 +139,7 @@ const toolLabel = (name) => {
 }
 
 const toolIcon = (name) => {
-  const icons = { search: '🔍', calculator: '🧮', mcp: '🏫' }
+  const icons = { search: '🔍', check_policy: '📋', calculator: '🧮', mcp: '🏫' }
   return icons[name] || '🔧'
 }
 
@@ -431,7 +432,8 @@ const getFileIcon = (file) => {
               <!-- Answer mode -->
               <span v-if="message.meta?.answer_mode" class="meta-chip">
                 {{ message.meta.answer_mode === 'rag' ? 'RAG' :
-                   message.meta.answer_mode === 'file_grounded' ? 'File' : 'Internal' }}
+                   message.meta.answer_mode === 'file_grounded' ? 'File' :
+                   message.meta.answer_mode === 'policy_grounded' ? 'Policy' : 'Internal' }}
               </span>
 
               <!-- Confidence -->
