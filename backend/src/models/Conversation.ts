@@ -50,6 +50,7 @@ const ConversationSchema = new mongoose.Schema({
         canonical: { type: String, default: '' }, // Long-term stable truth (Append-only conceptually)
         rolling: {
             facts: [String],
+            tentative_facts: [String],
             intent: {
                 primary: String,
                 secondary: [String],
@@ -57,7 +58,8 @@ const ConversationSchema = new mongoose.Schema({
             },
             constraints: [String],
             decisions: [String],
-            open_questions: [String]
+            open_questions: [String],
+            confidence_score: Number
         },
         version: { type: Number, default: 0 },
         hashes: {
@@ -68,7 +70,9 @@ const ConversationSchema = new mongoose.Schema({
         lastCanonizedAt: { type: Date, default: Date.now }
     },
     createdAt: { type: Date, default: Date.now },
-    updatedAt: { type: Date, default: Date.now }
+    updatedAt: { type: Date, default: Date.now },
+    deletedAt: { type: Date },
+    isDeleted: { type: Boolean, default: false }
 });
 
 // Index for fast retrieval / cleanup

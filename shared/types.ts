@@ -103,3 +103,29 @@ export interface Warning {
   code: 'SCANNED_PDF' | 'LOW_OCR_CONFIDENCE' | 'PARTIAL_PARSE' | 'GARBAGE_TEXT_LAYER';
   message: string;
 }
+
+export type RollingContext = SmartContext['rolling'];
+
+export interface SmartContext {
+  canonical: string;
+  rolling: {
+    facts: string[];
+    tentative_facts?: string[];
+    intent: {
+      primary: string;
+      secondary?: string[];
+      confidence: number;
+    };
+    constraints: string[];
+    decisions: string[];
+    open_questions: string[];
+    confidence_score: number;
+  };
+  version: number;
+  hashes: { canonical: string; rolling: string; raw: string };
+  lastCanonizedAt: Date;
+  metadata?: {
+    intent_history?: string[];
+    volatility_score?: number;
+  };
+}

@@ -187,7 +187,7 @@ export class ChatController {
         const limit = parseInt(req.query.limit as string) || 20;
 
         try {
-            const conversations = await Conversation.find({ userId })
+            const conversations = await Conversation.find({ userId, isDeleted: { $ne: true } })
                 .select('sessionId metadata createdAt updatedAt')
                 .sort({ updatedAt: -1 })
                 .limit(limit);

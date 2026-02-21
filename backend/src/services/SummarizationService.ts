@@ -4,31 +4,13 @@ import { LoggerService } from './LoggerService';
 import { Conversation } from '../models/Conversation';
 import crypto from 'crypto';
 import { SYSTEM_MODELS, MODELS } from '../config/models';
+import { ChatMessage, SmartContext, RollingContext } from '../../../shared/types';
 
-export type RollingContext = SmartContext['rolling'];
-
-export interface SmartContext {
-    canonical: string;
-    rolling: {
-        facts: string[];
-        tentative_facts?: string[];
-        intent: {
-            primary: string;
-            secondary?: string[];
-            confidence: number;
-        };
-        constraints: string[];
-        decisions: string[];
-        open_questions: string[];
-        confidence_score: number;
-    };
-    version: number;
-    hashes: { canonical: string; rolling: string; raw: string };
-    lastCanonizedAt: Date;
-    metadata?: {
-        intent_history?: string[];
-        volatility_score?: number;
-    };
+/** Typed correction payloads for manual context corrections */
+type FactCorrection = string | { text: string };
+interface IntentCorrection {
+    primary: string;
+    secondary?: string[];
 }
 
 export class SummarizationService {
@@ -89,7 +71,7 @@ Output: Updated Canonical Memory (Text only).
     static async runUpdate(
         userId: string,
         sessionId: string,
-        newMessages: any[],
+        newMessages: ChatMessage[],
         currentContext: SmartContext
     ) {
         try {
@@ -120,14 +102,12 @@ Output: Updated Canonical Memory (Text only).
             const shouldCanonize = this.shouldCanonize(targetVersion, newRolling.confidence_score, isDuplicate, volatility.blocked);
 
             if (shouldCanonize) {
-                if (isDuplicate) {
-                    LoggerService.info(`[SmartContext] Canonization skipped: Idempotent (Hash: ${rollingHash.substring(0, 8)})`);
-                } else {
-                    newCanonical = await this.canonize(currentContext.canonical, newRolling);
-                    LoggerService.info(`[SmartContext] Canonization successful for ${sessionId}`);
-                }
+                newCanonical = await this.canonize(currentContext.canonical, newRolling);
+                LoggerService.info(`[SmartContext] Canonization successful for ${sessionId}`);
             } else if (targetVersion % this.CANONIZATION_INTERVAL === 0) {
-                LoggerService.warn(`[SmartContext] Canonization skipped for ${sessionId}. Confidence: ${newRolling.confidence_score}, Duplicate: ${isDuplicate}`);
+                // Log skip reason at canonization intervals for observability
+                const reason = isDuplicate ? 'Idempotent' : volatility.blocked ? 'Volatile' : `Low confidence (${newRolling.confidence_score})`;
+                LoggerService.warn(`[SmartContext] Canonization skipped for ${sessionId}: ${reason}`);
             }
 
             // Guard: Canonical Length (Soft Warning + Rate limit)
@@ -213,10 +193,14 @@ Output: Updated Canonical Memory (Text only).
         if (intentHistory.length > 5) intentHistory.shift(); // Keep last 5
 
         const last3 = intentHistory.slice(-3);
-        const flips = new Set(last3).size;
+        const uniqueIntents = new Set(last3).size;
 
+        // Exponentially weighted moving average (EWMA) with proper scaling.
+        // uniqueIntents >= 3 means every recent message changed intent → high volatility signal.
+        // Use a stronger weight for the new signal so it can actually breach the 0.5 threshold.
         const previousVolatility = currentContext.metadata?.volatility_score || 0;
-        const score = previousVolatility * 0.7 + (flips > 2 ? 0.9 : 0.1) * 0.3; // Proper decaying formula
+        const newSignal = uniqueIntents >= 3 ? 1.0 : (uniqueIntents >= 2 ? 0.4 : 0.0);
+        const score = previousVolatility * 0.5 + newSignal * 0.5;
 
         return {
             score,
@@ -227,6 +211,7 @@ Output: Updated Canonical Memory (Text only).
 
     private static shouldCanonize(targetVersion: number, confidence: number, isDuplicate: boolean, isVolatileBlocked: boolean): boolean {
         if (isVolatileBlocked) return false;
+        if (isDuplicate) return false;
         return targetVersion % this.CANONIZATION_INTERVAL === 0 && confidence >= 0.7;
     }
 
@@ -258,11 +243,17 @@ Output: Updated Canonical Memory (Text only).
         };
     }
 
-    static async handleManualCorrection(userId: string, sessionId: string, type: 'fact' | 'intent', correction: any) {
+    static async handleManualCorrection(
+        userId: string,
+        sessionId: string,
+        type: 'fact' | 'intent',
+        correction: FactCorrection | IntentCorrection
+    ) {
         try {
             // Use MongoDB atomic updates to prevent race conditions during concurrent corrections
             if (type === 'fact') {
-                const newFact = typeof correction === 'string' ? correction : correction.text;
+                const factCorrection = correction as FactCorrection;
+                const newFact = typeof factCorrection === 'string' ? factCorrection : factCorrection.text;
                 const formattedFact = `[Verified] ${newFact}`;
 
                 await Conversation.updateOne(
@@ -271,17 +262,18 @@ Output: Updated Canonical Memory (Text only).
                 );
                 LoggerService.info('fact_manually_corrected', { userId, sessionId, fact: newFact });
             } else if (type === 'intent') {
+                const intentCorrection = correction as IntentCorrection;
                 await Conversation.updateOne(
                     { userId, sessionId },
                     {
                         $set: {
-                            'smartContext.rolling.intent.primary': correction.primary,
-                            'smartContext.rolling.intent.secondary': correction.secondary || [],
+                            'smartContext.rolling.intent.primary': intentCorrection.primary,
+                            'smartContext.rolling.intent.secondary': intentCorrection.secondary || [],
                             'smartContext.rolling.intent.confidence': 1.0
                         }
                     }
                 );
-                LoggerService.info('intent_manually_corrected', { userId, sessionId, intent: correction.primary });
+                LoggerService.info('intent_manually_corrected', { userId, sessionId, intent: intentCorrection.primary });
             }
         } catch (e) {
             LoggerService.error('Manual Correction Failed', e);
@@ -290,12 +282,10 @@ Output: Updated Canonical Memory (Text only).
 
     static async generateRollingSummary(
         currentRolling: RollingContext,
-        newMessages: any[]
+        newMessages: ChatMessage[]
     ): Promise<RollingContext> {
-        const extractText = (content: any) =>
-            Array.isArray(content)
-                ? content.filter((b: any) => b.type === 'text').map((b: any) => b.text).join(' ')
-                : String(content || '');
+        // ChatMessage.content is always string per the shared type definition
+        const extractText = (content: string | undefined): string => String(content || '');
 
         const prompt = `
 Current Rolling:
