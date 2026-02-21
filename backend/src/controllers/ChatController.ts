@@ -215,18 +215,16 @@ export class ChatController {
 
         if (!key) return res.status(400).json({ error: 'Key required' });
 
-        // Security check: Key ownership
-        if (!key.startsWith(`${userId}/`)) {
-            console.warn(`[ChatController] Access Denied: User ${userId} tried to access ${key}`);
+        // Security check: key ownership + path traversal protection
+        if (!ChatAttachmentService.validateKeyOwnership(key, userId)) {
+            LoggerService.warn('attachment_access_denied', { userId, key });
             return res.status(403).json({ error: 'Access denied' });
         }
 
-        console.log(`[ChatController] Downloading attachment: ${key} for user ${userId}`);
-
         try {
-            await ChatAttachmentService.streamAttachment(key, res, userId, req.user.role || 'student');
+            await ChatAttachmentService.streamAttachment(key, res, userId);
         } catch (error: any) {
-            console.error('Download Error:', error.message);
+            LoggerService.error('attachment_download_failed', { key, error: error.message }, userId);
             if (!res.headersSent) res.status(500).json({ error: 'Download failed' });
         }
     }
