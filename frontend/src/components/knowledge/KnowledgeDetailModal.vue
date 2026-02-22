@@ -18,6 +18,77 @@ const knowledgeStore = useKnowledgeStore()
 const { t } = useLanguage()
 
 const isOwner = computed(() => props.item.ownerId === authStore.userId)
+const isAdmin = computed(() => authStore.role === 'admin' || authStore.role === 'superadmin')
+const canEdit = computed(() => isOwner.value || isAdmin.value)
+
+// Editing state
+const editingDesc = ref(false)
+const editDesc = ref('')
+const savingDesc = ref(false)
+const descSaved = ref(false)
+
+// Tags state
+const editingTags = ref(false)
+const newTag = ref('')
+const localTags = ref([...(props.item.tags || [])])
+const savingTags = ref(false)
+const tagsSaved = ref(false)
+
+const startEditDesc = () => {
+    editDesc.value = props.item.description || ''
+    editingDesc.value = true
+}
+
+const saveDesc = async () => {
+    if (savingDesc.value) return
+    savingDesc.value = true
+    try {
+        await knowledgeStore.updateKnowledge(props.item._id, { description: editDesc.value })
+        props.item.description = editDesc.value
+        editingDesc.value = false
+        descSaved.value = true
+        setTimeout(() => descSaved.value = false, 2000)
+    } catch (e) {
+        console.error('Save description failed', e)
+    } finally {
+        savingDesc.value = false
+    }
+}
+
+const cancelEditDesc = () => {
+    editingDesc.value = false
+}
+
+const addTag = async () => {
+    const tag = newTag.value.trim().toLowerCase()
+    if (!tag || localTags.value.includes(tag)) {
+        newTag.value = ''
+        return
+    }
+    if (localTags.value.length >= 20) return
+    localTags.value.push(tag)
+    newTag.value = ''
+    await saveTagsToServer()
+}
+
+const removeTag = async (tag) => {
+    localTags.value = localTags.value.filter(t => t !== tag)
+    await saveTagsToServer()
+}
+
+const saveTagsToServer = async () => {
+    savingTags.value = true
+    try {
+        await knowledgeStore.updateKnowledge(props.item._id, { tags: localTags.value })
+        props.item.tags = [...localTags.value]
+        tagsSaved.value = true
+        setTimeout(() => tagsSaved.value = false, 2000)
+    } catch (e) {
+        console.error('Save tags failed', e)
+    } finally {
+        savingTags.value = false
+    }
+}
 
 // Inline confirm for publish request
 const showPublishConfirm = ref(false)
@@ -40,7 +111,6 @@ const handleRequestPublish = async () => {
         emit('success')
         emit('close')
     } catch (e) {
-        // Show inline error instead of alert()
         publishError.value = e.message || 'Failed to request publish'
     } finally {
         publishing.value = false
@@ -67,6 +137,39 @@ const getStatusColor = (status) => {
         default: return 'var(--color-text-muted)'
     }
 }
+
+// Tab state
+const activeTab = ref('details') // 'details' | 'analytics'
+
+// Analytics state
+const analytics = ref(null)
+const analyticsLoading = ref(false)
+const analyticsError = ref('')
+
+const switchTab = async (tab) => {
+    activeTab.value = tab
+    if (tab === 'analytics' && !analytics.value) {
+        await loadAnalytics()
+    }
+}
+
+const loadAnalytics = async () => {
+    analyticsLoading.value = true
+    analyticsError.value = ''
+    try {
+        analytics.value = await knowledgeStore.fetchDocumentAnalytics(props.item._id)
+    } catch (e) {
+        analyticsError.value = e.response?.data?.error || 'Failed to load analytics'
+    } finally {
+        analyticsLoading.value = false
+    }
+}
+
+// Bar chart helper: compute max height for relative bars
+const maxDailyHit = computed(() => {
+    if (!analytics.value?.dailyHits?.length) return 1
+    return Math.max(...analytics.value.dailyHits.map(d => d.count), 1)
+})
 </script>
 
 <template>
@@ -93,12 +196,32 @@ const getStatusColor = (status) => {
           </button>
         </div>
 
+        <!-- Tabs -->
+        <div class="modal-tabs">
+          <button
+            class="tab-btn"
+            :class="{ active: activeTab === 'details' }"
+            @click="switchTab('details')"
+          >Details</button>
+          <button
+            class="tab-btn"
+            :class="{ active: activeTab === 'analytics' }"
+            @click="switchTab('analytics')"
+          >Analytics</button>
+        </div>
+
         <!-- Body -->
         <div class="modal-body">
+
+          <!-- Details Tab -->
+          <template v-if="activeTab === 'details'">
           <!-- Title -->
           <div class="detail-group">
             <label>{{ t('knowledgeDetailTitle') }}</label>
-            <div class="value title">{{ item.title }}</div>
+            <div class="value title">
+              {{ item.title }}
+              <span v-if="item.version > 1" class="version-badge">v{{ item.version }}</span>
+            </div>
           </div>
 
           <!-- Type + Department -->
@@ -115,10 +238,59 @@ const getStatusColor = (status) => {
             </div>
           </div>
 
-          <!-- Description -->
+          <!-- Description (editable) -->
           <div class="detail-group">
-            <label>{{ t('knowledgeDetailDesc') }}</label>
-            <div class="value desc">{{ item.description || t('knowledgeDetailNoDesc') }}</div>
+            <div class="content-header">
+              <label>{{ t('knowledgeDetailDesc') }}</label>
+              <button v-if="canEdit && !editingDesc" class="btn-edit" @click="startEditDesc">
+                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                </svg>
+                Edit
+              </button>
+              <span v-if="descSaved" class="save-indicator">✓ Saved</span>
+            </div>
+            <div v-if="editingDesc" class="edit-area">
+              <textarea
+                v-model="editDesc"
+                class="edit-textarea"
+                rows="3"
+                maxlength="2000"
+                placeholder="Add a description..."
+              />
+              <div class="edit-actions">
+                <button class="btn-cancel-sm" @click="cancelEditDesc">Cancel</button>
+                <button class="btn-save-sm" @click="saveDesc" :disabled="savingDesc">
+                  {{ savingDesc ? 'Saving...' : 'Save' }}
+                </button>
+              </div>
+            </div>
+            <div v-else class="value desc">{{ item.description || t('knowledgeDetailNoDesc') }}</div>
+          </div>
+
+          <!-- Tags -->
+          <div class="detail-group">
+            <div class="content-header">
+              <label>Tags</label>
+              <span v-if="tagsSaved" class="save-indicator">✓ Saved</span>
+            </div>
+            <div class="tags-container">
+              <span v-for="tag in localTags" :key="tag" class="tag-chip">
+                {{ tag }}
+                <button v-if="canEdit" class="tag-remove" @click="removeTag(tag)">×</button>
+              </span>
+              <div v-if="canEdit" class="tag-input-wrap">
+                <input
+                  v-model="newTag"
+                  class="tag-input"
+                  placeholder="Add tag..."
+                  maxlength="50"
+                  @keydown.enter.prevent="addTag"
+                />
+              </div>
+              <span v-if="localTags.length === 0 && !canEdit" class="no-tags">No tags</span>
+            </div>
           </div>
 
           <!-- Source + Created -->
@@ -244,6 +416,87 @@ const getStatusColor = (status) => {
               {{ t('pendingApproval') }}
             </p>
           </div>
+          </template>
+
+          <!-- Analytics Tab -->
+          <template v-if="activeTab === 'analytics'">
+            <!-- Loading -->
+            <div v-if="analyticsLoading" class="analytics-loading">
+              <div class="spinner"></div>
+              <p>Loading analytics...</p>
+            </div>
+
+            <!-- Error -->
+            <div v-else-if="analyticsError" class="analytics-error">
+              <p>{{ analyticsError }}</p>
+              <button class="btn-save-sm" @click="loadAnalytics">Retry</button>
+            </div>
+
+            <!-- Analytics Data -->
+            <div v-else-if="analytics" class="analytics-content">
+              <!-- Stat Cards -->
+              <div class="stat-cards">
+                <div class="stat-card">
+                  <div class="stat-value">{{ analytics.totalHits }}</div>
+                  <div class="stat-label">Total Hits</div>
+                </div>
+                <div class="stat-card">
+                  <div class="stat-value">{{ analytics.uniqueUsers }}</div>
+                  <div class="stat-label">Unique Users</div>
+                </div>
+                <div class="stat-card">
+                  <div class="stat-value">{{ analytics.avgScore }}</div>
+                  <div class="stat-label">Avg Score</div>
+                </div>
+                <div class="stat-card">
+                  <div class="stat-value feedback-val">
+                    <span class="fb-liked">👍 {{ analytics.feedback.liked }}</span>
+                    <span class="fb-disliked">👎 {{ analytics.feedback.disliked }}</span>
+                  </div>
+                  <div class="stat-label">Feedback</div>
+                </div>
+              </div>
+
+              <!-- Last Accessed -->
+              <div class="detail-group" v-if="analytics.lastAccessed">
+                <label>Last Accessed</label>
+                <div class="value">{{ formatDate(analytics.lastAccessed) }}</div>
+              </div>
+
+              <!-- Daily Hit Chart (last 30 days) -->
+              <div class="detail-group" v-if="analytics.dailyHits?.length">
+                <label>Daily Hits (30 days)</label>
+                <div class="bar-chart">
+                  <div
+                    v-for="day in analytics.dailyHits"
+                    :key="day._id"
+                    class="bar-col"
+                    :title="`${day._id}: ${day.count} hits`"
+                  >
+                    <div class="bar" :style="{ height: Math.max((day.count / maxDailyHit) * 80, 4) + 'px' }"></div>
+                    <span class="bar-label">{{ day._id.slice(5) }}</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Top Queries -->
+              <div class="detail-group" v-if="analytics.topQueries?.length">
+                <label>Top Queries</label>
+                <div class="queries-list">
+                  <div v-for="q in analytics.topQueries" :key="q.query" class="query-row">
+                    <span class="query-text">{{ q.query }}</span>
+                    <span class="query-count">{{ q.count }}×</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Empty State -->
+              <div v-if="analytics.totalHits === 0" class="no-content">
+                <p>No usage data yet</p>
+                <small>Analytics will appear after this document is used in RAG searches</small>
+              </div>
+            </div>
+          </template>
         </div>
       </div>
     </div>
@@ -271,6 +524,170 @@ const getStatusColor = (status) => {
 .modal-fade-leave-to .knowledge-modal {
   transform: translateY(8px) scale(0.98);
   opacity: 0;
+}
+
+/* ─── Tabs ───────────────────────────────────────────────────── */
+.modal-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 0 24px 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.tab-btn {
+  padding: 10px 16px;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--color-text-muted);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  margin-bottom: -1px;
+}
+.tab-btn:hover {
+  color: var(--color-text-primary);
+}
+.tab-btn.active {
+  color: var(--color-accent, #6366f1);
+  border-bottom-color: var(--color-accent, #6366f1);
+}
+
+/* ─── Analytics ──────────────────────────────────────────────── */
+.analytics-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 40px 0;
+  color: var(--color-text-muted);
+}
+
+.spinner {
+  width: 28px;
+  height: 28px;
+  border: 3px solid var(--color-border);
+  border-top-color: var(--color-accent, #6366f1);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.analytics-error {
+  text-align: center;
+  padding: 32px;
+  color: #ef4444;
+}
+
+.stat-cards {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.stat-card {
+  background: var(--color-bg-tertiary);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  padding: 14px;
+  text-align: center;
+}
+
+.stat-value {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  letter-spacing: -0.02em;
+}
+
+.stat-label {
+  font-size: 11px;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  margin-top: 4px;
+}
+
+.feedback-val {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  font-size: 16px;
+}
+.fb-liked { color: #10b981; }
+.fb-disliked { color: #ef4444; }
+
+/* Bar Chart */
+.bar-chart {
+  display: flex;
+  gap: 3px;
+  align-items: flex-end;
+  min-height: 100px;
+  padding: 8px;
+  background: var(--color-bg-tertiary);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  overflow-x: auto;
+}
+
+.bar-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  flex: 1;
+  min-width: 14px;
+}
+
+.bar {
+  width: 100%;
+  max-width: 20px;
+  background: linear-gradient(180deg, var(--color-accent, #6366f1), #818cf8);
+  border-radius: 3px 3px 0 0;
+  transition: height 0.3s ease;
+}
+
+.bar-label {
+  font-size: 8px;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+/* Queries List */
+.queries-list {
+  background: var(--color-bg-tertiary);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.query-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  font-size: 13px;
+  border-bottom: 1px solid var(--color-border);
+}
+.query-row:last-child { border-bottom: none; }
+
+.query-text {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--color-text-primary);
+}
+
+.query-count {
+  flex-shrink: 0;
+  font-weight: 600;
+  color: var(--color-accent, #6366f1);
+  font-size: 12px;
+  margin-left: 8px;
 }
 
 /* ─── Read Mode Transition ───────────────────────────────────── */
@@ -395,11 +812,178 @@ const getStatusColor = (status) => {
   margin-bottom: 18px;
 }
 
+.value.title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 500;
+}
+
+.version-badge {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--color-accent);
+  background: rgba(99, 102, 241, 0.1);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
 .detail-row {
   display: flex;
   gap: 24px;
 }
 .detail-row .detail-group { flex: 1; }
+
+/* ─── Edit Controls ──────────────────────────────────────────── */
+.btn-edit {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: none;
+  border: none;
+  color: var(--color-accent, #6366f1);
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 6px;
+  transition: all 0.15s ease;
+}
+.btn-edit:hover {
+  background: rgba(99, 102, 241, 0.1);
+}
+
+.save-indicator {
+  font-size: 11px;
+  font-weight: 600;
+  color: #10b981;
+  animation: fadeInOut 2s ease forwards;
+}
+@keyframes fadeInOut {
+  0% { opacity: 0; }
+  15% { opacity: 1; }
+  85% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+.edit-area {
+  margin-top: 4px;
+}
+
+.edit-textarea {
+  width: 100%;
+  padding: 10px 12px;
+  background: var(--color-bg-tertiary);
+  border: 1px solid var(--color-accent, #6366f1);
+  border-radius: 8px;
+  color: var(--color-text-primary);
+  font-size: 13px;
+  line-height: 1.5;
+  resize: vertical;
+  font-family: inherit;
+  outline: none;
+}
+.edit-textarea:focus {
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+}
+
+.edit-actions {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+  margin-top: 6px;
+}
+
+.btn-cancel-sm {
+  padding: 5px 12px;
+  background: transparent;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.btn-cancel-sm:hover { background: var(--color-bg-hover); }
+
+.btn-save-sm {
+  padding: 5px 12px;
+  background: var(--color-accent, #6366f1);
+  border: none;
+  border-radius: 6px;
+  color: white;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.btn-save-sm:hover { opacity: 0.9; }
+.btn-save-sm:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ─── Tags ───────────────────────────────────────────────────── */
+.tags-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  min-height: 32px;
+}
+
+.tag-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  background: rgba(99, 102, 241, 0.1);
+  color: var(--color-accent, #6366f1);
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 500;
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  transition: all 0.15s;
+}
+
+.tag-remove {
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  padding: 0 2px;
+  opacity: 0.6;
+  transition: opacity 0.15s;
+}
+.tag-remove:hover { opacity: 1; }
+
+.tag-input-wrap {
+  flex-shrink: 0;
+}
+
+.tag-input {
+  width: 100px;
+  padding: 4px 8px;
+  background: var(--color-bg-tertiary);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  color: var(--color-text-primary);
+  font-size: 12px;
+  outline: none;
+  transition: all 0.15s;
+}
+.tag-input:focus {
+  border-color: var(--color-accent, #6366f1);
+  width: 140px;
+}
+.tag-input::placeholder {
+  color: var(--color-text-muted);
+}
+
+.no-tags {
+  font-size: 12px;
+  color: var(--color-text-muted);
+  font-style: italic;
+}
 
 label {
   display: block;

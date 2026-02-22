@@ -11,10 +11,29 @@ const { t } = useLanguage()
 const emit = defineEmits(['open'])
 
 const filterType = ref('all') // 'all', 'personal', 'department', 'public'
+const searchQuery = ref('')
 
 const filteredKnowledge = computed(() => {
-    if (filterType.value === 'all') return knowledgeStore.knowledge
-    return knowledgeStore.knowledge.filter(k => k.type === filterType.value)
+    let list = knowledgeStore.knowledge
+
+    // Type filter
+    if (filterType.value !== 'all') {
+        list = list.filter(k => k.type === filterType.value)
+    }
+
+    // Search filter (title, description, tags, department)
+    const q = searchQuery.value.trim().toLowerCase()
+    if (q) {
+        list = list.filter(k => {
+            const title = (k.title || '').toLowerCase()
+            const desc = (k.description || '').toLowerCase()
+            const dept = (k.department || '').toLowerCase()
+            const tags = (k.tags || []).join(' ').toLowerCase()
+            return title.includes(q) || desc.includes(q) || dept.includes(q) || tags.includes(q)
+        })
+    }
+
+    return list
 })
 
 const getBadgeClass = (type) => {
@@ -81,17 +100,32 @@ const handleRetry = async (id) => {
 
 <template>
   <div class="knowledge-list">
-    <!-- Filters -->
-    <div class="filters">
-      <button 
-        v-for="opt in filterOptions" 
-        :key="opt.value"
-        class="filter-btn"
-        :class="{ active: filterType === opt.value }"
-        @click="filterType = opt.value"
-      >
-        {{ opt.label }}
-      </button>
+    <!-- Search + Filters -->
+    <div class="search-filters">
+      <div class="search-bar">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="search-icon">
+          <circle cx="11" cy="11" r="8"/>
+          <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+        </svg>
+        <input
+          v-model="searchQuery"
+          type="text"
+          class="search-input"
+          placeholder="Search by name, tag, or description..."
+        />
+        <button v-if="searchQuery" class="search-clear" @click="searchQuery = ''">×</button>
+      </div>
+      <div class="filters">
+        <button 
+          v-for="opt in filterOptions" 
+          :key="opt.value"
+          class="filter-btn"
+          :class="{ active: filterType === opt.value }"
+          @click="filterType = opt.value"
+        >
+          {{ opt.label }}
+        </button>
+      </div>
     </div>
 
     <!-- Table (Desktop) -->
@@ -110,7 +144,16 @@ const handleRetry = async (id) => {
           <tr v-for="item in filteredKnowledge" :key="item._id" @click="$emit('open', item)" class="clickable-row">
             <td class="col-name">
               <div class="file-icon">📄</div>
-              <span>{{ item.title }}</span>
+              <div class="name-column">
+                <span class="kb-title">
+                  {{ item.title }}
+                  <span v-if="item.version > 1" class="version-badge">v{{ item.version }}</span>
+                </span>
+                <div v-if="item.tags?.length" class="tag-chips-inline">
+                  <span v-for="tag in item.tags.slice(0, 3)" :key="tag" class="tag-mini">{{ tag }}</span>
+                  <span v-if="item.tags.length > 3" class="tag-more">+{{ item.tags.length - 3 }}</span>
+                </div>
+              </div>
             </td>
             <td>
               <span class="badge" :class="getBadgeClass(item.type)">
@@ -179,7 +222,10 @@ const handleRetry = async (id) => {
         >
             <div class="card-header">
                 <div class="file-icon">📄</div>
-                <div class="card-title">{{ item.title }}</div>
+                <div class="card-title">
+                  {{ item.title }}
+                  <span v-if="item.version > 1" class="version-badge">v{{ item.version }}</span>
+                </div>
                 <button class="btn-icon delete" @click.stop="handleDelete(item._id)">
                   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
                </button>
@@ -208,8 +254,56 @@ const handleRetry = async (id) => {
 .knowledge-list {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
 }
+
+.search-filters {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.search-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--color-bg-tertiary);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  padding: 8px 14px;
+  transition: border-color 0.15s;
+}
+.search-bar:focus-within {
+  border-color: var(--color-accent, #6366f1);
+}
+
+.search-icon {
+  color: var(--color-text-muted);
+  flex-shrink: 0;
+}
+
+.search-input {
+  flex: 1;
+  background: none;
+  border: none;
+  outline: none;
+  color: var(--color-text-primary);
+  font-size: 14px;
+}
+.search-input::placeholder {
+  color: var(--color-text-muted);
+}
+
+.search-clear {
+  background: none;
+  border: none;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+  padding: 0 4px;
+}
+.search-clear:hover { color: var(--color-text-primary); }
 
 .filters {
   display: flex;
@@ -271,6 +365,9 @@ const handleRetry = async (id) => {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    display: flex;
+    align-items: center;
+    gap: 8px;
 }
 
 .card-details {
@@ -282,12 +379,24 @@ const handleRetry = async (id) => {
     gap: 6px;
 }
 
-.detail-label {
-    font-weight: 500;
-    color: var(--color-text-muted);
+.detail-label, .kb-title {
+  font-weight: 500;
+  color: var(--color-text-primary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
-.card-actions {
+.version-badge {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--color-accent);
+  background: rgba(99, 102, 241, 0.1);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.inline-tags {
     position: absolute;
     top: 16px;
     right: 16px;
@@ -317,6 +426,39 @@ const handleRetry = async (id) => {
   align-items: center;
   gap: 12px;
   font-weight: 500;
+}
+
+.name-col {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.name-col span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tag-chips-inline {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.tag-mini {
+  padding: 1px 6px;
+  background: rgba(99, 102, 241, 0.08);
+  color: var(--color-accent, #6366f1);
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 500;
+}
+
+.tag-more {
+  padding: 1px 4px;
+  font-size: 10px;
+  color: var(--color-text-muted);
 }
 
 .badge {

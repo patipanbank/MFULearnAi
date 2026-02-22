@@ -7,8 +7,13 @@ const router = Router();
 router.get('/', KnowledgeController.listKnowledge);
 router.post('/', KnowledgeController.create);
 router.post('/extract', KnowledgeController.extract);
+// Static paths must come before /:id parametric routes
+router.post('/url', KnowledgeController.createFromUrl);
+router.get('/stats', KnowledgeController.getStats);
 router.delete('/:id', KnowledgeController.delete);
+router.patch('/:id', KnowledgeController.update);
 router.post('/:id/retry', KnowledgeController.retry);
+router.get('/:id/analytics', KnowledgeController.getDocumentAnalytics);
 
 // Publishing
 router.post('/:id/request-publish', KnowledgeController.requestPublish);

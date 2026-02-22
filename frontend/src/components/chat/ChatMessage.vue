@@ -17,12 +17,15 @@ const props = defineProps({
   t: { type: Function, required: true }
 })
 
-const emit = defineEmits(['copy'])
+const emit = defineEmits(['copy', 'feedback'])
 
 const { render, copyToClipboard } = useMarkdown()
 const copied = ref(false)
 const viewingImage = ref(null)
 const messageRef = ref(null)
+
+// Feedback state
+const feedbackState = ref(null) // null | 'liked' | 'disliked'
 const flowManualToggle = ref(null)
 
 const flowExpanded = computed(() => {
@@ -118,13 +121,11 @@ const showAgentFlow = computed(() =>
   props.isStreaming || (hasAgentEvents.value && timelineEvents.value.length > 0)
 )
 
-// Flow header summary text
+// Flow header summary text — shows "thoughts for Xs"
 const flowHeaderText = computed(() => {
   if (!agentSummary.value?.isComplete) return 'Working...'
-  const parts = ['Thought']
-  if (agentSummary.value.durationStr) parts.push(`for ${agentSummary.value.durationStr}`)
-  if (agentSummary.value.steps) parts.push(`· ${agentSummary.value.steps} steps`)
-  return parts.join(' ')
+  const sec = agentSummary.value.durationStr || ''
+  return sec ? `thoughts for ${sec}` : 'thoughts'
 })
 
 // Tool label mapping
@@ -151,6 +152,17 @@ const handleCopy = async () => {
     copied.value = true
     setTimeout(() => { copied.value = false }, 2000)
     emit('copy', props.message.content)
+  }
+}
+
+const handleFeedback = (type) => {
+  // Toggle: clicking same button again removes feedback
+  if (feedbackState.value === type) {
+    feedbackState.value = null
+    emit('feedback', { messageId: props.message.id, type: null })
+  } else {
+    feedbackState.value = type
+    emit('feedback', { messageId: props.message.id, type })
   }
 }
 
@@ -413,7 +425,7 @@ const getFileIcon = (file) => {
             <span /><span /><span />
           </div>
 
-          <!-- Action Bar -->
+          <!-- Action Bar: Copy | Like | Dislike -->
           <div class="action-bar" v-if="message.content">
             <!-- Copy -->
             <button class="action-btn" @click="handleCopy" :class="{ copied }" :title="t('copy')">
@@ -425,36 +437,31 @@ const getFileIcon = (file) => {
               <span>{{ copied ? 'Copied' : 'Copy' }}</span>
             </button>
 
-            <!-- Metadata separator -->
-            <template v-if="message.meta || agentSummary?.isComplete">
-              <span class="action-sep" />
+            <!-- Like -->
+            <button
+              class="action-btn feedback-btn"
+              :class="{ active: feedbackState === 'liked' }"
+              @click="handleFeedback('liked')"
+              title="Like"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3H14z"/>
+                <path d="M7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/>
+              </svg>
+            </button>
 
-              <!-- Answer mode -->
-              <span v-if="message.meta?.answer_mode" class="meta-chip">
-                {{ message.meta.answer_mode === 'rag' ? 'RAG' :
-                   message.meta.answer_mode === 'file_grounded' ? 'File' :
-                   message.meta.answer_mode === 'policy_grounded' ? 'Policy' : 'Internal' }}
-              </span>
-
-              <!-- Confidence -->
-              <span
-                v-if="message.meta?.confidence"
-                class="meta-chip confidence"
-                :class="message.meta.confidence.toLowerCase()"
-              >
-                {{ message.meta.confidence }} confidence
-              </span>
-
-              <!-- Steps -->
-              <span v-if="agentSummary?.steps" class="meta-chip">
-                {{ agentSummary.steps }} steps
-              </span>
-
-              <!-- Duration -->
-              <span v-if="agentSummary?.durationStr" class="meta-chip">
-                {{ agentSummary.durationStr }}
-              </span>
-            </template>
+            <!-- Dislike -->
+            <button
+              class="action-btn feedback-btn"
+              :class="{ active: feedbackState === 'disliked' }"
+              @click="handleFeedback('disliked')"
+              title="Dislike"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3H10z"/>
+                <path d="M17 2h2.67A2.31 2.31 0 0 1 22 4v7a2.31 2.31 0 0 1-2.33 2H17"/>
+              </svg>
+            </button>
           </div>
 
         </div>
@@ -695,16 +702,9 @@ const getFileIcon = (file) => {
 .action-btn:hover { background: var(--color-bg-tertiary); color: var(--color-text-primary); }
 .action-btn.copied { color: var(--color-success, #16a34a); }
 
-.action-sep { width: 1px; height: 14px; background: var(--color-border); flex-shrink: 0; }
-
-.meta-chip {
-  font-size: 11px; color: var(--color-text-muted);
-  padding: 2px 0; font-weight: 500;
-}
-
-.meta-chip.confidence.high { color: #16a34a; }
-.meta-chip.confidence.medium { color: #d97706; }
-.meta-chip.confidence.low { color: #dc2626; }
+/* Feedback buttons */
+.feedback-btn.active { color: var(--color-accent, #6366f1); }
+.feedback-btn.active svg { fill: currentColor; }
 
 /* ── Lightbox ── */
 .lightbox {

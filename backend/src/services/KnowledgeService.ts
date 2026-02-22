@@ -8,6 +8,7 @@ import { CanonicalIR } from '../../../shared/types';
 import { LoggerService } from './LoggerService'; // Internal Logger
 import { Request, Response } from 'express';
 import * as uuid from 'uuid';
+import { KnowledgeHit } from '../models/KnowledgeHit';
 
 const CHROMA_URL = process.env.CHROMA_URL || 'http://chromadb:8000';
 const chroma = new ChromaClient({ path: CHROMA_URL });
@@ -176,12 +177,32 @@ export class KnowledgeService {
                     return `<block id="${blockId}" score="${hit.score.toFixed(4)}">\n${hit.content}\n</block>`;
                 }).join('\n\n');
 
-                return {
+                const result = {
                     text,
                     sources: Array.from(sourceMap.values()),
                     blocks,
                     maxScore
                 };
+
+                // Fire-and-forget: log hits for usage analytics
+                const userId = userContext?.userId || 'unknown';
+                const hitDocs = Array.from(sourceMap.keys());
+                if (hitDocs.length > 0) {
+                    Promise.all(
+                        hitDocs.map(knowledgeId => {
+                            const bestHit = validHits.find(h => h.metadata?.knowledgeId === knowledgeId);
+                            return KnowledgeHit.create({
+                                knowledgeId,
+                                query,
+                                score: bestHit?.score ?? 0,
+                                userId,
+                                toolName: options.metadataFilter?.type === 'policy' ? 'check_policy' : 'search'
+                            });
+                        })
+                    ).catch(err => LoggerService.warn('knowledge_hit_log_failed', { error: err.message }));
+                }
+
+                return result;
             }
 
             return { text: '', sources: [], blocks: [], maxScore: 0 };
@@ -265,6 +286,42 @@ export class KnowledgeService {
     }
 
     // --- Knowledge CRUD ---
+    /**
+     * Update editable fields on a knowledge item (description, tags).
+     * Only the owner, relevant admin, or superadmin can update.
+     */
+    static async updateKnowledge(
+        id: string,
+        user: UserContext,
+        updates: { description?: string; tags?: string[] }
+    ) {
+        const kb = await Knowledge.findById(id);
+        if (!kb) throw new Error('Not found');
+        if (!this.canManageKnowledge(user, kb)) throw new Error('Permission denied');
+
+        // Validate tags
+        if (updates.tags !== undefined) {
+            if (!Array.isArray(updates.tags)) throw new Error('tags must be an array');
+            if (updates.tags.length > 20) throw new Error('Maximum 20 tags allowed');
+            // Sanitize: trim, lowercase, remove duplicates, limit length
+            updates.tags = [...new Set(
+                updates.tags
+                    .map(t => t.trim().toLowerCase().slice(0, 50))
+                    .filter(t => t.length > 0)
+            )];
+        }
+
+        if (updates.description !== undefined) {
+            kb.description = updates.description.slice(0, 2000);
+        }
+        if (updates.tags !== undefined) {
+            kb.tags = updates.tags;
+        }
+
+        await kb.save();
+        return kb;
+    }
+
     static async createKnowledgeRecord(
         user: UserContext,
         fileInfo: { originalName: string, mimeType: string, s3Key: string },
@@ -288,6 +345,29 @@ export class KnowledgeService {
             LoggerService.warn('knowledge_id_mismatch', { s3Key: fileInfo.s3Key, generatedId: finalId }, user.userId);
         }
 
+        // --- Versioning Logic ---
+        let version = 1;
+        let previousVersionId = undefined;
+
+        // Look for an existing active document with the same title
+        const existingDoc = await Knowledge.findOne({
+            title: fileInfo.originalName,
+            type: type,
+            ownerId: user.userId,
+            department: user.department,
+            visibility: 'active'
+        });
+
+        if (existingDoc) {
+            version = (existingDoc.version || 1) + 1;
+            previousVersionId = existingDoc._id;
+
+            // Archive the old version so it doesn't show up in search/lists
+            existingDoc.visibility = 'archived';
+            await existingDoc.save();
+            console.log(`[Knowledge] Versioning: Archived ${existingDoc._id} (v${existingDoc.version}). Creating v${version}`);
+        }
+
         const kb = new Knowledge({
             _id: finalId,
             title: fileInfo.originalName,
@@ -300,6 +380,8 @@ export class KnowledgeService {
             processingStage: 'queued',
             s3Key: fileInfo.s3Key,
             contentType: fileInfo.mimeType,
+            version,
+            previousVersionId
         });
         await kb.save();
 
@@ -308,6 +390,44 @@ export class KnowledgeService {
             s3Key: fileInfo.s3Key,
             mimetype: fileInfo.mimeType,
             originalName: fileInfo.originalName
+        });
+
+        return kb;
+    }
+
+    static async createFromUrl(user: UserContext, url: string, typeVal?: string) {
+        const type = typeVal || 'personal';
+        if (!this.canCreateKnowledge(user, type)) {
+            throw new Error('Insufficient permissions');
+        }
+
+        // Extract host/path for default title
+        let title = url;
+        try {
+            const u = new URL(url);
+            title = `Web: ${u.hostname}${u.pathname}`.substring(0, 100);
+        } catch (e) { /* fallback to full URL */ }
+
+        const kbId = new mongoose.Types.ObjectId().toString();
+
+        const kb = new Knowledge({
+            _id: kbId,
+            title,
+            type,
+            contentSource: url,
+            content: '',
+            ownerId: user.userId,
+            department: user.department,
+            processingStatus: 'pending',
+            processingStage: 'queued',
+            contentType: 'text/html', // pseudo-mime for scraped content
+            version: 1
+        });
+        await kb.save();
+
+        await knowledgeQueue.add('process-url', {
+            knowledgeId: kbId,
+            url
         });
 
         return kb;
@@ -487,6 +607,205 @@ export class KnowledgeService {
 
         const stream = await minioClient.getObject(MINIO_BUCKET, kb.s3Key || '');
         return { stream, headers: { 'content-type': kb.contentType, 'content-disposition': `inline; filename="${kb.title}"` } };
+    }
+
+    // --- Analytics ---
+
+    /**
+     * System-wide knowledge usage stats (admin dashboard).
+     * Returns: top used docs, never-used docs, 7-day trend, totals.
+     */
+    static async getStats(user: UserContext) {
+        if (!this.isAdmin(user)) throw new Error('Admin only');
+
+        const { MessageFeedback } = await import('../models/MessageFeedback');
+        const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+
+        // Top 10 most-used documents (by hit count)
+        const topDocs = await KnowledgeHit.aggregate([
+            {
+                $group: {
+                    _id: '$knowledgeId',
+                    hitCount: { $sum: 1 },
+                    avgScore: { $avg: '$score' },
+                    lastAccessed: { $max: '$createdAt' },
+                    uniqueUsers: { $addToSet: '$userId' }
+                }
+            },
+            { $sort: { hitCount: -1 } },
+            { $limit: 10 },
+            {
+                $project: {
+                    _id: 1,
+                    hitCount: 1,
+                    avgScore: { $round: ['$avgScore', 3] },
+                    lastAccessed: 1,
+                    uniqueUserCount: { $size: '$uniqueUsers' }
+                }
+            }
+        ]);
+
+        // Enrich with knowledge titles
+        const docIds = topDocs.map(d => d._id);
+        const knowledgeDocs = await Knowledge.find(
+            { _id: { $in: docIds } },
+            { title: 1, type: 1, department: 1, tags: 1 }
+        );
+        const kbMap = new Map(knowledgeDocs.map(k => [k._id.toString(), k]));
+
+        const enrichedTopDocs = topDocs.map(d => ({
+            ...d,
+            title: kbMap.get(d._id)?.title || 'Unknown',
+            type: kbMap.get(d._id)?.type || 'unknown',
+            department: kbMap.get(d._id)?.department || '',
+            tags: kbMap.get(d._id)?.tags || []
+        }));
+
+        // Never-used documents (no hits at all)
+        const usedIds = await KnowledgeHit.distinct('knowledgeId');
+        const neverUsedQuery: any = {
+            _id: { $nin: usedIds.map(id => id) },
+            processingStatus: 'completed'
+        };
+        // Scope to user's department for non-superadmin
+        if (user.role !== 'superadmin') {
+            neverUsedQuery.department = user.department;
+        }
+        const neverUsed = await Knowledge.find(neverUsedQuery, {
+            title: 1, type: 1, department: 1, createdAt: 1
+        }).sort({ createdAt: -1 }).limit(20);
+
+        // 7-day hit trend
+        const dailyTrend = await KnowledgeHit.aggregate([
+            { $match: { createdAt: { $gte: sevenDaysAgo } } },
+            {
+                $group: {
+                    _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
+                    count: { $sum: 1 }
+                }
+            },
+            { $sort: { _id: 1 } }
+        ]);
+
+        // Feedback summary
+        const feedbackSummary = await MessageFeedback.aggregate([
+            {
+                $group: {
+                    _id: '$type',
+                    count: { $sum: 1 }
+                }
+            }
+        ]);
+        const feedbackMap = Object.fromEntries(feedbackSummary.map(f => [f._id, f.count]));
+
+        // Total counts
+        const totalKnowledge = await Knowledge.countDocuments({ visibility: 'active' });
+        const totalHits = await KnowledgeHit.countDocuments();
+
+        return {
+            topDocs: enrichedTopDocs,
+            neverUsed,
+            dailyTrend,
+            feedback: {
+                liked: feedbackMap['liked'] || 0,
+                disliked: feedbackMap['disliked'] || 0
+            },
+            totals: {
+                knowledge: totalKnowledge,
+                hits: totalHits,
+                neverUsedCount: neverUsed.length
+            }
+        };
+    }
+
+    /**
+     * Per-document usage analytics (detail modal).
+     * Returns: hit count, unique users, top queries, feedback.
+     */
+    static async getDocumentAnalytics(id: string, user: UserContext) {
+        const kb = await Knowledge.findById(id);
+        if (!kb) throw new Error('Not found');
+        if (!this.canReadKnowledge(user, kb)) throw new Error('Permission denied');
+
+        const { MessageFeedback } = await import('../models/MessageFeedback');
+
+        // Hit stats
+        const hitStats = await KnowledgeHit.aggregate([
+            { $match: { knowledgeId: id } },
+            {
+                $group: {
+                    _id: null,
+                    totalHits: { $sum: 1 },
+                    avgScore: { $avg: '$score' },
+                    lastAccessed: { $max: '$createdAt' },
+                    uniqueUsers: { $addToSet: '$userId' }
+                }
+            }
+        ]);
+
+        const stats = hitStats[0] || {
+            totalHits: 0, avgScore: 0, lastAccessed: null, uniqueUsers: []
+        };
+
+        // Top queries that retrieved this document
+        const topQueries = await KnowledgeHit.aggregate([
+            { $match: { knowledgeId: id } },
+            {
+                $group: {
+                    _id: '$query',
+                    count: { $sum: 1 },
+                    avgScore: { $avg: '$score' }
+                }
+            },
+            { $sort: { count: -1 } },
+            { $limit: 10 },
+            {
+                $project: {
+                    query: '$_id',
+                    count: 1,
+                    avgScore: { $round: ['$avgScore', 3] },
+                    _id: 0
+                }
+            }
+        ]);
+
+        // Daily hits (last 30 days)
+        const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+        const dailyHits = await KnowledgeHit.aggregate([
+            { $match: { knowledgeId: id, createdAt: { $gte: thirtyDaysAgo } } },
+            {
+                $group: {
+                    _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
+                    count: { $sum: 1 }
+                }
+            },
+            { $sort: { _id: 1 } }
+        ]);
+
+        // Feedback for messages that used this document
+        const feedbackStats = await MessageFeedback.aggregate([
+            { $match: { knowledgeIds: id } },
+            {
+                $group: {
+                    _id: '$type',
+                    count: { $sum: 1 }
+                }
+            }
+        ]);
+        const feedbackMap = Object.fromEntries(feedbackStats.map(f => [f._id, f.count]));
+
+        return {
+            totalHits: stats.totalHits,
+            avgScore: Math.round((stats.avgScore || 0) * 1000) / 1000,
+            lastAccessed: stats.lastAccessed,
+            uniqueUsers: stats.uniqueUsers?.length || 0,
+            topQueries,
+            dailyHits,
+            feedback: {
+                liked: feedbackMap['liked'] || 0,
+                disliked: feedbackMap['disliked'] || 0
+            }
+        };
     }
 
     // --- Phase 2: Local RAG (Helper) ---

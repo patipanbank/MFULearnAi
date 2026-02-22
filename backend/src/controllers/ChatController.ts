@@ -229,4 +229,43 @@ export class ChatController {
             if (!res.headersSent) res.status(500).json({ error: 'Download failed' });
         }
     }
+
+    /**
+     * POST /api/chat/feedback — Save like/dislike on a message
+     */
+    static async submitFeedback(req: any, res: Response) {
+        const userId = req.user?.userId;
+        if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+        const { sessionId, messageIndex, type, knowledgeIds, query } = req.body;
+
+        if (!sessionId || messageIndex === undefined || !type) {
+            return res.status(400).json({ error: 'sessionId, messageIndex, and type are required' });
+        }
+        if (!['liked', 'disliked'].includes(type)) {
+            return res.status(400).json({ error: 'type must be "liked" or "disliked"' });
+        }
+
+        try {
+            const { MessageFeedback } = await import('../models/MessageFeedback');
+
+            // Upsert: one feedback per user per message (unique index handles conflicts)
+            await MessageFeedback.findOneAndUpdate(
+                { sessionId, messageIndex, userId },
+                {
+                    $set: {
+                        type,
+                        knowledgeIds: knowledgeIds || [],
+                        query: query || ''
+                    }
+                },
+                { upsert: true, new: true }
+            );
+
+            res.json({ success: true });
+        } catch (error: any) {
+            LoggerService.error('feedback_save_failed', { error: error.message }, userId);
+            res.status(500).json({ error: 'Failed to save feedback' });
+        }
+    }
 }

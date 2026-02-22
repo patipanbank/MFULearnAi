@@ -86,6 +86,25 @@ const handleCollectionSuccess = () => {
   knowledgeStore.fetchCollections()
 }
 
+// Stats tab
+const statsLoaded = ref(false)
+const switchDashboardTab = async (tab) => {
+  activeTab.value = tab
+  if (tab === 'stats' && !statsLoaded.value) {
+    try {
+      await knowledgeStore.fetchStats()
+      statsLoaded.value = true
+    } catch (e) {
+      console.error('Failed to load stats', e)
+    }
+  }
+}
+
+const maxTrendHit = computed(() => {
+  if (!knowledgeStore.stats?.dailyTrend?.length) return 1
+  return Math.max(...knowledgeStore.stats.dailyTrend.map(d => d.count), 1)
+})
+
 </script>
 
 <template>
@@ -124,16 +143,24 @@ const handleCollectionSuccess = () => {
         <button 
           class="tab-btn" 
           :class="{ active: activeTab === 'knowledge' }"
-          @click="activeTab = 'knowledge'"
+          @click="switchDashboardTab('knowledge')"
         >
           {{ t('knowledgeBase') }}
         </button>
         <button 
           class="tab-btn" 
           :class="{ active: activeTab === 'collections' }"
-          @click="activeTab = 'collections'"
+          @click="switchDashboardTab('collections')"
         >
           {{ t('collections') }}
+        </button>
+        <button 
+          v-if="isAdmin"
+          class="tab-btn" 
+          :class="{ active: activeTab === 'stats' }"
+          @click="switchDashboardTab('stats')"
+        >
+          📊 Stats
         </button>
       </div>
 
@@ -163,6 +190,80 @@ const handleCollectionSuccess = () => {
       <!-- Collections Tab -->
       <div v-if="activeTab === 'collections'" class="tab-pane fade-in">
         <CollectionGrid @open="openCollection" @edit="openEditCollection" />
+      </div>
+
+      <!-- Stats Tab (Admin Only) -->
+      <div v-if="activeTab === 'stats'" class="tab-pane fade-in">
+        <div v-if="knowledgeStore.statsLoading" class="stats-loading">
+          <div class="stats-spinner"></div>
+          <p>Loading analytics...</p>
+        </div>
+        <div v-else-if="knowledgeStore.stats" class="stats-content">
+          <!-- Overview Cards -->
+          <div class="stats-overview">
+            <div class="overview-card">
+              <div class="ov-value">{{ knowledgeStore.stats.totals.knowledge }}</div>
+              <div class="ov-label">Total Documents</div>
+            </div>
+            <div class="overview-card">
+              <div class="ov-value">{{ knowledgeStore.stats.totals.hits }}</div>
+              <div class="ov-label">Total Hits</div>
+            </div>
+            <div class="overview-card">
+              <div class="ov-value">👍 {{ knowledgeStore.stats.feedback.liked }}</div>
+              <div class="ov-label">Liked</div>
+            </div>
+            <div class="overview-card">
+              <div class="ov-value">👎 {{ knowledgeStore.stats.feedback.disliked }}</div>
+              <div class="ov-label">Disliked</div>
+            </div>
+          </div>
+
+          <!-- 7-Day Trend -->
+          <div class="stats-section" v-if="knowledgeStore.stats.dailyTrend?.length">
+            <h3>7-Day Hit Trend</h3>
+            <div class="trend-chart">
+              <div
+                v-for="day in knowledgeStore.stats.dailyTrend"
+                :key="day._id"
+                class="trend-bar-col"
+                :title="`${day._id}: ${day.count} hits`"
+              >
+                <div class="trend-bar" :style="{ height: Math.max((day.count / maxTrendHit) * 100, 6) + 'px' }"></div>
+                <span class="trend-label">{{ day._id.slice(5) }}</span>
+                <span class="trend-count">{{ day.count }}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Top Used Documents -->
+          <div class="stats-section" v-if="knowledgeStore.stats.topDocs?.length">
+            <h3>Top Used Documents</h3>
+            <div class="stats-table">
+              <div v-for="doc in knowledgeStore.stats.topDocs" :key="doc._id" class="stats-row">
+                <div class="stats-doc-info">
+                  <span class="stats-doc-title">{{ doc.title }}</span>
+                  <span class="stats-doc-meta">{{ doc.type }} · {{ doc.department }}</span>
+                </div>
+                <div class="stats-doc-numbers">
+                  <span class="stats-hits">{{ doc.hitCount }} hits</span>
+                  <span class="stats-users">{{ doc.uniqueUserCount }} users</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Never Used -->
+          <div class="stats-section" v-if="knowledgeStore.stats.neverUsed?.length">
+            <h3>⚠️ Never Used Documents ({{ knowledgeStore.stats.totals.neverUsedCount }})</h3>
+            <div class="stats-table">
+              <div v-for="doc in knowledgeStore.stats.neverUsed" :key="doc._id" class="stats-row unused">
+                <span class="stats-doc-title">{{ doc.title }}</span>
+                <span class="stats-doc-meta">{{ doc.type }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -391,5 +492,169 @@ const handleCollectionSuccess = () => {
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(5px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+/* ─── Stats Tab ──────────────────────────────────────────────── */
+.stats-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 48px;
+  color: var(--color-text-muted);
+}
+
+.stats-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid var(--color-border);
+  border-top-color: var(--color-accent);
+  border-radius: 50%;
+  animation: statsSpin 0.8s linear infinite;
+}
+@keyframes statsSpin { to { transform: rotate(360deg); } }
+
+.stats-overview {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+@media (max-width: 768px) {
+  .stats-overview { grid-template-columns: repeat(2, 1fr); }
+}
+
+.overview-card {
+  background: var(--color-bg-tertiary);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  padding: 18px;
+  text-align: center;
+}
+
+.ov-value {
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  letter-spacing: -0.02em;
+}
+
+.ov-label {
+  font-size: 11px;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  margin-top: 4px;
+}
+
+.stats-section {
+  margin-bottom: 24px;
+}
+
+.stats-section h3 {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin: 0 0 12px 0;
+}
+
+/* Trend Chart */
+.trend-chart {
+  display: flex;
+  gap: 6px;
+  align-items: flex-end;
+  min-height: 130px;
+  padding: 12px;
+  background: var(--color-bg-tertiary);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+}
+
+.trend-bar-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  flex: 1;
+}
+
+.trend-bar {
+  width: 100%;
+  max-width: 40px;
+  background: linear-gradient(180deg, var(--color-accent, #6366f1), #818cf8);
+  border-radius: 4px 4px 0 0;
+  transition: height 0.4s ease;
+}
+
+.trend-label {
+  font-size: 10px;
+  color: var(--color-text-muted);
+}
+
+.trend-count {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+/* Stats Table */
+.stats-table {
+  background: var(--color-bg-tertiary);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.stats-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--color-border);
+  transition: background 0.1s;
+}
+.stats-row:last-child { border-bottom: none; }
+.stats-row:hover { background: var(--color-bg-hover); }
+.stats-row.unused { opacity: 0.6; }
+
+.stats-doc-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.stats-doc-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.stats-doc-meta {
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
+
+.stats-doc-numbers {
+  display: flex;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.stats-hits {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-accent, #6366f1);
+}
+
+.stats-users {
+  font-size: 13px;
+  color: var(--color-text-muted);
 }
 </style>

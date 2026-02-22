@@ -21,6 +21,121 @@ const chroma = new ChromaClient({ path: CHROMA_URL });
 const GLOBAL_CHROMA_COLLECTION = "mfulearnai-global-kb";
 
 export const processKnowledgeJob = async (job: Job) => {
+    if (job.name === 'process-url') {
+        const { knowledgeId, url } = job.data;
+        console.log(`[Worker] Processing URL Job ${job.id}: ${url} (${knowledgeId})`);
+
+        try {
+            await Knowledge.findByIdAndUpdate(knowledgeId, {
+                processingStatus: 'processing',
+                processingStage: 'extracting',
+                errorReason: ''
+            }, { new: true });
+
+            console.log(`[Worker] Fetching URL: ${url}`);
+
+            // 1. Fetch HTML
+            const response = await axios.get(url, {
+                headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
+                timeout: 15000
+            });
+            const html = response.data;
+
+            // 2. Parse and Clean with Cheerio
+            const cheerio = require('cheerio');
+            const $ = cheerio.load(html);
+            // Remove noise
+            $('script, style, nav, footer, header, aside, .sidebar, .menu, iframe').remove();
+
+            let title = $('title').text().trim();
+            if (!title) {
+                const h1 = $('h1').first().text().trim();
+                if (h1) title = h1;
+            }
+            if (title) {
+                await Knowledge.findByIdAndUpdate(knowledgeId, { title: title.substring(0, 100) });
+            }
+
+            const cleanHtml = $('body').html() || '';
+
+            // 3. Convert to Markdown
+            const TurndownService = require('turndown');
+            const turndownService = new TurndownService({ headingStyle: 'atx' });
+            let markdown = turndownService.turndown(cleanHtml);
+
+            // Clean up excessive whitespace
+            markdown = markdown.replace(/\n\s*\n/g, '\n\n').trim();
+
+            if (!markdown) throw new Error('No readable content found at URL');
+
+            // 4. Send to standard processing pipeline (same as text files)
+            job.data.mimetype = 'text/plain';
+            job.data.originalName = url;
+
+            // Save scraped text to a pseudo-buffer to reuse existing logic
+            const buffer = Buffer.from(markdown, 'utf-8');
+
+            // Calculate Hash
+            const hash = crypto.createHash('sha256').update(markdown).digest('hex');
+
+            // Update Content
+            const knowledgeDoc = await Knowledge.findByIdAndUpdate(knowledgeId, {
+                content: markdown,
+                textHash: hash,
+                processingStage: 'chunking',
+                s3Size: buffer.length
+            });
+
+            const docType = knowledgeDoc?.type || 'personal';
+
+            // 5. Vectorize directly
+            const pages = [{ text: markdown, pageNumber: 1 }];
+            const ids = [], embeddings = [], metadatas = [], documents = [];
+            let chunkGlobalIndex = 0;
+
+            for (const p of pages) {
+                const pageChunks = await chunkText(p.text);
+                for (const chunk of pageChunks) {
+                    const vec = await getEmbedding(chunk);
+                    ids.push(`${knowledgeId}-${chunkGlobalIndex}`);
+                    embeddings.push(vec);
+                    documents.push(chunk);
+                    metadatas.push({
+                        knowledgeId: knowledgeId.toString(),
+                        source: url,
+                        type: docType,
+                        fileName: url,
+                        pageNumber: p.pageNumber,
+                        chunkIndex: chunkGlobalIndex
+                    });
+                    chunkGlobalIndex++;
+                }
+            }
+
+            await Knowledge.findByIdAndUpdate(knowledgeId, { processingStage: 'indexing' });
+
+            const col = await chroma.getCollection({ name: GLOBAL_CHROMA_COLLECTION, embeddingFunction: null as any });
+            await col.add({ ids, embeddings, metadatas, documents });
+
+            // 6. Complete
+            await Knowledge.findByIdAndUpdate(knowledgeId, {
+                processingStatus: 'completed',
+                processingStage: 'completed'
+            });
+            console.log(`[Worker] URL Job ${job.id} Success.`);
+            return;
+
+        } catch (err: any) {
+            console.error(`[Worker] URL Job ${job.id} Failed:`, err);
+            await Knowledge.findByIdAndUpdate(knowledgeId, {
+                processingStatus: 'failed',
+                errorReason: err.message
+            } as any);
+            throw err;
+        }
+    }
+
+
     const { knowledgeId, s3Key, mimetype, originalName } = job.data;
     console.log(`[Worker] Processing Job ${job.id}: ${originalName} (${knowledgeId})`);
 

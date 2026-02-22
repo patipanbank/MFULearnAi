@@ -22,6 +22,9 @@ export interface IKnowledge extends Document {
     s3Size?: number;
     textHash?: string;
     contentType?: string;
+    version: number;
+    previousVersionId?: string;
+    tags: string[];
 }
 
 const KnowledgeSchema = new Schema({
@@ -42,7 +45,10 @@ const KnowledgeSchema = new Schema({
     s3Size: Number, // File size in bytes
     textHash: String, // SHA256 of extracted text
     errorReason: String,
-    contentType: String
+    contentType: String,
+    version: { type: Number, default: 1 },
+    previousVersionId: { type: Schema.Types.ObjectId, ref: 'Knowledge' },
+    tags: { type: [String], default: [], index: true }
 }, { timestamps: true });
 
 export const Knowledge = mongoose.model<IKnowledge>('Knowledge', KnowledgeSchema);

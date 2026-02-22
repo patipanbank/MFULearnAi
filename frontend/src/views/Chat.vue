@@ -267,6 +267,31 @@ const handleCopyMessage = (content) => {
   console.log('Copied message')
 }
 
+const handleFeedback = async ({ messageId, type }, msgIndex) => {
+  if (!chatStore.currentSessionId) return
+  const msg = chatStore.messages[msgIndex]
+  // Extract knowledge IDs from message metadata/sources if available
+  const knowledgeIds = msg?.meta?.sources?.map(s => s.id) || []
+  // Find the user query that preceded this assistant message
+  const userMsg = chatStore.messages.slice(0, msgIndex).reverse().find(m => m.role === 'user')
+  const query = userMsg?.content || ''
+
+  try {
+    const authStore2 = useAuthStore()
+    await axios.post('/api/chat/feedback', {
+      sessionId: chatStore.currentSessionId,
+      messageIndex: msgIndex,
+      type,
+      knowledgeIds,
+      query
+    }, {
+      headers: { Authorization: `Bearer ${authStore2.token}` }
+    })
+  } catch (e) {
+    console.error('Feedback submit failed', e)
+  }
+}
+
 const handleViewEvidence = (evidence) => {
     // Evidence object: { id, fileName, page, bbox }
     // Construct view URL
@@ -380,6 +405,7 @@ const closeEvidenceViewer = () => {
               :is-streaming="chatStore.isStreaming && idx === chatStore.messages.length - 1"
               :t="t"
               @copy="handleCopyMessage"
+              @feedback="(data) => handleFeedback(data, idx)"
             />
           </TransitionGroup>
           <!-- Scroll Anchor for Safari 26+ overflow-anchor: auto -->

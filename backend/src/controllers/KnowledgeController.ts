@@ -127,6 +127,23 @@ export class KnowledgeController {
         req.pipe(bb);
     }
 
+    // 1.05 CREATE KNOWLEDGE FROM URL (Scraping)
+    static async createFromUrl(req: Request, res: Response) {
+        const user = extractUser(req);
+        if (!user) return res.status(401).json({ error: 'Unauthorized' });
+
+        const { url, type } = req.body;
+        if (!url) return res.status(400).json({ error: 'Missing URL' });
+
+        try {
+            const kb = await KnowledgeService.createFromUrl(user, url, type);
+            res.status(202).json({ success: true, knowledge: kb, message: 'URL scraping task started.' });
+        } catch (e: any) {
+            console.error('URL Scrape Failed:', e);
+            res.status(500).json({ error: e.message || 'URL scraping failed' });
+        }
+    }
+
     // 1.01 EXTRACT TEXT (No Save) via Memory Upload (Small files)
     static async extract(req: Request, res: Response) {
         const user = extractUser(req);
@@ -197,6 +214,56 @@ export class KnowledgeController {
             res.json({ success: true, knowledge: kb });
         } catch (e: any) {
             res.status(500).json({ error: e.message });
+        }
+    }
+
+    // 1.07 UPDATE (description, tags)
+    static async update(req: Request, res: Response) {
+        const user = extractUser(req);
+        if (!user) return res.status(401).json({ error: 'Unauthorized' });
+
+        const { description, tags } = req.body;
+        if (description === undefined && tags === undefined) {
+            return res.status(400).json({ error: 'Nothing to update. Provide description and/or tags.' });
+        }
+
+        try {
+            const kb = await KnowledgeService.updateKnowledge(req.params.id, user, { description, tags });
+            res.json({ success: true, knowledge: kb });
+        } catch (e: any) {
+            const msg = e.message || 'Update failed';
+            if (msg.includes('Not found')) return res.status(404).json({ error: msg });
+            if (msg.includes('Permission')) return res.status(403).json({ error: msg });
+            res.status(400).json({ error: msg });
+        }
+    }
+
+    // 1.08 KNOWLEDGE STATS (admin dashboard)
+    static async getStats(req: Request, res: Response) {
+        const user = extractUser(req);
+        if (!user) return res.status(401).json({ error: 'Unauthorized' });
+        try {
+            const stats = await KnowledgeService.getStats(user);
+            res.json(stats);
+        } catch (e: any) {
+            const msg = e.message || 'Failed to get stats';
+            if (msg.includes('Admin')) return res.status(403).json({ error: msg });
+            res.status(500).json({ error: msg });
+        }
+    }
+
+    // 1.09 DOCUMENT ANALYTICS (per-document detail)
+    static async getDocumentAnalytics(req: Request, res: Response) {
+        const user = extractUser(req);
+        if (!user) return res.status(401).json({ error: 'Unauthorized' });
+        try {
+            const analytics = await KnowledgeService.getDocumentAnalytics(req.params.id, user);
+            res.json(analytics);
+        } catch (e: any) {
+            const msg = e.message || 'Failed to get analytics';
+            if (msg.includes('Not found')) return res.status(404).json({ error: msg });
+            if (msg.includes('Permission')) return res.status(403).json({ error: msg });
+            res.status(500).json({ error: msg });
         }
     }
 

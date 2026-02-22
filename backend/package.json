@@ -26,6 +26,7 @@
         "bullmq": "^5.69.3",
         "busboy": "^1.6.0",
         "chardet": "^2.1.1",
+        "cheerio": "^1.2.0",
         "chromadb": "^1.8.1",
         "cors": "^2.8.5",
         "dotenv": "^16.6.1",
@@ -44,6 +45,7 @@
         "pdfjs-dist": "^5.4.624",
         "result": "^2.0.9",
         "socket.io": "^4.8.3",
+        "turndown": "^7.2.2",
         "uuid": "^13.0.0",
         "ws": "^8.19.0",
         "xlsx": "^0.18.5"
@@ -61,6 +63,7 @@
         "@types/passport-google-oauth20": "^2.0.13",
         "@types/passport-saml": "^1.1.5",
         "@types/pdf-parse": "^1.1.5",
+        "@types/turndown": "^5.0.6",
         "nodemon": "^3.0.1",
         "ts-node": "^10.9.1",
         "ts-node-dev": "^2.0.0",

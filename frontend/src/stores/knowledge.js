@@ -211,6 +211,21 @@ export const useKnowledgeStore = defineStore('knowledge', () => {
         }
     }
 
+    async function updateKnowledge(id, updates) {
+        try {
+            const res = await axios.patch(`${API_URL}/knowledge/${id}`, updates, getHeaders())
+            // Update local state reactively
+            const idx = knowledge.value.findIndex(k => k._id === id)
+            if (idx !== -1 && res.data.knowledge) {
+                knowledge.value[idx] = { ...knowledge.value[idx], ...res.data.knowledge }
+            }
+            return res.data.knowledge
+        } catch (e) {
+            error.value = e.response?.data?.error || e.message
+            throw e
+        }
+    }
+
     // --- Collection Actions ---
 
     async function fetchCollections() {
@@ -298,12 +313,54 @@ export const useKnowledgeStore = defineStore('knowledge', () => {
         }
     }
 
+    // --- URL Scraper ---
+    async function createFromUrl(url, type) {
+        try {
+            const res = await axios.post(`${API_URL}/knowledge/url`, { url, type }, getHeaders())
+            await fetchKnowledge() // Refresh list
+            return res.data
+        } catch (e) {
+            error.value = e.response?.data?.error || e.message
+            throw e
+        }
+    }
+
+    // --- Analytics ---
+    const stats = ref(null)
+    const statsLoading = ref(false)
+
+    async function fetchStats() {
+        statsLoading.value = true
+        try {
+            const res = await axios.get(`${API_URL}/knowledge/stats`, getHeaders())
+            stats.value = res.data
+            return res.data
+        } catch (e) {
+            error.value = e.response?.data?.error || e.message
+            throw e
+        } finally {
+            statsLoading.value = false
+        }
+    }
+
+    async function fetchDocumentAnalytics(id) {
+        try {
+            const res = await axios.get(`${API_URL}/knowledge/${id}/analytics`, getHeaders())
+            return res.data
+        } catch (e) {
+            error.value = e.response?.data?.error || e.message
+            throw e
+        }
+    }
+
     return {
         knowledge,
         collections,
         currentCollection,
         loading,
         error,
+        stats,
+        statsLoading,
         fetchKnowledge,
         uploadKnowledge,
         deleteKnowledge,
@@ -317,6 +374,10 @@ export const useKnowledgeStore = defineStore('knowledge', () => {
         fetchCollectionDetails,
         mapKnowledge,
         fetchPendingRequests,
-        extractText
+        extractText,
+        updateKnowledge,
+        createFromUrl,
+        fetchStats,
+        fetchDocumentAnalytics
     }
 })

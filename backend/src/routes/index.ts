@@ -33,6 +33,7 @@ router.use('/keys', apiKeyRoutes);
 router.post('/chat', checkAuth, RateLimiter.limit, rateLimitByKey, ChatController.chat);
 router.get('/chat/models', checkAuth, ChatController.getModels);
 router.get('/chat/attachment/*', checkAuth, ChatController.downloadAttachment);
+router.post('/chat/feedback', checkAuth, ChatController.submitFeedback);
 router.get('/chat/:sessionId', checkAuth, ChatController.getHistory); // order matters
 router.get('/chat', checkAuth, ChatController.listSessions);
 router.delete('/chat/:sessionId', checkAuth, ChatController.clearSession);
