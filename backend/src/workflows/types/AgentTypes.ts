@@ -6,6 +6,8 @@ export interface AgentContext {
     userRole: string;
     userDepartment: string;
     collectionId?: string;
+    /** Model ID used for this agent session (for cost weighting). */
+    modelId?: string;
     images: any[];
     files: any[];
     traceId?: string;

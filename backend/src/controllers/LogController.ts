@@ -2,6 +2,8 @@ import { Request, Response } from 'express';
 import LogEntry, { LogEntryDocument } from '../infra/logger/models/LogEntry';
 import AuditLog, { IAuditLog } from '../infra/logger/models/AuditLog';
 import { Logger } from '../infra/logger';
+import { QUOTA_CONFIG } from '../config/quotas';
+import { MODEL_COST_WEIGHTS } from '../config/models';
 
 const ENV_TYPE = (process.env.ENV_TYPE || 'TEST') as 'TEST' | 'PROD';
 const RETENTION_POLICY = {
@@ -254,64 +256,62 @@ export class LogController {
             const { userId } = req.query;
             if (!userId) return res.status(400).json({ error: 'User ID required' });
 
-            // Ensure context user matches requested user (unless admin)
-            // Assuming middleware handles basic auth, but strictly speaking we should check
-            // (req as any).user.id === userId || (req as any).user.role === 'admin'
-
             const TZ_OFFSET = 7 * 60 * 60 * 1000;
             const now = new Date();
             const bangkokNow = new Date(now.getTime() + TZ_OFFSET);
             const startOfDayUTC = new Date(new Date(bangkokNow.getUTCFullYear(), bangkokNow.getUTCMonth(), bangkokNow.getUTCDate()).getTime() - TZ_OFFSET);
 
-            // Aggregate User Stats
+            // Weighted token aggregation expression:
+            // Use `details.weightedTokens` if present (new entries), otherwise fall back to raw tokens (migration-safe).
+            const weightedTokenExpr = {
+                $ifNull: [
+                    "$details.weightedTokens",
+                    {
+                        $cond: [
+                            { $eq: ["$action", "chat_completion"] },
+                            { $ifNull: ["$details.tokens.total", 0] },
+                            { $ifNull: ["$details.totalTokens", 0] }
+                        ]
+                    }
+                ]
+            };
+
+            // Raw token expression (for observability — always shows true token count)
+            const rawTokenExpr = {
+                $cond: [
+                    { $eq: ["$action", "chat_completion"] },
+                    { $ifNull: ["$details.tokens.total", 0] },
+                    { $ifNull: ["$details.totalTokens", 0] }
+                ]
+            };
+
+            const matchFilter = {
+                action: { $in: ['chat_completion', 'agent_reliability_telemetry'] },
+                environment: ENV_TYPE,
+                userId: userId
+            };
+
             const [userTotal, userToday] = await Promise.all([
                 // All Time for User
                 LogEntry.aggregate([
-                    {
-                        $match: {
-                            action: { $in: ['chat_completion', 'agent_reliability_telemetry'] },
-                            environment: ENV_TYPE,
-                            userId: userId
-                        }
-                    },
+                    { $match: matchFilter },
                     {
                         $group: {
                             _id: null,
-                            tokens: {
-                                $sum: {
-                                    $cond: [
-                                        { $eq: ["$action", "chat_completion"] },
-                                        { $ifNull: ["$details.tokens.total", 0] },
-                                        { $ifNull: ["$details.totalTokens", 0] }
-                                    ]
-                                }
-                            },
+                            tokens: { $sum: rawTokenExpr },
+                            weightedTokens: { $sum: weightedTokenExpr },
                             requests: { $sum: 1 }
                         }
                     }
                 ]),
                 // Today for User
                 LogEntry.aggregate([
-                    {
-                        $match: {
-                            action: { $in: ['chat_completion', 'agent_reliability_telemetry'] },
-                            environment: ENV_TYPE,
-                            userId: userId,
-                            timestamp: { $gte: startOfDayUTC }
-                        }
-                    },
+                    { $match: { ...matchFilter, timestamp: { $gte: startOfDayUTC } } },
                     {
                         $group: {
                             _id: null,
-                            tokens: {
-                                $sum: {
-                                    $cond: [
-                                        { $eq: ["$action", "chat_completion"] },
-                                        { $ifNull: ["$details.tokens.total", 0] },
-                                        { $ifNull: ["$details.totalTokens", 0] }
-                                    ]
-                                }
-                            },
+                            tokens: { $sum: rawTokenExpr },
+                            weightedTokens: { $sum: weightedTokenExpr },
                             requests: { $sum: 1 }
                         }
                     }
@@ -321,16 +321,41 @@ export class LogController {
             res.json({
                 total: {
                     tokens: userTotal[0]?.tokens || 0,
+                    weightedTokens: userTotal[0]?.weightedTokens || 0,
                     requests: userTotal[0]?.requests || 0
                 },
                 today: {
                     tokens: userToday[0]?.tokens || 0,
+                    weightedTokens: userToday[0]?.weightedTokens || 0,
                     requests: userToday[0]?.requests || 0
+                },
+                quota: {
+                    dailyLimit: QUOTA_CONFIG.DAILY_LIMIT,
+                    warningThreshold: QUOTA_CONFIG.WARNING_THRESHOLD,
+                    hardLimitEnabled: QUOTA_CONFIG.HARD_LIMIT_ENABLED
                 }
             });
 
         } catch (error: any) {
             res.status(500).json({ error: 'Failed to fetch user usage' });
+        }
+    }
+
+    /**
+     * Returns quota configuration for the frontend.
+     * The frontend fetches this once on mount instead of hardcoding limits.
+     */
+    static async getQuotaConfig(_req: Request, res: Response) {
+        try {
+            res.json({
+                dailyLimit: QUOTA_CONFIG.DAILY_LIMIT,
+                warningThreshold: QUOTA_CONFIG.WARNING_THRESHOLD,
+                hardLimitEnabled: QUOTA_CONFIG.HARD_LIMIT_ENABLED,
+                unitLabel: QUOTA_CONFIG.UNIT_LABEL,
+                costWeights: MODEL_COST_WEIGHTS
+            });
+        } catch (error: any) {
+            res.status(500).json({ error: 'Failed to fetch quota config' });
         }
     }
 }

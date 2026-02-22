@@ -167,7 +167,7 @@ export class HistoryService {
         userId: string,
         sessionId: string,
         messages: ChatMessage[],
-        metadataUpdate: { totalTokens?: number },
+        metadataUpdate: { totalTokens?: number; weightedTokens?: number },
         envType: string,
         modelId: string
     ) {
@@ -178,6 +178,7 @@ export class HistoryService {
                     $push: { messages: { $each: messages } },
                     $inc: {
                         'metadata.totalTokens': metadataUpdate.totalTokens || 0,
+                        'metadata.weightedTokens': metadataUpdate.weightedTokens || 0,
                         'metadata.messageCount': messages.length
                     },
                     $set: { modelId, environment: envType, updatedAt: new Date() }

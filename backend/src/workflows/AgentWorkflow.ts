@@ -76,10 +76,11 @@ export class AgentWorkflow {
         collectionId: string | undefined,
         images: any[] = [],
         files: any[] = [],
-        traceId?: string
+        traceId?: string,
+        modelId?: string
     ): Promise<{ traceId: string }> {
         const workflow = new AgentWorkflow({
-            userId, sessionId, message, userRole, userDepartment, collectionId, images, files, traceId
+            userId, sessionId, message, userRole, userDepartment, collectionId, modelId, images, files, traceId
         });
         return workflow.run();
     }

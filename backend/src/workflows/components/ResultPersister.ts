@@ -2,7 +2,7 @@ import { HistoryService } from '../../services/HistoryService';
 import { SummarizationService } from '../../services/SummarizationService';
 import { LoggerService } from '../../services/LoggerService';
 import { AGENT_EVENTS, AgentContext, WorkflowState } from '../types/AgentTypes';
-import { MODELS } from '../../config/models';
+import { MODELS, computeWeightedTokens } from '../../config/models';
 
 export class ResultPersister {
     static async finalize(
@@ -15,6 +15,7 @@ export class ResultPersister {
 
         const { finalAnswer, answerMode, answerState, steps, totalUsage, startTime, history } = state;
         const totalDurationMs = Date.now() - startTime;
+        const weightedTokens = computeWeightedTokens(totalUsage.total, ctx.modelId || MODELS.PRIMARY);
 
         let confidence = 'Low';
         let explanation = { basis: 'Internal', assumptions: [], missing_info: [] };
@@ -31,6 +32,7 @@ export class ResultPersister {
                 usedRAG: answerMode !== 'internal',
                 stepsUsed: steps,
                 totalTokens: totalUsage.total,
+                weightedTokens,
                 explanation
             }
         });
@@ -38,6 +40,7 @@ export class ResultPersister {
         emit(AGENT_EVENTS.AGENT_COMPLETE, {
             totalSteps: steps,
             totalTokens: totalUsage.total,
+            weightedTokens,
             durationMs: totalDurationMs,
             toolsUsed: Array.from(state.usedTools),
             answerMode
@@ -96,13 +99,16 @@ export class ResultPersister {
         await HistoryService.saveToPersistentStorage(
             userId, sessionId,
             [userMsgToSave, assistantMsgToSave],
-            { totalTokens: totalUsage.total },
+            { totalTokens: totalUsage.total, weightedTokens },
             process.env.ENV_TYPE || 'TEST',
-            MODELS.PRIMARY
+            ctx.modelId || MODELS.PRIMARY
         );
 
         LoggerService.info('chat_completion', {
-            tokens: totalUsage, model: MODELS.PRIMARY, steps, sessionId, traceId: state.traceId
+            tokens: totalUsage,
+            weightedTokens,
+            model: ctx.modelId || MODELS.PRIMARY,
+            steps, sessionId, traceId: state.traceId
         }, userId);
 
         // Background Summary & Title

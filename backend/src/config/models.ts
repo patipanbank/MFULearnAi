@@ -1,19 +1,17 @@
 /**
  * Centralized Model Configuration
  * All model IDs are defined here to avoid hardcoding across the codebase.
- */
-
-/**
- * Centralized Model Configuration
- * All model IDs are defined here to avoid hardcoding across the codebase.
+ * Includes cost weights for weighted token quota system.
  */
 
 export interface ModelConfig {
     id: string;
     name: string;
-    provider: 'anthropic' | 'meta' | 'mistral' | 'amazon' | 'aliyun'; // Added 'aliyun' for Qwen
+    provider: 'anthropic' | 'meta' | 'mistral' | 'amazon' | 'aliyun';
     contextWindow: number;
     type: 'fast' | 'smart' | 'vision' | 'embedding';
+    /** Relative cost multiplier. 1.0 = most expensive baseline (Claude 3.5 Sonnet). */
+    costWeight: number;
     isDefault?: boolean;
 }
 
@@ -51,23 +49,49 @@ export const AVAILABLE_MODELS: ModelConfig[] = [
         name: 'Claude 3.5 Sonnet',
         provider: 'anthropic',
         contextWindow: 200000,
-        type: 'smart'
+        type: 'smart',
+        costWeight: 1.0
     },
     {
         id: RAW_MODELS.QWEN_2_5_VL_72B,
-        name: 'Qwen 2.5 VL 72B', // Or whatever precise name matches the ID
+        name: 'Qwen 2.5 VL 72B',
         provider: 'aliyun',
-        contextWindow: 32000, // Verify specific context window
-        type: 'smart'
+        contextWindow: 32000,
+        type: 'smart',
+        costWeight: 0.15
     },
     {
         id: RAW_MODELS.QWEN_80B_A3B,
         name: 'Qwen 2.5 72B',
         provider: 'aliyun',
         contextWindow: 32000,
-        type: 'fast'
+        type: 'fast',
+        costWeight: 0.10
     }
 ];
+
+// 3b. COST WEIGHTS (All known models, including system-only)
+// Relative to Claude 3.5 Sonnet (1.0). Based on approximate $/1M token ratios.
+// Update these when provider pricing changes.
+export const MODEL_COST_WEIGHTS: Record<string, number> = {
+    [RAW_MODELS.CLAUDE_3_5_SONNET]: 1.0,
+    [RAW_MODELS.MISTRAL_LARGE_3]: 0.50,
+    [RAW_MODELS.KIMI_K2_THINKING]: 0.30,
+    [RAW_MODELS.QWEN_2_5_VL_72B]: 0.15,
+    [RAW_MODELS.QWEN_80B_A3B]: 0.10,
+    [RAW_MODELS.NEMOTRON_NANO_12B_V2]: 0.03,
+    [RAW_MODELS.GEMMA_3_4B_IT]: 0.02,
+};
+
+/** Get cost weight for a model. Defaults to 1.0 for unknown models (safe — never under-count). */
+export function getCostWeight(modelId: string): number {
+    return MODEL_COST_WEIGHTS[modelId] ?? 1.0;
+}
+
+/** Compute weighted token units (cost-normalized). */
+export function computeWeightedTokens(rawTokens: number, modelId: string): number {
+    return Math.round(rawTokens * getCostWeight(modelId));
+}
 
 // Helper to get ID for a type (fallback logic)
 export const getModelId = (type: 'smart' | 'fast'): string => {

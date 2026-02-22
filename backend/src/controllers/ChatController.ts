@@ -54,7 +54,8 @@ export class ChatController {
                         collectionId,
                         images,
                         files,
-                        traceId // Pass the traceId we just sent to client
+                        traceId, // Pass the traceId we just sent to client
+                        modelId || undefined // Pass modelId for cost weighting
                     ).catch((err: any) => {
                         LoggerService.error('agent_workflow_error', { error: err.message, stack: err.stack });
                     });

@@ -3,7 +3,7 @@ import { HistoryService } from './HistoryService';
 import { LoggerService } from './LoggerService';
 import { Conversation } from '../models/Conversation';
 import crypto from 'crypto';
-import { SYSTEM_MODELS, MODELS } from '../config/models';
+import { SYSTEM_MODELS, MODELS, computeWeightedTokens } from '../config/models';
 import { ChatMessage, SmartContext, RollingContext } from '../../../shared/types';
 
 /** Typed correction payloads for manual context corrections */
@@ -308,6 +308,7 @@ ${newMessages.map(m => `${m.role}: ${extractText(m.content)}`).join('\n')}
             if (usage) {
                 await LoggerService.info('chat_completion', {
                     tokens: usage,
+                    weightedTokens: computeWeightedTokens(usage.total || 0, SYSTEM_MODELS.SUMMARIZE),
                     model: SYSTEM_MODELS.SUMMARIZE,
                     action: 'rolling_summary',
                     isBackground: true
@@ -364,6 +365,7 @@ ${JSON.stringify(rollingContext, null, 2)}
             if (usage) {
                 await LoggerService.info('chat_completion', {
                     tokens: usage,
+                    weightedTokens: computeWeightedTokens(usage.total || 0, SYSTEM_MODELS.SUMMARIZE),
                     model: SYSTEM_MODELS.SUMMARIZE,
                     action: 'canonization',
                     isBackground: true
@@ -396,6 +398,7 @@ ${JSON.stringify(rollingContext, null, 2)}
             if (usage) {
                 await LoggerService.info('chat_completion', {
                     tokens: usage,
+                    weightedTokens: computeWeightedTokens(usage.total || 0, SYSTEM_MODELS.UTILITY),
                     model: SYSTEM_MODELS.UTILITY,
                     action: 'title_generation',
                     isBackground: true

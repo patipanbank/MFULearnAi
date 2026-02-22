@@ -17,4 +17,7 @@ router.get('/stats', LogController.getStats);
 router.get('/usage', LogController.getUsage);
 router.get('/usage/me', LogController.getUserUsage);
 
+// Quota Configuration (public config for frontend)
+router.get('/quota/config', LogController.getQuotaConfig);
+
 export default router;
