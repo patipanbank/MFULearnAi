@@ -25,7 +25,8 @@ const adminNav = computed(() => [
   { id: 'users', labelKey: 'usersAndAdmins', path: '/dashboard/users', icon: 'users' },
   { id: 'departments', labelKey: 'departments', path: '/dashboard/departments', icon: 'briefcase' },
   { id: 'prompts', labelKey: 'systemPrompts', path: '/dashboard/prompts', icon: 'type' },
-  { id: 'api-keys', labelKey: 'apiKeys', path: '/dashboard/api-keys', icon: 'key' }
+  { id: 'api-keys', labelKey: 'apiKeys', path: '/dashboard/api-keys', icon: 'key' },
+  { id: 'tools', labelKey: 'toolAccess', path: '/dashboard/tools', icon: 'tool' }
 ])
 
 const isSuperadmin = computed(() => authStore.user?.role === 'superadmin')
@@ -113,6 +114,8 @@ const isActive = (path) => route.path.startsWith(path)
                   <svg v-else-if="item.icon === 'type'" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 7 4 4 20 4 20 7"></polyline><line x1="9" y1="20" x2="15" y2="20"></line><line x1="12" y1="4" x2="12" y2="20"></line></svg>
                   <!-- Key Icon -->
                   <svg v-else-if="item.icon === 'key'" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"></path></svg>
+                  <!-- Tool/Wrench Icon -->
+                  <svg v-else-if="item.icon === 'tool'" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path></svg>
               </div>
               <span class="btn-label">{{ t(item.labelKey) }}</span>
           </button>

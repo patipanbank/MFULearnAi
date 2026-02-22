@@ -66,6 +66,8 @@ const translations = {
         usersAndAdmins: 'ผู้ใช้และแอดมิน',
         departments: 'สำนัก/ส่วน',
         systemPrompts: 'พรอมต์ระบบ',
+        apiKeys: 'คีย์ API',
+        toolAccess: 'จัดการ Tools',
 
         // Department Management
         deptPageTitle: 'จัดการสำนัก/ส่วน',
@@ -218,6 +220,8 @@ const translations = {
         usersAndAdmins: 'Users & Admins',
         departments: 'Departments',
         systemPrompts: 'System Prompts',
+        apiKeys: 'API Keys',
+        toolAccess: 'Tool Access',
 
         // Department Management
         deptPageTitle: 'Departments',

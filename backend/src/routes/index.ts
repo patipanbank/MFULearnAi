@@ -55,6 +55,9 @@ router.use('/knowledge', checkAuth, rateLimitByKey, knowledgeRoutes);
 import logRoutes from './logs';
 router.use('/logs', checkAuth, logRoutes);
 
+// Tool Access Management (superadmin only)
+import toolRoutes from './tools';
+router.use('/tools', checkAuth, AuthService.requireRole(['superadmin']), toolRoutes);
 
 
 

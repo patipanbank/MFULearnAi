@@ -17,6 +17,7 @@ import { ContextLoader } from './components/ContextLoader';
 import { ResultPersister } from './components/ResultPersister';
 
 import { AgentTool } from '../tools/AgentTool';
+import { ToolAccessService } from '../services/ToolAccessService';
 
 // Whitelist of tools for the Agent
 const AVAILABLE_TOOLS: AgentTool[] = [
@@ -180,9 +181,9 @@ export class AgentWorkflow {
             const mcpTools = mcpManager.getTools();
             const allTools = [...AVAILABLE_TOOLS, ...mcpTools];
 
-            // 3.1 Filter tools by user role
+            // 3.1 Filter tools by user role (DB override > code defaults)
             const userRole = this.ctx.userRole;
-            const allowedTools = allTools.filter(t => t.isAllowed(userRole));
+            const allowedTools = await ToolAccessService.filterAllowed(allTools, userRole);
 
             // 4. Build Prompt & Initial Messages
             this.state.phase = AgentPhase.PLANNING;

@@ -62,6 +62,12 @@ const router = createRouter({
                     name: 'AdminApiKeys',
                     component: () => import('../views/admin/AdminApiKeys.vue'),
                     meta: { requiresRole: 'superadmin' }
+                },
+                {
+                    path: 'dashboard/tools',
+                    name: 'AdminToolAccess',
+                    component: () => import('../views/admin/AdminToolAccess.vue'),
+                    meta: { requiresRole: 'superadmin' }
                 }
             ]
         },
