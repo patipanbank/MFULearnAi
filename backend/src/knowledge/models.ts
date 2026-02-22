@@ -24,6 +24,8 @@ export interface IKnowledge extends Document {
     contentType?: string;
     version: number;
     previousVersionId?: string;
+    folder?: string;
+    expiresAt?: Date;
     tags: string[];
 }
 
@@ -48,6 +50,8 @@ const KnowledgeSchema = new Schema({
     contentType: String,
     version: { type: Number, default: 1 },
     previousVersionId: { type: Schema.Types.ObjectId, ref: 'Knowledge' },
+    folder: { type: String, default: '' }, // e.g. "HR/Policies"
+    expiresAt: { type: Date }, // Auto-expiry / Review Cycle target date
     tags: { type: [String], default: [], index: true }
 }, { timestamps: true });
 

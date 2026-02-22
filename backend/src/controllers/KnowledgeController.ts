@@ -132,11 +132,11 @@ export class KnowledgeController {
         const user = extractUser(req);
         if (!user) return res.status(401).json({ error: 'Unauthorized' });
 
-        const { url, type } = req.body;
+        const { url, type, folder, expiresAt } = req.body;
         if (!url) return res.status(400).json({ error: 'Missing URL' });
 
         try {
-            const kb = await KnowledgeService.createFromUrl(user, url, type);
+            const kb = await KnowledgeService.createFromUrl(user, url, type, { folder, expiresAt });
             res.status(202).json({ success: true, knowledge: kb, message: 'URL scraping task started.' });
         } catch (e: any) {
             console.error('URL Scrape Failed:', e);
@@ -217,18 +217,18 @@ export class KnowledgeController {
         }
     }
 
-    // 1.07 UPDATE (description, tags)
+    // 1.07 UPDATE (description, tags, folder, expiresAt)
     static async update(req: Request, res: Response) {
         const user = extractUser(req);
         if (!user) return res.status(401).json({ error: 'Unauthorized' });
 
-        const { description, tags } = req.body;
-        if (description === undefined && tags === undefined) {
-            return res.status(400).json({ error: 'Nothing to update. Provide description and/or tags.' });
+        const { description, tags, folder, expiresAt } = req.body;
+        if (description === undefined && tags === undefined && folder === undefined && expiresAt === undefined) {
+            return res.status(400).json({ error: 'Nothing to update.' });
         }
 
         try {
-            const kb = await KnowledgeService.updateKnowledge(req.params.id, user, { description, tags });
+            const kb = await KnowledgeService.updateKnowledge(req.params.id, user, { description, tags, folder, expiresAt });
             res.json({ success: true, knowledge: kb });
         } catch (e: any) {
             const msg = e.message || 'Update failed';

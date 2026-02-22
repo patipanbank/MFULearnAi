@@ -16,6 +16,8 @@ const MAX_FILES = 10
 // State
 const files = ref([]) // { file, name, size, status, progress, error }
 const type = ref('personal')
+const folder = ref('')
+const expiresAt = ref('')
 const uploading = ref(false)
 const error = ref(null)
 
@@ -120,7 +122,7 @@ const handleUpload = async () => {
         item.error = null
 
         try {
-            await knowledgeStore.uploadKnowledge(item.file, type.value, (percent) => {
+            await knowledgeStore.uploadKnowledge(item.file, type.value, folder.value.trim(), expiresAt.value, (percent) => {
                 item.progress = percent
             })
             item.status = 'done'
@@ -151,7 +153,7 @@ const handleUrlScrape = async () => {
     error.value = null
 
     try {
-        await knowledgeStore.createFromUrl(url, type.value)
+        await knowledgeStore.createFromUrl(urlInput.value.trim(), type.value, folder.value.trim(), expiresAt.value)
         emit('success')
     } catch (e) {
         error.value = e.response?.data?.error || e.message || 'URL scraping failed'
@@ -245,7 +247,7 @@ const handleUrlScrape = async () => {
        <!-- Visibility (shared) -->
        <div class="form-group">
           <label>Visibility</label>
-          <select v-model="type">
+          <select v-model="type" class="form-control">
               <option value="personal">Personal (Private)</option>
               <option v-if="isAdmin" value="department">Department</option>
               <option v-if="isAdmin" value="public">Public (All)</option>
@@ -255,6 +257,20 @@ const handleUrlScrape = async () => {
           <p class="hint" v-if="type === 'department'">Visible to everyone in {{ authStore.department }}</p>
           <p class="hint" v-if="type === 'public'">Visible to everyone in the university.</p>
           <p class="hint" v-if="type === 'policy'">Enforced system-wide context (Admin Only).</p>
+       </div>
+
+       <!-- Optional Organization & Expiry -->
+       <div class="form-row">
+         <div class="form-group flex-1">
+           <label>Folder Path (Optional)</label>
+           <input v-model="folder" type="text" placeholder="e.g. HR/Policies/2023" class="form-control" />
+           <p class="hint">Organize with virtual folders.</p>
+         </div>
+         <div class="form-group flex-1">
+           <label>Expiry / Review Date (Optional)</label>
+           <input v-model="expiresAt" type="date" class="form-control" />
+           <p class="hint">Mark for review after this date.</p>
+         </div>
        </div>
 
        <!-- Overall Progress -->
@@ -465,13 +481,28 @@ label {
     font-weight: 500;
 }
 
-select {
+.form-control, select, .url-input {
     width: 100%;
-    padding: 8px;
-    border-radius: 6px;
+    padding: 10px 12px;
+    border-radius: 8px;
     border: 1px solid var(--color-border);
     background: var(--color-bg-secondary);
     color: var(--color-text-primary);
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.15s;
+    box-sizing: border-box;
+}
+.form-control:focus, select:focus, .url-input:focus {
+    border-color: var(--color-accent, #6366f1);
+}
+
+.form-row {
+    display: flex;
+    gap: 12px;
+}
+.flex-1 {
+    flex: 1;
 }
 
 .hint {

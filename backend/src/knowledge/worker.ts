@@ -78,6 +78,27 @@ export const processKnowledgeJob = async (job: Job) => {
             // Calculate Hash
             const hash = crypto.createHash('sha256').update(markdown).digest('hex');
 
+            // --- Phase 4: Semantic Duplicate Detection (#11) ---
+            const duplicateDoc = await Knowledge.findOne({
+                _id: { $ne: knowledgeId },
+                textHash: hash,
+                visibility: 'active',
+                processingStatus: 'completed'
+            });
+
+            if (duplicateDoc) {
+                console.log(`[Worker] Duplicate detected for URL job ${job.id}. Matches doc: ${duplicateDoc._id}`);
+                await Knowledge.findByIdAndUpdate(knowledgeId, {
+                    processingStatus: 'failed',
+                    processingStage: 'completed',
+                    errorReason: `Duplicate content detected. Identical content already exists in document: "${duplicateDoc.title}"`,
+                    s3Size: buffer.length,
+                    textHash: hash
+                });
+                return;
+            }
+            // --------------------------------------------------
+
             // Update Content
             const knowledgeDoc = await Knowledge.findByIdAndUpdate(knowledgeId, {
                 content: markdown,
@@ -270,6 +291,26 @@ export const processKnowledgeJob = async (job: Job) => {
 
         // Calculate Hash
         const hash = crypto.createHash('sha256').update(fullText).digest('hex');
+
+        // --- Phase 4: Semantic Duplicate Detection (#11) ---
+        const duplicateDoc = await Knowledge.findOne({
+            _id: { $ne: knowledgeId },
+            textHash: hash,
+            visibility: 'active',
+            processingStatus: 'completed'
+        });
+
+        if (duplicateDoc) {
+            console.log(`[Worker] Duplicate detected for job ${job.id}. Matches doc: ${duplicateDoc._id}`);
+            await Knowledge.findByIdAndUpdate(knowledgeId, {
+                processingStatus: 'failed',
+                processingStage: 'completed',
+                errorReason: `Duplicate content detected. Identical content already exists in document: "${duplicateDoc.title}"`,
+                textHash: hash
+            });
+            return;
+        }
+        // --------------------------------------------------
 
         // 4. Update Content & Hash
         await Knowledge.findByIdAndUpdate(knowledgeId, {

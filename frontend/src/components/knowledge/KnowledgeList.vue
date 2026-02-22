@@ -21,7 +21,7 @@ const filteredKnowledge = computed(() => {
         list = list.filter(k => k.type === filterType.value)
     }
 
-    // Search filter (title, description, tags, department)
+    // Search filter (title, description, tags, department, folder)
     const q = searchQuery.value.trim().toLowerCase()
     if (q) {
         list = list.filter(k => {
@@ -29,7 +29,8 @@ const filteredKnowledge = computed(() => {
             const desc = (k.description || '').toLowerCase()
             const dept = (k.department || '').toLowerCase()
             const tags = (k.tags || []).join(' ').toLowerCase()
-            return title.includes(q) || desc.includes(q) || dept.includes(q) || tags.includes(q)
+            const folder = (k.folder || '').toLowerCase()
+            return title.includes(q) || desc.includes(q) || dept.includes(q) || tags.includes(q) || folder.includes(q)
         })
     }
 
@@ -145,6 +146,8 @@ const handleRetry = async (id) => {
             <td class="col-name">
               <div class="file-icon">📄</div>
               <div class="name-column">
+                <!-- Folder Path -->
+                <span v-if="item.folder" class="folder-path text-muted" style="font-size: 11px; margin-bottom: 2px;">📁 {{ item.folder }}</span>
                 <span class="kb-title">
                   {{ item.title }}
                   <span v-if="item.version > 1" class="version-badge">v{{ item.version }}</span>
@@ -158,6 +161,10 @@ const handleRetry = async (id) => {
             <td>
               <span class="badge" :class="getBadgeClass(item.type)">
                 {{ item.type }}
+              </span>
+              <!-- Expiry Check -->
+              <span v-if="item.expiresAt && new Date(item.expiresAt) < new Date()" class="status-badge" style="background: rgba(239, 68, 68, 0.1); color: #ef4444; margin-top: 4px; display: inline-block;">
+                 ⚠️ Expired
               </span>
             </td>
             <td>{{ item.department }}</td>
@@ -221,10 +228,14 @@ const handleRetry = async (id) => {
             @click="$emit('open', item)"
         >
             <div class="card-header">
-                <div class="file-icon">📄</div>
-                <div class="card-title">
-                  {{ item.title }}
-                  <span v-if="item.version > 1" class="version-badge">v{{ item.version }}</span>
+                <div class="card-title-group">
+                   <!-- Folder Path -->
+                   <div v-if="item.folder" class="folder-path text-muted" style="font-size: 11px; margin-bottom: 2px;">📁 {{ item.folder }}</div>
+                   <div class="card-title">
+                     <div class="file-icon">📄</div>
+                     {{ item.title }}
+                     <span v-if="item.version > 1" class="version-badge">v{{ item.version }}</span>
+                   </div>
                 </div>
                 <button class="btn-icon delete" @click.stop="handleDelete(item._id)">
                   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
@@ -236,9 +247,12 @@ const handleRetry = async (id) => {
                 <span class="detail-label">{{ item.department }}</span>
             </div>
 
-            <div class="card-details" v-if="item.requestStatus !== 'none'">
-                 <span class="status-badge" :class="getStatusBadge(item.requestStatus)">
+            <div class="card-details" v-if="item.requestStatus !== 'none' || (item.expiresAt && new Date(item.expiresAt) < new Date())">
+                 <span v-if="item.requestStatus !== 'none'" class="status-badge" :class="getStatusBadge(item.requestStatus)">
                      {{ item.requestStatus }}
+                 </span>
+                 <span v-if="item.expiresAt && new Date(item.expiresAt) < new Date()" class="status-badge" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">
+                     ⚠️ Expired
                  </span>
             </div>
         </div>

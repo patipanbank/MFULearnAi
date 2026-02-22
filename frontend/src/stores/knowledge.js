@@ -100,12 +100,14 @@ export const useKnowledgeStore = defineStore('knowledge', () => {
         }
     }
 
-    async function uploadKnowledge(file, type, onProgress) {
+    async function uploadKnowledge(file, type, folder, expiresAt, onProgress) {
         loading.value = true
         try {
             const formData = new FormData()
             formData.append('file', file)
             formData.append('type', type)
+            if (folder) formData.append('folder', folder)
+            if (expiresAt) formData.append('expiresAt', expiresAt)
 
             await axios.post(`${API_URL}/knowledge`, formData, {
                 headers: {
@@ -314,10 +316,15 @@ export const useKnowledgeStore = defineStore('knowledge', () => {
     }
 
     // --- URL Scraper ---
-    async function createFromUrl(url, type) {
+    async function createFromUrl(url, type, folder, expiresAt) {
         try {
-            const res = await axios.post(`${API_URL}/knowledge/url`, { url, type }, getHeaders())
+            const payload = { url, type }
+            if (folder) payload.folder = folder
+            if (expiresAt) payload.expiresAt = expiresAt
+
+            const res = await axios.post(`${API_URL}/knowledge/url`, payload, getHeaders())
             await fetchKnowledge() // Refresh list
+            startPolling() // Start polling for background job
             return res.data
         } catch (e) {
             error.value = e.response?.data?.error || e.message

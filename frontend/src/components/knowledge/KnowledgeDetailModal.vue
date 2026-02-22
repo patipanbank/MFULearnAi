@@ -59,6 +59,69 @@ const cancelEditDesc = () => {
     editingDesc.value = false
 }
 
+// Folder state
+const editingFolder = ref(false)
+const editFolder = ref('')
+const savingFolder = ref(false)
+const folderSaved = ref(false)
+
+const startEditFolder = () => {
+    editFolder.value = props.item.folder || ''
+    editingFolder.value = true
+}
+
+const saveFolder = async () => {
+    if (savingFolder.value) return
+    savingFolder.value = true
+    try {
+        await knowledgeStore.updateKnowledge(props.item._id, { folder: editFolder.value })
+        props.item.folder = editFolder.value
+        editingFolder.value = false
+        folderSaved.value = true
+        setTimeout(() => folderSaved.value = false, 2000)
+    } catch (e) {
+        console.error('Save folder failed', e)
+    } finally {
+        savingFolder.value = false
+    }
+}
+
+const cancelEditFolder = () => {
+    editingFolder.value = false
+}
+
+// ExpiresAt state
+const editingExpires = ref(false)
+const editExpires = ref('')
+const savingExpires = ref(false)
+const expiresSaved = ref(false)
+
+const startEditExpires = () => {
+    editExpires.value = props.item.expiresAt ? props.item.expiresAt.split('T')[0] : ''
+    editingExpires.value = true
+}
+
+const saveExpires = async () => {
+    if (savingExpires.value) return
+    savingExpires.value = true
+    try {
+        const payload = editExpires.value ? { expiresAt: new Date(editExpires.value).toISOString() } : { expiresAt: null }
+        await knowledgeStore.updateKnowledge(props.item._id, payload)
+        props.item.expiresAt = payload.expiresAt
+        editingExpires.value = false
+        expiresSaved.value = true
+        setTimeout(() => expiresSaved.value = false, 2000)
+    } catch (e) {
+        console.error('Save expiry failed', e)
+    } finally {
+        savingExpires.value = false
+    }
+}
+
+const cancelEditExpires = () => {
+    editingExpires.value = false
+}
+
 const addTag = async () => {
     const tag = newTag.value.trim().toLowerCase()
     if (!tag || localTags.value.includes(tag)) {
@@ -170,6 +233,12 @@ const maxDailyHit = computed(() => {
     if (!analytics.value?.dailyHits?.length) return 1
     return Math.max(...analytics.value.dailyHits.map(d => d.count), 1)
 })
+const getQualityClass = (score) => {
+    if (!score) return 'quality-unknown'
+    if (score >= 80) return 'quality-high'
+    if (score >= 50) return 'quality-medium'
+    return 'quality-low'
+}
 </script>
 
 <template>
@@ -290,6 +359,75 @@ const maxDailyHit = computed(() => {
                 />
               </div>
               <span v-if="localTags.length === 0 && !canEdit" class="no-tags">No tags</span>
+            </div>
+          </div>
+
+          <!-- Organizational Folder -->
+          <div class="detail-group" style="margin-top: 16px;">
+            <div class="content-header">
+              <label>Folder Path</label>
+              <button v-if="canEdit && !editingFolder" class="btn-edit" @click="startEditFolder">
+                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                </svg>
+                Edit
+              </button>
+              <span v-if="folderSaved" class="save-indicator">✓ Saved</span>
+            </div>
+            <div v-if="editingFolder" class="edit-area">
+              <input
+                v-model="editFolder"
+                class="edit-textarea"
+                style="height: 38px;"
+                placeholder="e.g. HR/Policies/2023"
+              />
+              <div class="edit-actions">
+                <button class="btn-cancel-sm" @click="cancelEditFolder">Cancel</button>
+                <button class="btn-save-sm" @click="saveFolder" :disabled="savingFolder">
+                  {{ savingFolder ? 'Saving...' : 'Save' }}
+                </button>
+              </div>
+            </div>
+            <div v-else class="value desc">
+              <span v-if="item.folder">📁 {{ item.folder }}</span>
+              <span v-else class="text-muted" style="opacity: 0.6;">(Root)</span>
+            </div>
+          </div>
+
+          <!-- Expiry / Review Date -->
+          <div class="detail-group" style="margin-top: 16px;">
+            <div class="content-header">
+              <label>Expiry / Review Date</label>
+              <button v-if="canEdit && !editingExpires" class="btn-edit" @click="startEditExpires">
+                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                </svg>
+                Edit
+              </button>
+              <span v-if="expiresSaved" class="save-indicator">✓ Saved</span>
+            </div>
+            <div v-if="editingExpires" class="edit-area">
+              <input
+                v-model="editExpires"
+                type="date"
+                class="edit-textarea"
+                style="height: 38px;"
+              />
+              <div class="edit-actions">
+                <button class="btn-cancel-sm" @click="cancelEditExpires">Cancel</button>
+                <button class="btn-save-sm" @click="saveExpires" :disabled="savingExpires">
+                  {{ savingExpires ? 'Saving...' : 'Save' }}
+                </button>
+              </div>
+            </div>
+            <div v-else class="value desc">
+              <span v-if="item.expiresAt" :class="{ 'text-danger': new Date(item.expiresAt) < new Date() }">
+                ⏳ {{ formatDate(item.expiresAt) }}
+                <span v-if="new Date(item.expiresAt) < new Date()" style="color:#ef4444; margin-left:8px; font-weight:600; font-size:12px;">(Expired / Needs Review)</span>
+              </span>
+              <span v-else class="text-muted" style="opacity: 0.6;">(Never Expire)</span>
             </div>
           </div>
 
@@ -437,16 +575,18 @@ const maxDailyHit = computed(() => {
               <!-- Stat Cards -->
               <div class="stat-cards">
                 <div class="stat-card">
+                  <div class="stat-value" :class="getQualityClass(analytics.qualityScore)">
+                    {{ analytics.qualityScore }}<span style="font-size: 10px; opacity: 0.7;">/100</span>
+                  </div>
+                  <div class="stat-label">Quality Score</div>
+                </div>
+                <div class="stat-card">
                   <div class="stat-value">{{ analytics.totalHits }}</div>
                   <div class="stat-label">Total Hits</div>
                 </div>
                 <div class="stat-card">
                   <div class="stat-value">{{ analytics.uniqueUsers }}</div>
                   <div class="stat-label">Unique Users</div>
-                </div>
-                <div class="stat-card">
-                  <div class="stat-value">{{ analytics.avgScore }}</div>
-                  <div class="stat-label">Avg Score</div>
                 </div>
                 <div class="stat-card">
                   <div class="stat-value feedback-val">
@@ -1342,4 +1482,9 @@ h4 {
     font-size: 16px;
   }
 }
+
+.quality-high { color: #10b981 !important; text-shadow: 0 0 10px rgba(16, 185, 129, 0.3); }
+.quality-medium { color: #f59e0b !important; }
+.quality-low { color: #ef4444 !important; }
+.quality-unknown { color: var(--color-text-muted) !important; }
 </style>

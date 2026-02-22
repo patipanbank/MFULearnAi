@@ -293,7 +293,7 @@ export class KnowledgeService {
     static async updateKnowledge(
         id: string,
         user: UserContext,
-        updates: { description?: string; tags?: string[] }
+        updates: { description?: string; tags?: string[]; folder?: string; expiresAt?: string }
     ) {
         const kb = await Knowledge.findById(id);
         if (!kb) throw new Error('Not found');
@@ -317,6 +317,12 @@ export class KnowledgeService {
         if (updates.tags !== undefined) {
             kb.tags = updates.tags;
         }
+        if (updates.folder !== undefined) {
+            kb.folder = updates.folder.trim();
+        }
+        if (updates.expiresAt !== undefined) {
+            kb.expiresAt = updates.expiresAt ? new Date(updates.expiresAt) : undefined;
+        }
 
         await kb.save();
         return kb;
@@ -325,7 +331,7 @@ export class KnowledgeService {
     static async createKnowledgeRecord(
         user: UserContext,
         fileInfo: { originalName: string, mimeType: string, s3Key: string },
-        fields: { type?: string }
+        fields: { type?: string, folder?: string, expiresAt?: string }
     ) {
         const type = fields.type || 'personal';
         if (!this.canCreateKnowledge(user, type)) {
@@ -368,6 +374,8 @@ export class KnowledgeService {
             console.log(`[Knowledge] Versioning: Archived ${existingDoc._id} (v${existingDoc.version}). Creating v${version}`);
         }
 
+        const expiresAtDate = fields.expiresAt ? new Date(fields.expiresAt) : undefined;
+
         const kb = new Knowledge({
             _id: finalId,
             title: fileInfo.originalName,
@@ -381,7 +389,9 @@ export class KnowledgeService {
             s3Key: fileInfo.s3Key,
             contentType: fileInfo.mimeType,
             version,
-            previousVersionId
+            previousVersionId,
+            folder: fields.folder || '',
+            expiresAt: expiresAtDate
         });
         await kb.save();
 
@@ -395,7 +405,7 @@ export class KnowledgeService {
         return kb;
     }
 
-    static async createFromUrl(user: UserContext, url: string, typeVal?: string) {
+    static async createFromUrl(user: UserContext, url: string, typeVal?: string, fields?: { folder?: string, expiresAt?: string }) {
         const type = typeVal || 'personal';
         if (!this.canCreateKnowledge(user, type)) {
             throw new Error('Insufficient permissions');
@@ -410,6 +420,8 @@ export class KnowledgeService {
 
         const kbId = new mongoose.Types.ObjectId().toString();
 
+        const expiresAtDate = fields?.expiresAt ? new Date(fields.expiresAt) : undefined;
+
         const kb = new Knowledge({
             _id: kbId,
             title,
@@ -421,7 +433,9 @@ export class KnowledgeService {
             processingStatus: 'pending',
             processingStage: 'queued',
             contentType: 'text/html', // pseudo-mime for scraped content
-            version: 1
+            version: 1,
+            folder: fields?.folder || '',
+            expiresAt: expiresAtDate
         });
         await kb.save();
 
@@ -793,6 +807,29 @@ export class KnowledgeService {
             }
         ]);
         const feedbackMap = Object.fromEntries(feedbackStats.map(f => [f._id, f.count]));
+        const liked = feedbackMap['liked'] || 0;
+        const disliked = feedbackMap['disliked'] || 0;
+
+        // --- Phase 4: Knowledge Quality Score (#13) ---
+        // 1. Feedback (0-50 pts)
+        let feedbackScore = 25; // default baseline for no feedback
+        if (liked + disliked > 0) {
+            feedbackScore = (liked / (liked + disliked)) * 50;
+        }
+
+        // 2. Hits (0-30 pts)
+        const hits = stats.totalHits || 0;
+        const hitScore = Math.min(30, (hits / 50) * 30); // Maxes out at 50 hits
+
+        // 3. Recency (0-20 pts)
+        const daysOld = (Date.now() - kb.createdAt.getTime()) / (1000 * 60 * 60 * 24);
+        let ageScore = 5;
+        if (daysOld <= 30) ageScore = 20;
+        else if (daysOld <= 90) ageScore = 15;
+        else if (daysOld <= 180) ageScore = 10;
+
+        const qualityScore = Math.round(feedbackScore + hitScore + ageScore);
+        // ----------------------------------------------
 
         return {
             totalHits: stats.totalHits,
@@ -801,9 +838,10 @@ export class KnowledgeService {
             uniqueUsers: stats.uniqueUsers?.length || 0,
             topQueries,
             dailyHits,
+            qualityScore,
             feedback: {
-                liked: feedbackMap['liked'] || 0,
-                disliked: feedbackMap['disliked'] || 0
+                liked,
+                disliked
             }
         };
     }
