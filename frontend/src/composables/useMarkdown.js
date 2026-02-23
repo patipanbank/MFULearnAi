@@ -1,6 +1,7 @@
 import { onMounted, onUnmounted } from 'vue'
 import { marked } from 'marked'
 import hljs from 'highlight.js'
+import DOMPurify from 'dompurify'
 
 // Configure marked with custom renderer
 const renderer = new marked.Renderer()
@@ -96,7 +97,7 @@ export function useMarkdown() {
         let html = marked(content)
         // Strip any residual <cite>...</cite> tags if present
         html = html.replace(/<cite>[^<]*<\/cite>/g, '')
-        return html
+        return DOMPurify.sanitize(html)
     }
 
     const copyToClipboard = async (text) => {

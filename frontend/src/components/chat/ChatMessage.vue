@@ -26,43 +26,14 @@ const messageRef = ref(null)
 
 // Feedback state
 const feedbackState = ref(null) // null | 'liked' | 'disliked'
-const flowManualToggle = ref(null)
-
-const flowExpanded = computed(() => {
-  if (flowManualToggle.value !== null) return flowManualToggle.value
-  if (props.isStreaming && hasAgentEvents.value) return true
-  return false
-})
-
-const toggleFlow = () => {
-  flowManualToggle.value = flowManualToggle.value === null
-    ? !flowExpanded.value
-    : !flowManualToggle.value
-}
 
 const hasAgentEvents = computed(() =>
   props.message.agentEvents && props.message.agentEvents.length > 0
 )
 
-const agentSummary = computed(() => {
-  if (!hasAgentEvents.value) return null
-  const events = props.message.agentEvents
-  const completeEvt = events.find(e => e.type === 'agent_complete')
-  const totalSteps = completeEvt?.totalSteps || events.filter(e => e.type === 'agent_step').length
-  const totalDuration = completeEvt?.durationMs
-  const toolsUsed = [...new Set(events.filter(e => e.type === 'tool_complete').map(e => e.toolName))]
-  return {
-    steps: totalSteps,
-    durationMs: totalDuration,
-    durationStr: totalDuration ? (totalDuration / 1000).toFixed(1) + 's' : null,
-    toolsUsed,
-    isComplete: !!completeEvt
-  }
-})
-
 const timelineEvents = computed(() => {
   if (!hasAgentEvents.value) return []
-  // Filter only block and tool events. Legacy thinking events are ignored or mapped.
+  
   const rawEvents = props.message.agentEvents.filter(e =>
     ['block', 'tool_start', 'tool_complete'].includes(e.type)
   )
@@ -70,38 +41,34 @@ const timelineEvents = computed(() => {
   const mergedEvents = []
   const blockByStep = {}
   const toolByStep = {}
-  const isComplete = props.message.agentEvents.some(e =>
-    e.type === 'agent_complete'
-  )
 
   rawEvents.forEach(evt => {
+    // Unique key to prevent collisions: step index + tool name (if tool)
+    const stepKey = evt.step || 0
+    
     if (evt.type === 'block') {
-      const step = evt.step
-      // A block replaces the legacy thinking bubble. It contains actual text.
-      if (blockByStep[step] !== undefined) {
-        mergedEvents[blockByStep[step]] = { ...evt, isActive: false }
+      if (blockByStep[stepKey] !== undefined) {
+        mergedEvents[blockByStep[stepKey]] = { ...evt, isActive: false }
       } else {
         mergedEvents.push({ ...evt, isActive: !evt.isFinished })
-        blockByStep[step] = mergedEvents.length - 1
+        blockByStep[stepKey] = mergedEvents.length - 1
       }
     } else if (evt.type === 'tool_start') {
+      const toolKey = `${stepKey}-${evt.toolName}`
       mergedEvents.push({ ...evt, result: null, isToolComplete: false, success: false })
-      if (evt.step) toolByStep[evt.step] = mergedEvents.length - 1
+      toolByStep[toolKey] = mergedEvents.length - 1
     } else if (evt.type === 'tool_complete') {
-      if (evt.step && toolByStep[evt.step] !== undefined) {
-        const idx = toolByStep[evt.step]
+      const toolKey = `${stepKey}-${evt.toolName}`
+      if (toolByStep[toolKey] !== undefined) {
+        const idx = toolByStep[toolKey]
         const startEvt = mergedEvents[idx]
-        if (startEvt.toolName === evt.toolName) {
-          mergedEvents[idx] = {
-            ...startEvt,
-            result: evt.resultPreview || evt.result || 'Completed',
-            resultCount: evt.resultCount,
-            durationMs: evt.durationMs,
-            isToolComplete: true,
-            success: evt.success
-          }
-        } else {
-          mergedEvents.push(evt)
+        mergedEvents[idx] = {
+          ...startEvt,
+          result: evt.resultPreview || evt.result || 'Completed',
+          resultCount: evt.resultCount,
+          durationMs: evt.durationMs,
+          isToolComplete: true,
+          success: evt.success
         }
       } else {
         mergedEvents.push(evt)
@@ -109,17 +76,19 @@ const timelineEvents = computed(() => {
     }
   })
   
-  // Clean up empty blocks (blocks with no text) unless it's the only one and active
-  return mergedEvents.filter(e => e.type !== 'block' || e.content?.trim() || e.isActive)
+  // Clean up and Apply streaming guard (fix "sticky" dots)
+  return mergedEvents
+    .filter(e => e.type !== 'block' || e.content?.trim() || e.isActive)
+    .map(e => props.isStreaming ? e : { ...e, isActive: false })
 })
 
 // Tool label mapping
 const toolLabel = (name) => {
   const labels = {
-    search: 'Searching knowledge base',
-    check_policy: 'ตรวจสอบนโยบาย',
-    calculator: 'Calculating',
-    mcp: 'Querying university data'
+    search: props.t('tool.search'),
+    check_policy: props.t('tool.checkPolicy'),
+    calculator: props.t('tool.calculator'),
+    mcp: props.t('tool.mcp')
   }
   return labels[name] || `Using ${name}`
 }
@@ -153,22 +122,25 @@ const handleFeedback = (type) => {
 }
 
 const downloadAttachment = async (att) => {
-  if (att.key) {
-    try {
-      const response = await api.get(`/chat/attachment/${att.key}`, { responseType: 'blob' })
-      const url = window.URL.createObjectURL(new Blob([response.data], { type: response.headers['content-type'] }))
-      const link = document.createElement('a')
-      link.href = url
-      link.setAttribute('download', att.fileName || 'download')
-      document.body.appendChild(link)
-      link.click()
-      link.parentNode.removeChild(link)
-      window.URL.revokeObjectURL(url)
-    } catch (error) {
-      console.error('Download failed', error)
-    }
-  } else if (att.url) {
-    window.open(att.url, '_blank')
+  if (!att.key) {
+    if (att.url) window.open(att.url, '_blank')
+    return
+  }
+
+  let url = null
+  try {
+    const response = await api.get(`/chat/attachment/${att.key}`, { responseType: 'blob' })
+    url = window.URL.createObjectURL(new Blob([response.data], { type: response.headers['content-type'] }))
+    const link = document.createElement('a')
+    link.href = url
+    link.setAttribute('download', att.fileName || 'download')
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  } catch (error) {
+    console.error('Download failed', error)
+  } finally {
+    if (url) window.URL.revokeObjectURL(url)
   }
 }
 
@@ -216,7 +188,7 @@ const getFileIcon = (file) => {
               v-for="(img, i) in message.images" :key="i"
               :src="`data:${img.mediaType};base64,${img.data}`"
               class="msg-image"
-              @click="viewImage(`data:${img.mediaType};base64,${img.data}`)"
+              @click="viewImage"
             />
           </div>
 
@@ -239,9 +211,10 @@ const getFileIcon = (file) => {
             <LazyImage
               v-for="(att, i) in message.attachments.filter(a => a.mimeType?.startsWith('image/'))"
               :key="'img-' + i"
-              :src="`/api/chat/attachment/${att.key}?token=${authStore.token}`"
+              :src="`/api/chat/attachment/${att.key}`"
+              :secure="true"
               class="msg-image"
-              @click="viewImage(`/api/chat/attachment/${att.key}?token=${authStore.token}`)"
+              @click="viewImage"
             />
             <div
               v-for="(att, i) in message.attachments.filter(a => !a.mimeType?.startsWith('image/'))"

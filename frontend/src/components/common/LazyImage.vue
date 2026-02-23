@@ -1,13 +1,18 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
+import axios from 'axios'
+import { useAuthStore } from '@/stores/auth'
 
 const props = defineProps({
   src: { type: String, required: true },
   alt: { type: String, default: 'image' },
   width: { type: Number, default: null },
   height: { type: Number, default: null },
+  secure: { type: Boolean, default: false }
 })
 
+const authStore = useAuthStore()
+const displaySrc = ref('')
 const state = ref('idle') // idle | loading | loaded | error
 const imgRef = ref(null)
 let observer = null
@@ -22,15 +27,13 @@ onMounted(() => {
       }
     },
     {
-      // Safari 26+: Use scrollMargin
-      scrollMargin: '200px', // Increased margin to trigger earlier
+      scrollMargin: '200px',
       rootMargin: '200px',
-      threshold: 0.01 // Trigger as soon as 1% is visible (even if huge)
+      threshold: 0.01
     }
   )
   if (imgRef.value) observer.observe(imgRef.value)
 
-  // Fallback: If not loaded after 3s (and mounted), force load
   setTimeout(() => {
     if (state.value === 'idle' && imgRef.value) {
       loadImage()
@@ -38,21 +41,50 @@ onMounted(() => {
   }, 3000)
 })
 
-const loadImage = () => {
-  if (state.value === 'loaded') return
+onUnmounted(() => {
+  if (displaySrc.value?.startsWith('blob:')) {
+    window.URL.revokeObjectURL(displaySrc.value)
+  }
+})
+
+const loadImage = async () => {
+  if (state.value === 'loaded' || state.value === 'loading') return
   
   state.value = 'loading'
-  const img = new Image()
-  img.onload = () => { 
-      state.value = 'loaded' 
+  
+  if (props.secure && props.src.includes('/api/')) {
+    try {
+      const resp = await axios.get(props.src, {
+        headers: { Authorization: `Bearer ${authStore.token}` },
+        responseType: 'blob'
+      })
+      const url = window.URL.createObjectURL(resp.data)
+      displaySrc.value = url
+      state.value = 'loaded'
+    } catch (e) {
+      console.error('Secure image load failed', e)
+      state.value = 'error'
+    }
+  } else {
+    // Standard load
+    displaySrc.value = props.src
+    const img = new Image()
+    img.onload = () => { state.value = 'loaded' }
+    img.onerror = () => { state.value = 'error' }
+    img.src = props.src
   }
-  img.onerror = () => { state.value = 'error' }
-  img.src = props.src
+}
+const emit = defineEmits(['click'])
+
+const handleClick = () => {
+  if (state.value === 'loaded') {
+    emit('click', displaySrc.value)
+  }
 }
 </script>
 
 <template>
-  <div ref="imgRef" class="lazy-image-wrapper">
+  <div ref="imgRef" class="lazy-image-wrapper" @click="handleClick">
     
     <!-- Placeholder / Skeleton -->
     <div v-if="state === 'idle' || state === 'loading'" class="lazy-placeholder">
@@ -67,7 +99,7 @@ const loadImage = () => {
     <!-- Loaded Image -->
     <img
       v-if="state === 'loaded'"
-      :src="src"
+      :src="displaySrc"
       :alt="alt"
       class="lazy-image"
     />
