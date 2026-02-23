@@ -2,11 +2,19 @@
 import { ref, onMounted, computed } from 'vue'
 import { useKnowledgeStore } from '@/stores/knowledge'
 import { useLanguage } from '@/composables/useSettings'
+import { useModalKeyboard } from '@/composables/useModalKeyboard'
 
 const emit = defineEmits(['close'])
 
 const { t } = useLanguage()
 const knowledgeStore = useKnowledgeStore()
+
+// ── Keyboard support ──
+const modalRef = ref(null)
+useModalKeyboard({
+  onClose: () => emit('close'),
+  modalRef,
+})
 
 const requests   = ref([])
 const loading    = ref(false)
@@ -76,7 +84,7 @@ const actionStateLabel = (id) => {
 <template>
   <Transition name="modal-fade">
     <div class="modal-overlay" @click="$emit('close')">
-      <div class="admin-modal" @click.stop role="dialog" aria-modal="true">
+      <div ref="modalRef" class="admin-modal" @click.stop role="dialog" aria-modal="true">
 
         <!-- Header -->
         <div class="modal-header">

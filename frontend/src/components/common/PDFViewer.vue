@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
 import VuePdfEmbed from 'vue-pdf-embed'
+import { useModalKeyboard } from '@/composables/useModalKeyboard'
 
 // Essential styles for PDF.js text layer (if needed later)
 // import 'vue-pdf-embed/dist/style/index.css' 
@@ -21,7 +22,14 @@ const props = defineProps({
 const emit = defineEmits(['close'])
 
 const pdfRef = ref(null)
+const modalRef = ref(null)
 const isLoading = ref(true)
+
+// ── Keyboard support ──
+useModalKeyboard({
+  onClose: () => emit('close'),
+  modalRef,
+})
 const pageCount = ref(0)
 const currentPage = ref(props.page)
 
@@ -75,7 +83,7 @@ const close = () => {
 
 <template>
   <div v-if="isOpen" class="pdf-modal-overlay" @click.self="close">
-    <div class="pdf-modal-container">
+    <div ref="modalRef" class="pdf-modal-container">
       <!-- Header -->
       <div class="pdf-header">
         <div class="file-info">

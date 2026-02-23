@@ -2,6 +2,7 @@
 import { ref, onMounted } from 'vue'
 import { useKnowledgeStore } from '@/stores/knowledge'
 import { useAuthStore } from '@/stores/auth'
+import { useModalKeyboard } from '@/composables/useModalKeyboard'
 
 const props = defineProps({
     collection: { type: Object, default: null }
@@ -56,6 +57,14 @@ const handleSubmit = async () => {
     }
 }
 
+// ── Keyboard support ──
+const modalRef = ref(null)
+useModalKeyboard({
+  onClose: () => emit('close'),
+  onConfirm: () => { if (name.value) handleSubmit() },
+  modalRef,
+})
+
 const handleDelete = async () => {
     if (!confirm('Are you sure you want to delete this collection? This cannot be undone.')) return
     
@@ -74,7 +83,7 @@ const handleDelete = async () => {
 
 <template>
   <div class="modal-overlay" @click.self="emit('close')">
-    <div class="knowledge-modal">
+    <div ref="modalRef" class="knowledge-modal">
        <h2>{{ isEditMode ? 'Edit Collection' : 'New Collection' }}</h2>
        
        <div class="form-group">

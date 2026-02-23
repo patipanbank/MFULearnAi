@@ -64,6 +64,49 @@ const handleSend = () => {
 
 const handleFileClick = () => fileInputRef.value?.click()
 
+// ── Paste handler: supports pasting images and files from clipboard ──
+const handlePaste = (e) => {
+  const items = e.clipboardData?.items
+  if (!items) return
+
+  const files = []
+  for (const item of items) {
+    // Handle pasted images / files
+    if (item.kind === 'file') {
+      const file = item.getAsFile()
+      if (file) files.push(file)
+    }
+  }
+
+  if (files.length > 0) {
+    e.preventDefault()
+
+    // Validate file count
+    const currentCount = props.attachments?.length || 0
+    if (currentCount + files.length > MAX_FILE_COUNT) {
+      alert(`สามารถแนบไฟล์ได้สูงสุด ${MAX_FILE_COUNT} ไฟล์`)
+      return
+    }
+
+    // Validate individual file size and total
+    let totalSize = (props.attachments || []).reduce((sum, a) => sum + (a.size || 0), 0)
+    for (const file of files) {
+      if (file.size > MAX_FILE_SIZE_BYTES) {
+        alert(`ไฟล์ "${file.name}" มีขนาดเกิน ${MAX_FILE_SIZE_MB} MB`)
+        return
+      }
+      totalSize += file.size
+    }
+    if (totalSize > MAX_TOTAL_SIZE_BYTES) {
+      alert(`ขนาดไฟล์รวมเกิน ${MAX_TOTAL_SIZE_MB} MB`)
+      return
+    }
+
+    emit('upload', files)
+  }
+  // If no files, let the default paste behavior handle text
+}
+
 const handleFileChange = (e) => {
   const files = e.target.files
   if (!files?.length) return
@@ -201,6 +244,7 @@ defineExpose({
             :placeholder="t('typeMessage')"
             :disabled="disabled || loading || streaming"
             @keydown="handleKeydown"
+            @paste="handlePaste"
             @focus="isFocused = true"
             @blur="isFocused = false"
             rows="1"

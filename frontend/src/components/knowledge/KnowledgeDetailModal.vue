@@ -3,6 +3,7 @@ import { computed, ref } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useKnowledgeStore } from '@/stores/knowledge'
 import { useLanguage } from '@/composables/useSettings'
+import { useModalKeyboard } from '@/composables/useModalKeyboard'
 
 const props = defineProps({
   item: {
@@ -16,6 +17,13 @@ const emit = defineEmits(['close', 'success'])
 const authStore = useAuthStore()
 const knowledgeStore = useKnowledgeStore()
 const { t } = useLanguage()
+
+// ── Keyboard support ──
+const modalRef = ref(null)
+useModalKeyboard({
+  onClose: () => emit('close'),
+  modalRef,
+})
 
 const isOwner = computed(() => props.item.ownerId === authStore.userId)
 const isAdmin = computed(() => authStore.role === 'admin' || authStore.role === 'superadmin')
@@ -244,7 +252,7 @@ const getQualityClass = (score) => {
 <template>
   <Transition name="modal-fade">
     <div class="modal-overlay" @click="$emit('close')">
-      <div class="knowledge-modal" @click.stop role="dialog" aria-modal="true">
+      <div ref="modalRef" class="knowledge-modal" @click.stop role="dialog" aria-modal="true">
         <!-- Header -->
         <div class="modal-header">
           <div class="header-title-area">

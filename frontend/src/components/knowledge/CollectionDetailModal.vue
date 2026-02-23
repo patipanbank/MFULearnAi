@@ -2,6 +2,7 @@
 import { ref, onMounted, computed } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useKnowledgeStore } from '@/stores/knowledge'
+import { useModalKeyboard } from '@/composables/useModalKeyboard'
 
 const props = defineProps({
   collection: {
@@ -16,6 +17,13 @@ const authStore = useAuthStore()
 const knowledgeStore = useKnowledgeStore()
 const fullCollection = ref(null)
 const isLoading = ref(true)
+
+// ── Keyboard support ──
+const modalRef = ref(null)
+useModalKeyboard({
+  onClose: () => emit('close'),
+  modalRef,
+})
 
 // For Mapping Mode
 const isMapping = ref(false)
@@ -93,7 +101,7 @@ const handleRemove = async (knowledgeId) => {
 
 <template>
   <div class="modal-overlay" @click="$emit('close')">
-    <div class="collection-modal" @click.stop>
+    <div ref="modalRef" class="collection-modal" @click.stop>
       <div class="modal-header">
         <div class="header-content">
             <h3>{{ collection.name }}</h3>

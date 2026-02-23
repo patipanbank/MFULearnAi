@@ -72,7 +72,7 @@
 
     <!-- Edit/Create User Modal -->
     <Teleport to="body">
-       <div v-if="showModal" class="modal-overlay" @click.self="closeModal">
+       <div v-if="showModal" class="modal-overlay" @click.self="closeModal" @keydown.escape="closeModal" tabindex="-1">
           <div class="knowledge-modal">
              <h2>{{ isEditing ? 'Edit User' : 'Create User' }}</h2>
              

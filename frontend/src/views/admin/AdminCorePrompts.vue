@@ -171,7 +171,7 @@
     </main>
 
     <!-- Create Modal -->
-    <div v-if="showCreateModal" class="modal-overlay" @click.self="closeCreateModal">
+    <div v-if="showCreateModal" class="modal-overlay" @click.self="closeCreateModal" @keydown.escape="closeCreateModal" tabindex="-1">
       <div class="modal-card">
         <div class="modal-header">
           <h3>{{ t('createTitle') }}</h3>

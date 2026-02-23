@@ -3,6 +3,7 @@ import { ref, computed } from 'vue'
 import { useKnowledgeStore } from '@/stores/knowledge'
 import { useAuthStore } from '@/stores/auth'
 import { useLanguage } from '@/composables/useSettings'
+import { useModalKeyboard } from '@/composables/useModalKeyboard'
 
 const emit = defineEmits(['close', 'success'])
 const knowledgeStore = useKnowledgeStore()
@@ -10,6 +11,13 @@ const authStore = useAuthStore()
 
 // --- Global i18n Translation ---
 const { t } = useLanguage()
+
+// ── Keyboard support ──
+const modalRef = ref(null)
+useModalKeyboard({
+  onClose: () => emit('close'),
+  modalRef,
+})
 
 // Upload constraints — aligned with nginx client_max_body_size (100M) for knowledge route
 const MAX_FILE_SIZE_MB = 50
@@ -209,7 +217,7 @@ const handleTextUpload = async () => {
 
 <template>
   <div class="modal-overlay" @click.self="emit('close')">
-    <div class="knowledge-modal">
+    <div ref="modalRef" class="knowledge-modal">
        
        <div class="modal-header">
          <h2>{{ t('uploadTitle') }}</h2>
