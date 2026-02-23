@@ -311,8 +311,8 @@ const getFileIcon = (file) => {
           <!-- Linear Stream / Standard Message -->
           <div class="message-body">
             
-            <!-- Standard Message Fallback (No Agent Events) -->
-            <template v-if="!hasAgentEvents && message.content">
+            <!-- Standard Message Fallback (No Timeline Events) -->
+            <template v-if="timelineEvents.length === 0 && message.content">
               <div ref="messageRef" class="prose markdown-body" v-html="render(message.content)" />
             </template>
             

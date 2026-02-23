@@ -27,5 +27,35 @@ export default defineConfig({
         secure: false
       }
     }
+  },
+  build: {
+    chunkSizeWarningLimit: 5500,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            if (id.includes('vue') || id.includes('pinia') || id.includes('axios') || id.includes('socket.io')) {
+              return 'vendor';
+            }
+            if (id.includes('@coreui')) {
+              return 'ui-core';
+            }
+            if (id.includes('marked') || id.includes('highlight.js')) {
+              return 'markdown';
+            }
+            if (id.includes('pdfjs-dist') || id.includes('vue-pdf-embed')) {
+              return 'pdf';
+            }
+            if (id.includes('chart.js') || id.includes('vue-chartjs')) {
+              return 'charts';
+            }
+            if (id.includes('lucide') || id.includes('@heroicons')) {
+              return 'icons';
+            }
+            return 'modules';
+          }
+        }
+      }
+    }
   }
 })

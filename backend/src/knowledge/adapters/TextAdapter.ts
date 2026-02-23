@@ -5,7 +5,7 @@ import * as chardet from 'chardet';
 export class TextAdapter implements BaseAdapter {
     canHandle(mimeType: string, extension: string, buffer: Buffer): boolean {
         return mimeType.startsWith('text/') ||
-            ['txt', 'md', 'py', 'js', 'ts', 'html', 'css', 'json', 'xml', 'yaml', 'yml', 'c', 'cpp', 'h', 'java', 'go', 'rs', 'php', 'rb', 'sh'].includes(extension);
+            ['txt', 'md', 'py', 'js', 'ts', 'html', 'css', 'json', 'xml', 'yaml', 'yml', 'c', 'cpp', 'h', 'java', 'go', 'rs', 'php', 'rb', 'sh', 'doc', 'rtf'].includes(extension);
     }
 
     async parse(buffer: Buffer, originalName: string): Promise<CanonicalIR> {

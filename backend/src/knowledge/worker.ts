@@ -235,8 +235,14 @@ export const processKnowledgeJob = async (job: Job) => {
             fullText = response.data.text;
             pages = [{ text: fullText, pageNumber: 1 }];
 
-        } else if (mimetype === 'text/plain') {
-            fullText = buffer.toString('utf-8');
+        } else if (
+            mimetype.startsWith('text/') ||
+            ['txt', 'md', 'html', 'css', 'js', 'ts', 'json', 'xml', 'yaml', 'yml', 'py', 'c', 'cpp', 'h', 'java', 'go', 'rs', 'php', 'rb', 'sh'].some(ext => originalName.toLowerCase().endsWith(`.${ext}`))
+        ) {
+            const chardet = require('chardet');
+            const encoding = chardet.detect(buffer) || 'utf-8';
+            const decoder = new TextDecoder(encoding as string);
+            fullText = decoder.decode(buffer);
             pages = [{ text: fullText, pageNumber: 1 }];
         } else if (mimetype === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
             const result = await mammoth.extractRawText({ buffer });
@@ -245,8 +251,7 @@ export const processKnowledgeJob = async (job: Job) => {
         } else if (
             mimetype === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
             mimetype === 'application/vnd.ms-excel' ||
-            mimetype === 'text/csv' ||
-            originalName.endsWith('.xlsx') || originalName.endsWith('.csv')
+            originalName.endsWith('.xlsx') || originalName.endsWith('.csv') || originalName.endsWith('.xls')
         ) {
             const workbook = XLSX.read(buffer, { type: 'buffer' });
             const sheetNames = workbook.SheetNames;
@@ -259,7 +264,17 @@ export const processKnowledgeJob = async (job: Job) => {
             });
         }
         else {
-            throw new Error(`Unsupported mimetype: ${mimetype}`);
+            // Fallback: If it's a known document type but unsupported by the specific parser (e.g. .doc instead of .docx), try raw text extraction
+            if (originalName.endsWith('.doc') || originalName.endsWith('.rtf')) {
+                const chardet = require('chardet');
+                const encoding = chardet.detect(buffer) || 'utf-8';
+                const decoder = new TextDecoder(encoding as string);
+                fullText = decoder.decode(buffer);
+                pages = [{ text: fullText, pageNumber: 1 }];
+                LoggerService.warn('worker_doc_fallback_text', { jobId: job.id, originalName });
+            } else {
+                throw new Error(`Unsupported mimetype or extension: ${mimetype} (${originalName})`);
+            }
         }
 
         fullText = fullText.replace(/\s+/g, ' ').trim();

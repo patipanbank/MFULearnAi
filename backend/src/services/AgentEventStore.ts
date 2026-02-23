@@ -36,7 +36,7 @@ export class AgentEventStore {
         }
 
         // Store for MongoDB persistence (skip high-frequency deltas and transient UI signals)
-        const SKIP_PERSISTENCE = new Set(['answer_delta', 'thinking_delta', 'content_reset', 'status']);
+        const SKIP_PERSISTENCE = new Set(['answer_delta', 'thinking_delta', 'block_delta', 'content_reset', 'status']);
         if (!SKIP_PERSISTENCE.has(type)) {
             this.eventLog.push(event);
         }

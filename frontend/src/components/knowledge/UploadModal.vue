@@ -10,7 +10,16 @@ const authStore = useAuthStore()
 // Upload constraints — aligned with nginx client_max_body_size (100M) for knowledge route
 const MAX_FILE_SIZE_MB = 50
 const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024
-const ALLOWED_EXTENSIONS = ['pdf', 'txt']
+const ALLOWED_EXTENSIONS = [
+    // Documents
+    'pdf', 'doc', 'docx', 'rtf',
+    // Spreadsheets
+    'xls', 'xlsx', 'csv',
+    // Text & Code
+    'txt', 'md', 'html', 'css', 'js', 'ts', 'json', 'xml', 'yaml', 'yml', 'py', 'c', 'cpp', 'h', 'java', 'go', 'rs', 'php', 'rb', 'sh',
+    // Images
+    'png', 'jpg', 'jpeg', 'tiff'
+]
 const MAX_FILES = 10
 
 // State
@@ -185,7 +194,7 @@ const handleUrlScrape = async () => {
        <!-- File Upload Mode -->
        <template v-if="uploadMode === 'file'">
          <div class="form-group">
-            <label>Select Files (PDF, TXT) — up to {{ MAX_FILES }}</label>
+            <label>Select Files (PDF, Office, Text, Code, Images) — up to {{ MAX_FILES }}</label>
             <div
               class="drop-zone"
               @drop="handleDrop"
@@ -204,7 +213,7 @@ const handleUrlScrape = async () => {
               type="file"
               multiple
               @change="handleFileChange"
-              accept=".pdf,.txt"
+              accept=".pdf,.doc,.docx,.rtf,.xls,.xlsx,.csv,.txt,.md,.html,.css,.js,.ts,.json,.xml,.yaml,.yml,.py,.c,.cpp,.h,.java,.go,.rs,.php,.rb,.sh,.png,.jpg,.jpeg,.tiff"
               style="display: none"
             >
          </div>

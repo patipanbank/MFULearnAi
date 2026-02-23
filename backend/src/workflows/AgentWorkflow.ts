@@ -281,7 +281,7 @@ export class AgentWorkflow {
 
             // If we generated any text, close the block naturally
             if (hasEmittedBlockStart) {
-                this.emit(AGENT_EVENTS.BLOCK_END, { step: this.state.steps });
+                this.emit(AGENT_EVENTS.BLOCK_END, { step: this.state.steps, content: currentBlockText });
             }
 
             // Update Usage
@@ -365,7 +365,7 @@ export class AgentWorkflow {
         // Emit answer events so frontend bubble shows the timeout message
         this.emit(AGENT_EVENTS.BLOCK_START, { answerMode: 'internal', step: this.state.steps });
         this.emit(AGENT_EVENTS.BLOCK_DELTA, { delta: this.state.finalAnswer });
-        this.emit(AGENT_EVENTS.BLOCK_END, { step: this.state.steps });
+        this.emit(AGENT_EVENTS.BLOCK_END, { step: this.state.steps, content: this.state.finalAnswer });
         this.emit(AGENT_EVENTS.STATUS, { message: 'หมดเวลาดำเนินการ' });
     }
 

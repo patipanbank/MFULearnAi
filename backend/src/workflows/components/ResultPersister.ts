@@ -80,9 +80,19 @@ export class ResultPersister {
                 confidence,
                 explanation
             },
-            agentEvents: store.getEventLog().map((e: any) => ({
-                ...e, timestamp: new Date(e.timestamp)
-            }))
+            agentEvents: store.getEventLog().reduce((acc: any[], e: any) => {
+                if (e.type === 'block_start') return acc;
+                if (e.type === 'block_end') {
+                    acc.push({
+                        ...e,
+                        type: 'block',
+                        timestamp: new Date(e.timestamp)
+                    });
+                } else {
+                    acc.push({ ...e, timestamp: new Date(e.timestamp) });
+                }
+                return acc;
+            }, [])
         };
 
         const { userId, sessionId } = ctx;
