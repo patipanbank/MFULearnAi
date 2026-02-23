@@ -514,6 +514,7 @@ const closeEvidenceViewer = () => {
 .history-loading-dots {
   display: flex;
   gap: 6px;
+  align-items: center;
 }
 
 .history-loading-dots span {
@@ -521,15 +522,22 @@ const closeEvidenceViewer = () => {
   height: 8px;
   border-radius: 50%;
   background: var(--color-text-muted);
-  animation: bounce 1s infinite;
+  animation: loading-wave 1.4s ease-in-out infinite;
 }
 
+.history-loading-dots span:nth-child(1) { animation-delay: 0s; }
 .history-loading-dots span:nth-child(2) { animation-delay: 0.15s; }
 .history-loading-dots span:nth-child(3) { animation-delay: 0.3s; }
 
-@keyframes bounce {
-  0%, 80%, 100% { transform: translateY(0); opacity: 0.4; }
-  40%           { transform: translateY(-6px); opacity: 1; }
+@keyframes loading-wave {
+  0%, 100% {
+    transform: translateY(0);
+    opacity: 0.3;
+  }
+  50% {
+    transform: translateY(-6px);
+    opacity: 1;
+  }
 }
 
 .history-end {

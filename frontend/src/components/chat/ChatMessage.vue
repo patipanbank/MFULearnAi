@@ -574,14 +574,37 @@ const getFileIcon = (file) => {
 .prose { font-size: 15px; line-height: 1.75; color: var(--color-text-primary); }
 
 /* Typing fallback */
-.typing-dots { display: flex; gap: 4px; padding: 8px 0; }
+.typing-dots { display: flex; gap: 5px; padding: 8px 0; align-items: center; }
 .typing-dots span {
   width: 6px; height: 6px; border-radius: 50%;
   background: var(--color-text-muted);
-  animation: bounce 1.4s infinite ease-in-out both;
+  animation: typing-wave 1.4s ease-in-out infinite;
 }
-.typing-dots span:nth-child(1) { animation-delay: -0.32s; }
-.typing-dots span:nth-child(2) { animation-delay: -0.16s; }
+.typing-dots span:nth-child(1) { animation-delay: 0s; }
+.typing-dots span:nth-child(2) { animation-delay: 0.15s; }
+.typing-dots span:nth-child(3) { animation-delay: 0.3s; }
+
+/* Tool active indicator */
+.dot-pulse {
+  display: inline-block;
+  width: 4px; height: 4px; border-radius: 50%;
+  background: var(--color-accent, #6366f1);
+  animation: typing-wave 1.2s ease-in-out infinite;
+}
+.dot-pulse:nth-child(1) { animation-delay: 0s; }
+.dot-pulse:nth-child(2) { animation-delay: 0.12s; margin-left: 3px; }
+.dot-pulse:nth-child(3) { animation-delay: 0.24s; margin-left: 3px; }
+
+@keyframes typing-wave {
+  0%, 100% {
+    transform: translateY(0);
+    opacity: 0.3;
+  }
+  50% {
+    transform: translateY(-4px);
+    opacity: 1;
+  }
+}
 
 /* ── Action Bar ── */
 .action-bar {
