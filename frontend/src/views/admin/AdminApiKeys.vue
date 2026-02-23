@@ -1,131 +1,196 @@
 <template>
   <div class="apikey-manager">
     <!-- Header -->
-    <header class="manager-header">
-      <div class="header-content">
-        <div class="header-title">
-          <h1>{{ t('title') }}</h1>
-          <span class="badge-count">{{ apiKeys.length }}</span>
+    <header class="page-header">
+      <div class="header-left">
+        <div class="header-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21 2-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0 3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
         </div>
-        <div class="header-actions">
-          <button @click="openCreateModal" class="btn-primary" id="create-key-btn">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-            {{ t('newKey') }}
-          </button>
+        <div>
+          <h1 class="page-title">{{ t('title') }}</h1>
+          <p class="page-desc">{{ t('subtitle') }}</p>
         </div>
+      </div>
+      <div class="header-right">
+        <span class="count-badge">{{ apiKeys.length }} {{ t('keys') }}</span>
+        <button @click="openCreateModal" class="btn btn-accent" id="create-key-btn">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          {{ t('newKey') }}
+        </button>
       </div>
     </header>
 
-    <!-- Main Content -->
-    <main class="manager-body">
-      <div class="content-container">
-        
-        <!-- Loading State -->
-        <div v-if="loading" class="state-msg">
-            <div class="spinner"></div>
-            <p>{{ t('loading') }}</p>
+    <!-- Content -->
+    <main class="page-body">
+      <div class="content-wrap">
+
+        <!-- Loading -->
+        <div v-if="loading" class="state-empty">
+          <div class="spinner"></div>
+          <p>{{ t('loading') }}</p>
         </div>
 
-        <!-- Empty State -->
-        <div v-else-if="apiKeys.length === 0" class="state-msg empty">
-            <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
-            <p>{{ t('noKeys') }}</p>
-            <button @click="openCreateModal" class="btn-ghost">{{ t('createFirst') }}</button>
+        <!-- Empty -->
+        <div v-else-if="apiKeys.length === 0" class="state-empty">
+          <div class="empty-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><path d="m21 2-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0 3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
+          </div>
+          <p class="empty-title">{{ t('noKeys') }}</p>
+          <p class="empty-desc">{{ t('noKeysDesc') }}</p>
+          <button @click="openCreateModal" class="btn btn-accent">{{ t('createFirst') }}</button>
         </div>
 
-        <!-- Key List -->
+        <!-- Key Grid -->
         <div v-else class="key-grid">
-            <div v-for="key in apiKeys" :key="key._id" class="key-card" :class="{ 'revoked': !!key.revokedAt }">
-                <div class="key-main">
-                    <div class="key-header">
-                        <span class="key-name">{{ key.name }}</span>
-                        <span v-if="key.revokedAt" class="badge-revoked">{{ t('revoked') }}</span>
-                        <span v-else class="badge-active">{{ t('active') }}</span>
-                    </div>
-                    <div class="key-preview">
-                        <code>{{ key.keyPrefix }}••••••••••••••••</code>
-                    </div>
-                    <div class="key-meta">
-                        <div class="meta-item">
-                            <span class="meta-label">{{ t('created') }}:</span>
-                            <span>{{ formatDate(key.createdAt) }}</span>
-                        </div>
-                        <div class="meta-item">
-                            <span class="meta-label">{{ t('lastUsed') }}:</span>
-                            <span>{{ key.lastUsedAt ? formatDate(key.lastUsedAt) : t('never') }}</span>
-                        </div>
-                         <div class="meta-item" v-if="key.expiresAt">
-                            <span class="meta-label">{{ t('expires') }}:</span>
-                            <span>{{ formatDate(key.expiresAt) }}</span>
-                        </div>
-                    </div>
+          <article
+            v-for="key in sortedKeys"
+            :key="key._id"
+            class="key-card"
+            :class="{ 'is-revoked': !!key.revokedAt }"
+          >
+            <!-- Status indicator -->
+            <div class="card-status" :class="key.revokedAt ? 'status-revoked' : 'status-active'"></div>
+
+            <div class="card-body">
+              <div class="card-top">
+                <div class="card-title-row">
+                  <h3 class="key-name">{{ key.name }}</h3>
+                  <span class="status-badge" :class="key.revokedAt ? 'badge-revoked' : 'badge-active'">
+                    {{ key.revokedAt ? t('revoked') : t('active') }}
+                  </span>
                 </div>
-                <div class="key-actions">
-                    <button v-if="!key.revokedAt" @click="revokeKey(key)" class="btn-icon danger" :title="t('revoke')">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
-                    </button>
+                <div class="key-preview">
+                  <code>{{ key.keyPrefix }}••••••••</code>
                 </div>
+              </div>
+
+              <div class="card-meta">
+                <div class="meta-row">
+                  <span class="meta-label">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                    {{ t('created') }}
+                  </span>
+                  <span class="meta-value">{{ formatDate(key.createdAt) }}</span>
+                </div>
+                <div class="meta-row">
+                  <span class="meta-label">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                    {{ t('lastUsed') }}
+                  </span>
+                  <span class="meta-value" :class="{ 'text-muted': !key.lastUsedAt }">
+                    {{ key.lastUsedAt ? formatDate(key.lastUsedAt) : t('never') }}
+                  </span>
+                </div>
+                <div v-if="key.expiresAt" class="meta-row">
+                  <span class="meta-label">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                    {{ t('expires') }}
+                  </span>
+                  <span class="meta-value" :class="{ 'text-warning': isExpiringSoon(key.expiresAt) }">
+                    {{ formatDate(key.expiresAt) }}
+                  </span>
+                </div>
+              </div>
             </div>
+
+            <div class="card-actions">
+              <button
+                v-if="!key.revokedAt"
+                @click="revokeKey(key)"
+                class="btn-icon btn-danger"
+                :title="t('revoke')"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+              </button>
+            </div>
+          </article>
         </div>
+
       </div>
     </main>
 
     <!-- Create Modal -->
-    <div v-if="showCreateModal" class="modal-overlay" @click.self="closeCreateModal">
-      <div class="modal-card">
-        <div class="modal-header">
-          <h3>{{ t('createTitle') }}</h3>
-          <button @click="closeCreateModal" class="btn-close">&times;</button>
-        </div>
-        <div class="modal-body">
-          <div class="form-row">
-            <label>{{ t('keyName') }} <span class="required">*</span></label>
-            <input v-model="newItem.name" :placeholder="t('namePlaceholder')" class="input-std" ref="nameInput" />
-          </div>
-          <div class="form-row">
-             <label>{{ t('expiration') }}</label>
-             <select v-model="newItem.expiration" class="input-std">
-                 <option value="">{{ t('neverExpire') }}</option>
-                 <option value="30d">30 {{ t('days') }}</option>
-                 <option value="90d">90 {{ t('days') }}</option>
-                 <option value="1y">1 {{ t('year') }}</option>
-             </select>
-          </div>
-        </div>
-        <div class="modal-actions">
-          <button @click="closeCreateModal" class="btn-ghost">{{ t('cancel') }}</button>
-          <button @click="createKey" :disabled="!newItem.name || creating" class="btn-primary">
-            {{ creating ? t('creating') : t('create') }}
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Success/Copy Modal -->
-    <div v-if="showSuccessModal" class="modal-overlay">
-        <div class="modal-card success-card">
+    <Teleport to="body">
+      <Transition name="modal">
+        <div v-if="showCreateModal" class="modal-backdrop" @click.self="closeCreateModal">
+          <div class="modal-panel">
             <div class="modal-header">
-                <div class="success-title">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
-                    <h3>{{ t('keyCreated') }}</h3>
-                </div>
+              <h3>{{ t('createTitle') }}</h3>
+              <button @click="closeCreateModal" class="btn-close">&times;</button>
             </div>
             <div class="modal-body">
-                <p class="warning-text">{{ t('copyWarning') }}</p>
-                <div class="key-display">
-                    <code>{{ createdKey }}</code>
-                    <button @click="copyKey" class="btn-copy" :class="{ copied: isCopied }">
-                        <span v-if="isCopied">{{ t('copied') }}</span>
-                        <svg v-else xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
-                    </button>
-                </div>
+              <div class="field">
+                <label for="key-name">{{ t('keyName') }} <span class="required">*</span></label>
+                <input
+                  id="key-name"
+                  v-model="newItem.name"
+                  :placeholder="t('namePlaceholder')"
+                  class="input"
+                  @keyup.enter="createKey"
+                />
+              </div>
+              <div class="field">
+                <label for="key-expiry">{{ t('expiration') }}</label>
+                <select id="key-expiry" v-model="newItem.expiration" class="input">
+                  <option value="">{{ t('neverExpire') }}</option>
+                  <option value="30d">30 {{ t('days') }}</option>
+                  <option value="90d">90 {{ t('days') }}</option>
+                  <option value="1y">1 {{ t('year') }}</option>
+                </select>
+              </div>
             </div>
-            <div class="modal-actions">
-                <button @click="closeSuccessModal" class="btn-primary full-width">{{ t('done') }}</button>
+            <div class="modal-footer">
+              <button @click="closeCreateModal" class="btn btn-ghost">{{ t('cancel') }}</button>
+              <button @click="createKey" :disabled="!newItem.name.trim() || creating" class="btn btn-accent">
+                <span v-if="creating" class="btn-spinner"></span>
+                {{ creating ? t('creating') : t('create') }}
+              </button>
             </div>
+          </div>
         </div>
-    </div>
+      </Transition>
+    </Teleport>
 
+    <!-- Success Modal -->
+    <Teleport to="body">
+      <Transition name="modal">
+        <div v-if="showSuccessModal" class="modal-backdrop">
+          <div class="modal-panel success-panel">
+            <div class="modal-header success-header">
+              <div class="success-badge">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+              </div>
+              <h3>{{ t('keyCreated') }}</h3>
+            </div>
+            <div class="modal-body">
+              <div class="warning-banner">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                {{ t('copyWarning') }}
+              </div>
+              <div class="key-display-row">
+                <code class="key-code">{{ createdKey }}</code>
+                <button @click="copyKey" class="btn-copy" :class="{ 'is-copied': isCopied }">
+                  <span v-if="isCopied">✓</span>
+                  <svg v-else xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                </button>
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button @click="closeSuccessModal" class="btn btn-accent full-w">{{ t('done') }}</button>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
+
+    <!-- Toast -->
+    <Transition name="toast">
+      <div v-if="toast.show" class="toast" :class="`toast-${toast.type}`">
+        <svg v-if="toast.type === 'error'" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+        <svg v-else xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+        {{ toast.message }}
+      </div>
+    </Transition>
   </div>
 </template>
 
@@ -137,15 +202,18 @@ import { useLanguage } from '../../composables/useSettings'
 const { lang } = useLanguage()
 
 // ── i18n ────────────────────────────────────────────────────────
-const translations = {
+const I18N = {
   th: {
     title: 'API Keys',
+    subtitle: 'จัดการ API Keys สำหรับเข้าถึงระบบผ่าน REST API',
+    keys: 'keys',
     newKey: 'สร้าง Key ใหม่',
     loading: 'กำลังโหลด...',
-    noKeys: 'ไม่พบ API Key',
-    createFirst: 'สร้าง Key แรกของคุณ',
+    noKeys: 'ยังไม่มี API Key',
+    noKeysDesc: 'สร้าง API Key เพื่อเชื่อมต่อระบบผ่าน REST API',
+    createFirst: 'สร้าง Key แรก',
     active: 'ใช้งาน',
-    revoked: 'ยกเลิกแล้ว',
+    revoked: 'ยกเลิก',
     created: 'สร้างเมื่อ',
     lastUsed: 'ใช้งานล่าสุด',
     expires: 'หมดอายุ',
@@ -153,126 +221,143 @@ const translations = {
     revoke: 'ยกเลิก Key',
     createTitle: 'สร้าง API Key ใหม่',
     keyName: 'ชื่อ Key',
-    namePlaceholder: 'เช่น สำหรับ Production App',
+    namePlaceholder: 'เช่น Production App',
     expiration: 'วันหมดอายุ',
     neverExpire: 'ไม่มีวันหมดอายุ',
     days: 'วัน',
     year: 'ปี',
     cancel: 'ยกเลิก',
     creating: 'กำลังสร้าง...',
-    create: 'สร้าง',
+    create: 'สร้าง Key',
     keyCreated: 'สร้าง API Key สำเร็จ!',
-    copyWarning: 'โปรดคัดลอก Key นี้เก็บไว้ในที่ปลอดภัย คุณจะไม่สามารถเห็นมันได้อีก',
+    copyWarning: 'คัดลอกและเก็บ Key นี้ในที่ปลอดภัย — จะไม่แสดงอีก',
     copied: 'คัดลอกแล้ว!',
     done: 'เสร็จสิ้น',
-    confirmRevoke: 'คุณแน่ใจหรือไม่ที่จะยกเลิก Key นี้? การกระทำนี้ไม่สามารถย้อนกลับได้',
+    confirmRevoke: 'ยกเลิก Key นี้? การกระทำนี้ไม่สามารถย้อนกลับได้',
     revokeFailed: 'ยกเลิกไม่สำเร็จ',
-    createFailed: 'สร้างไม่สำเร็จ'
+    createFailed: 'สร้างไม่สำเร็จ',
+    revokeSuccess: 'ยกเลิก Key สำเร็จ'
   },
   en: {
     title: 'API Keys',
+    subtitle: 'Manage API keys for REST API access',
+    keys: 'keys',
     newKey: 'New API Key',
     loading: 'Loading...',
-    noKeys: 'No API Keys found.',
+    noKeys: 'No API Keys yet',
+    noKeysDesc: 'Create an API key to connect via REST API',
     createFirst: 'Create your first key',
     active: 'Active',
     revoked: 'Revoked',
     created: 'Created',
-    lastUsed: 'Last Used',
+    lastUsed: 'Last used',
     expires: 'Expires',
     never: 'Never',
-    revoke: 'Revoke Key',
+    revoke: 'Revoke',
     createTitle: 'Create New API Key',
     keyName: 'Key Name',
-    namePlaceholder: 'e.g. My Production App',
+    namePlaceholder: 'e.g. Production App',
     expiration: 'Expiration',
-    neverExpire: 'Never Expires',
+    neverExpire: 'Never expires',
     days: 'days',
     year: 'year',
     cancel: 'Cancel',
     creating: 'Creating...',
-    create: 'Create',
+    create: 'Create Key',
     keyCreated: 'API Key Created!',
-    copyWarning: 'Please copy this key and save it somewhere safe. You won\'t be able to see it again.',
+    copyWarning: 'Copy and save this key somewhere safe — it won\'t be shown again',
     copied: 'Copied!',
     done: 'Done',
-    confirmRevoke: 'Are you sure you want to revoke this key? This action cannot be undone.',
-    revokeFailed: 'Revoke failed',
-    createFailed: 'Create failed'
+    confirmRevoke: 'Revoke this key? This action cannot be undone.',
+    revokeFailed: 'Failed to revoke key',
+    createFailed: 'Failed to create key',
+    revokeSuccess: 'Key revoked successfully'
   }
 }
-const t = (key) => translations[lang.value]?.[key] || translations.en[key] || key
+const t = (key) => I18N[lang.value]?.[key] || I18N.en[key] || key
 
-// ── State ────────────────────────────────────────────────────────
+// ── State ───────────────────────────────────────────────────────
 const apiKeys = ref([])
 const loading = ref(false)
 const creating = ref(false)
-
-// Create Modal
 const showCreateModal = ref(false)
-const newItem = ref({ name: '', expiration: '' })
-
-// Success Modal
 const showSuccessModal = ref(false)
+const newItem = ref({ name: '', expiration: '' })
 const createdKey = ref('')
 const isCopied = ref(false)
+const toast = ref({ show: false, message: '', type: 'success' })
 
-// ── API ──────────────────────────────────────────────────────────
+// ── Computed ────────────────────────────────────────────────────
+const sortedKeys = computed(() =>
+  [...apiKeys.value].sort((a, b) => {
+    // Active keys first, then by creation date descending
+    if (!!a.revokedAt !== !!b.revokedAt) return a.revokedAt ? 1 : -1
+    return new Date(b.createdAt) - new Date(a.createdAt)
+  })
+)
+
+// ── Toast Helper ────────────────────────────────────────────────
+const showToast = (message, type = 'success') => {
+  toast.value = { show: true, message, type }
+  setTimeout(() => { toast.value.show = false }, 3000)
+}
+
+// ── API ─────────────────────────────────────────────────────────
 const fetchKeys = async () => {
   loading.value = true
   try {
     const res = await api.get('/keys')
     apiKeys.value = res.data || []
   } catch (e) {
-    console.error('Failed to fetch keys:', e)
+    showToast(t('createFailed'), 'error')
   } finally {
     loading.value = false
   }
 }
 
 const createKey = async () => {
-    creating.value = true
-    try {
-        let expiresAt = null
-        const now = new Date()
-        if (newItem.value.expiration === '30d') expiresAt = new Date(now.setDate(now.getDate() + 30))
-        else if (newItem.value.expiration === '90d') expiresAt = new Date(now.setDate(now.getDate() + 90))
-        else if (newItem.value.expiration === '1y') expiresAt = new Date(now.setFullYear(now.getFullYear() + 1))
+  if (!newItem.value.name.trim() || creating.value) return
+  creating.value = true
+  try {
+    const expiresAt = computeExpiry(newItem.value.expiration)
+    const res = await api.post('/keys', {
+      name: newItem.value.name.trim(),
+      expiresAt
+    })
 
-        const res = await api.post('/keys', {
-            name: newItem.value.name,
-            expiresAt: expiresAt
-        })
-        
-        createdKey.value = res.data.key
-        // Add minimal placeholder to list (refreshing will get full details)
-        await fetchKeys()
-        
-        closeCreateModal()
-        showSuccessModal.value = true
-    } catch (e) {
-        alert(t('createFailed') + ': ' + (e.response?.data?.error || e.message))
-    } finally {
-        creating.value = false
-    }
+    createdKey.value = res.data.key
+    await fetchKeys()
+    closeCreateModal()
+    showSuccessModal.value = true
+  } catch (e) {
+    showToast(`${t('createFailed')}: ${e.response?.data?.error || e.message}`, 'error')
+  } finally {
+    creating.value = false
+  }
 }
 
 const revokeKey = async (key) => {
-    if (!confirm(t('confirmRevoke'))) return
-    
-    try {
-        await api.delete(`/keys/${key._id}`)
-        // Optimistic update
-        const idx = apiKeys.value.findIndex(k => k._id === key._id)
-        if (idx !== -1) {
-            apiKeys.value[idx].revokedAt = new Date().toISOString()
-        }
-    } catch (e) {
-        alert(t('revokeFailed'))
-    }
+  if (!confirm(t('confirmRevoke'))) return
+  try {
+    await api.delete(`/keys/${key._id}`)
+    const idx = apiKeys.value.findIndex(k => k._id === key._id)
+    if (idx !== -1) apiKeys.value[idx].revokedAt = new Date().toISOString()
+    showToast(t('revokeSuccess'))
+  } catch (e) {
+    showToast(t('revokeFailed'), 'error')
+  }
 }
 
-// ── Helpers ──────────────────────────────────────────────────────
+// ── Helpers ─────────────────────────────────────────────────────
+const computeExpiry = (expiration) => {
+  if (!expiration) return null
+  const now = new Date()
+  const ms = { '30d': 30, '90d': 90 }
+  if (ms[expiration]) return new Date(now.getTime() + ms[expiration] * 86400000)
+  if (expiration === '1y') return new Date(now.setFullYear(now.getFullYear() + 1))
+  return null
+}
+
 const formatDate = (dateStr) => {
   if (!dateStr) return '-'
   return new Date(dateStr).toLocaleDateString(lang.value === 'th' ? 'th-TH' : 'en-US', {
@@ -280,221 +365,325 @@ const formatDate = (dateStr) => {
   })
 }
 
+const isExpiringSoon = (dateStr) => {
+  if (!dateStr) return false
+  return new Date(dateStr) - Date.now() < 7 * 86400000
+}
+
 const copyKey = async () => {
-    try {
-        await navigator.clipboard.writeText(createdKey.value)
-        isCopied.value = true
-        setTimeout(() => isCopied.value = false, 2000)
-    } catch (err) {
-        console.error('Failed to copy', err)
-    }
+  try {
+    await navigator.clipboard.writeText(createdKey.value)
+    isCopied.value = true
+    setTimeout(() => { isCopied.value = false }, 2000)
+  } catch { /* fallback: user can manually copy */ }
 }
 
 const openCreateModal = () => {
-    newItem.value = { name: '', expiration: '' }
-    showCreateModal.value = true
+  newItem.value = { name: '', expiration: '' }
+  showCreateModal.value = true
 }
 const closeCreateModal = () => { showCreateModal.value = false }
 const closeSuccessModal = () => { showSuccessModal.value = false; createdKey.value = '' }
 
-onMounted(() => {
-  fetchKeys()
-})
+onMounted(fetchKeys)
 </script>
 
 <style scoped>
+/* ── Layout ──────────────────────────────────────────── */
 .apikey-manager {
   height: 100%;
   display: flex;
   flex-direction: column;
   background: var(--color-bg-primary);
   color: var(--color-text-primary);
-  font-family: 'Inter', -apple-system, sans-serif;
   overflow: hidden;
 }
 
-/* ── Header ─────────────────────────────────────────── */
-.manager-header {
-  height: 60px;
+/* ── Header ──────────────────────────────────────────── */
+.page-header {
+  height: 64px;
   border-bottom: 1px solid var(--color-border);
   flex-shrink: 0;
   display: flex;
   align-items: center;
-  padding: 0 24px;
-  background: linear-gradient(135deg, var(--color-bg-secondary) 0%, var(--color-bg-primary) 100%);
+  justify-content: space-between;
+  padding: 0 28px;
+  background: var(--color-bg-primary);
 }
-.header-content { width: 100%; display: flex; justify-content: space-between; align-items: center; }
-.header-title { display: flex; align-items: center; gap: 12px; }
-.header-title h1 { margin: 0; font-size: 18px; font-weight: 700; letter-spacing: -0.01em; }
-.badge-count {
+.header-left { display: flex; align-items: center; gap: 14px; }
+.header-icon {
+  width: 40px; height: 40px;
+  display: flex; align-items: center; justify-content: center;
   background: var(--color-accent-light);
   color: var(--color-accent);
-  font-size: 11px; padding: 3px 10px; border-radius: 99px; font-weight: 700;
+  border-radius: var(--radius-md);
 }
-.btn-primary {
-    background: var(--color-accent);
-    color: white; border: none;
-    padding: 8px 16px; border-radius: 8px;
-    font-size: 13px; font-weight: 600;
-    cursor: pointer; display: flex; align-items: center; gap: 6px;
-    transition: all 0.2s;
+.page-title { margin: 0; font-size: 18px; font-weight: 700; letter-spacing: -0.02em; }
+.page-desc { margin: 0; font-size: 12px; color: var(--color-text-muted); }
+.header-right { display: flex; align-items: center; gap: 12px; }
+.count-badge {
+  font-size: 12px; font-weight: 600;
+  color: var(--color-text-muted);
+  background: var(--color-bg-tertiary);
+  padding: 4px 12px; border-radius: 99px;
 }
-.btn-primary:hover { filter: brightness(110%); transform: translateY(-1px); }
-.btn-primary:disabled { opacity: 0.7; cursor: not-allowed; }
+
+/* ── Buttons ─────────────────────────────────────────── */
+.btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 8px 18px; border-radius: var(--radius-sm);
+  font-size: 13px; font-weight: 600; border: none;
+  cursor: pointer; transition: all 0.2s;
+  white-space: nowrap;
+}
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-accent {
+  background: var(--color-accent); color: #fff;
+}
+.btn-accent:hover:not(:disabled) { background: var(--color-accent-hover); transform: translateY(-1px); }
+.btn-ghost {
+  background: transparent; color: var(--color-text-secondary);
+  border: 1px solid var(--color-border);
+}
+.btn-ghost:hover { background: var(--color-bg-hover); }
+.btn-icon {
+  background: transparent; border: none; cursor: pointer;
+  padding: 8px; border-radius: var(--radius-sm);
+  color: var(--color-text-muted); transition: all 0.15s;
+  display: flex; align-items: center; justify-content: center;
+}
+.btn-danger:hover { background: rgba(239,68,68,0.1); color: var(--color-error); }
+
+.btn-spinner {
+  width: 14px; height: 14px;
+  border: 2px solid rgba(255,255,255,0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
 
 /* ── Body ────────────────────────────────────────────── */
-.manager-body { 
-    flex: 1; 
-    overflow-y: auto; 
-    padding: 24px;
-    background: var(--color-bg-secondary);
+.page-body {
+  flex: 1; overflow-y: auto; padding: 24px 28px;
 }
-.content-container {
-    max-width: 1000px;
-    margin: 0 auto;
-}
+.content-wrap { max-width: 960px; margin: 0 auto; }
 
-.state-msg {
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
-    padding: 60px; color: var(--color-text-muted);
-    gap: 16px;
+/* ── States ──────────────────────────────────────────── */
+.state-empty {
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; padding: 80px 20px;
+  color: var(--color-text-muted); gap: 12px; text-align: center;
 }
-.state-msg.empty svg { opacity: 0.5; }
+.empty-icon { opacity: 0.3; margin-bottom: 4px; }
+.empty-title { font-size: 16px; font-weight: 600; color: var(--color-text-secondary); margin: 0; }
+.empty-desc { font-size: 13px; margin: 0 0 8px; }
+
 .spinner {
-    width: 24px; height: 24px; border: 3px solid var(--color-border);
-    border-top-color: var(--color-accent); border-radius: 50%;
-    animation: spin 1s linear infinite;
+  width: 28px; height: 28px;
+  border: 3px solid var(--color-border);
+  border-top-color: var(--color-accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-/* ── Grid ────────────────────────────────────────────── */
+/* ── Key Grid ────────────────────────────────────────── */
 .key-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-    gap: 16px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 14px;
 }
+
 .key-card {
-    background: var(--color-bg-primary);
-    border: 1px solid var(--color-border);
-    border-radius: 12px;
-    padding: 16px;
-    display: flex; justify-content: space-between;
-    transition: all 0.2s;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+  position: relative;
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 18px 18px 18px 22px;
+  display: flex; gap: 12px;
+  transition: all 0.2s;
+  overflow: hidden;
 }
-.key-card:hover { border-color: var(--color-accent); box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
-.key-card.revoked { opacity: 0.6; filter: grayscale(1); }
+.key-card:hover { border-color: var(--color-accent); box-shadow: var(--shadow-md); }
+.key-card.is-revoked { opacity: 0.55; }
+.key-card.is-revoked:hover { border-color: var(--color-border); box-shadow: none; }
 
-.key-main { flex: 1; min-width: 0; }
-.key-header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
-.key-name { font-weight: 600; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.card-status {
+  position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+}
+.status-active { background: var(--color-success); }
+.status-revoked { background: var(--color-error); }
 
-.badge-active {
-    font-size: 10px; background: rgba(16,185,129,0.15); color: #10b981;
-    padding: 2px 8px; border-radius: 99px; font-weight: 700; border: 1px solid rgba(16,185,129,0.2);
-}
-.badge-revoked {
-    font-size: 10px; background: rgba(239,68,68,0.15); color: #ef4444;
-    padding: 2px 8px; border-radius: 99px; font-weight: 700; border: 1px solid rgba(239,68,68,0.2);
+.card-body { flex: 1; min-width: 0; }
+.card-top { margin-bottom: 14px; }
+.card-title-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.key-name {
+  margin: 0; font-size: 14px; font-weight: 600;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 
-.key-preview {
-    margin-bottom: 12px;
+.status-badge {
+  font-size: 10px; font-weight: 700; padding: 2px 8px;
+  border-radius: 99px; letter-spacing: 0.02em; flex-shrink: 0;
 }
+.badge-active { background: rgba(34,197,94,0.12); color: var(--color-success); border: 1px solid rgba(34,197,94,0.2); }
+.badge-revoked { background: rgba(239,68,68,0.1); color: var(--color-error); border: 1px solid rgba(239,68,68,0.2); }
+
 .key-preview code {
-    background: var(--color-bg-input);
-    padding: 4px 8px; border-radius: 6px;
-    font-family: 'Consolas', monospace; font-size: 12px;
-    color: var(--color-text-secondary);
-    border: 1px solid var(--color-border);
+  font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+  font-size: 12px; background: var(--color-bg-tertiary);
+  padding: 3px 8px; border-radius: var(--radius-sm);
+  color: var(--color-text-muted); border: 1px solid var(--color-border);
 }
 
-.key-meta { display: flex; flex-direction: column; gap: 4px; font-size: 11px; color: var(--color-text-muted); }
-.meta-item { display: flex; justify-content: space-between; }
-.meta-label { font-weight: 500; }
+.card-meta { display: flex; flex-direction: column; gap: 6px; }
+.meta-row {
+  display: flex; justify-content: space-between; align-items: center;
+  font-size: 11px;
+}
+.meta-label {
+  display: flex; align-items: center; gap: 5px;
+  color: var(--color-text-muted); font-weight: 500;
+}
+.meta-value { color: var(--color-text-secondary); }
+.text-muted { color: var(--color-text-muted) !important; font-style: italic; }
+.text-warning { color: var(--color-warning) !important; font-weight: 600; }
 
-.key-actions {
-    display: flex; flex-direction: column; gap: 4px; border-left: 1px solid var(--color-border);
-    padding-left: 12px; margin-left: 12px; justify-content: center;
+.card-actions {
+  display: flex; align-items: center;
+  border-left: 1px solid var(--color-border);
+  padding-left: 12px;
 }
-.btn-icon {
-    background: transparent; border: none; cursor: pointer;
-    padding: 8px; border-radius: 6px; color: var(--color-text-muted);
-    transition: all 0.2s;
-}
-.btn-icon:hover { background: var(--color-bg-hover); color: var(--color-text-primary); }
-.btn-icon.danger:hover { background: rgba(239,68,68,0.1); color: #ef4444; }
 
 /* ── Modal ───────────────────────────────────────────── */
-.modal-overlay {
-    position: fixed; inset: 0; z-index: 100;
-    background: rgba(0,0,0,0.5); backdrop-filter: blur(2px);
-    display: flex; align-items: center; justify-content: center;
+.modal-backdrop {
+  position: fixed; inset: 0; z-index: 1000;
+  background: rgba(0,0,0,0.5); backdrop-filter: blur(4px);
+  display: flex; align-items: center; justify-content: center;
 }
-.modal-card {
-    background: var(--color-bg-primary);
-    width: 400px; max-width: 90vw;
-    border-radius: 16px;
-    box-shadow: 0 10px 25px rgba(0,0,0,0.2);
-    border: 1px solid var(--color-border);
-    animation: scaleIn 0.2s ease-out;
+.modal-panel {
+  background: var(--color-bg-primary);
+  width: 420px; max-width: 92vw;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  border: 1px solid var(--color-border);
 }
-@keyframes scaleIn { from { transform: scale(0.95); opacity: 0; } to { transform: scale(1); opacity: 1; }}
-
 .modal-header {
-    padding: 16px 20px; border-bottom: 1px solid var(--color-border);
-    display: flex; justify-content: space-between; align-items: center;
+  padding: 18px 22px; border-bottom: 1px solid var(--color-border);
+  display: flex; justify-content: space-between; align-items: center;
 }
-.modal-header h3 { margin: 0; font-size: 16px; font-weight: 600; }
-.btn-close { background: none; border: none; font-size: 20px; cursor: pointer; color: var(--color-text-muted); }
+.modal-header h3 { margin: 0; font-size: 16px; font-weight: 700; }
+.btn-close {
+  background: none; border: none; font-size: 22px;
+  cursor: pointer; color: var(--color-text-muted);
+  width: 32px; height: 32px; border-radius: var(--radius-sm);
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.15s;
+}
+.btn-close:hover { background: var(--color-bg-hover); color: var(--color-text-primary); }
 
-.modal-body { padding: 20px; }
-.form-row { margin-bottom: 16px; }
-.form-row label { display: block; font-size: 12px; font-weight: 600; margin-bottom: 6px; color: var(--color-text-secondary); }
-.required { color: #ef4444; }
-.input-std {
-    width: 100%; background: var(--color-bg-input);
-    border: 1px solid var(--color-border);
-    padding: 10px; border-radius: 8px;
-    color: var(--color-text-primary); font-size: 13px;
-    outline: none; transition: border-color 0.2s;
+.modal-body { padding: 22px; }
+.modal-footer {
+  padding: 16px 22px; border-top: 1px solid var(--color-border);
+  display: flex; justify-content: flex-end; gap: 10px;
+  background: var(--color-bg-secondary);
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
 }
-.input-std:focus { border-color: var(--color-accent); }
 
-.modal-actions {
-    padding: 16px 20px; border-top: 1px solid var(--color-border);
-    display: flex; justify-content: flex-end; gap: 12px;
-    background: var(--color-bg-tertiary);
-    border-radius: 0 0 16px 16px;
+/* ── Form ────────────────────────────────────────────── */
+.field { margin-bottom: 18px; }
+.field:last-child { margin-bottom: 0; }
+.field label {
+  display: block; font-size: 12px; font-weight: 600;
+  color: var(--color-text-secondary); margin-bottom: 6px;
+  text-transform: uppercase; letter-spacing: 0.03em;
 }
-.btn-ghost {
-    background: transparent; border: 1px solid var(--color-border);
-    padding: 8px 16px; border-radius: 8px;
-    color: var(--color-text-primary); cursor: pointer; font-size: 13px;
-    transition: all 0.2s;
+.required { color: var(--color-error); }
+.input {
+  width: 100%; background: var(--color-bg-input);
+  border: 1px solid var(--color-border);
+  padding: 10px 12px; border-radius: var(--radius-sm);
+  color: var(--color-text-primary); font-size: 13px;
+  outline: none; transition: border-color 0.2s;
 }
-.btn-ghost:hover { background: var(--color-bg-hover); }
+.input:focus { border-color: var(--color-accent); }
 
-/* Success Card */
-.success-title { display: flex; align-items: center; gap: 8px; color: #10b981; }
-.warning-text { font-size: 13px; color: #f59e0b; background: rgba(245,158,11,0.1); padding: 10px; border-radius: 8px; margin-bottom: 16px; }
-.key-display {
-    display: flex; gap: 8px; margin-bottom: 8px;
+/* ── Success Modal ───────────────────────────────────── */
+.success-header {
+  justify-content: flex-start !important; gap: 10px;
 }
-.key-display code {
-    flex: 1; background: var(--color-bg-input); border: 1px solid var(--color-border);
-    padding: 10px; border-radius: 8px; font-family: 'Consolas', monospace; font-size: 14px;
-    word-break: break-all;
+.success-badge {
+  width: 32px; height: 32px;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(34,197,94,0.12); color: var(--color-success);
+  border-radius: 50%;
+}
+
+.warning-banner {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 13px; color: var(--color-warning);
+  background: rgba(245,158,11,0.08);
+  padding: 10px 14px; border-radius: var(--radius-sm);
+  margin-bottom: 16px; border: 1px solid rgba(245,158,11,0.15);
+}
+
+.key-display-row { display: flex; gap: 8px; }
+.key-code {
+  flex: 1; background: var(--color-bg-tertiary);
+  border: 1px solid var(--color-border);
+  padding: 10px 12px; border-radius: var(--radius-sm);
+  font-family: 'JetBrains Mono', 'Consolas', monospace;
+  font-size: 13px; word-break: break-all;
+  color: var(--color-text-primary);
 }
 .btn-copy {
-    background: var(--color-bg-input); border: 1px solid var(--color-border);
-    width: 40px; border-radius: 8px; cursor: pointer;
-    display: flex; align-items: center; justify-content: center;
-    color: var(--color-text-secondary); transition: all 0.2s;
+  width: 42px; flex-shrink: 0;
+  background: var(--color-bg-tertiary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm); cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--color-text-muted); transition: all 0.15s;
+  font-size: 14px;
 }
 .btn-copy:hover { color: var(--color-accent); border-color: var(--color-accent); }
-.btn-copy.copied { color: #10b981; border-color: #10b981; }
+.btn-copy.is-copied { color: var(--color-success); border-color: var(--color-success); }
 
-.full-width { width: 100%; justify-content: center; }
+.full-w { width: 100%; justify-content: center; }
 
+/* ── Toast ────────────────────────────────────────────── */
+.toast {
+  position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+  z-index: 2000;
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 20px; border-radius: var(--radius-sm);
+  font-size: 13px; font-weight: 500;
+  box-shadow: var(--shadow-lg);
+}
+.toast-success { background: var(--color-success); color: #fff; }
+.toast-error { background: var(--color-error); color: #fff; }
+
+/* ── Transitions ─────────────────────────────────────── */
+.modal-enter-active { animation: fadeScale 0.2s ease-out; }
+.modal-leave-active { animation: fadeScale 0.15s ease-in reverse; }
+@keyframes fadeScale {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.toast-enter-active { animation: slideUp 0.25s ease-out; }
+.toast-leave-active { animation: slideUp 0.2s ease-in reverse; }
+@keyframes slideUp {
+  from { opacity: 0; transform: translate(-50%, 12px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
+}
+
+/* ── Responsive ──────────────────────────────────────── */
+@media (max-width: 640px) {
+  .page-header { padding: 0 16px; flex-wrap: wrap; height: auto; padding-top: 12px; padding-bottom: 12px; gap: 8px; }
+  .header-right { width: 100%; justify-content: space-between; }
+  .page-body { padding: 16px; }
+  .page-title { font-size: 16px; }
+  .key-grid { grid-template-columns: 1fr; }
+  .modal-panel { margin: 16px; }
+}
 </style>
