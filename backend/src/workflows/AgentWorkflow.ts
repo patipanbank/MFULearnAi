@@ -254,6 +254,9 @@ export class AgentWorkflow {
             let firstTokenTime: number | null = null;
             let bufferedText = '';
 
+            // Smart Buffering State
+            let streamState: string = 'BUFFERING';
+
             this.state.phase = AgentPhase.GENERATING_RESPONSE;
 
             // --- STREAMING CALL ---
@@ -262,11 +265,33 @@ export class AgentWorkflow {
                 this.state.messages as any,
                 (delta) => {
                     if (!firstTokenTime) firstTokenTime = Date.now();
-                    bufferedText += delta;
 
-                    // LEGACY STYLE: Stream thoughts to sidebar only.
-                    // DO NOT emit ANSWER_DELTA here to keep main chat bubble clean.
-                    this.emit(AGENT_EVENTS.THINKING_DELTA, { delta });
+                    if (streamState === 'STREAMING_THINKING') {
+                        this.emit(AGENT_EVENTS.THINKING_DELTA, { delta });
+                    } else if (streamState === 'STREAMING_ANSWER') {
+                        this.emit(AGENT_EVENTS.ANSWER_DELTA, { delta });
+                    } else {
+                        // BUFFERING STREAM
+                        bufferedText += delta;
+
+                        // Check if it's a thinking tag
+                        if (bufferedText.startsWith('<thinking>') || bufferedText.startsWith('<think>')) {
+                            streamState = 'STREAMING_THINKING';
+                            this.emit(AGENT_EVENTS.THINKING_DELTA, { delta: bufferedText });
+                        }
+                        // Wait for a few tokens to clearly identify if it's NOT a thinking tag
+                        else if (bufferedText.length > 15 || (bufferedText.length > 0 && !'<thinking>'.startsWith(bufferedText) && !'<think>'.startsWith(bufferedText))) {
+                            streamState = 'STREAMING_ANSWER';
+                            if (!this.state.hasEmittedAnswerStart) {
+                                this.determineAnswerMode(bufferedText);
+                                this.emit(AGENT_EVENTS.ANSWER_START, { answerMode: this.state.answerMode });
+                                this.state.hasEmittedAnswerStart = true;
+                            }
+                            // Retract any unfinished thinking block if there was one by chance
+                            this.emit(AGENT_EVENTS.CONTENT_RESET, {});
+                            this.emit(AGENT_EVENTS.ANSWER_DELTA, { delta: bufferedText });
+                        }
+                    }
                 },
                 0.5,
                 toolConfig,
@@ -292,15 +317,23 @@ export class AgentWorkflow {
                 this.state.phase = AgentPhase.EXECUTING_TOOL;
                 this.state.hasEmittedAnswerStart = false; // Reset for next turn
 
-                // It was a thought process leading to a tool. Persist it as a THINKING event.
-                if (fullResponse && fullResponse.trim()) {
+                // If we optimistically streamed this to the answer bubble or it's stuck in buffer, retract it
+                if (streamState === 'STREAMING_ANSWER' || streamState === 'BUFFERING') {
+                    this.emit(AGENT_EVENTS.CONTENT_RESET, {});
+                }
+
+                // It was a thought process leading to a tool. Clean tags and persist as THINKING event.
+                let thoughtText = fullResponse || bufferedText;
+                thoughtText = thoughtText.replace(/<thinking>|<\/thinking>|<think>|<\/think>/g, '').trim();
+
+                if (thoughtText) {
                     this.emit(AGENT_EVENTS.THINKING, {
                         step: this.state.steps,
-                        message: fullResponse.trim()
+                        message: thoughtText
                     });
                 }
 
-                // Reset content in frontend bubble as it was just thinking
+                // Content reset for the thinking bubble UI sync (forces transition from typing thinker to static thinker card)
                 this.emit(AGENT_EVENTS.CONTENT_RESET, {});
 
                 const { usedTools, toolResults } = await ToolExecutor.executeTools(
@@ -332,24 +365,31 @@ export class AgentWorkflow {
                 this.state.phase = AgentPhase.COMPLETED;
                 // Final Answer Logic
 
+                // Clean any stray thinking tags from the final string
+                const cleanResponse = fullResponse.replace(/<thinking>|<\/thinking>|<think>|<\/think>/g, '');
+
                 // If we haven't emitted START yet, emit now
                 if (!this.state.hasEmittedAnswerStart) {
-                    this.determineAnswerMode(fullResponse);
+                    this.determineAnswerMode(cleanResponse);
                     this.emit(AGENT_EVENTS.ANSWER_START, { answerMode: this.state.answerMode });
                     this.state.hasEmittedAnswerStart = true;
                 }
 
-                // During streaming, THINKING_DELTA events created a thinking card
-                // with the final answer text. Clear it before sending the real answer.
-                this.emit(AGENT_EVENTS.CONTENT_RESET, {});
-
-                // Now emit the full answer to the answer bubble
-                this.emit(AGENT_EVENTS.ANSWER_DELTA, { delta: fullResponse });
+                // If it was somehow stuck in buffer or in thinking stream, ensure clean up
+                if (streamState === 'BUFFERING') {
+                    this.emit(AGENT_EVENTS.CONTENT_RESET, {});
+                    this.emit(AGENT_EVENTS.ANSWER_DELTA, { delta: cleanResponse });
+                } else if (streamState === 'STREAMING_THINKING') {
+                    // Oops, the model thought the entire answer using <thinking> tags and stopped?
+                    // Retract thinking and bump to answer
+                    this.emit(AGENT_EVENTS.CONTENT_RESET, {});
+                    this.emit(AGENT_EVENTS.ANSWER_DELTA, { delta: cleanResponse });
+                }
 
                 // 3. Update State & Emit DONE
-                this.state.finalAnswer = fullResponse;
-                this.state.messages.push({ role: 'assistant', content: fullResponse });
-                this.emit(AGENT_EVENTS.ANSWER_DONE, { fullLength: fullResponse.length });
+                this.state.finalAnswer = cleanResponse;
+                this.state.messages.push({ role: 'assistant', content: cleanResponse });
+                this.emit(AGENT_EVENTS.ANSWER_DONE, { fullLength: cleanResponse.length });
 
                 break;
             }
