@@ -7,6 +7,86 @@ const emit = defineEmits(['close', 'success'])
 const knowledgeStore = useKnowledgeStore()
 const authStore = useAuthStore()
 
+// --- Local i18n Translation ---
+const lang = ref('en') // Default language
+const translations = {
+  en: {
+    title: 'Upload Knowledge',
+    fileUpload: '📄 File Upload',
+    rawText: '📝 Raw Text',
+    fromUrl: '🔗 From URL',
+    selectFiles: 'Select Files (PDF, Office, Text, Code, Images) — up to',
+    dropFiles: 'Drop files here or click to browse',
+    websiteUrl: 'Website URL',
+    urlPlaceholder: 'https://example.com/page',
+    urlHint: 'The page content will be extracted and saved as knowledge.',
+    docTitle: 'Document Title',
+    titlePlaceholder: 'e.g. My Important Notes',
+    textContent: 'Text Content',
+    textPlaceholder: 'Paste your raw text or notes here...',
+    textHint: 'This text will be converted into a searchable document.',
+    visibility: 'Visibility',
+    visPersonal: 'Personal (Private)',
+    visDept: 'Department',
+    visPublic: 'Public (All)',
+    visPolicy: 'Policy (System)',
+    hintPersonal: 'Only you can see this.',
+    hintDept: 'Visible to everyone in',
+    hintPublic: 'Visible to everyone in the university.',
+    hintPolicy: 'Enforced system-wide context (Admin Only).',
+    folder: 'Folder Path (Optional)',
+    folderPlaceholder: 'e.g. HR/Policies/2023',
+    folderHint: 'Organize with virtual folders.',
+    expiry: 'Expiry / Review Date (Optional)',
+    expiryHint: 'Mark for review after this date.',
+    uploading: 'Uploading',
+    scraping: 'Scraping page...',
+    pasting: 'Pasting content into database...',
+    cancel: 'Cancel',
+    processing: 'Processing...',
+    import: 'Import',
+    uploadBtn: 'Upload'
+  },
+  th: {
+    title: 'อัปโหลดความรู้',
+    fileUpload: '📄 อัปโหลดไฟล์',
+    rawText: '📝 ข้อความล้วน',
+    fromUrl: '🔗 จากลิงก์ (URL)',
+    selectFiles: 'เลือกไฟล์ (PDF, Office, Text, Code, Images) — สูงสุด',
+    dropFiles: 'ลากไฟล์มาวางที่นี่ หรือคลิกเพื่อเลือกไฟล์',
+    websiteUrl: 'ลิงก์เว็บไซต์',
+    urlPlaceholder: 'https://example.com/page',
+    urlHint: 'เนื้อหาของหน้าเว็บจะถูกดึงมาบันทึกไว้ในฐานความรู้',
+    docTitle: 'หัวข้อเอกสาร',
+    titlePlaceholder: 'เช่น โน้ตการประชุมสำคัญ',
+    textContent: 'เนื้อหาข้อความ',
+    textPlaceholder: 'วางข้อความหรือโน้ตของคุณที่นี่...',
+    textHint: 'ข้อความนี้จะถูกแปลงเป็นเอกสารที่สามารถค้นหาด้วย AI ได้',
+    visibility: 'สิทธิ์การมองเห็น',
+    visPersonal: 'ส่วนตัว (Private)',
+    visDept: 'แผนก (Department)',
+    visPublic: 'สาธารณะ (ทั้งหมด)',
+    visPolicy: 'นโยบายควบคุม (System Policy)',
+    hintPersonal: 'มองเห็นได้เฉพาะคุณคนเดียวเท่านั้น',
+    hintDept: 'มองเห็นได้ทุกคนในแผนก',
+    hintPublic: 'มองเห็นได้ทุกคนในมหาวิทยาลัย',
+    hintPolicy: 'บังคับใช้เป็นบริบททั่วทั้งระบบ (เฉพาะ Admin)',
+    folder: 'โฟลเดอร์จำลอง (ไม่บังคับ)',
+    folderPlaceholder: 'เช่น HR/Policies/2023',
+    folderHint: 'จัดหมวดหมู่เอกสารให้เป็นระเบียบ',
+    expiry: 'วันหมดอายุ / วันที่ต้องอัปเดต (ไม่บังคับ)',
+    expiryHint: 'ใช้เป็นกำหนดการแจ้งเตือนให้กลับมาตรวจสอบ',
+    uploading: 'กำลังอัปโหลด',
+    scraping: 'กำลังดึงข้อมูลหน้าเว็บ...',
+    pasting: 'กำลังบันทึกข้อความลงฐานข้อมูล...',
+    cancel: 'ยกเลิก',
+    processing: 'กำลังดำเนินการ...',
+    import: 'นำเข้าข้อมูล',
+    uploadBtn: 'อัปโหลด'
+  }
+}
+const t = (key) => translations[lang.value]?.[key] || key
+
 // Upload constraints — aligned with nginx client_max_body_size (100M) for knowledge route
 const MAX_FILE_SIZE_MB = 50
 const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024
@@ -206,7 +286,14 @@ const handleTextUpload = async () => {
 <template>
   <div class="modal-overlay" @click.self="emit('close')">
     <div class="knowledge-modal">
-       <h2>Upload Knowledge</h2>
+       
+       <div class="modal-header">
+         <h2>{{ t('title') }}</h2>
+         <div class="lang-toggle">
+           <button :class="{ active: lang === 'en' }" @click="lang = 'en'">EN</button>
+           <button :class="{ active: lang === 'th' }" @click="lang = 'th'">TH</button>
+         </div>
+       </div>
 
        <!-- Mode Toggle -->
        <div class="mode-toggle">
@@ -214,23 +301,23 @@ const handleTextUpload = async () => {
            class="mode-btn"
            :class="{ active: uploadMode === 'file' }"
            @click="uploadMode = 'file'"
-         >📄 File Upload</button>
+         >{{ t('fileUpload') }}</button>
          <button
            class="mode-btn"
            :class="{ active: uploadMode === 'text' }"
            @click="uploadMode = 'text'"
-         >📝 Raw Text</button>
+         >{{ t('rawText') }}</button>
          <button
            class="mode-btn"
            :class="{ active: uploadMode === 'url' }"
            @click="uploadMode = 'url'"
-         >🔗 From URL</button>
+         >{{ t('fromUrl') }}</button>
        </div>
 
        <!-- File Upload Mode -->
        <template v-if="uploadMode === 'file'">
          <div class="form-group">
-            <label>Select Files (PDF, Office, Text, Code, Images) — up to {{ MAX_FILES }}</label>
+            <label>{{ t('selectFiles') }} {{ MAX_FILES }}</label>
             <div
               class="drop-zone"
               @drop="handleDrop"
@@ -242,7 +329,7 @@ const handleTextUpload = async () => {
                 <polyline points="17 8 12 3 7 8"/>
                 <line x1="12" y1="3" x2="12" y2="15"/>
               </svg>
-              <span>Drop files here or click to browse</span>
+              <span>{{ t('dropFiles') }}</span>
             </div>
             <input
               ref="fileInput"
@@ -278,73 +365,73 @@ const handleTextUpload = async () => {
        <!-- URL Mode -->
        <template v-if="uploadMode === 'url'">
          <div class="form-group">
-           <label>Website URL</label>
+           <label>{{ t('websiteUrl') }}</label>
            <input
              v-model="urlInput"
              type="url"
-             placeholder="https://example.com/page"
+             :placeholder="t('urlPlaceholder')"
              class="url-input"
            />
-           <p class="hint">The page content will be extracted and saved as knowledge.</p>
+           <p class="hint">{{ t('urlHint') }}</p>
          </div>
        </template>
 
        <!-- Raw Text Mode -->
        <template v-if="uploadMode === 'text'">
          <div class="form-group">
-           <label>Document Title</label>
+           <label>{{ t('docTitle') }}</label>
            <input
              v-model="textTitle"
              type="text"
-             placeholder="e.g. My Important Notes"
+             :placeholder="t('titlePlaceholder')"
              class="form-control"
            />
          </div>
          <div class="form-group">
-           <label>Text Content</label>
+           <label>{{ t('textContent') }}</label>
            <textarea
              v-model="textContent"
-             placeholder="Paste your raw text or notes here..."
+             :placeholder="t('textPlaceholder')"
              class="form-control text-area-input"
              rows="8"
            ></textarea>
-           <p class="hint">This text will be converted into a searchable document.</p>
+           <p class="hint">{{ t('textHint') }}</p>
          </div>
        </template>
 
        <!-- Visibility (shared) -->
        <div class="form-group">
-          <label>Visibility</label>
-          <select v-model="type" class="form-control">
-              <option value="personal">Personal (Private)</option>
-              <option v-if="isAdmin" value="department">Department</option>
-              <option v-if="isAdmin" value="public">Public (All)</option>
-              <option v-if="isAdmin" value="policy">Policy (System)</option>
-          </select>
-          <p class="hint" v-if="type === 'personal'">Only you can see this.</p>
-          <p class="hint" v-if="type === 'department'">Visible to everyone in {{ authStore.department }}</p>
-          <p class="hint" v-if="type === 'public'">Visible to everyone in the university.</p>
-          <p class="hint" v-if="type === 'policy'">Enforced system-wide context (Admin Only).</p>
+           <label>{{ t('visibility') }}</label>
+           <select v-model="type" class="form-control">
+               <option value="personal">{{ t('visPersonal') }}</option>
+               <option v-if="isAdmin" value="department">{{ t('visDept') }}</option>
+               <option v-if="isAdmin" value="public">{{ t('visPublic') }}</option>
+               <option v-if="isAdmin" value="policy">{{ t('visPolicy') }}</option>
+           </select>
+           <p class="hint" v-if="type === 'personal'">{{ t('hintPersonal') }}</p>
+           <p class="hint" v-if="type === 'department'">{{ t('hintDept') }} {{ authStore.department }}</p>
+           <p class="hint" v-if="type === 'public'">{{ t('hintPublic') }}</p>
+           <p class="hint" v-if="type === 'policy'">{{ t('hintPolicy') }}</p>
        </div>
 
        <!-- Optional Organization & Expiry -->
        <div class="form-row">
          <div class="form-group flex-1">
-           <label>Folder Path (Optional)</label>
-           <input v-model="folder" type="text" placeholder="e.g. HR/Policies/2023" class="form-control" />
-           <p class="hint">Organize with virtual folders.</p>
+           <label>{{ t('folder') }}</label>
+           <input v-model="folder" type="text" :placeholder="t('folderPlaceholder')" class="form-control" />
+           <p class="hint">{{ t('folderHint') }}</p>
          </div>
          <div class="form-group flex-1">
-           <label>Expiry / Review Date (Optional)</label>
+           <label>{{ t('expiry') }}</label>
            <input v-model="expiresAt" type="date" class="form-control" />
-           <p class="hint">Mark for review after this date.</p>
+           <p class="hint">{{ t('expiryHint') }}</p>
          </div>
        </div>
 
        <!-- Overall Progress -->
        <div v-if="uploading" class="upload-progress-container">
            <div class="upload-info">
-               <span>Uploading {{ files.filter(f => f.status === 'done').length }}/{{ files.length }}...</span>
+               <span>{{ t('uploading') }} {{ files.filter(f => f.status === 'done').length }}/{{ files.length }}...</span>
                <span>{{ totalProgress }}%</span>
            </div>
            <div class="upload-track">
@@ -354,7 +441,7 @@ const handleTextUpload = async () => {
 
        <div v-if="urlLoading" class="upload-progress-container">
            <div class="upload-info">
-               <span>Scraping page...</span>
+               <span>{{ t('scraping') }}</span>
            </div>
            <div class="upload-track">
                <div class="upload-fill indeterminate"></div>
@@ -363,7 +450,7 @@ const handleTextUpload = async () => {
 
        <div v-if="textLoading" class="upload-progress-container">
            <div class="upload-info">
-               <span>Pasting content into database...</span>
+               <span>{{ t('pasting') }}</span>
            </div>
            <div class="upload-track">
                <div class="upload-fill indeterminate"></div>
@@ -373,9 +460,9 @@ const handleTextUpload = async () => {
        <div v-if="error" class="error">{{ error }}</div>
 
        <div class="actions">
-           <button class="btn-cancel" @click="emit('close')">Cancel</button>
+           <button class="btn-cancel" @click="emit('close')">{{ t('cancel') }}</button>
            <button class="btn-primary" @click="handleUpload" :disabled="!canUpload">
-               {{ uploading || urlLoading || textLoading ? 'Processing...' : (uploadMode === 'url' || uploadMode === 'text') ? 'Import' : `Upload (${files.length})` }}
+               {{ uploading || urlLoading || textLoading ? t('processing') : (uploadMode === 'url' || uploadMode === 'text') ? t('import') : `${t('uploadBtn')} (${files.length})` }}
            </button>
        </div>
     </div>
@@ -405,7 +492,43 @@ const handleTextUpload = async () => {
     box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
 }
 
-h2 { margin-top: 0; font-size: 18px; }
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+.modal-header h2 { 
+    margin: 0; 
+    font-size: 18px; 
+}
+
+/* Lang Toggle */
+.lang-toggle {
+    display: flex;
+    background: var(--color-bg-secondary);
+    border-radius: 6px;
+    overflow: hidden;
+    border: 1px solid var(--color-border);
+}
+.lang-toggle button {
+    background: transparent;
+    border: none;
+    color: var(--color-text-muted);
+    padding: 4px 8px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.lang-toggle button:hover {
+    color: var(--color-text-primary);
+}
+.lang-toggle button.active {
+    background: var(--color-accent, #6366f1);
+    color: white;
+}
 
 /* Mode Toggle */
 .mode-toggle {
