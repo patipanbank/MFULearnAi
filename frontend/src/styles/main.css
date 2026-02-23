@@ -2,6 +2,7 @@
 
 :root {
   /* === Light Theme (Default) === */
+  color-scheme: light;
   --color-bg-primary: #ffffff;
   --color-bg-secondary: #f8fafc;
   --color-bg-tertiary: #f1f5f9;
@@ -40,6 +41,7 @@
 
 /* === Dark Theme === */
 [data-theme="dark"] {
+  color-scheme: dark;
   --color-bg-primary: #0f0f0f;
   --color-bg-secondary: #171717;
   --color-bg-tertiary: #1f1f1f;

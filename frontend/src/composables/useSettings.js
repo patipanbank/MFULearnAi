@@ -429,8 +429,22 @@ const translations = {
 // ─── Theme Composable ───────────────────────────────────────────
 export function useTheme() {
     const applyTheme = () => {
-        document.documentElement.setAttribute('data-theme', isDark.value ? 'dark' : 'light')
-        localStorage.setItem(THEME_KEY, isDark.value ? 'dark' : 'light')
+        const theme = isDark.value ? 'dark' : 'light'
+        document.documentElement.setAttribute('data-theme', theme)
+        localStorage.setItem(THEME_KEY, theme)
+
+        // Update color-scheme for Safari 26+ browser chrome (header/footer bars)
+        document.documentElement.style.colorScheme = theme
+
+        // Update <meta name="theme-color"> so Safari colors its UI chrome correctly
+        const bgColor = isDark.value ? '#0f0f0f' : '#ffffff'
+        let metaTheme = document.querySelector('meta[name="theme-color"]:not([media])')
+        if (!metaTheme) {
+            metaTheme = document.createElement('meta')
+            metaTheme.setAttribute('name', 'theme-color')
+            document.head.appendChild(metaTheme)
+        }
+        metaTheme.setAttribute('content', bgColor)
     }
 
     const init = () => {
