@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, ref, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useTheme, useLanguage } from '@/composables/useSettings'
@@ -45,6 +45,30 @@ const confirmLogout = () => {
     authStore.logout()
     showLogoutConfirm.value = false
 }
+
+// ── Keyboard support ──
+const handleGlobalKeydown = (e) => {
+  if (e.key === 'Escape') {
+    e.preventDefault()
+    e.stopPropagation()
+    if (showLogoutConfirm.value) {
+      showLogoutConfirm.value = false
+    } else {
+      emit('close')
+    }
+    return
+  }
+  if (e.key === 'Enter' && showLogoutConfirm.value) {
+    const tag = e.target?.tagName?.toLowerCase()
+    if (tag !== 'button') {
+      e.preventDefault()
+      confirmLogout()
+    }
+  }
+}
+
+onMounted(() => document.addEventListener('keydown', handleGlobalKeydown, true))
+onUnmounted(() => document.removeEventListener('keydown', handleGlobalKeydown, true))
 
 const navigateTo = (path) => {
     router.push(path)

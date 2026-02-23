@@ -3,6 +3,9 @@ import { ref, onMounted } from 'vue'
 import { useKnowledgeStore } from '@/stores/knowledge'
 import { useAuthStore } from '@/stores/auth'
 import { useModalKeyboard } from '@/composables/useModalKeyboard'
+import { useConfirmDialog } from '@/composables/useConfirmDialog'
+
+const { confirm: showConfirm } = useConfirmDialog()
 
 const props = defineProps({
     collection: { type: Object, default: null }
@@ -66,7 +69,7 @@ useModalKeyboard({
 })
 
 const handleDelete = async () => {
-    if (!confirm('Are you sure you want to delete this collection? This cannot be undone.')) return
+    if (!await showConfirm('Are you sure you want to delete this collection? This cannot be undone.', { variant: 'danger' })) return
     
     loading.value = true
     error.value = null

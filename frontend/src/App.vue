@@ -1,6 +1,7 @@
 <script setup>
 import { onMounted } from 'vue'
 import { useTheme, useLanguage } from '@/composables/useSettings'
+import GlobalConfirmDialog from '@/components/common/GlobalConfirmDialog.vue'
 
 const { init: initTheme } = useTheme()
 const { init: initLang } = useLanguage()
@@ -13,6 +14,7 @@ onMounted(() => {
 
 <template>
   <router-view></router-view>
+  <GlobalConfirmDialog />
 </template>
 
 <style>

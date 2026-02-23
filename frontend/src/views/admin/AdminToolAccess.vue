@@ -153,6 +153,9 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import api from '@/utils/api'
+import { useConfirmDialog } from '@/composables/useConfirmDialog'
+
+const { confirm: showConfirm } = useConfirmDialog()
 
 // ── State ───────────────────────────────────────────────────────
 const loading = ref(true)
@@ -205,7 +208,7 @@ const saveAccess = async (tool) => {
 }
 
 const resetToDefault = async (tool) => {
-  if (!confirm(`รีเซ็ต "${tool.toolName}" เป็นค่าเริ่มต้นจาก code?`)) return
+  if (!await showConfirm(`รีเซ็ต "${tool.toolName}" เป็นค่าเริ่มต้นจาก code?`, { variant: 'warning' })) return
   saving.value = tool.toolName
   try {
     await api.delete(`/tools/access/${tool.toolName}`)

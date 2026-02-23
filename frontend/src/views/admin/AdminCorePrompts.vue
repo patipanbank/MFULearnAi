@@ -216,6 +216,9 @@ import { ref, computed, onMounted, watch } from 'vue'
 import api from '../../utils/api'
 import { useAuthStore } from '../../stores/auth'
 import { useLanguage } from '../../composables/useSettings'
+import { useConfirmDialog } from '@/composables/useConfirmDialog'
+
+const { confirm: showConfirm, alert: showAlert } = useConfirmDialog()
 
 const authStore = useAuthStore()
 const { lang } = useLanguage()
@@ -437,7 +440,7 @@ const fetchVariables = async () => {
 }
 
 const selectPrompt = async (prompt) => {
-  if (hasChanges.value && !confirm(t('discardChanges'))) return
+  if (hasChanges.value && !await showConfirm(t('discardChanges'), { variant: 'warning' })) return
 
   const previous = selectedPrompt.value
   selectedPrompt.value = prompt
@@ -451,13 +454,13 @@ const selectPrompt = async (prompt) => {
     // Auto-load history
     loadVersionHistory()
   } catch (e) {
-    alert('Failed to load prompt details')
+    showAlert('Failed to load prompt details', { variant: 'error' })
     selectedPrompt.value = previous
   }
 }
 
 const saveVersion = async () => {
-  if (!changeLog.value) return alert(t('changelogRequired'))
+  if (!changeLog.value) return showAlert(t('changelogRequired'), { variant: 'warning' })
   saving.value = true
   try {
     await api.post(`/prompts/${selectedPrompt.value.key}/versions`, {
@@ -466,9 +469,9 @@ const saveVersion = async () => {
     })
     await selectPrompt(selectedPrompt.value)
     await fetchPrompts()
-    alert(t('saved'))
+    showAlert(t('saved'), { variant: 'success' })
   } catch (e) {
-    alert('Save failed: ' + (e.response?.data?.error || e.message))
+    showAlert('Save failed: ' + (e.response?.data?.error || e.message), { variant: 'error' })
   } finally {
     saving.value = false
   }
@@ -477,7 +480,7 @@ const saveVersion = async () => {
 const toggleActive = async () => {
   const isActivating = !selectedPrompt.value.isActive
   const action = isActivating ? t('setActive') : t('deactivate')
-  if (!confirm(`${t('confirmActivate')} ${action}?`)) return
+  if (!await showConfirm(`${t('confirmActivate')} ${action}?`, { variant: 'warning' })) return
 
   activating.value = true
   try {
@@ -485,7 +488,7 @@ const toggleActive = async () => {
     selectedPrompt.value.isActive = isActivating
     await fetchPrompts()
   } catch (e) {
-    alert(`${action} failed`)
+    showAlert(`${action} failed`, { variant: 'error' })
   } finally {
     activating.value = false
   }
@@ -518,14 +521,14 @@ const loadVersionHistory = async () => {
 }
 
 const rollbackTo = async (version) => {
-  if (!confirm(`${t('confirmRollback')} ${version}?`)) return
+  if (!await showConfirm(`${t('confirmRollback')} ${version}?`, { variant: 'warning' })) return
   rollingBack.value = true
   try {
     await api.post(`/prompts/${selectedPrompt.value.key}/rollback`, { version })
     await selectPrompt(selectedPrompt.value)
     await fetchPrompts()
   } catch (e) {
-    alert('Rollback failed: ' + (e.response?.data?.error || e.message))
+    showAlert('Rollback failed: ' + (e.response?.data?.error || e.message), { variant: 'error' })
   } finally {
     rollingBack.value = false
   }
@@ -543,7 +546,7 @@ const createPrompt = async () => {
     await fetchPrompts()
     closeCreateModal()
   } catch (e) {
-    alert('Failed: ' + (e.response?.data?.error || e.message))
+    showAlert('Failed: ' + (e.response?.data?.error || e.message), { variant: 'error' })
   } finally {
     creating.value = false
   }

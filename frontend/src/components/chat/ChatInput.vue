@@ -2,6 +2,9 @@
 import { ref, watch, computed, nextTick, onMounted } from 'vue'
 import { useChatStore } from '@/stores/chat'
 import { FileText, FileSpreadsheet, FileImage, File } from 'lucide-vue-next'
+import { useConfirmDialog } from '@/composables/useConfirmDialog'
+
+const { alert: showAlert } = useConfirmDialog()
 
 const chatStore = useChatStore()
 
@@ -84,7 +87,7 @@ const handlePaste = (e) => {
     // Validate file count
     const currentCount = props.attachments?.length || 0
     if (currentCount + files.length > MAX_FILE_COUNT) {
-      alert(`สามารถแนบไฟล์ได้สูงสุด ${MAX_FILE_COUNT} ไฟล์`)
+      showAlert(`สามารถแนบไฟล์ได้สูงสุด ${MAX_FILE_COUNT} ไฟล์`, { variant: 'warning' })
       return
     }
 
@@ -92,13 +95,13 @@ const handlePaste = (e) => {
     let totalSize = (props.attachments || []).reduce((sum, a) => sum + (a.size || 0), 0)
     for (const file of files) {
       if (file.size > MAX_FILE_SIZE_BYTES) {
-        alert(`ไฟล์ "${file.name}" มีขนาดเกิน ${MAX_FILE_SIZE_MB} MB`)
+        showAlert(`ไฟล์ "${file.name}" มีขนาดเกิน ${MAX_FILE_SIZE_MB} MB`, { variant: 'warning' })
         return
       }
       totalSize += file.size
     }
     if (totalSize > MAX_TOTAL_SIZE_BYTES) {
-      alert(`ขนาดไฟล์รวมเกิน ${MAX_TOTAL_SIZE_MB} MB`)
+      showAlert(`ขนาดไฟล์รวมเกิน ${MAX_TOTAL_SIZE_MB} MB`, { variant: 'warning' })
       return
     }
 
@@ -114,7 +117,7 @@ const handleFileChange = (e) => {
   // Validate file count
   const currentCount = props.attachments?.length || 0
   if (currentCount + files.length > MAX_FILE_COUNT) {
-    alert(`สามารถแนบไฟล์ได้สูงสุด ${MAX_FILE_COUNT} ไฟล์`)
+    showAlert(`สามารถแนบไฟล์ได้สูงสุด ${MAX_FILE_COUNT} ไฟล์`, { variant: 'warning' })
     e.target.value = ''
     return
   }
@@ -123,14 +126,14 @@ const handleFileChange = (e) => {
   let totalSize = (props.attachments || []).reduce((sum, a) => sum + (a.size || 0), 0)
   for (const file of files) {
     if (file.size > MAX_FILE_SIZE_BYTES) {
-      alert(`ไฟล์ "${file.name}" มีขนาดเกิน ${MAX_FILE_SIZE_MB} MB`)
+      showAlert(`ไฟล์ "${file.name}" มีขนาดเกิน ${MAX_FILE_SIZE_MB} MB`, { variant: 'warning' })
       e.target.value = ''
       return
     }
     totalSize += file.size
   }
   if (totalSize > MAX_TOTAL_SIZE_BYTES) {
-    alert(`ขนาดไฟล์รวมเกิน ${MAX_TOTAL_SIZE_MB} MB`)
+    showAlert(`ขนาดไฟล์รวมเกิน ${MAX_TOTAL_SIZE_MB} MB`, { variant: 'warning' })
     e.target.value = ''
     return
   }

@@ -142,6 +142,9 @@
 import { ref, computed, onMounted } from 'vue';
 import api from '../../utils/api'; 
 import { useAuthStore } from '../../stores/auth';
+import { useConfirmDialog } from '@/composables/useConfirmDialog';
+
+const { confirm: showConfirm, alert: showAlert } = useConfirmDialog();
 
 const authStore = useAuthStore();
 const isSuperAdmin = computed(() => authStore.role === 'superadmin');
@@ -214,7 +217,7 @@ const createPrompt = async () => {
         
     } catch (error) {
         console.error('Failed to create prompt:', error);
-        alert('Failed to create prompt: ' + (error.response?.data?.error || error.message));
+        showAlert('Failed to create prompt: ' + (error.response?.data?.error || error.message), { variant: 'error' });
     } finally {
         creating.value = false;
     }
@@ -237,7 +240,12 @@ const fetchPrompts = async () => {
 
 const selectPrompt = (prompt) => {
     if (hasChanges.value) {
-        if(!confirm('You have unsaved changes. Discard them?')) return;
+        showConfirm('You have unsaved changes. Discard them?', { variant: 'warning' }).then(confirmed => {
+            if (!confirmed) return;
+            selectedPrompt.value = prompt;
+            editBuffer.value = prompt.content;
+        });
+        return;
     }
     selectedPrompt.value = prompt;
     editBuffer.value = prompt.content;
@@ -273,7 +281,7 @@ const savePrompt = async () => {
         }
     } catch (error) {
         console.error('Failed to save prompt:', error);
-        alert(error.response?.data?.error || 'Failed to save changes');
+        showAlert(error.response?.data?.error || 'Failed to save changes', { variant: 'error' });
     } finally {
         saving.value = false;
     }

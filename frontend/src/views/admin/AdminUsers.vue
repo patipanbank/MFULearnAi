@@ -152,6 +152,9 @@
 import { ref, computed, onMounted } from 'vue';
 import api from '../../utils/api';
 import { useAuthStore } from '../../stores/auth';
+import { useConfirmDialog } from '@/composables/useConfirmDialog';
+
+const { confirm: showConfirm, alert: showAlert } = useConfirmDialog();
 
 const authStore = useAuthStore();
 const isSuperAdmin = computed(() => authStore.role === 'superadmin');
@@ -275,14 +278,14 @@ const handleSubmit = async () => {
 };
 
 const handleDelete = async (id) => {
-    if (!confirm('Are you sure you want to delete this user? This cannot be undone.')) return;
+    if (!await showConfirm('Are you sure you want to delete this user? This cannot be undone.', { variant: 'danger' })) return;
     
     try {
         await api.delete(`/users/${id}`)
         users.value = users.value.filter(u => u._id !== id);
         closeModal();
     } catch (err) {
-        alert(err.response?.data?.error || 'Failed to delete');
+        showAlert(err.response?.data?.error || 'Failed to delete', { variant: 'error' });
     }
 };
 

@@ -3,6 +3,9 @@ import { computed, ref } from 'vue'
 import { useKnowledgeStore } from '@/stores/knowledge'
 import { useAuthStore } from '@/stores/auth'
 import { useLanguage } from '@/composables/useSettings'
+import { useConfirmDialog } from '@/composables/useConfirmDialog'
+
+const { confirm: showConfirm } = useConfirmDialog()
 
 const authStore = useAuthStore()
 const knowledgeStore = useKnowledgeStore()
@@ -75,7 +78,7 @@ const filterOptions = [
 ]
 
 const handleRequestPublish = async (id, type) => {
-    if (confirm(`Request to publish this as ${type}?`)) {
+    if (await showConfirm(`Request to publish this as ${type}?`, { variant: 'info', title: 'Publish Request' })) {
         await knowledgeStore.requestPublish(id, type)
     }
 }
@@ -89,7 +92,7 @@ const handleReject = async (id) => {
 }
 
 const handleDelete = async (id) => {
-    if (confirm('Are you sure you want to delete this item?')) {
+    if (await showConfirm('Are you sure you want to delete this item?', { variant: 'danger' })) {
         await knowledgeStore.deleteKnowledge(id)
     }
 }

@@ -198,6 +198,9 @@
 import { ref, computed, onMounted } from 'vue'
 import api from '../../utils/api'
 import { useLanguage } from '../../composables/useSettings'
+import { useConfirmDialog } from '@/composables/useConfirmDialog'
+
+const { confirm: showConfirm } = useConfirmDialog()
 
 const { lang } = useLanguage()
 
@@ -337,7 +340,7 @@ const createKey = async () => {
 }
 
 const revokeKey = async (key) => {
-  if (!confirm(t('confirmRevoke'))) return
+  if (!await showConfirm(t('confirmRevoke'), { variant: 'danger' })) return
   try {
     await api.delete(`/keys/${key._id}`)
     const idx = apiKeys.value.findIndex(k => k._id === key._id)

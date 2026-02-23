@@ -3,6 +3,9 @@ import { ref, onMounted, computed } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useKnowledgeStore } from '@/stores/knowledge'
 import { useModalKeyboard } from '@/composables/useModalKeyboard'
+import { useConfirmDialog } from '@/composables/useConfirmDialog'
+
+const { confirm: showConfirm } = useConfirmDialog()
 
 const props = defineProps({
   collection: {
@@ -92,7 +95,7 @@ const handleAdd = async (knowledgeId) => {
 }
 
 const handleRemove = async (knowledgeId) => {
-    if(!confirm('Remove this item from collection?')) return
+    if(!await showConfirm('Remove this item from collection?', { variant: 'warning' })) return
     await knowledgeStore.mapKnowledge(props.collection._id, knowledgeId, 'remove')
     fullCollection.value = knowledgeStore.currentCollection
 }

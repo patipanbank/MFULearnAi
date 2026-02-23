@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useChatStore } from '@/stores/chat'
 import { useLanguage } from '@/composables/useSettings'
@@ -87,6 +87,26 @@ const cancelDelete = () => {
     showDeleteConfirm.value = false
     pendingDeleteSessionId.value = null
 }
+
+// ── Keyboard support for delete confirmation modal ──
+const handleDeleteKeydown = (e) => {
+  if (!showDeleteConfirm.value) return
+  if (e.key === 'Escape') {
+    e.preventDefault()
+    e.stopPropagation()
+    cancelDelete()
+  } else if (e.key === 'Enter') {
+    const tag = e.target?.tagName?.toLowerCase()
+    if (tag !== 'button') {
+      e.preventDefault()
+      e.stopPropagation()
+      confirmDelete()
+    }
+  }
+}
+
+onMounted(() => document.addEventListener('keydown', handleDeleteKeydown, true))
+onUnmounted(() => document.removeEventListener('keydown', handleDeleteKeydown, true))
 </script>
 
 <template>
