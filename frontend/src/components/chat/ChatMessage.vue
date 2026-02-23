@@ -63,18 +63,9 @@ const agentSummary = computed(() => {
 const timelineEvents = computed(() => {
   if (!hasAgentEvents.value) return []
   // Filter only block and tool events. Legacy thinking events are ignored or mapped.
-  let rawEvents = props.message.agentEvents.filter(e =>
+  const rawEvents = props.message.agentEvents.filter(e =>
     ['block', 'tool_start', 'tool_complete'].includes(e.type)
   )
-
-  // Remove the very last event from the timeline if it's a text block, 
-  // because that will become our main bubble text.
-  if (rawEvents.length > 0) {
-    const lastEvent = rawEvents[rawEvents.length - 1]
-    if (lastEvent.type === 'block') {
-      rawEvents = rawEvents.slice(0, -1)
-    }
-  }
 
   const mergedEvents = []
   const blockByStep = {}
@@ -122,33 +113,6 @@ const timelineEvents = computed(() => {
   return mergedEvents.filter(e => e.type !== 'block' || e.content?.trim() || e.isActive)
 })
 
-const mainBubbleText = computed(() => {
-  if (props.message.content) return props.message.content;
-  if (!hasAgentEvents.value) return '';
-  
-  const rawEvents = props.message.agentEvents.filter(e =>
-    ['block', 'tool_start', 'tool_complete'].includes(e.type)
-  );
-  if (rawEvents.length === 0) return '';
-  
-  const lastEvent = rawEvents[rawEvents.length - 1];
-  if (lastEvent.type === 'block') {
-    return lastEvent.content || '';
-  }
-  return '';
-})
-
-const showAgentFlow = computed(() =>
-  props.isStreaming || (hasAgentEvents.value && timelineEvents.value.length > 0)
-)
-
-// Flow header summary text — shows "agent process for Xs"
-const flowHeaderText = computed(() => {
-  if (!agentSummary.value?.isComplete) return 'Working...'
-  const sec = agentSummary.value.durationStr || ''
-  return sec ? `Process took ${sec}` : 'Process complete'
-})
-
 // Tool label mapping
 const toolLabel = (name) => {
   const labels = {
@@ -168,11 +132,12 @@ const toolIcon = (name) => {
 const viewImage = (src) => { viewingImage.value = src }
 
 const handleCopy = async () => {
-  const success = await copyToClipboard(mainBubbleText.value || props.message.content)
+  const contentToCopy = props.message.content || timelineEvents.value.filter(e => e.type === 'block').map(e => e.content).join('\n')
+  const success = await copyToClipboard(contentToCopy)
   if (success) {
     copied.value = true
     setTimeout(() => { copied.value = false }, 2000)
-    emit('copy', mainBubbleText.value || props.message.content)
+    emit('copy', contentToCopy)
   }
 }
 
@@ -343,110 +308,60 @@ const getFileIcon = (file) => {
           <!-- Name -->
           <div class="assistant-name">{{ t('aiAssistant') }}</div>
 
-          <!-- Agent Flow -->
-          <div v-if="showAgentFlow" class="agent-flow">
-            <!-- Toggle Header -->
-            <div class="flow-toggle" @click="toggleFlow" role="button" tabindex="0">
-              <svg
-                class="toggle-chevron"
-                :class="{ expanded: flowExpanded }"
-                width="14" height="14" viewBox="0 0 24 24"
-                fill="none" stroke="currentColor" stroke-width="2.5"
-              >
-                <polyline points="9 18 15 12 9 6"/>
-              </svg>
-              <span class="flow-toggle-label">{{ flowHeaderText }}</span>
+          <!-- Linear Stream / Standard Message -->
+          <div class="message-body">
+            
+            <!-- Standard Message Fallback (No Agent Events) -->
+            <template v-if="!hasAgentEvents && message.content">
+              <div ref="messageRef" class="prose markdown-body" v-html="render(message.content)" />
+            </template>
+            
+            <!-- Linear Block Stream -->
+            <template v-else>
+              <div class="linear-stream" ref="messageRef">
+                <template v-for="(evt, idx) in timelineEvents" :key="evt.id || idx">
+                  
+                  <!-- Text Block -->
+                  <div v-if="evt.type === 'block'" class="stream-block">
+                    <div class="prose markdown-body" v-html="render(evt.content || '')" />
+                    <div v-if="evt.isActive" class="typing-dots inline-dots">
+                      <span /><span /><span />
+                    </div>
+                  </div>
+                  
+                  <!-- Tool Badge -->
+                  <div v-else-if="evt.type === 'tool_start'" class="tool-badge">
+                    <div class="tool-badge-header">
+                      <span class="tool-icon">{{ toolIcon(evt.toolName) }}</span>
+                      <span class="tool-name">{{ toolLabel(evt.toolName) }}</span>
+                      
+                      <!-- Status -->
+                      <span v-if="evt.isToolComplete" class="tool-status" :class="evt.success ? 'ok' : 'err'">
+                        {{ evt.success ? '✓' : '✗' }}
+                      </span>
+                      <div v-else class="tool-status active">
+                        <span class="dot-pulse"/><span class="dot-pulse"/><span class="dot-pulse"/>
+                      </div>
+
+                      <!-- Duration -->
+                      <span v-if="evt.durationMs" class="tool-meta">{{ evt.durationMs }}ms</span>
+                    </div>
+                    <div v-if="evt.input?.query" class="tool-query">"{{ evt.input.query }}"</div>
+                  </div>
+                  
+                </template>
+              </div>
+            </template>
+
+            <!-- Typing dots (fallback when empty and streaming) -->
+            <div v-if="timelineEvents.length === 0 && !message.content && isStreaming" class="typing-dots">
+              <span /><span /><span />
             </div>
 
-            <!-- Timeline -->
-            <div v-if="flowExpanded" class="flow-body">
-              <TransitionGroup name="flow" tag="div">
-                <div
-                  v-for="(evt, idx) in timelineEvents"
-                  :key="evt.id || idx"
-                  class="tl-item"
-                >
-                  <!-- Spine -->
-                  <div class="tl-spine">
-                    <div class="tl-line" />
-
-                    <!-- Block icon -->
-                    <div v-if="evt.type === 'block'" class="tl-dot block" :class="{ active: evt.isActive }">
-                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-                      </svg>
-                    </div>
-
-                    <!-- Tool icon -->
-                    <div v-else-if="evt.type === 'tool_start'" class="tl-dot tool">
-                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
-                      </svg>
-                    </div>
-
-                    <div v-else class="tl-dot" />
-                  </div>
-
-                  <!-- Content -->
-                  <div class="tl-content">
-
-                    <!-- Text Block -->
-                    <template v-if="evt.type === 'block'">
-                      <div class="tl-label block-label">
-                        Phase {{ evt.step || 1 }}
-                      </div>
-                      <div class="block-text markdown-body" v-html="render(evt.content || '')" />
-                      <div v-if="evt.isActive" class="block-active">
-                        <span class="dot-pulse" /><span class="dot-pulse" /><span class="dot-pulse" />
-                      </div>
-                    </template>
-
-                    <!-- Tool -->
-                    <template v-else-if="evt.type === 'tool_start'">
-                      <div class="tl-label tool-label">
-                        {{ toolIcon(evt.toolName) }} {{ toolLabel(evt.toolName) }}
-                      </div>
-                      <div v-if="evt.input?.query" class="tool-query">"{{ evt.input.query }}"</div>
-                      <div v-if="evt.isToolComplete" class="tool-result">
-                        <span class="result-status" :class="evt.success ? 'ok' : 'err'">
-                          {{ evt.success ? '✓' : '✗' }}
-                          {{ evt.success ? 'Success' : 'Failed' }}
-                        </span>
-                        <span v-if="evt.durationMs" class="result-meta">· {{ evt.durationMs }}ms</span>
-                      </div>
-                    </template>
-
-                  </div>
-                </div>
-
-                <!-- Live pulse -->
-                <div v-if="!agentSummary?.isComplete && isStreaming" key="pulse" class="tl-item">
-                  <div class="tl-spine">
-                    <div class="tl-dot pulsing" />
-                  </div>
-                  <div class="tl-content">
-                    <span class="processing-text">Processing...</span>
-                  </div>
-                </div>
-              </TransitionGroup>
-            </div>
-          </div>
-
-          <!-- Answer -->
-          <div
-            ref="messageRef"
-            class="prose markdown-body"
-            v-if="mainBubbleText"
-            v-html="render(mainBubbleText)"
-          />
-
-          <!-- Typing dots (fallback when no agent flow) -->
-          <div v-if="!mainBubbleText && !showAgentFlow && isStreaming" class="typing-dots">
-            <span /><span /><span />
           </div>
 
           <!-- Action Bar: Copy | Like | Dislike -->
-          <div class="action-bar" v-if="mainBubbleText">
+          <div class="action-bar" v-if="message.content || hasAgentEvents">
             <!-- Copy -->
             <button class="action-btn" @click="handleCopy" :class="{ copied }" :title="t('copy')">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -581,105 +496,75 @@ const getFileIcon = (file) => {
   color: var(--color-text-primary); margin-bottom: 8px;
 }
 
-/* ── Agent Flow ── */
-.agent-flow {
-  margin-bottom: 12px;
-  border-left: 2px solid var(--color-border);
-  padding-left: 12px;
+/* ── Inline Linear Stream ── */
+.linear-stream {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
-.flow-toggle {
-  display: flex; align-items: center; gap: 6px;
-  cursor: pointer; padding: 2px 0; user-select: none;
+.stream-block {
+  /* margin-bottom to separate blocks in the linear flow is handled by gap above */
+}
+
+/* Tool Badge */
+.tool-badge {
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  padding: 10px 14px;
+  margin: 4px 0;
+  max-width: 400px;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.tool-badge-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-primary);
+}
+
+.tool-icon {
+  font-size: 14px;
+}
+
+.tool-name {
+  flex: 1;
+}
+
+.tool-status {
+  font-size: 12px;
+  font-weight: 600;
+}
+.tool-status.ok { color: #16a34a; }
+.tool-status.err { color: #dc2626; }
+.tool-status.active { display: flex; align-items: center; gap: 3px; }
+
+.tool-meta {
+  font-size: 11px;
   color: var(--color-text-muted);
-  transition: color 0.15s;
-}
-.flow-toggle:hover { color: var(--color-text-primary); }
-
-.toggle-chevron {
-  transition: transform 0.2s ease;
-  transform: rotate(0deg);
-  flex-shrink: 0;
-}
-.toggle-chevron.expanded { transform: rotate(90deg); }
-
-.flow-toggle-label { font-size: 13px; font-weight: 500; }
-
-.flow-body { margin-top: 12px; display: flex; flex-direction: column; }
-
-/* Timeline */
-.tl-item {
-  display: flex; gap: 12px;
-  padding-bottom: 16px;
-  position: relative;
 }
 
-.tl-spine {
-  display: flex; flex-direction: column; align-items: center;
-  width: 20px; flex-shrink: 0; padding-top: 2px;
-  position: relative;
-}
-
-.tl-line {
-  position: absolute; top: 22px; bottom: -10px;
-  width: 1px; background: var(--color-border); opacity: 0.5;
-}
-.tl-item:last-child .tl-line { display: none; }
-
-.tl-dot {
-  width: 20px; height: 20px; border-radius: 50%; flex-shrink: 0;
-  display: flex; align-items: center; justify-content: center;
-  background: var(--color-bg-secondary); border: 1px solid var(--color-border);
-  color: var(--color-text-muted); z-index: 1;
-}
-.tl-dot.block { background: #eff6ff; border-color: #bfdbfe; color: #3b82f6; }
-.tl-dot.block.active { animation: pulse-ring 2s infinite; }
-.tl-dot.tool { background: #fff7ed; border-color: #fed7aa; color: #f97316; }
-.tl-dot.pulsing { background: var(--color-bg-tertiary); animation: pulse-ring 1.5s infinite; }
-
-@keyframes pulse-ring {
-  0% { box-shadow: 0 0 0 0 color-mix(in srgb, currentColor 30%, transparent); }
-  70% { box-shadow: 0 0 0 5px transparent; }
-  100% { box-shadow: 0 0 0 0 transparent; }
-}
-
-.tl-content { flex: 1; min-width: 0; padding-top: 1px; }
-
-.tl-label {
-  font-size: 12px; font-weight: 600; margin-bottom: 4px;
-  text-transform: uppercase; letter-spacing: 0.4px;
-}
-.block-label { color: #3b82f6; }
-.tool-label { color: #f97316; }
-
-/* Block content */
-.block-text {
-  font-size: 14px; line-height: 1.6; color: var(--color-text-primary);
-  /* Strip markdown bottom padding inside timeline */
-  margin-bottom: 0 !important;
-}
-.block-text :deep(p:last-child) { margin-bottom: 0; }
-.block-active {
-  display: flex; align-items: center; gap: 4px; padding: 4px 0; margin-top: 4px;
-}
-
-/* Tool content */
 .tool-query {
-  font-size: 13px; color: var(--color-text-secondary);
-  font-style: italic; margin-bottom: 6px;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  font-style: italic;
+  margin-top: 2px;
+  margin-left: 22px; /* align with text ignoring icon */
 }
-.tool-result { display: flex; align-items: center; gap: 6px; }
-.result-status { font-size: 12px; font-weight: 600; }
-.result-status.ok { color: #16a34a; }
-.result-status.err { color: #dc2626; }
-.result-meta { font-size: 11px; color: var(--color-text-muted); }
+
+.inline-dots {
+  padding: 6px 0;
+}
 
 /* Processing */
 .processing-text { font-size: 12px; color: var(--color-text-muted); font-style: italic; }
-
-/* Flow transitions */
-.flow-enter-active { transition: all 0.25s ease; }
-.flow-enter-from { opacity: 0; transform: translateY(8px); }
 
 /* ── Answer ── */
 .prose { font-size: 15px; line-height: 1.75; color: var(--color-text-primary); }
