@@ -430,6 +430,11 @@ const handleRetry = async (id) => {
   text-align: left;
   border-bottom: 1px solid var(--color-border);
   color: var(--color-text-primary);
+  vertical-align: middle;
+}
+
+.data-table tbody tr:last-child td {
+  border-bottom: none;
 }
 
 .data-table th {
@@ -445,13 +450,13 @@ const handleRetry = async (id) => {
   font-weight: 500;
 }
 
-.name-col {
+.name-column {
   display: flex;
   flex-direction: column;
   gap: 4px;
   min-width: 0;
 }
-.name-col span {
+.name-column span {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
