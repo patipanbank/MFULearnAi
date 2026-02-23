@@ -258,6 +258,7 @@ defineExpose({
 /* ── Layout ── */
 .input-area {
   padding: 12px 24px 20px;
+  padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px));
   background: var(--color-bg-primary);
 }
 
