@@ -30,10 +30,17 @@ const expiresAt = ref('')
 const uploading = ref(false)
 const error = ref(null)
 
-// URL scraper state
-const uploadMode = ref('file') // 'file' | 'url'
+// Mode state: 'file' | 'url' | 'text'
+const uploadMode = ref('file')
+
+// URL state
 const urlInput = ref('')
 const urlLoading = ref(false)
+
+// Text state
+const textTitle = ref('')
+const textContent = ref('')
+const textLoading = ref(false)
 
 // Admin check — visibility options depend on this
 const isAdmin = computed(() => {
@@ -43,6 +50,7 @@ const isAdmin = computed(() => {
 
 const canUpload = computed(() => {
     if (uploadMode.value === 'url') return urlInput.value.trim().length > 0 && !urlLoading.value
+    if (uploadMode.value === 'text') return textTitle.value.trim().length > 0 && textContent.value.trim().length > 0 && !textLoading.value
     return files.value.length > 0 && !uploading.value
 })
 
@@ -111,10 +119,14 @@ const formatSize = (bytes) => {
     return (bytes / (1024 * 1024)).toFixed(1) + ' MB'
 }
 
-// Upload all files sequentially
+// Upload Router
 const handleUpload = async () => {
     if (uploadMode.value === 'url') {
         await handleUrlScrape()
+        return
+    }
+    if (uploadMode.value === 'text') {
+        await handleTextUpload()
         return
     }
 
@@ -170,6 +182,25 @@ const handleUrlScrape = async () => {
         urlLoading.value = false
     }
 }
+
+// Text Upload
+const handleTextUpload = async () => {
+    const title = textTitle.value.trim()
+    const content = textContent.value.trim()
+    if (!title || !content) return
+
+    textLoading.value = true
+    error.value = null
+
+    try {
+        await knowledgeStore.createFromText(title, content, type.value, folder.value.trim(), expiresAt.value)
+        emit('success')
+    } catch (e) {
+        error.value = e.response?.data?.error || e.message || 'Text upload failed'
+    } finally {
+        textLoading.value = false
+    }
+}
 </script>
 
 <template>
@@ -184,6 +215,11 @@ const handleUrlScrape = async () => {
            :class="{ active: uploadMode === 'file' }"
            @click="uploadMode = 'file'"
          >📄 File Upload</button>
+         <button
+           class="mode-btn"
+           :class="{ active: uploadMode === 'text' }"
+           @click="uploadMode = 'text'"
+         >📝 Raw Text</button>
          <button
            class="mode-btn"
            :class="{ active: uploadMode === 'url' }"
@@ -253,6 +289,29 @@ const handleUrlScrape = async () => {
          </div>
        </template>
 
+       <!-- Raw Text Mode -->
+       <template v-if="uploadMode === 'text'">
+         <div class="form-group">
+           <label>Document Title</label>
+           <input
+             v-model="textTitle"
+             type="text"
+             placeholder="e.g. My Important Notes"
+             class="form-control"
+           />
+         </div>
+         <div class="form-group">
+           <label>Text Content</label>
+           <textarea
+             v-model="textContent"
+             placeholder="Paste your raw text or notes here..."
+             class="form-control text-area-input"
+             rows="8"
+           ></textarea>
+           <p class="hint">This text will be converted into a searchable document.</p>
+         </div>
+       </template>
+
        <!-- Visibility (shared) -->
        <div class="form-group">
           <label>Visibility</label>
@@ -302,12 +361,21 @@ const handleUrlScrape = async () => {
            </div>
        </div>
 
+       <div v-if="textLoading" class="upload-progress-container">
+           <div class="upload-info">
+               <span>Pasting content into database...</span>
+           </div>
+           <div class="upload-track">
+               <div class="upload-fill indeterminate"></div>
+           </div>
+       </div>
+
        <div v-if="error" class="error">{{ error }}</div>
 
        <div class="actions">
            <button class="btn-cancel" @click="emit('close')">Cancel</button>
            <button class="btn-primary" @click="handleUpload" :disabled="!canUpload">
-               {{ uploading || urlLoading ? 'Processing...' : uploadMode === 'url' ? 'Import' : `Upload (${files.length})` }}
+               {{ uploading || urlLoading || textLoading ? 'Processing...' : (uploadMode === 'url' || uploadMode === 'text') ? 'Import' : `Upload (${files.length})` }}
            </button>
        </div>
     </div>
@@ -504,6 +572,11 @@ label {
 }
 .form-control:focus, select:focus, .url-input:focus {
     border-color: var(--color-accent, #6366f1);
+}
+
+.text-area-input {
+    resize: vertical;
+    min-height: 100px;
 }
 
 .form-row {

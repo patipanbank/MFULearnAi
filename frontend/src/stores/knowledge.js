@@ -332,6 +332,23 @@ export const useKnowledgeStore = defineStore('knowledge', () => {
         }
     }
 
+    // --- Raw Text Importer ---
+    async function createFromText(title, textContent, type, folder, expiresAt) {
+        try {
+            const payload = { title, text: textContent, type }
+            if (folder) payload.folder = folder
+            if (expiresAt) payload.expiresAt = expiresAt
+
+            const res = await axios.post(`${API_URL}/knowledge/text`, payload, getHeaders())
+            await fetchKnowledge() // Refresh list
+            startPolling() // Start polling for background job
+            return res.data
+        } catch (e) {
+            error.value = e.response?.data?.error || e.message
+            throw e
+        }
+    }
+
     // --- Analytics ---
     const stats = ref(null)
     const statsLoading = ref(false)
@@ -384,6 +401,7 @@ export const useKnowledgeStore = defineStore('knowledge', () => {
         extractText,
         updateKnowledge,
         createFromUrl,
+        createFromText,
         fetchStats,
         fetchDocumentAnalytics
     }

@@ -139,6 +139,45 @@ export class KnowledgeController {
         }
     }
 
+    // 1.06 CREATE KNOWLEDGE FROM TEXT (Direct Input)
+    static async createFromText(req: Request, res: Response) {
+        const user = extractUser(req);
+        if (!user) return res.status(401).json({ error: 'Unauthorized' });
+
+        const { title, text, type, folder, expiresAt } = req.body;
+        if (!title || !text) return res.status(400).json({ error: 'Missing title or text content' });
+
+        const kbId = new mongoose.Types.ObjectId();
+        const s3Key = `knowledge/${kbId}/original.txt`;
+        const originalName = `${title}.txt`;
+
+        try {
+            // 1. Convert text to Buffer
+            const buffer = Buffer.from(text, 'utf-8');
+
+            // 2. Upload directly to MinIO
+            LoggerService.info('upload_text_direct', { fileName: originalName, s3Key });
+            await minioClient.putObject(MINIO_BUCKET, s3Key, buffer, buffer.length, {
+                'Content-Type': 'text/plain',
+                'x-amz-meta-original-name': encodeURIComponent(originalName)
+            });
+
+            // 3. Create DB Record to trigger worker
+            const fileInfo = {
+                originalName,
+                mimeType: 'text/plain',
+                s3Key
+            };
+            const fields = { type, folder, expiresAt };
+
+            const kb = await KnowledgeService.createKnowledgeRecord(user, fileInfo, fields, kbId);
+            res.status(202).json({ success: true, knowledge: kb, message: 'Text content accepted for processing.' });
+        } catch (e: any) {
+            LoggerService.error('text_upload_failed', { error: e.message });
+            res.status(500).json({ error: e.message || 'Text upload failed' });
+        }
+    }
+
     // 1.01 EXTRACT TEXT (No Save) via Memory Upload (Small files)
     static async extract(req: Request, res: Response) {
         const user = extractUser(req);

@@ -63,6 +63,8 @@ export class KnowledgeService {
             intent?: string;
             minScore?: number;
             metadataFilter?: any;
+            topK?: number;
+            allowedKnowledgeIds?: Set<string>;
         } = {}
     ): Promise<{ text: string, sources: Array<{ id: string, name: string }>, blocks: CanonicalIR['blocks'], maxScore: number }> {
         const { collectionId, intent = 'QUERY', minScore = 0, metadataFilter } = options;
@@ -82,6 +84,23 @@ export class KnowledgeService {
             if (metadataFilter) {
                 queryParams.where = metadataFilter;
             }
+
+            // Pre-calculate allowed Knowledge IDs if searching within a specific collection
+            // This natively injects 'default' collection results (e.g. System Policies) into the search scope
+            const allowedKnowledgeIds = new Set<string>();
+            if (options.collectionId) {
+                const targetCol = await Collection.findById(options.collectionId);
+                if (targetCol) {
+                    targetCol.knowledgeIds.forEach((kid: any) => allowedKnowledgeIds.add(kid.toString()));
+                }
+
+                // Inject Default Collections
+                const defaultCols = await Collection.find({ type: 'default' });
+                defaultCols.forEach(col => {
+                    col.knowledgeIds.forEach((kid: any) => allowedKnowledgeIds.add(kid.toString()));
+                });
+            }
+            options.allowedKnowledgeIds = allowedKnowledgeIds;
 
             const results = await col.query(queryParams);
 
@@ -113,13 +132,10 @@ export class KnowledgeService {
                     if (!kb) continue;
 
                     if (this.canReadKnowledge(userContext, kb)) {
-                        // Collection Filter: skip documents not in the requested collection
+                        // Collection Filter: skip documents not in the requested collection OR default collections
                         if (collectionId) {
-                            const targetCol = await Collection.findById(collectionId);
-                            if (targetCol && !targetCol.knowledgeIds.some(
-                                (kid: any) => kid.toString() === kb._id.toString()
-                            )) {
-                                continue; // Not in collection, skip
+                            if (!options.allowedKnowledgeIds?.has(kb._id.toString())) {
+                                continue; // Not in target collection and not a default policy
                             }
                         }
 
@@ -327,24 +343,25 @@ export class KnowledgeService {
     static async createKnowledgeRecord(
         user: UserContext,
         fileInfo: { originalName: string, mimeType: string, s3Key: string },
-        fields: { type?: string, folder?: string, expiresAt?: string }
+        fields: { type?: string, folder?: string, expiresAt?: string },
+        predefinedKbId?: mongoose.Types.ObjectId
     ) {
         const type = fields.type || 'personal';
         if (!this.canCreateKnowledge(user, type)) {
             throw new Error('Insufficient permissions');
         }
 
-        // Fix: Extract existing ID from S3 key (format: knowledge/<ID>/filename)
-        // The Controller generated this ID for the S3 path, so we MUST use it for the record ID
-        // to ensure the Worker can find the record later.
-        const pathParts = fileInfo.s3Key.split('/');
-        let finalId = '';
-        if (pathParts.length >= 2 && mongoose.Types.ObjectId.isValid(pathParts[1])) {
-            finalId = pathParts[1];
-        } else {
-            // Fallback (should not happen if Controller logic is correct)
-            finalId = new mongoose.Types.ObjectId().toString();
-            LoggerService.warn('knowledge_id_mismatch', { s3Key: fileInfo.s3Key, generatedId: finalId }, user.userId);
+        // Fix: Use predefined ID if supplied (e.g. from createFromText), otherwise extract from S3 key or generate new
+        let finalId = predefinedKbId?.toString() || '';
+
+        if (!finalId) {
+            const pathParts = fileInfo.s3Key.split('/');
+            if (pathParts.length >= 2 && mongoose.Types.ObjectId.isValid(pathParts[1])) {
+                finalId = pathParts[1];
+            } else {
+                finalId = new mongoose.Types.ObjectId().toString();
+                LoggerService.warn('knowledge_id_mismatch', { s3Key: fileInfo.s3Key, generatedId: finalId }, user.userId);
+            }
         }
 
         // --- Versioning Logic ---

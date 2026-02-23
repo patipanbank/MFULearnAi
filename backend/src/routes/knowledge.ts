@@ -9,6 +9,7 @@ router.post('/', KnowledgeController.create);
 router.post('/extract', KnowledgeController.extract);
 // Static paths must come before /:id parametric routes
 router.post('/url', KnowledgeController.createFromUrl);
+router.post('/text', KnowledgeController.createFromText);
 router.get('/stats', KnowledgeController.getStats);
 router.delete('/:id', KnowledgeController.delete);
 router.patch('/:id', KnowledgeController.update);
