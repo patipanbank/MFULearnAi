@@ -96,22 +96,31 @@ export class ResultPersister {
         };
 
         const { userId, sessionId } = ctx;
-        await HistoryService.addMessage(userId, sessionId, userMsgToSave);
-        await HistoryService.addMessage(userId, sessionId, assistantMsgToSave);
-        await HistoryService.saveToPersistentStorage(
-            userId, sessionId,
-            [userMsgToSave, assistantMsgToSave],
-            { totalTokens: totalUsage.total, weightedTokens },
-            process.env.ENV_TYPE || 'TEST',
-            ctx.modelId || MODELS.PRIMARY
-        );
+        try {
+            await HistoryService.addMessage(userId, sessionId, userMsgToSave);
+            await HistoryService.addMessage(userId, sessionId, assistantMsgToSave);
+            await HistoryService.saveToPersistentStorage(
+                userId, sessionId,
+                [userMsgToSave, assistantMsgToSave],
+                { totalTokens: totalUsage.total, weightedTokens },
+                process.env.ENV_TYPE || 'TEST',
+                ctx.modelId || MODELS.PRIMARY
+            );
 
-        LoggerService.info('chat_completion', {
-            tokens: totalUsage,
-            weightedTokens,
-            model: ctx.modelId || MODELS.PRIMARY,
-            steps, sessionId, traceId: state.traceId
-        }, userId);
+            LoggerService.info('chat_completion_stored', {
+                tokens: totalUsage,
+                weightedTokens,
+                model: ctx.modelId || MODELS.PRIMARY,
+                steps, sessionId, traceId: state.traceId
+            }, userId);
+        } catch (err: any) {
+            LoggerService.error('chat_finalize_persistence_failed', {
+                sessionId,
+                error: err.message,
+                userMsgRole: userMsgToSave.role,
+                assistantMsgRole: assistantMsgToSave.role
+            }, userId);
+        }
 
         // Background Summary & Title
         SummarizationService.runUpdate(userId, sessionId, [userMsgToSave, assistantMsgToSave], state.smartContext || {

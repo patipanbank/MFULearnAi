@@ -161,6 +161,35 @@ export class HistoryService {
     }
 
     /**
+     * Ensures a conversation record exists in MongoDB.
+     * Used at the start of a chat to prevent lost sessions if the workflow is interrupted.
+     */
+    static async ensureSessionExists(userId: string, sessionId: string, initialTitle: string, modelId?: string) {
+        try {
+            await Conversation.findOneAndUpdate(
+                { userId, sessionId },
+                {
+                    $setOnInsert: {
+                        userId,
+                        sessionId,
+                        'metadata.title': initialTitle,
+                        modelId: modelId || 'default',
+                        messages: [],
+                        isDeleted: false,
+                        createdAt: new Date(),
+                        updatedAt: new Date()
+                    }
+                },
+                { upsert: true, new: true }
+            );
+            LoggerService.debug('session_ensured', { sessionId, initialTitle }, userId);
+        } catch (error: any) {
+            LoggerService.error('ensure_session_failed', { sessionId, error: error.message }, userId);
+            // Non-blocking, but we logged it
+        }
+    }
+
+    /**
      * Persists messages to MongoDB, atomically updating metadata.
      */
     static async saveToPersistentStorage(

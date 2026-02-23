@@ -432,14 +432,48 @@ const getFileIcon = (file) => {
 }
 
 .bubble {
+  padding: 10px 16px;
+  border-radius: 18px;
+  box-shadow: var(--shadow-sm);
+  transition: all 0.2s ease;
+}
+
+.user .bubble {
+  background: var(--color-accent);
+  border: 1px solid var(--color-accent);
+  border-bottom-right-radius: 4px;
+}
+
+.assistant .bubble {
   background: var(--color-bg-secondary);
   border: 1px solid var(--color-border);
-  padding: 10px 16px;
-  border-radius: 18px; border-bottom-right-radius: 4px;
-  box-shadow: var(--shadow-sm);
+  border-bottom-left-radius: 4px;
 }
-.bubble p { margin: 0; font-size: 15px; line-height: 1.65; white-space: pre-wrap; }
-.muted-text { color: var(--color-text-muted); font-style: italic; font-size: 13px; }
+
+.bubble p { 
+  margin: 0; 
+  font-size: 15px; 
+  line-height: 1.65; 
+  white-space: pre-wrap; 
+}
+
+.user .bubble p {
+  color: #ffffff; /* Guaranteed readability on accent background */
+}
+
+.assistant .bubble p {
+  color: var(--color-text-primary);
+}
+
+.muted-text { 
+  color: var(--color-text-muted); 
+  font-style: italic; 
+  font-size: 13px; 
+}
+
+.user .muted-text {
+  color: rgba(255, 255, 255, 0.8);
+}
 
 /* Media */
 .media-row {
@@ -503,9 +537,6 @@ const getFileIcon = (file) => {
   gap: 16px;
 }
 
-.stream-block {
-  /* margin-bottom to separate blocks in the linear flow is handled by gap above */
-}
 
 /* Tool Badge */
 .tool-badge {

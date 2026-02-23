@@ -29,18 +29,24 @@ export class ChatController {
 
         const executeAgent = () => {
             ContextService.run({ correlationId }, async () => {
-                const actualSessionId = sessionId || `session-${Date.now()}`;
+                const actualSessionId = sessionId || `session-${crypto.randomBytes(8).toString('hex')}`;
                 if (!message && (!images || images.length === 0) && (!files || files.length === 0)) {
                     return res.status(400).json({ error: 'Message or attachment is required' });
                 }
 
                 try {
+                    // Generate an initial title from the message if it's a new session
+                    const initialTitle = message ? (message.length > 40 ? message.substring(0, 40) + '...' : message) : 'New Conversation';
+
+                    // Commit skeletal session to DB immediately so it shows in sidebar
+                    await HistoryService.ensureSessionExists(userId, actualSessionId, initialTitle, modelId || undefined);
+
                     const { AgentWorkflow } = await import('../workflows/AgentWorkflow');
 
                     // Generate traceId and return immediately
                     const traceId = crypto.randomUUID();
 
-                    // Return traceId to client immediately (JSON, not SSE)
+                    // Return traceId and sessionId to client immediately
                     res.json({ traceId, sessionId: actualSessionId });
 
                     // Start workflow in background (fire-and-forget)
