@@ -317,24 +317,20 @@ export class AgentWorkflow {
                 this.state.phase = AgentPhase.EXECUTING_TOOL;
                 this.state.hasEmittedAnswerStart = false; // Reset for next turn
 
-                // If we optimistically streamed this to the answer bubble or it's stuck in buffer, retract it
-                if (streamState === 'STREAMING_ANSWER' || streamState === 'BUFFERING') {
-                    this.emit(AGENT_EVENTS.CONTENT_RESET, {});
-                }
+                // ALWAYS emit CONTENT_RESET here to pop the messy streaming thinking block AND clear any answer leak
+                this.emit(AGENT_EVENTS.CONTENT_RESET, {});
 
-                // It was a thought process leading to a tool. Clean tags and persist as THINKING event.
+                // It was a thought process leading to a tool. Clean tags and persist as FINAL THINKING event.
                 let thoughtText = fullResponse || bufferedText;
                 thoughtText = thoughtText.replace(/<thinking>|<\/thinking>|<think>|<\/think>/g, '').trim();
 
                 if (thoughtText) {
                     this.emit(AGENT_EVENTS.THINKING, {
                         step: this.state.steps,
-                        message: thoughtText
+                        message: thoughtText,
+                        isFinished: true
                     });
                 }
-
-                // Content reset for the thinking bubble UI sync (forces transition from typing thinker to static thinker card)
-                this.emit(AGENT_EVENTS.CONTENT_RESET, {});
 
                 const { usedTools, toolResults } = await ToolExecutor.executeTools(
                     fullResponse,
