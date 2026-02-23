@@ -8,21 +8,22 @@ const emit = defineEmits(['close'])
 const { t } = useLanguage()
 const knowledgeStore = useKnowledgeStore()
 
-const requests = ref([])
-const loading = ref(false)
-const errorMsg = ref('')
+const requests   = ref([])
+const loading    = ref(false)
+const errorMsg   = ref('')
 
 // Per-item action state: { [id]: 'approving' | 'rejecting' }
 const actionStates = ref({})
 
-// Inline confirmation: { id, action } or null
+// Inline confirmation: { id, action, title } or null
 const confirmDialog = ref(null)
 
 const pendingCount = computed(() => requests.value.length)
 
 const fetchRequests = async () => {
-    loading.value = true
+    loading.value  = true
     errorMsg.value = ''
+    confirmDialog.value = null // reset any open confirm when refreshing
     try {
         requests.value = await knowledgeStore.fetchPendingRequests()
     } catch (e) {
@@ -33,12 +34,10 @@ const fetchRequests = async () => {
     }
 }
 
-onMounted(() => {
-    fetchRequests()
-})
+onMounted(() => fetchRequests())
 
-const askConfirm = (id, action) => {
-    confirmDialog.value = { id, action }
+const askConfirm = (id, action, title) => {
+    confirmDialog.value = { id, action, title }
 }
 
 const cancelConfirm = () => {
@@ -49,13 +48,12 @@ const executeAction = async () => {
     if (!confirmDialog.value) return
 
     const { id, action } = confirmDialog.value
-    const stateKey = action === 'approve' ? 'approving' : 'rejecting'
-    actionStates.value[id] = stateKey
+    actionStates.value[id] = action === 'approve' ? 'approving' : 'rejecting'
     confirmDialog.value = null
+    errorMsg.value = '' // clear previous errors on new action
 
     try {
         await knowledgeStore.approvePublish(id, action)
-        // Remove the item from list with animation
         requests.value = requests.value.filter(r => r._id !== id)
     } catch (e) {
         errorMsg.value = e.message || `Failed to ${action} request`
@@ -64,14 +62,22 @@ const executeAction = async () => {
     }
 }
 
-const isProcessing = (id) => !!actionStates.value[id]
+const isProcessing   = (id) => !!actionStates.value[id]
 const getActionState = (id) => actionStates.value[id] || null
+
+const actionStateLabel = (id) => {
+    const state = getActionState(id)
+    if (state === 'approving') return t('approving') || 'Approving…'
+    if (state === 'rejecting') return t('rejecting') || 'Rejecting…'
+    return ''
+}
 </script>
 
 <template>
   <Transition name="modal-fade">
     <div class="modal-overlay" @click="$emit('close')">
       <div class="admin-modal" @click.stop role="dialog" aria-modal="true">
+
         <!-- Header -->
         <div class="modal-header">
           <div class="header-title-area">
@@ -87,11 +93,11 @@ const getActionState = (id) => actionStates.value[id] || null
             <div>
               <h3>{{ t('managePublishRequests') }}</h3>
               <span v-if="pendingCount > 0" class="header-count">
-                {{ pendingCount }} {{ t('pendingRequests').toLowerCase() }}
+                {{ pendingCount }} {{ (t('pendingRequests') || 'pending requests').toLowerCase() }}
               </span>
             </div>
           </div>
-          <button class="close-btn" @click="$emit('close')" :aria-label="t('cancel')">
+          <button class="close-btn" @click="$emit('close')" :aria-label="t('cancel') || 'Close'">
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <line x1="18" y1="6" x2="6" y2="18"></line>
               <line x1="6" y1="6" x2="18" y2="18"></line>
@@ -106,27 +112,29 @@ const getActionState = (id) => actionStates.value[id] || null
               <polyline points="23 4 23 10 17 10"></polyline>
               <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
             </svg>
-            {{ t('refreshList') }}
+            {{ t('refreshList') || 'Refresh' }}
           </button>
         </div>
 
         <!-- Body -->
         <div class="modal-body">
           <!-- Error Banner -->
-          <div v-if="errorMsg" class="error-banner">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="12" cy="12" r="10"></circle>
-              <line x1="12" y1="8" x2="12" y2="12"></line>
-              <line x1="12" y1="16" x2="12.01" y2="16"></line>
-            </svg>
-            <span>{{ errorMsg }}</span>
-            <button class="error-dismiss" @click="errorMsg = ''">×</button>
-          </div>
+          <Transition name="fade-down">
+            <div v-if="errorMsg" class="error-banner">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="12" y1="8" x2="12" y2="12"></line>
+                <line x1="12" y1="16" x2="12.01" y2="16"></line>
+              </svg>
+              <span>{{ errorMsg }}</span>
+              <button class="error-dismiss" @click="errorMsg = ''">×</button>
+            </div>
+          </Transition>
 
           <!-- Loading -->
           <div v-if="loading" class="loading-state">
             <div class="spinner"></div>
-            <span>{{ t('loadingRequests') }}</span>
+            <span>{{ t('loadingRequests') || 'Loading requests…' }}</span>
           </div>
 
           <!-- Empty State -->
@@ -137,8 +145,8 @@ const getActionState = (id) => actionStates.value[id] || null
                 <polyline points="22 4 12 14.01 9 11.01"></polyline>
               </svg>
             </div>
-            <h4>{{ t('noPendingRequests') }}</h4>
-            <p>{{ t('noPendingRequestsDesc') }}</p>
+            <h4>{{ t('noPendingRequests') || 'No pending requests' }}</h4>
+            <p>{{ t('noPendingRequestsDesc') || 'All caught up! Nothing to review right now.' }}</p>
           </div>
 
           <!-- Request Cards -->
@@ -158,7 +166,8 @@ const getActionState = (id) => actionStates.value[id] || null
                         <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
                         <circle cx="12" cy="7" r="4"></circle>
                       </svg>
-                      {{ item.ownerId }}
+                      <!-- Show ownerName when available, fallback to ownerId -->
+                      {{ item.ownerName || item.ownerId }}
                     </span>
                     <span class="meta-separator">•</span>
                     <span class="meta-item">
@@ -185,30 +194,30 @@ const getActionState = (id) => actionStates.value[id] || null
                   <template v-if="getActionState(item._id)">
                     <div class="action-processing">
                       <div class="spinner-small"></div>
-                      <span>{{ t(getActionState(item._id)) }}</span>
+                      <span>{{ actionStateLabel(item._id) }}</span>
                     </div>
                   </template>
                   <template v-else>
                     <button
                       class="btn-approve"
-                      @click="askConfirm(item._id, 'approve')"
-                      :aria-label="t('approveRequest')"
+                      @click="askConfirm(item._id, 'approve', item.title)"
+                      :aria-label="t('approveRequest') || 'Approve'"
                     >
                       <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                         <polyline points="20 6 9 17 4 12"></polyline>
                       </svg>
-                      {{ t('approveRequest') }}
+                      {{ t('approveRequest') || 'Approve' }}
                     </button>
                     <button
                       class="btn-reject"
-                      @click="askConfirm(item._id, 'reject')"
-                      :aria-label="t('rejectRequest')"
+                      @click="askConfirm(item._id, 'reject', item.title)"
+                      :aria-label="t('rejectRequest') || 'Reject'"
                     >
                       <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                         <line x1="18" y1="6" x2="6" y2="18"></line>
                         <line x1="6" y1="6" x2="18" y2="18"></line>
                       </svg>
-                      {{ t('rejectRequest') }}
+                      {{ t('rejectRequest') || 'Reject' }}
                     </button>
                   </template>
                 </div>
@@ -217,26 +226,32 @@ const getActionState = (id) => actionStates.value[id] || null
           </TransitionGroup>
         </div>
 
-        <!-- Inline Confirmation Dialog -->
+        <!-- Inline Confirmation Bar -->
         <Transition name="confirm-slide">
           <div v-if="confirmDialog" class="confirm-bar">
-            <span class="confirm-text">
-              {{ confirmDialog.action === 'approve' ? t('confirmApprove') : t('confirmReject') }}
-            </span>
+            <div class="confirm-text">
+              <span class="confirm-action-label" :class="confirmDialog.action">
+                {{ confirmDialog.action === 'approve' ? '✓ Approve' : '✗ Reject' }}
+              </span>
+              <!-- Show item title so admin knows exactly what they're acting on -->
+              <span class="confirm-item-title">"{{ confirmDialog.title }}"</span>
+              <span class="confirm-question">?</span>
+            </div>
             <div class="confirm-actions">
               <button class="btn-confirm-cancel" @click="cancelConfirm">
-                {{ t('cancel') }}
+                {{ t('cancel') || 'Cancel' }}
               </button>
               <button
                 class="btn-confirm-action"
                 :class="confirmDialog.action"
                 @click="executeAction"
               >
-                {{ t('confirm') }}
+                {{ t('confirm') || 'Confirm' }}
               </button>
             </div>
           </div>
         </Transition>
+
       </div>
     </div>
   </Transition>
@@ -253,9 +268,7 @@ const getActionState = (id) => actionStates.value[id] || null
   transition: transform 0.25s ease, opacity 0.25s ease;
 }
 .modal-fade-enter-from,
-.modal-fade-leave-to {
-  opacity: 0;
-}
+.modal-fade-leave-to { opacity: 0; }
 .modal-fade-enter-from .admin-modal {
   transform: translateY(16px) scale(0.97);
   opacity: 0;
@@ -268,10 +281,7 @@ const getActionState = (id) => actionStates.value[id] || null
 /* ─── Overlay ────────────────────────────────────────────────── */
 .modal-overlay {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  inset: 0;
   background: rgba(0, 0, 0, 0.5);
   display: flex;
   justify-content: center;
@@ -307,6 +317,7 @@ const getActionState = (id) => actionStates.value[id] || null
   display: flex;
   justify-content: space-between;
   align-items: center;
+  flex-shrink: 0;
 }
 
 .header-title-area {
@@ -364,6 +375,7 @@ const getActionState = (id) => actionStates.value[id] || null
   display: flex;
   justify-content: flex-end;
   background: var(--color-bg-tertiary);
+  flex-shrink: 0;
 }
 
 .btn-refresh {
@@ -385,18 +397,13 @@ const getActionState = (id) => actionStates.value[id] || null
   color: var(--color-text-primary);
   border-color: var(--color-text-muted);
 }
-.btn-refresh:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
+.btn-refresh:disabled { opacity: 0.5; cursor: not-allowed; }
 
-.spinning {
-  animation: spin 1s linear infinite;
-}
+.spinning { animation: spin 1s linear infinite; }
 
 @keyframes spin {
   from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  to   { transform: rotate(360deg); }
 }
 
 /* ─── Body ───────────────────────────────────────────────────── */
@@ -420,6 +427,7 @@ const getActionState = (id) => actionStates.value[id] || null
   margin-bottom: 16px;
 }
 .error-banner span { flex: 1; }
+
 .error-dismiss {
   background: none;
   border: none;
@@ -429,6 +437,11 @@ const getActionState = (id) => actionStates.value[id] || null
   padding: 0 4px;
   line-height: 1;
 }
+
+.fade-down-enter-active,
+.fade-down-leave-active { transition: all 0.2s ease; }
+.fade-down-enter-from   { opacity: 0; transform: translateY(-8px); }
+.fade-down-leave-to     { opacity: 0; transform: translateY(-8px); }
 
 /* ─── Loading ────────────────────────────────────────────────── */
 .loading-state {
@@ -498,6 +511,7 @@ const getActionState = (id) => actionStates.value[id] || null
   display: flex;
   flex-direction: column;
   gap: 10px;
+  position: relative; /* needed for TransitionGroup leave animation */
 }
 
 .request-card {
@@ -523,10 +537,7 @@ const getActionState = (id) => actionStates.value[id] || null
   gap: 12px;
 }
 
-.card-left {
-  flex: 1;
-  min-width: 0;
-}
+.card-left { flex: 1; min-width: 0; }
 
 .item-title {
   font-weight: 600;
@@ -543,17 +554,11 @@ const getActionState = (id) => actionStates.value[id] || null
   gap: 6px;
   font-size: 12px;
   color: var(--color-text-muted);
+  flex-wrap: wrap;
 }
 
-.meta-item {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.meta-separator {
-  color: var(--color-border);
-}
+.meta-item { display: flex; align-items: center; gap: 4px; }
+.meta-separator { color: var(--color-border); }
 
 .card-center {
   display: flex;
@@ -579,11 +584,7 @@ const getActionState = (id) => actionStates.value[id] || null
   letter-spacing: 0.5px;
 }
 
-.card-actions {
-  display: flex;
-  gap: 8px;
-  flex-shrink: 0;
-}
+.card-actions { display: flex; gap: 8px; flex-shrink: 0; }
 
 .action-processing {
   display: flex;
@@ -609,18 +610,14 @@ const getActionState = (id) => actionStates.value[id] || null
   white-space: nowrap;
 }
 
-.btn-approve {
-  background: linear-gradient(135deg, #10b981, #059669);
-}
+.btn-approve { background: linear-gradient(135deg, #10b981, #059669); }
 .btn-approve:hover {
   background: linear-gradient(135deg, #059669, #047857);
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
 }
 
-.btn-reject {
-  background: linear-gradient(135deg, #ef4444, #dc2626);
-}
+.btn-reject { background: linear-gradient(135deg, #ef4444, #dc2626); }
 .btn-reject:hover {
   background: linear-gradient(135deg, #dc2626, #b91c1c);
   transform: translateY(-1px);
@@ -628,25 +625,15 @@ const getActionState = (id) => actionStates.value[id] || null
 }
 
 /* ─── Card List Transition ───────────────────────────────────── */
-.card-list-enter-active {
-  transition: all 0.3s ease;
-}
+.card-list-enter-active { transition: all 0.3s ease; }
 .card-list-leave-active {
   transition: all 0.3s ease;
   position: absolute;
   width: 100%;
 }
-.card-list-enter-from {
-  opacity: 0;
-  transform: translateX(-20px);
-}
-.card-list-leave-to {
-  opacity: 0;
-  transform: translateX(20px);
-}
-.card-list-move {
-  transition: transform 0.3s ease;
-}
+.card-list-enter-from { opacity: 0; transform: translateX(-20px); }
+.card-list-leave-to   { opacity: 0; transform: translateX(20px);  }
+.card-list-move       { transition: transform 0.3s ease; }
 
 /* ─── Confirmation Bar ───────────────────────────────────────── */
 .confirm-bar {
@@ -662,6 +649,7 @@ const getActionState = (id) => actionStates.value[id] || null
   border-top: 1px solid var(--color-border);
   box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.08);
   z-index: 10;
+  gap: 12px;
 }
 
 .confirm-text {
@@ -669,12 +657,31 @@ const getActionState = (id) => actionStates.value[id] || null
   font-weight: 500;
   color: var(--color-text-primary);
   flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  min-width: 0;
 }
 
-.confirm-actions {
-  display: flex;
-  gap: 8px;
+.confirm-action-label {
+  font-weight: 700;
+  white-space: nowrap;
 }
+.confirm-action-label.approve { color: #10b981; }
+.confirm-action-label.reject  { color: #ef4444; }
+
+.confirm-item-title {
+  color: var(--color-text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 200px;
+}
+
+.confirm-question { color: var(--color-text-muted); }
+
+.confirm-actions { display: flex; gap: 8px; flex-shrink: 0; }
 
 .btn-confirm-cancel {
   padding: 7px 16px;
@@ -686,10 +693,9 @@ const getActionState = (id) => actionStates.value[id] || null
   font-weight: 500;
   cursor: pointer;
   transition: all 0.15s ease;
+  white-space: nowrap;
 }
-.btn-confirm-cancel:hover {
-  background: var(--color-bg-hover);
-}
+.btn-confirm-cancel:hover { background: var(--color-bg-hover); }
 
 .btn-confirm-action {
   padding: 7px 16px;
@@ -700,25 +706,16 @@ const getActionState = (id) => actionStates.value[id] || null
   font-weight: 600;
   cursor: pointer;
   transition: all 0.15s ease;
+  white-space: nowrap;
 }
-.btn-confirm-action.approve {
-  background: #10b981;
-}
-.btn-confirm-action.approve:hover {
-  background: #059669;
-}
-.btn-confirm-action.reject {
-  background: #ef4444;
-}
-.btn-confirm-action.reject:hover {
-  background: #dc2626;
-}
+.btn-confirm-action.approve { background: #10b981; }
+.btn-confirm-action.approve:hover { background: #059669; }
+.btn-confirm-action.reject  { background: #ef4444; }
+.btn-confirm-action.reject:hover  { background: #dc2626; }
 
 /* ─── Confirm Bar Transition ─────────────────────────────────── */
 .confirm-slide-enter-active,
-.confirm-slide-leave-active {
-  transition: all 0.25s ease;
-}
+.confirm-slide-leave-active { transition: all 0.25s ease; }
 .confirm-slide-enter-from,
 .confirm-slide-leave-to {
   transform: translateY(100%);
@@ -751,11 +748,18 @@ const getActionState = (id) => actionStates.value[id] || null
     flex-direction: column;
     gap: 10px;
     align-items: stretch;
+  }
+
+  .confirm-text {
+    justify-content: center;
     text-align: center;
   }
 
-  .confirm-actions {
-    justify-content: center;
-  }
+  .confirm-item-title { max-width: 100%; }
+
+  .confirm-actions { justify-content: center; }
+
+  .btn-confirm-cancel,
+  .btn-confirm-action { flex: 1; text-align: center; }
 }
 </style>
