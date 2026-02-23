@@ -13,7 +13,7 @@ export const QUOTA_CONFIG = {
 
     /** If true, the backend will reject requests that exceed the daily limit.
      *  If false, the limit is advisory-only (soft limit). */
-    HARD_LIMIT_ENABLED: process.env.DAILY_TOKEN_HARD_LIMIT === 'true',
+    HARD_LIMIT_ENABLED: process.env.DAILY_TOKEN_HARD_LIMIT !== 'false',
 
     /** Label displayed in the frontend for the quota unit. */
     UNIT_LABEL: 'cost units',

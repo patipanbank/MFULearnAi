@@ -35,6 +35,16 @@ const translations = {
         uploadFile: 'อัพโหลดไฟล์',
         copy: 'คัดลอก',
         copied: 'คัดลอกแล้ว',
+
+        // Tools
+        'tool.search': 'ค้นหาข้อมูล',
+        'tool.checkPolicy': 'ตรวจสอบระเบียบ',
+        'tool.calculator': 'คำนวณ',
+        'tool.mcp': 'เครื่องมือ MCP',
+        'tool.using': 'กำลังใช้',
+        'tool.done': 'เสร็จสิ้น',
+        'tool.failed': 'ล้มเหลว',
+
         activeKnowledge: 'แหล่งความรู้ที่ใช้งาน:',
         selectContext: 'เลือกบริบท',
         defaultCollection: 'คอลเลกชันมาตรฐาน (จัดการโดยแอดมิน)',
@@ -226,6 +236,16 @@ const translations = {
         uploadFile: 'Upload File',
         copy: 'Copy',
         copied: 'Copied',
+
+        // Tools
+        'tool.search': 'Searching',
+        'tool.checkPolicy': 'Checking Policy',
+        'tool.calculator': 'Calculating',
+        'tool.mcp': 'MCP Tool',
+        'tool.using': 'Using',
+        'tool.done': 'Done',
+        'tool.failed': 'Failed',
+
         activeKnowledge: 'Active Knowledge:',
         selectContext: 'Select Context',
         defaultCollection: 'Default Collection (Admin Managed)',

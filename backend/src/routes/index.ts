@@ -6,6 +6,7 @@ import { AuthController } from '../controllers/AuthController';
 import { AuthService } from '../auth/AuthService';
 import { RateLimiter } from '../middleware/rateLimiter';
 import { rateLimitByKey } from '../middleware/ApiKeyLimiter';
+import { quotaEnforcer } from '../middleware/quotaEnforcer';
 import apiKeyRoutes from './api-keys';
 
 const router = Router();
@@ -30,7 +31,7 @@ router.delete('/departments/:id', checkAuth, AuthService.requireRole(['superadmi
 router.use('/keys', apiKeyRoutes);
 
 // Chat Routes
-router.post('/chat', checkAuth, RateLimiter.limit, rateLimitByKey, ChatController.chat);
+router.post('/chat', checkAuth, RateLimiter.limit, rateLimitByKey, quotaEnforcer, ChatController.chat);
 router.get('/chat/models', checkAuth, ChatController.getModels);
 router.get('/chat/attachment/*', checkAuth, ChatController.downloadAttachment);
 router.post('/chat/feedback', checkAuth, ChatController.submitFeedback);

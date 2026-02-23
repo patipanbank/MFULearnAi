@@ -76,7 +76,8 @@ export class PromptBuilder {
         const knownTools = ['search', 'check_policy', 'calculator'];
         const extraTools = toolNames.filter(name => !knownTools.includes(name));
         if (extraTools.length > 0) {
-            toolInstructions += `- Use these additional tools when appropriate: ${extraTools.join(', ')}.\n`;
+            toolInstructions += `- You also have these tools: ${extraTools.join(', ')}. Use them when appropriate.\n`;
+            toolInstructions += `- IMPORTANT: When multiple tools provide overlapping information, prefer a SINGLE tool call that answers the question best. Do NOT call multiple tools for the same data.\n`;
         }
 
         systemBlocks.push({

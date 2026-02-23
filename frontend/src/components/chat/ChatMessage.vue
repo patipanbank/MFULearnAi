@@ -90,12 +90,19 @@ const toolLabel = (name) => {
     calculator: props.t('tool.calculator'),
     mcp: props.t('tool.mcp')
   }
-  return labels[name] || `Using ${name}`
+  if (labels[name]) return labels[name]
+  // Format unknown/MCP tool names: snake_case → Title Case
+  return name.replace(/[_-]/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
 }
 
 const toolIcon = (name) => {
   const icons = { search: '🔍', check_policy: '📋', calculator: '🧮', mcp: '🏫' }
   return icons[name] || '🔧'
+}
+
+const toolStatusLabel = (evt) => {
+  if (!evt.isToolComplete) return ''
+  return evt.success ? props.t('tool.done') : props.t('tool.failed')
 }
 
 const viewImage = (src) => { viewingImage.value = src }
@@ -303,18 +310,26 @@ const getFileIcon = (file) => {
                   </div>
                   
                   <!-- Tool Badge -->
-                  <div v-else-if="evt.type === 'tool_start'" class="tool-badge">
+                  <div v-else-if="evt.type === 'tool_start'" 
+                       class="tool-badge" 
+                       :class="{ 'tool-active': !evt.isToolComplete, 'tool-done': evt.isToolComplete && evt.success, 'tool-error': evt.isToolComplete && !evt.success }">
                     <div class="tool-badge-header">
-                      <span class="tool-icon">{{ toolIcon(evt.toolName) }}</span>
+                      <span class="tool-icon-wrap">
+                        <span class="tool-icon">{{ toolIcon(evt.toolName) }}</span>
+                        <span v-if="!evt.isToolComplete" class="tool-icon-ring" />
+                      </span>
                       <span class="tool-name">{{ toolLabel(evt.toolName) }}</span>
                       
                       <!-- Status -->
-                      <span v-if="evt.isToolComplete" class="tool-status" :class="evt.success ? 'ok' : 'err'">
-                        {{ evt.success ? '✓' : '✗' }}
-                      </span>
-                      <div v-else class="tool-status active">
-                        <span class="dot-pulse"/><span class="dot-pulse"/><span class="dot-pulse"/>
-                      </div>
+                      <transition name="tool-status-fade">
+                        <span v-if="evt.isToolComplete" class="tool-status" :class="evt.success ? 'ok' : 'err'">
+                          <span class="status-icon">{{ evt.success ? '✓' : '✗' }}</span>
+                          <span class="status-text">{{ toolStatusLabel(evt) }}</span>
+                        </span>
+                        <div v-else class="tool-status active">
+                          <span class="dot-pulse"/><span class="dot-pulse"/><span class="dot-pulse"/>
+                        </div>
+                      </transition>
 
                       <!-- Duration -->
                       <span v-if="evt.durationMs" class="tool-meta">{{ evt.durationMs }}ms</span>
@@ -519,10 +534,36 @@ const getFileIcon = (file) => {
   padding: 10px 14px;
   margin: 4px 0;
   max-width: 400px;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.03);
   display: flex;
   flex-direction: column;
   gap: 4px;
+  animation: tool-slide-in 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: border-color 0.4s ease, box-shadow 0.4s ease, background 0.4s ease;
+}
+
+.tool-badge.tool-active {
+  border-color: color-mix(in srgb, var(--color-accent, #6366f1) 40%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-accent, #6366f1) 10%, transparent),
+              0 2px 8px color-mix(in srgb, var(--color-accent, #6366f1) 8%, transparent);
+}
+
+.tool-badge.tool-done {
+  border-color: color-mix(in srgb, #16a34a 25%, var(--color-border));
+}
+
+.tool-badge.tool-error {
+  border-color: color-mix(in srgb, #dc2626 25%, var(--color-border));
+}
+
+@keyframes tool-slide-in {
+  0% {
+    opacity: 0;
+    transform: translateY(6px) scale(0.97);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 .tool-badge-header {
@@ -534,25 +575,113 @@ const getFileIcon = (file) => {
   color: var(--color-text-primary);
 }
 
+.tool-icon-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+}
+
 .tool-icon {
   font-size: 14px;
+  position: relative;
+  z-index: 1;
+}
+
+.tool-icon-ring {
+  position: absolute;
+  inset: -2px;
+  border-radius: 50%;
+  border: 1.5px solid color-mix(in srgb, var(--color-accent, #6366f1) 50%, transparent);
+  animation: ring-pulse 2s ease-in-out infinite;
+}
+
+@keyframes ring-pulse {
+  0%, 100% { opacity: 0.3; transform: scale(1); }
+  50% { opacity: 0.8; transform: scale(1.15); }
 }
 
 .tool-name {
   flex: 1;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.tool-active .tool-name {
+  color: var(--color-accent, #6366f1);
 }
 
 .tool-status {
   font-size: 12px;
   font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
-.tool-status.ok { color: #16a34a; }
-.tool-status.err { color: #dc2626; }
+
+.tool-status.ok {
+  color: #16a34a;
+}
+
+.tool-status.ok .status-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: color-mix(in srgb, #16a34a 12%, transparent);
+  font-size: 10px;
+  animation: status-pop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.tool-status.err {
+  color: #dc2626;
+}
+
+.tool-status.err .status-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: color-mix(in srgb, #dc2626 12%, transparent);
+  font-size: 10px;
+  animation: status-pop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.status-text {
+  font-size: 11px;
+  font-weight: 500;
+  opacity: 0.85;
+}
+
+@keyframes status-pop {
+  0% { transform: scale(0); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/* Status transition */
+.tool-status-fade-enter-active { transition: opacity 0.3s ease, transform 0.3s ease; }
+.tool-status-fade-leave-active { transition: opacity 0.15s ease; position: absolute; }
+.tool-status-fade-enter-from { opacity: 0; transform: scale(0.8); }
+.tool-status-fade-leave-to { opacity: 0; }
+
 .tool-status.active { display: flex; align-items: center; gap: 3px; }
 
 .tool-meta {
   font-size: 11px;
   color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+  opacity: 0;
+  animation: fade-in-meta 0.3s ease 0.15s forwards;
+}
+
+@keyframes fade-in-meta {
+  to { opacity: 1; }
 }
 
 .tool-query {
@@ -560,7 +689,8 @@ const getFileIcon = (file) => {
   color: var(--color-text-secondary);
   font-style: italic;
   margin-top: 2px;
-  margin-left: 22px; /* align with text ignoring icon */
+  margin-left: 30px; /* align with text ignoring icon */
+  opacity: 0.85;
 }
 
 .inline-dots {
