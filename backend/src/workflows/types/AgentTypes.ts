@@ -116,8 +116,8 @@ export const AGENT_EVENTS = {
     FILE_PROGRESS: 'file_progress',
     FILE_UPLOADED: 'file_uploaded',
     TITLE: 'title',
-    CONTENT_RESET: 'content_reset',
     THINKING_DELTA: 'thinking_delta',
+    THINKING_END: 'thinking_end',
     ERROR: 'error',
 } as const;
 

@@ -254,8 +254,8 @@ export class AgentWorkflow {
             let firstTokenTime: number | null = null;
             let bufferedText = '';
 
-            // Smart Buffering State
-            let streamState: string = 'BUFFERING';
+            // Redesigned: Explicit Timeline State Parsing
+            let isThinking = false;
 
             this.state.phase = AgentPhase.GENERATING_RESPONSE;
 
@@ -266,30 +266,72 @@ export class AgentWorkflow {
                 (delta) => {
                     if (!firstTokenTime) firstTokenTime = Date.now();
 
-                    if (streamState === 'STREAMING_THINKING') {
-                        this.emit(AGENT_EVENTS.THINKING_DELTA, { delta });
-                    } else if (streamState === 'STREAMING_ANSWER') {
-                        this.emit(AGENT_EVENTS.ANSWER_DELTA, { delta });
-                    } else {
-                        // BUFFERING STREAM
-                        bufferedText += delta;
+                    bufferedText += delta;
 
-                        // Check if it's a thinking tag
-                        if (bufferedText.startsWith('<thinking>') || bufferedText.startsWith('<think>')) {
-                            streamState = 'STREAMING_THINKING';
-                            this.emit(AGENT_EVENTS.THINKING_DELTA, { delta: bufferedText });
+                    // Check for tag transitions in the accumulated buffer
+                    if (!isThinking && bufferedText.includes('<thinking>')) {
+                        isThinking = true;
+                        // Extract anything before <thinking> as answer if it exists (unlikely but safe)
+                        const beforeThink = bufferedText.split('<thinking>')[0];
+                        if (beforeThink.trim()) {
+                            if (!this.state.hasEmittedAnswerStart) {
+                                this.determineAnswerMode(beforeThink);
+                                this.emit(AGENT_EVENTS.ANSWER_START, { answerMode: this.state.answerMode });
+                                this.state.hasEmittedAnswerStart = true;
+                            }
+                            this.emit(AGENT_EVENTS.ANSWER_DELTA, { delta: beforeThink });
                         }
-                        // Wait for a few tokens to clearly identify if it's NOT a thinking tag
-                        else if (bufferedText.length > 15 || (bufferedText.length > 0 && !'<thinking>'.startsWith(bufferedText) && !'<think>'.startsWith(bufferedText))) {
-                            streamState = 'STREAMING_ANSWER';
+
+                        // Emit the opening delta for the thought
+                        const afterThink = bufferedText.split('<thinking>')[1];
+                        if (afterThink) {
+                            this.emit(AGENT_EVENTS.THINKING_DELTA, { delta: afterThink });
+                        }
+                        bufferedText = ''; // Clear buffer since we handled it
+                        return;
+                    }
+
+                    if (isThinking && bufferedText.includes('</thinking>')) {
+                        isThinking = false;
+
+                        // Extract the thought content
+                        const beforeEndThink = bufferedText.split('</thinking>')[0];
+                        if (beforeEndThink) {
+                            this.emit(AGENT_EVENTS.THINKING_DELTA, { delta: beforeEndThink });
+                        }
+
+                        // Close the thought block
+                        this.emit(AGENT_EVENTS.THINKING_END, { step: this.state.steps });
+
+                        // Any text after </thinking> is standard answer
+                        const afterEndThink = bufferedText.split('</thinking>')[1];
+                        if (afterEndThink) {
+                            if (!this.state.hasEmittedAnswerStart) {
+                                this.determineAnswerMode(afterEndThink);
+                                this.emit(AGENT_EVENTS.ANSWER_START, { answerMode: this.state.answerMode });
+                                this.state.hasEmittedAnswerStart = true;
+                            }
+                            this.emit(AGENT_EVENTS.ANSWER_DELTA, { delta: afterEndThink });
+                        }
+                        bufferedText = ''; // Clear buffer
+                        return;
+                    }
+
+                    // Normal streaming depending on state
+                    if (isThinking) {
+                        this.emit(AGENT_EVENTS.THINKING_DELTA, { delta });
+                    } else {
+                        // We are outside <thinking>. If we haven't seen <thinking> yet, 
+                        // we must ensure we aren't splitting a tag like "<thin".
+                        // Wait until buffer is large enough to know it's not a tag.
+                        if (bufferedText.length > 15 || (bufferedText.length > 0 && !'<thinking>'.startsWith(bufferedText))) {
                             if (!this.state.hasEmittedAnswerStart) {
                                 this.determineAnswerMode(bufferedText);
                                 this.emit(AGENT_EVENTS.ANSWER_START, { answerMode: this.state.answerMode });
                                 this.state.hasEmittedAnswerStart = true;
                             }
-                            // Retract any unfinished thinking block if there was one by chance
-                            this.emit(AGENT_EVENTS.CONTENT_RESET, {});
                             this.emit(AGENT_EVENTS.ANSWER_DELTA, { delta: bufferedText });
+                            bufferedText = ''; // Clear buffer since it's flushed
                         }
                     }
                 },
@@ -317,19 +359,9 @@ export class AgentWorkflow {
                 this.state.phase = AgentPhase.EXECUTING_TOOL;
                 this.state.hasEmittedAnswerStart = false; // Reset for next turn
 
-                // ALWAYS emit CONTENT_RESET here to pop the messy streaming thinking block AND clear any answer leak
-                this.emit(AGENT_EVENTS.CONTENT_RESET, {});
-
-                // It was a thought process leading to a tool. Clean tags and persist as FINAL THINKING event.
-                let thoughtText = fullResponse || bufferedText;
-                thoughtText = thoughtText.replace(/<thinking>|<\/thinking>|<think>|<\/think>/g, '').trim();
-
-                if (thoughtText) {
-                    this.emit(AGENT_EVENTS.THINKING, {
-                        step: this.state.steps,
-                        message: thoughtText,
-                        isFinished: true
-                    });
+                // Force close the thought block if the LLM didn't close it explicitly before calling the tool
+                if (isThinking) {
+                    this.emit(AGENT_EVENTS.THINKING_END, { step: this.state.steps });
                 }
 
                 const { usedTools, toolResults } = await ToolExecutor.executeTools(
@@ -361,25 +393,19 @@ export class AgentWorkflow {
                 this.state.phase = AgentPhase.COMPLETED;
                 // Final Answer Logic
 
-                // Clean any stray thinking tags from the final string
-                const cleanResponse = fullResponse.replace(/<thinking>|<\/thinking>|<think>|<\/think>/g, '');
+                // Force close thought block if omitted by LLM
+                if (isThinking) {
+                    this.emit(AGENT_EVENTS.THINKING_END, { step: this.state.steps });
+                }
+
+                // Clean any stray thinking tags from the final string for the DB message history
+                const cleanResponse = fullResponse.replace(/<thinking>[\s\S]*?<\/thinking>/g, '').trim();
 
                 // If we haven't emitted START yet, emit now
-                if (!this.state.hasEmittedAnswerStart) {
+                if (!this.state.hasEmittedAnswerStart && cleanResponse) {
                     this.determineAnswerMode(cleanResponse);
                     this.emit(AGENT_EVENTS.ANSWER_START, { answerMode: this.state.answerMode });
                     this.state.hasEmittedAnswerStart = true;
-                }
-
-                // If it was somehow stuck in buffer or in thinking stream, ensure clean up
-                if (streamState === 'BUFFERING') {
-                    this.emit(AGENT_EVENTS.CONTENT_RESET, {});
-                    this.emit(AGENT_EVENTS.ANSWER_DELTA, { delta: cleanResponse });
-                } else if (streamState === 'STREAMING_THINKING') {
-                    // Oops, the model thought the entire answer using <thinking> tags and stopped?
-                    // Retract thinking and bump to answer
-                    this.emit(AGENT_EVENTS.CONTENT_RESET, {});
-                    this.emit(AGENT_EVENTS.ANSWER_DELTA, { delta: cleanResponse });
                 }
 
                 // 3. Update State & Emit DONE

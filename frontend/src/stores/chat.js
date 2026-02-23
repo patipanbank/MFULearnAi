@@ -343,33 +343,7 @@ export const useChatStore = defineStore('chat', () => {
 
             if (data.type === 'answer_delta') {
                 const msg = messages.value[assistantIndex]
-                const mode = msg?.answerMode || 'text'
-
-                if (mode === 'tool_use' || mode === 'agent') {
-                    ensureEvents()
-                    const events = msg.agentEvents
-                    const lastEvt = events[events.length - 1]
-
-                    if (lastEvt && lastEvt.type === 'thinking' && !lastEvt.isFinished) {
-                        lastEvt.message = (lastEvt.message || '') + data.delta
-                    } else {
-                        // Start new thinking block
-                        // Find max step
-                        const maxStep = events.length > 0 ? Math.max(...events.map(e => e.step || 0)) : 0
-
-                        msg.agentEvents.push({
-                            type: 'thinking',
-                            message: data.delta,
-                            step: maxStep + 1,
-                            receivedAt: Date.now(),
-                            isFinished: false,
-                            isActive: true
-                        })
-                    }
-                } else {
-                    // Normal text response
-                    if (msg) msg.content += data.delta
-                }
+                if (msg) msg.content += data.delta
             }
 
             // Status Updates
@@ -425,24 +399,6 @@ export const useChatStore = defineStore('chat', () => {
                 }
             }
 
-            // Content Reset (Retract thinking that leaked into content)
-            if (data.type === 'content_reset') {
-                console.log('[ChatStore] Resetting content (migrated to thinking)')
-                messages.value[assistantIndex].content = ''
-
-                // Also remove the last unfinished thinking block if it exists,
-                // because it contains the final answer text that was streamed
-                // via THINKING_DELTA before we knew it was the final answer.
-                ensureEvents()
-                const events = messages.value[assistantIndex].agentEvents
-                if (events.length > 0) {
-                    const lastEvt = events[events.length - 1]
-                    if (lastEvt.type === 'thinking' && !lastEvt.isFinished) {
-                        events.pop()
-                    }
-                }
-            }
-
             // Thinking Delta (Real-time updates for Thinking Card)
             if (data.type === 'thinking_delta') {
                 ensureEvents()
@@ -463,6 +419,17 @@ export const useChatStore = defineStore('chat', () => {
                         isFinished: false,
                         isActive: true
                     })
+                }
+            }
+
+            // Thinking End
+            if (data.type === 'thinking_end') {
+                ensureEvents()
+                const events = messages.value[assistantIndex].agentEvents
+                const lastEvt = events[events.length - 1]
+                if (lastEvt && lastEvt.type === 'thinking' && !lastEvt.isFinished) {
+                    lastEvt.isFinished = true
+                    lastEvt.isActive = false
                 }
             }
 
