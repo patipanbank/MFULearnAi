@@ -107,7 +107,7 @@ export class ResultPersister {
                 ctx.modelId || MODELS.PRIMARY
             );
 
-            LoggerService.info('chat_completion_stored', {
+            LoggerService.info('chat_completion', {
                 tokens: totalUsage,
                 weightedTokens,
                 model: ctx.modelId || MODELS.PRIMARY,

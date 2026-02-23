@@ -363,54 +363,55 @@ app.get('/api/logs/usage/me', async (req: Request, res: Response) => {
         const startOfDayUTC = new Date(new Date(bangkokNow.getUTCFullYear(), bangkokNow.getUTCMonth(), bangkokNow.getUTCDate()).getTime() - TZ_OFFSET);
 
         // Aggregate User Stats
+        // Weighted token aggregation: use `details.weightedTokens` if present (new entries), fall back to raw tokens (migration-safe).
+        const weightedTokenExpr = {
+            $ifNull: [
+                "$details.weightedTokens",
+                {
+                    $cond: [
+                        { $eq: ["$action", "chat_completion"] },
+                        { $ifNull: ["$details.tokens.total", 0] },
+                        { $ifNull: ["$details.totalTokens", 0] }
+                    ]
+                }
+            ]
+        };
+
+        const rawTokenExpr = {
+            $cond: [
+                { $eq: ["$action", "chat_completion"] },
+                { $ifNull: ["$details.tokens.total", 0] },
+                { $ifNull: ["$details.totalTokens", 0] }
+            ]
+        };
+
+        const matchFilter = {
+            action: { $in: ['chat_completion', 'agent_reliability_telemetry'] },
+            environment: ENV_TYPE,
+            userId: userId
+        };
+
         const [userTotal, userToday] = await Promise.all([
             // All Time for User
             LogEntry.aggregate([
-                {
-                    $match: {
-                        action: { $in: ['chat_completion', 'agent_reliability_telemetry'] },
-                        environment: ENV_TYPE,
-                        userId: userId
-                    }
-                },
+                { $match: matchFilter },
                 {
                     $group: {
                         _id: null,
-                        tokens: {
-                            $sum: {
-                                $cond: [
-                                    { $eq: ["$action", "chat_completion"] },
-                                    { $ifNull: ["$details.tokens.total", 0] },
-                                    { $ifNull: ["$details.totalTokens", 0] }
-                                ]
-                            }
-                        },
+                        tokens: { $sum: rawTokenExpr },
+                        weightedTokens: { $sum: weightedTokenExpr },
                         requests: { $sum: 1 }
                     }
                 }
             ]),
             // Today for User
             LogEntry.aggregate([
-                {
-                    $match: {
-                        action: { $in: ['chat_completion', 'agent_reliability_telemetry'] },
-                        environment: ENV_TYPE,
-                        userId: userId,
-                        timestamp: { $gte: startOfDayUTC }
-                    }
-                },
+                { $match: { ...matchFilter, timestamp: { $gte: startOfDayUTC } } },
                 {
                     $group: {
                         _id: null,
-                        tokens: {
-                            $sum: {
-                                $cond: [
-                                    { $eq: ["$action", "chat_completion"] },
-                                    { $ifNull: ["$details.tokens.total", 0] },
-                                    { $ifNull: ["$details.totalTokens", 0] }
-                                ]
-                            }
-                        },
+                        tokens: { $sum: rawTokenExpr },
+                        weightedTokens: { $sum: weightedTokenExpr },
                         requests: { $sum: 1 }
                     }
                 }
@@ -420,10 +421,12 @@ app.get('/api/logs/usage/me', async (req: Request, res: Response) => {
         res.json({
             total: {
                 tokens: userTotal[0]?.tokens || 0,
+                weightedTokens: userTotal[0]?.weightedTokens || 0,
                 requests: userTotal[0]?.requests || 0
             },
             today: {
                 tokens: userToday[0]?.tokens || 0,
+                weightedTokens: userToday[0]?.weightedTokens || 0,
                 requests: userToday[0]?.requests || 0
             }
         });

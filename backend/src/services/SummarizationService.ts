@@ -76,7 +76,7 @@ Output: Updated Canonical Memory (Text only).
     ) {
         try {
             // 1. Generate New Rolling Summary
-            let newRolling = await this.generateRollingSummary(currentContext.rolling, newMessages);
+            let newRolling = await this.generateRollingSummary(currentContext.rolling, newMessages, userId);
 
             // 1.1 TENTATIVE PROMOTION (Semantic Normalization)
             newRolling = this.applyTentativePromotion(currentContext.rolling, newRolling);
@@ -102,7 +102,7 @@ Output: Updated Canonical Memory (Text only).
             const shouldCanonize = this.shouldCanonize(targetVersion, newRolling.confidence_score, isDuplicate, volatility.blocked);
 
             if (shouldCanonize) {
-                newCanonical = await this.canonize(currentContext.canonical, newRolling);
+                newCanonical = await this.canonize(currentContext.canonical, newRolling, userId);
                 LoggerService.info(`[SmartContext] Canonization successful for ${sessionId}`);
             } else if (targetVersion % this.CANONIZATION_INTERVAL === 0) {
                 // Log skip reason at canonization intervals for observability
@@ -282,7 +282,8 @@ Output: Updated Canonical Memory (Text only).
 
     static async generateRollingSummary(
         currentRolling: RollingContext,
-        newMessages: ChatMessage[]
+        newMessages: ChatMessage[],
+        userId?: string
     ): Promise<RollingContext> {
         // ChatMessage.content is always string per the shared type definition
         const extractText = (content: string | undefined): string => String(content || '');
@@ -312,7 +313,7 @@ ${newMessages.map(m => `${m.role}: ${extractText(m.content)}`).join('\n')}
                     model: SYSTEM_MODELS.SUMMARIZE,
                     action: 'rolling_summary',
                     isBackground: true
-                });
+                }, userId);
             }
 
             // Robust SENTINEL Parsing
@@ -344,7 +345,8 @@ ${newMessages.map(m => `${m.role}: ${extractText(m.content)}`).join('\n')}
 
     static async canonize(
         currentCanonical: string,
-        rollingContext: RollingContext
+        rollingContext: RollingContext,
+        userId?: string
     ): Promise<string> {
         const prompt = `
 Current Canonical:
@@ -369,7 +371,7 @@ ${JSON.stringify(rollingContext, null, 2)}
                     model: SYSTEM_MODELS.SUMMARIZE,
                     action: 'canonization',
                     isBackground: true
-                });
+                }, userId);
             }
             return response.trim();
         } catch (e) {
@@ -402,7 +404,7 @@ ${JSON.stringify(rollingContext, null, 2)}
                     model: SYSTEM_MODELS.UTILITY,
                     action: 'title_generation',
                     isBackground: true
-                });
+                }, userId);
             }
 
             const cleanedTitle = rawTitle.replace(/["'{}\[\]]/g, '').trim();
