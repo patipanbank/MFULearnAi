@@ -4,14 +4,25 @@
 <head>
   <meta charset="UTF-8" />
   <link rel="icon" type="image/png" href="/src/assets/dindin-ai.png" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <!-- Safari 26+ browser chrome color (header/footer bars) -->
-  <meta name="theme-color" content="#0f0f0f" media="(prefers-color-scheme: dark)" />
-  <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
-  <!-- Apple-specific status bar style -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <!-- Safari browser chrome color (status bar + URL bar) - JS updates this dynamically -->
+  <meta name="theme-color" id="meta-theme-color" content="#ffffff" />
+  <!-- Apple-specific -->
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <title>DinDin AI</title>
+  <!-- Apply theme BEFORE first paint to prevent white flash on Safari -->
+  <script>
+    (function() {
+      var t = localStorage.getItem('mful_theme');
+      var d = t ? t === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
+      var theme = d ? 'dark' : 'light';
+      document.documentElement.setAttribute('data-theme', theme);
+      document.documentElement.style.colorScheme = theme;
+      var m = document.getElementById('meta-theme-color');
+      if (m) m.setAttribute('content', d ? '#0f0f0f' : '#ffffff');
+    })();
+  </script>
 </head>
 
 <body>

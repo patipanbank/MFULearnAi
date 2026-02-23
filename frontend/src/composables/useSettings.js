@@ -433,18 +433,17 @@ export function useTheme() {
         document.documentElement.setAttribute('data-theme', theme)
         localStorage.setItem(THEME_KEY, theme)
 
-        // Update color-scheme for Safari 26+ browser chrome (header/footer bars)
+        // Safari 26+: color-scheme tells the browser which scheme we're using
+        // This directly controls the browser chrome (status bar + URL bar) color
         document.documentElement.style.colorScheme = theme
 
-        // Update <meta name="theme-color"> so Safari colors its UI chrome correctly
+        // Also update <meta name="theme-color"> for Safari/Chrome browser chrome
         const bgColor = isDark.value ? '#0f0f0f' : '#ffffff'
-        let metaTheme = document.querySelector('meta[name="theme-color"]:not([media])')
-        if (!metaTheme) {
-            metaTheme = document.createElement('meta')
-            metaTheme.setAttribute('name', 'theme-color')
-            document.head.appendChild(metaTheme)
+        const metaTheme = document.getElementById('meta-theme-color')
+            || document.querySelector('meta[name="theme-color"]')
+        if (metaTheme) {
+            metaTheme.setAttribute('content', bgColor)
         }
-        metaTheme.setAttribute('content', bgColor)
     }
 
     const init = () => {
