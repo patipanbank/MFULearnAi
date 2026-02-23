@@ -40,7 +40,8 @@
 }
 
 /* === Dark Theme === */
-[data-theme="dark"] {
+[data-theme="dark"],
+[data-coreui-theme="dark"] {
   color-scheme: dark;
   --color-bg-primary: #0f0f0f;
   --color-bg-secondary: #171717;

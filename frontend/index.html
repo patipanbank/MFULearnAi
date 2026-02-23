@@ -17,10 +17,15 @@
       var t = localStorage.getItem('mful_theme');
       var d = t ? t === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
       var theme = d ? 'dark' : 'light';
+      var bg = d ? '#0f0f0f' : '#ffffff';
+      // Set both data-theme (app) and data-coreui-theme (CoreUI framework)
       document.documentElement.setAttribute('data-theme', theme);
+      document.documentElement.setAttribute('data-coreui-theme', theme);
       document.documentElement.style.colorScheme = theme;
+      // Set background on <html> so Safari picks up the correct color for browser chrome
+      document.documentElement.style.backgroundColor = bg;
       var m = document.getElementById('meta-theme-color');
-      if (m) m.setAttribute('content', d ? '#0f0f0f' : '#ffffff');
+      if (m) m.setAttribute('content', bg);
     })();
   </script>
 </head>

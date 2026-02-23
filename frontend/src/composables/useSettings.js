@@ -430,15 +430,22 @@ const translations = {
 export function useTheme() {
     const applyTheme = () => {
         const theme = isDark.value ? 'dark' : 'light'
+        const bgColor = isDark.value ? '#0f0f0f' : '#ffffff'
+
+        // Set both data-theme (app custom) and data-coreui-theme (CoreUI framework)
         document.documentElement.setAttribute('data-theme', theme)
+        document.documentElement.setAttribute('data-coreui-theme', theme)
         localStorage.setItem(THEME_KEY, theme)
 
-        // Safari 26+: color-scheme tells the browser which scheme we're using
+        // Safari 26+: color-scheme on <html> tells the browser which scheme we're using
         // This directly controls the browser chrome (status bar + URL bar) color
         document.documentElement.style.colorScheme = theme
 
+        // Set <html> background so Safari picks up the correct color for browser chrome
+        // Safari uses the actual rendered background at the top/bottom of the viewport
+        document.documentElement.style.backgroundColor = bgColor
+
         // Also update <meta name="theme-color"> for Safari/Chrome browser chrome
-        const bgColor = isDark.value ? '#0f0f0f' : '#ffffff'
         const metaTheme = document.getElementById('meta-theme-color')
             || document.querySelector('meta[name="theme-color"]')
         if (metaTheme) {
