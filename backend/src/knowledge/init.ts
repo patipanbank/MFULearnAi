@@ -2,13 +2,13 @@ import { initMinio } from './minioClient';
 import { initWorker } from './queue';
 import { ChromaClient } from 'chromadb';
 import { Collection } from './models';
+import { LoggerService } from '../services/LoggerService';
+import { CHROMA_URL, GLOBAL_CHROMA_COLLECTION } from './constants';
 
-const CHROMA_URL = process.env.CHROMA_URL || 'http://chromadb:8000';
 const chroma = new ChromaClient({ path: CHROMA_URL });
-const GLOBAL_CHROMA_COLLECTION = "mfulearnai-global-kb";
 
 export async function initKnowledgeConfig() {
-    console.log('[Knowledge] Initializing...');
+    LoggerService.info('knowledge_init_start', {});
 
     // Init MinIO
     await initMinio();
@@ -19,9 +19,9 @@ export async function initKnowledgeConfig() {
     // Init Chroma
     try {
         await chroma.getOrCreateCollection({ name: GLOBAL_CHROMA_COLLECTION, metadata: { "hnsw:space": "cosine" } });
-        console.log(`[Knowledge] Global Chroma collection initialized: ${GLOBAL_CHROMA_COLLECTION}`);
-    } catch (e) {
-        console.error('[Knowledge] Chroma init failed:', e);
+        LoggerService.info('knowledge_chroma_initialized', { collection: GLOBAL_CHROMA_COLLECTION });
+    } catch (e: any) {
+        LoggerService.error('knowledge_chroma_init_failed', { error: e.message });
     }
 
     // Init Default Collection
@@ -37,9 +37,9 @@ export async function initKnowledgeConfig() {
                 isDefault: true,
                 knowledgeIds: []
             });
-            console.log('[Knowledge] Default Collection created.');
+            LoggerService.info('knowledge_default_collection_created', {});
         }
-    } catch (e) {
-        console.error('[Knowledge] Default Col init failed:', e);
+    } catch (e: any) {
+        LoggerService.error('knowledge_default_col_init_failed', { error: e.message });
     }
 }

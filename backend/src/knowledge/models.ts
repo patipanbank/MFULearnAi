@@ -16,7 +16,7 @@ export interface IKnowledge extends Document {
     content?: string; // Store full text content
     createdAt: Date;
     processingStatus: 'none' | 'pending' | 'processing' | 'completed' | 'failed';
-    processingStage: 'none' | 'uploading' | 'queued' | 'extracting' | 'extracting (OCR)' | 'chunking' | 'embedding' | 'indexing' | 'completed';
+    processingStage: 'none' | 'uploading' | 'queued' | 'extracting' | 'extracting (OCR)' | 'chunking' | 'embedding' | 'indexing' | 'completed' | 'failed';
     errorReason?: string;
     s3Key?: string;
     s3Size?: number;
@@ -42,7 +42,7 @@ const KnowledgeSchema = new Schema({
     requestedType: { type: String, enum: ['public', 'department', 'policy'] },
     // Async Processing Fields
     processingStatus: { type: String, enum: ['none', 'pending', 'processing', 'completed', 'failed'], default: 'none' },
-    processingStage: { type: String, enum: ['none', 'uploading', 'queued', 'extracting', 'chunking', 'embedding', 'indexing', 'completed'], default: 'none' },
+    processingStage: { type: String, enum: ['none', 'uploading', 'queued', 'extracting', 'extracting (OCR)', 'chunking', 'embedding', 'indexing', 'completed', 'failed'], default: 'none' },
     s3Key: String,
     s3Size: Number, // File size in bytes
     textHash: String, // SHA256 of extracted text

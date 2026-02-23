@@ -9,15 +9,17 @@ export class TextAdapter implements BaseAdapter {
     }
 
     async parse(buffer: Buffer, originalName: string): Promise<CanonicalIR> {
-        // Detect encoding if possible, default to utf-8
-        // For simplicity, assuming utf-8 or ascii. 
-        // Real implementation might use chardet.
+        // Detect encoding, default to utf-8
         const encoding = chardet.detect(buffer) || 'utf-8';
         const decoder = new TextDecoder(encoding as string);
         const text = decoder.decode(buffer);
 
         const isCode = !originalName.endsWith('.txt') && !originalName.endsWith('.md');
         const lang = originalName.split('.').pop() || 'text';
+
+        // CQ-14: Word-based token estimation instead of crude bytes/4
+        const wordCount = text.split(/\s+/).filter(w => w.length > 0).length;
+        const estimatedTokens = Math.ceil(wordCount * 1.3); // ~1.3 tokens per word (accounts for subwords)
 
         return {
             file_type: isCode ? 'code' : 'document',
@@ -33,7 +35,7 @@ export class TextAdapter implements BaseAdapter {
                 }
             }],
             metadata: {
-                total_tokens: text.length / 4, // Rough estimate
+                total_tokens: estimatedTokens,
                 detected_language: lang
             }
         };

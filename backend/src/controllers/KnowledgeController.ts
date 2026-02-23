@@ -4,6 +4,8 @@ import busboy from 'busboy';
 import mongoose from 'mongoose';
 import { minioClient, MINIO_BUCKET } from '../knowledge/minioClient';
 import { AdapterFactory } from '../knowledge/adapters/AdapterFactory';
+import { LoggerService } from '../services/LoggerService';
+import { UserContext } from '../knowledge/types';
 
 const adapterFactory = new AdapterFactory();
 
@@ -11,21 +13,14 @@ const adapterFactory = new AdapterFactory();
 const MAX_KNOWLEDGE_FILE_SIZE = 100 * 1024 * 1024; // 100 MB
 const MAX_EXTRACT_FILE_SIZE = 20 * 1024 * 1024; // 20 MB (in-memory processing)
 
-interface UserContext {
-    userId: string;
-    role: string;
-    department: string;
-}
-
 const extractUser = (req: Request): UserContext | null => {
-    // Rely on Auth Middleware to populate req.user or similar
-    // Authentication is handled by middleware, but we need to extract user info for service calls
+    // Rely on Auth Middleware to populate req.user
     const user = (req as any).user;
     if (!user) return null;
     return {
-        userId: user.userId || user.sub, // Adjust based on Token payload
-        role: user.role || 'student',     // Default role
-        department: user.department || 'General' // Default dept
+        userId: user.userId || user.sub,
+        role: user.role || 'student',
+        department: user.department || 'General'
     };
 };
 
@@ -65,9 +60,9 @@ export class KnowledgeController {
         });
         const kbId = new mongoose.Types.ObjectId();
 
-        const fields: any = {};
-        let uploadPromise: Promise<any> | null = null;
-        let fileInfo: any = null;
+        const fields: Record<string, string> = {};
+        let uploadPromise: Promise<unknown> | null = null;
+        let fileInfo: { originalName: string; mimeType: string; s3Key: string } | null = null;
         let hasFile = false;
 
         bb.on('file', (name, file, info) => {
@@ -87,11 +82,11 @@ export class KnowledgeController {
 
             // Handle file size limit exceeded
             file.on('limit', () => {
-                console.error(`[Upload] File size limit exceeded for ${decodedName}`);
+                LoggerService.error('upload_file_size_exceeded', { fileName: decodedName });
                 file.resume(); // Drain the stream
             });
 
-            console.log(`[Upload] Streaming ${decodedName} to ${s3Key}...`);
+            LoggerService.info('upload_streaming', { fileName: decodedName, s3Key });
             uploadPromise = minioClient.putObject(MINIO_BUCKET, s3Key, file, undefined, {
                 'Content-Type': mimeType,
                 'x-amz-meta-original-name': encodeURIComponent(decodedName)
@@ -103,21 +98,21 @@ export class KnowledgeController {
         });
 
         bb.on('error', (err: any) => {
-            console.error('[Upload] Busboy error:', err.message);
+            LoggerService.error('upload_busboy_error', { error: err.message });
             if (!res.headersSent) {
                 res.status(400).json({ error: 'Upload parsing failed: ' + err.message });
             }
         });
 
         bb.on('close', async () => {
-            if (!hasFile) return res.status(400).json({ error: 'No file uploaded' });
+            if (!hasFile || !fileInfo) return res.status(400).json({ error: 'No file uploaded' });
 
             try {
                 await uploadPromise;
                 const kb = await KnowledgeService.createKnowledgeRecord(user, fileInfo, fields);
                 res.status(202).json({ success: true, knowledge: kb, message: 'File accepted.' });
             } catch (e: any) {
-                console.error('Upload Failed:', e);
+                LoggerService.error('upload_failed', { error: e.message });
                 if (!res.headersSent) {
                     res.status(500).json({ error: 'Upload failed: ' + e.message });
                 }
@@ -139,7 +134,7 @@ export class KnowledgeController {
             const kb = await KnowledgeService.createFromUrl(user, url, type, { folder, expiresAt });
             res.status(202).json({ success: true, knowledge: kb, message: 'URL scraping task started.' });
         } catch (e: any) {
-            console.error('URL Scrape Failed:', e);
+            LoggerService.error('url_scrape_failed', { error: e.message });
             res.status(500).json({ error: e.message || 'URL scraping failed' });
         }
     }
@@ -161,14 +156,14 @@ export class KnowledgeController {
         bb.on('file', (name, file, info) => {
             mimeType = info.mimeType;
             fileName = Buffer.from(info.filename, 'latin1').toString('utf8');
-            const chunks: any[] = [];
+            const chunks: Buffer[] = [];
             file.on('data', (data) => chunks.push(data));
             file.on('limit', () => { fileTruncated = true; });
             file.on('end', () => { fileBuffer = Buffer.concat(chunks); });
         });
 
         bb.on('error', (err: any) => {
-            console.error('[Extract] Busboy error:', err.message);
+            LoggerService.error('extract_busboy_error', { error: err.message });
             if (!res.headersSent) {
                 res.status(400).json({ error: 'File parsing failed: ' + err.message });
             }
@@ -397,7 +392,7 @@ export class KnowledgeController {
 
             // Handle stream errors to prevent dangling connections
             (stream as any).on('error', (err: any) => {
-                console.error(`[KnowledgeView] Stream error for ${id}:`, err.message);
+                LoggerService.error('knowledge_view_stream_error', { id, error: err.message });
                 if (!res.headersSent) {
                     res.status(500).json({ error: 'File streaming failed' });
                 } else {

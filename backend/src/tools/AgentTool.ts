@@ -1,14 +1,32 @@
 export interface ToolResult {
     success: boolean;
-    result: any;
+    result: unknown;
     error?: string;
 }
 
-export interface AgentContext {
+/**
+ * Context provided to tools during execution.
+ * This is a subset of the full AgentContext (from AgentTypes.ts),
+ * containing only what tools need to know about the caller.
+ */
+export interface ToolExecutionContext {
     userId: string;
     role: string;
     department?: string;
     collectionId?: string;
+}
+
+/** Bedrock Converse API tool definition schema. */
+export interface ToolSchemaJSON {
+    name: string;
+    description: string;
+    inputSchema: {
+        json: {
+            type: string;
+            properties: Record<string, unknown>;
+            required?: string[];
+        };
+    };
 }
 
 export abstract class AgentTool {
@@ -16,13 +34,10 @@ export abstract class AgentTool {
     abstract description: string;
     abstract allowedRoles: string[];
 
-    // Native Tool Schema (JSON)
-    abstract schemaJSON: any;
+    /** Native JSON Schema for Bedrock Converse API tool definitions. */
+    abstract schemaJSON: ToolSchemaJSON;
 
-    // Legacy XML Schema (Optional/Deprecated)
-    schema: string = '';
-
-    abstract execute(args: any, context: AgentContext): Promise<ToolResult>;
+    abstract execute(args: Record<string, unknown>, context: ToolExecutionContext): Promise<ToolResult>;
 
     isAllowed(role: string): boolean {
         return this.allowedRoles.includes(role) || this.allowedRoles.includes('*');

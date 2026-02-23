@@ -1,8 +1,6 @@
 import { Job } from 'bullmq';
-import mongoose from 'mongoose';
 import { Knowledge } from './models';
 import { ChromaClient } from 'chromadb';
-import pdf from 'pdf-parse';
 import mammoth from 'mammoth';
 import * as XLSX from 'xlsx';
 import { minioClient, MINIO_BUCKET } from './minioClient';
@@ -10,20 +8,17 @@ import { getEmbedding, chunkText } from './processingUtils';
 import crypto from 'crypto';
 import dotenv from 'dotenv';
 import axios from 'axios';
-import FormData from 'form-data';
+import { LoggerService } from '../services/LoggerService';
+import { CHROMA_URL, GLOBAL_CHROMA_COLLECTION, OCR_SERVICE_URL } from './constants';
 
-// PDF.js Setup (ESM Dynamic Import in function)
 dotenv.config();
 
-const CHROMA_URL = process.env.CHROMA_URL || 'http://chromadb:8000';
-const OCR_SERVICE_URL = process.env.OCR_SERVICE_URL || 'http://ocr-service:5000';
 const chroma = new ChromaClient({ path: CHROMA_URL });
-const GLOBAL_CHROMA_COLLECTION = "mfulearnai-global-kb";
 
 export const processKnowledgeJob = async (job: Job) => {
     if (job.name === 'process-url') {
         const { knowledgeId, url } = job.data;
-        console.log(`[Worker] Processing URL Job ${job.id}: ${url} (${knowledgeId})`);
+        LoggerService.info('worker_url_job_start', { jobId: job.id, url, knowledgeId });
 
         try {
             await Knowledge.findByIdAndUpdate(knowledgeId, {
@@ -32,7 +27,7 @@ export const processKnowledgeJob = async (job: Job) => {
                 errorReason: ''
             }, { new: true });
 
-            console.log(`[Worker] Fetching URL: ${url}`);
+            LoggerService.debug('worker_fetching_url', { url });
 
             // 1. Fetch HTML
             const response = await axios.get(url, {
@@ -78,7 +73,7 @@ export const processKnowledgeJob = async (job: Job) => {
             // Calculate Hash
             const hash = crypto.createHash('sha256').update(markdown).digest('hex');
 
-            // --- Phase 4: Semantic Duplicate Detection (#11) ---
+            // --- Duplicate Detection ---
             const duplicateDoc = await Knowledge.findOne({
                 _id: { $ne: knowledgeId },
                 textHash: hash,
@@ -87,17 +82,16 @@ export const processKnowledgeJob = async (job: Job) => {
             });
 
             if (duplicateDoc) {
-                console.log(`[Worker] Duplicate detected for URL job ${job.id}. Matches doc: ${duplicateDoc._id}`);
+                LoggerService.info('worker_duplicate_detected', { jobId: job.id, matchedDoc: duplicateDoc._id });
                 await Knowledge.findByIdAndUpdate(knowledgeId, {
                     processingStatus: 'failed',
-                    processingStage: 'completed',
+                    processingStage: 'failed',
                     errorReason: `Duplicate content detected. Identical content already exists in document: "${duplicateDoc.title}"`,
                     s3Size: buffer.length,
                     textHash: hash
                 });
                 return;
             }
-            // --------------------------------------------------
 
             // Update Content
             const knowledgeDoc = await Knowledge.findByIdAndUpdate(knowledgeId, {
@@ -111,7 +105,7 @@ export const processKnowledgeJob = async (job: Job) => {
 
             // 5. Vectorize directly
             const pages = [{ text: markdown, pageNumber: 1 }];
-            const ids = [], embeddings = [], metadatas = [], documents = [];
+            const ids: string[] = [], embeddings: number[][] = [], metadatas: Record<string, string | number>[] = [], documents: string[] = [];
             let chunkGlobalIndex = 0;
 
             for (const p of pages) {
@@ -143,22 +137,23 @@ export const processKnowledgeJob = async (job: Job) => {
                 processingStatus: 'completed',
                 processingStage: 'completed'
             });
-            console.log(`[Worker] URL Job ${job.id} Success.`);
+            LoggerService.info('worker_url_job_success', { jobId: job.id });
             return;
 
         } catch (err: any) {
-            console.error(`[Worker] URL Job ${job.id} Failed:`, err);
+            LoggerService.error('worker_url_job_failed', { jobId: job.id, error: err.message });
             await Knowledge.findByIdAndUpdate(knowledgeId, {
                 processingStatus: 'failed',
+                processingStage: 'failed',
                 errorReason: err.message
-            } as any);
+            });
             throw err;
         }
     }
 
 
     const { knowledgeId, s3Key, mimetype, originalName } = job.data;
-    console.log(`[Worker] Processing Job ${job.id}: ${originalName} (${knowledgeId})`);
+    LoggerService.info('worker_file_job_start', { jobId: job.id, originalName, knowledgeId });
 
     try {
         // 1. Update Status to Processing & get document type
@@ -169,11 +164,11 @@ export const processKnowledgeJob = async (job: Job) => {
         }, { new: true });
 
         if (!knowledgeDoc) {
-            console.error(`[Worker] Knowledge ID ${knowledgeId} not found in DB!`);
+            LoggerService.error('worker_knowledge_not_found', { knowledgeId });
             return;
         }
 
-        console.log(`[Worker] Updated status to processing for ${knowledgeId}`);
+        LoggerService.debug('worker_status_updated', { knowledgeId, status: 'processing' });
 
         const docType = knowledgeDoc?.type || 'personal'; // Used in chunk metadata for filtering
 
@@ -189,36 +184,26 @@ export const processKnowledgeJob = async (job: Job) => {
         let fullText = '';
 
         if (mimetype === 'application/pdf') {
-            // Basic PDF parsing with PDF.js for Page awareness
-            const importDynamic = new Function('modulePath', 'return import(modulePath)');
-            const pdfjs = await importDynamic('pdfjs-dist/legacy/build/pdf.mjs');
+            // PDF parsing with PDF.js — use standard dynamic import (no new Function hack)
+            const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs');
 
             const loadingTask = pdfjs.getDocument({
                 data: new Uint8Array(buffer),
                 useSystemFonts: true,
-                disableFontFace: true
+                disableFontFace: true,
+                verbosity: 0  // Suppress PDF.js warnings at the library level
             });
 
             const pdfDocument = await loadingTask.promise;
             const numPages = pdfDocument.numPages;
 
-            const originalWarn = console.warn;
-            console.warn = (...args) => {
-                if (args[0] && typeof args[0] === 'string' && args[0].includes('TT: undefined function')) return;
-                originalWarn.apply(console, args);
-            };
+            for (let i = 1; i <= numPages; i++) {
+                const page = await pdfDocument.getPage(i);
+                const textContent = await page.getTextContent();
+                const pageText = textContent.items.map((item: any) => item.str).join(' ');
 
-            try {
-                for (let i = 1; i <= numPages; i++) {
-                    const page = await pdfDocument.getPage(i);
-                    const textContent = await page.getTextContent();
-                    const pageText = textContent.items.map((item: any) => item.str).join(' ');
-
-                    pages.push({ text: pageText, pageNumber: i });
-                    fullText += pageText + '\n\n';
-                }
-            } finally {
-                console.warn = originalWarn; // Restore
+                pages.push({ text: pageText, pageNumber: i });
+                fullText += pageText + '\n\n';
             }
 
             // OCR FALLBACK CHECK
@@ -226,7 +211,7 @@ export const processKnowledgeJob = async (job: Job) => {
             const isScanned = (nonEmptyPages / numPages) < 0.5;
 
             if (isScanned) {
-                console.log(`[Worker] PDF appears scanned (or empty). Sending to OCR Service...`);
+                LoggerService.info('worker_pdf_scanned_ocr_fallback', { jobId: job.id });
                 await Knowledge.findByIdAndUpdate(knowledgeId, { processingStage: 'extracting (OCR)' });
 
                 const response = await axios.post(`${OCR_SERVICE_URL}/ocr-bucket`, {
@@ -242,7 +227,7 @@ export const processKnowledgeJob = async (job: Job) => {
             }
 
         } else if (mimetype === 'image/png' || mimetype === 'image/jpeg' || mimetype === 'image/tiff') {
-            console.log(`[Worker] Image detected. Sending to OCR...`);
+            LoggerService.info('worker_image_ocr', { jobId: job.id });
             const response = await axios.post(`${OCR_SERVICE_URL}/ocr-bucket`, {
                 bucket: MINIO_BUCKET,
                 key: s3Key
@@ -280,11 +265,11 @@ export const processKnowledgeJob = async (job: Job) => {
         fullText = fullText.replace(/\s+/g, ' ').trim();
         if (!fullText) {
             const msg = 'File contains no extractable text. Please ensure the file is not empty and contains readable text (or use OCR for images).';
-            console.warn(`[Worker] Job ${job.id}: ${msg}`);
+            LoggerService.warn('worker_no_text', { jobId: job.id, msg });
             await Knowledge.findByIdAndUpdate(knowledgeId, {
                 processingStatus: 'failed',
                 errorReason: msg,
-                processingStage: 'completed'
+                processingStage: 'failed'
             });
             return;
         }
@@ -292,7 +277,7 @@ export const processKnowledgeJob = async (job: Job) => {
         // Calculate Hash
         const hash = crypto.createHash('sha256').update(fullText).digest('hex');
 
-        // --- Phase 4: Semantic Duplicate Detection (#11) ---
+        // --- Duplicate Detection ---
         const duplicateDoc = await Knowledge.findOne({
             _id: { $ne: knowledgeId },
             textHash: hash,
@@ -301,16 +286,15 @@ export const processKnowledgeJob = async (job: Job) => {
         });
 
         if (duplicateDoc) {
-            console.log(`[Worker] Duplicate detected for job ${job.id}. Matches doc: ${duplicateDoc._id}`);
+            LoggerService.info('worker_duplicate_detected', { jobId: job.id, matchedDoc: duplicateDoc._id });
             await Knowledge.findByIdAndUpdate(knowledgeId, {
                 processingStatus: 'failed',
-                processingStage: 'completed',
+                processingStage: 'failed',
                 errorReason: `Duplicate content detected. Identical content already exists in document: "${duplicateDoc.title}"`,
                 textHash: hash
             });
             return;
         }
-        // --------------------------------------------------
 
         // 4. Update Content & Hash
         await Knowledge.findByIdAndUpdate(knowledgeId, {
@@ -320,7 +304,7 @@ export const processKnowledgeJob = async (job: Job) => {
         });
 
         // 5. Vectorize with Page Metadata
-        const ids = [], embeddings = [], metadatas = [], documents = [];
+        const ids: string[] = [], embeddings: number[][] = [], metadatas: Record<string, string | number>[] = [], documents: string[] = [];
         let chunkGlobalIndex = 0;
 
         for (const p of pages) {
@@ -352,27 +336,28 @@ export const processKnowledgeJob = async (job: Job) => {
             processingStatus: 'completed',
             processingStage: 'completed'
         });
-        console.log(`[Worker] Job ${job.id} Success.`);
+        LoggerService.info('worker_file_job_success', { jobId: job.id });
 
     } catch (err: any) {
-        console.error(`[Worker] Job ${job.id} Failed:`, err);
+        LoggerService.error('worker_file_job_failed', { jobId: job.id, error: err.message });
         try {
             await Knowledge.findByIdAndUpdate(knowledgeId, {
                 processingStatus: 'failed',
+                processingStage: 'failed',
                 errorReason: err.message
-            } as any);
-        } catch (dbErr) {
-            console.error(`[Worker] Failed to update status to failed for ${knowledgeId}`, dbErr);
+            });
+        } catch (dbErr: any) {
+            LoggerService.error('worker_db_status_sync_failed', { knowledgeId, error: dbErr.message });
         }
-        throw err; // Retry in BullMQ?
+        throw err;
     }
 };
 
-const streamToBuffer = (stream: any): Promise<Buffer> => {
+const streamToBuffer = (stream: NodeJS.ReadableStream): Promise<Buffer> => {
     return new Promise((resolve, reject) => {
-        const chunks: any[] = [];
-        stream.on('data', (chunk: any) => chunks.push(chunk));
+        const chunks: Buffer[] = [];
+        stream.on('data', (chunk: Buffer) => chunks.push(chunk));
         stream.on('end', () => resolve(Buffer.concat(chunks)));
-        stream.on('error', (err: any) => reject(err));
+        stream.on('error', (err: Error) => reject(err));
     });
 };

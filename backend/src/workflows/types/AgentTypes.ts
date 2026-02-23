@@ -1,4 +1,6 @@
+import { ChatMessage, SmartContext } from '../../../../shared/types';
 
+/** Context passed into the AgentWorkflow from the ChatController. */
 export interface AgentContext {
     userId: string;
     sessionId: string;
@@ -8,8 +10,10 @@ export interface AgentContext {
     collectionId?: string;
     /** Model ID used for this agent session (for cost weighting). */
     modelId?: string;
-    images: any[];
-    files: any[];
+    /** Inline images in Bedrock format (format + source.bytes). */
+    images: Array<{ format: string; source: { bytes: string };[key: string]: unknown }>;
+    /** Raw file buffers from multipart upload. */
+    files: Array<{ name?: string; originalname?: string; mediaType?: string; size?: number; buffer?: Buffer;[key: string]: unknown }>;
     traceId?: string;
 }
 
@@ -17,20 +21,20 @@ export interface WorkflowState {
     phase: AgentPhase;
     traceId: string;
     steps: number;
-    totalUsage: { input: number, output: number, total: number };
+    totalUsage: { input: number; output: number; total: number };
     usedTools: Set<string>;
     answerMode: string;
     answerState: string;
     startTime: number;
     finalAnswer: string;
-    history: any[];
-    smartContext: any;
+    history: ChatMessage[];
+    smartContext: SmartContext | null;
     nativeDocBlocks: NativeDocBlock[];
     extractedTextBlocks: ExtractedTextBlock[];
-    uploadPromises: Promise<any>[];
+    uploadPromises: Promise<unknown>[];
     clientDisconnected: boolean;
-    messages: any[];
-    toolOutputs: any[];
+    messages: BedrockMessage[];
+    toolOutputs: ToolResultEntry[];
     scratchpad: string[];
     tokenUsage: {
         input: number;
@@ -51,24 +55,28 @@ export enum AgentPhase {
     FAILED = 'FAILED'
 }
 
-export interface AgentState {
-    phase: AgentPhase;
-    context: any; // Raw context
-    smartContext: any; // Enriched context
-    history: any[];
-    messages: any[];
-    toolOutputs: any[];
-    finalAnswer?: string;
-    nativeDocBlocks: NativeDocBlock[];
-    extractedTextBlocks: ExtractedTextBlock[];
-    uploadPromises: Promise<any>[];
-    scratchpad: string[];
-    tokenUsage: {
-        input: number;
-        output: number;
-        total: number;
-    };
-    startTime: number;
+/** Content block within a Bedrock Converse API message. */
+export type BedrockContentBlock =
+    | { type: 'text'; text: string }
+    | { type: 'image'; format: string; source: { bytes: string } }
+    | { type: 'document'; format: string; name: string; source: { bytes: string } }
+    | { type: 'tool_use'; toolUseId: string; name: string; input: Record<string, unknown> }
+    | { type: 'tool_result'; toolUseId: string; content: unknown }
+    | Record<string, unknown>;
+
+/**
+ * Message in Bedrock Converse API format.
+ * Different from shared ChatMessage (which has content: string).
+ */
+export interface BedrockMessage {
+    role: 'user' | 'assistant' | 'system';
+    content: string | BedrockContentBlock[];
+}
+
+/** Structured entry for tool execution results passed back to the LLM. */
+export interface ToolResultEntry {
+    toolUseId: string;
+    content: Array<{ json: { result: unknown } }>;
 }
 
 export interface NativeDocBlock {
@@ -88,7 +96,7 @@ export interface FileJobResult {
     jobId: string;
     nativeDocBlocks: NativeDocBlock[];
     extractedTextBlocks: ExtractedTextBlock[];
-    attachments: any[]; // Uploaded metadata
+    attachments: Array<{ s3Key?: string; fileType?: string;[key: string]: unknown }>;
 }
 
 export const AGENT_EVENTS = {

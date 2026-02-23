@@ -68,14 +68,6 @@ export class ResultPersister {
         // REMOVED: Do not double-store images as Base64. 
         // We rely on `attachments` (S3 keys) for persistence and history loading.
         // The frontend 'images' prop is only for immediate preview during the active session.
-        /*
-        if (ctx.images && ctx.images.length > 0) {
-            userMsgToSave.images = ctx.images.map((img: any) => ({
-                mediaType: img.format ? `image/${img.format}` : 'image/png',
-                data: img.source?.bytes ? Buffer.from(img.source.bytes).toString('base64') : ''
-            }));
-        }
-        */
 
         const assistantMsgToSave = {
             role: 'assistant' as const,

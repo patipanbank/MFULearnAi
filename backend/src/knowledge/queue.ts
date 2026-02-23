@@ -3,13 +3,15 @@ import Redis from 'ioredis';
 import dotenv from 'dotenv';
 import { processKnowledgeJob } from './worker';
 import { Knowledge } from './models';
+import { LoggerService } from '../services/LoggerService';
+import { KNOWLEDGE_QUEUE_NAME } from './constants';
 
 dotenv.config();
 
 const REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379';
 const connection = new Redis(REDIS_URL, { maxRetriesPerRequest: null });
 
-export const KNOWLEDGE_QUEUE_NAME = 'knowledge-processing';
+export { KNOWLEDGE_QUEUE_NAME };
 
 export const knowledgeQueue = new Queue(KNOWLEDGE_QUEUE_NAME, { connection: connection as any });
 
@@ -22,27 +24,27 @@ export const initWorker = () => {
         maxStalledCount: 2        // Allow up to 2 stall recoveries before marking as failed
     });
 
-    worker.on('completed', (job: any) => {
-        console.log(`[Worker] Job ${job.id} completed!`);
+    worker.on('completed', (job) => {
+        LoggerService.info('worker_job_completed', { jobId: job?.id });
     });
 
-    worker.on('failed', async (job: any, err: any) => {
-        console.error(`[Worker] Job ${job?.id} failed:`, err);
+    worker.on('failed', async (job, err) => {
+        LoggerService.error('worker_job_failed', { jobId: job?.id, error: err?.message });
         // Sync MongoDB status — critical for stalled jobs where worker.ts catch block doesn't run
         if (job?.data?.knowledgeId) {
             try {
                 await Knowledge.findByIdAndUpdate(job.data.knowledgeId, {
                     processingStatus: 'failed',
                     errorReason: err?.message || 'Job failed (stalled or unrecoverable)',
-                    processingStage: 'completed'
+                    processingStage: 'failed'
                 });
-                console.log(`[Worker] MongoDB status synced to 'failed' for ${job.data.knowledgeId}`);
+                LoggerService.info('worker_mongodb_status_synced', { knowledgeId: job.data.knowledgeId, status: 'failed' });
             } catch (dbErr: any) {
-                console.error(`[Worker] Failed to sync MongoDB status:`, dbErr.message);
+                LoggerService.error('worker_mongodb_sync_failed', { error: dbErr.message });
             }
         }
     });
 
-    console.log('[Worker] Knowledge Processing Worker started.');
+    LoggerService.info('worker_started', { queue: KNOWLEDGE_QUEUE_NAME });
     return worker;
 };

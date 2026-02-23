@@ -1,4 +1,4 @@
-import { AgentTool, AgentContext, ToolResult } from './AgentTool';
+import { AgentTool, ToolExecutionContext, ToolResult } from './AgentTool';
 import { KnowledgeService } from '../services/KnowledgeService';
 import { BedrockService } from '../services/BedrockService';
 import { LoggerService } from '../services/LoggerService';
@@ -87,7 +87,7 @@ export class PolicyCheckerTool extends AgentTool {
         }
     };
 
-    async execute(args: any, context: AgentContext): Promise<ToolResult> {
+    async execute(args: any, context: ToolExecutionContext): Promise<ToolResult> {
         const { query, context: additionalContext } = args;
 
         try {

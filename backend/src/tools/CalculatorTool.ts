@@ -1,4 +1,4 @@
-import { AgentTool, AgentContext, ToolResult } from './AgentTool';
+import { AgentTool, ToolExecutionContext, ToolResult } from './AgentTool';
 
 export class CalculatorTool extends AgentTool {
     name = 'calculator';
@@ -32,7 +32,7 @@ export class CalculatorTool extends AgentTool {
         }
     };
 
-    async execute(args: any, context: AgentContext): Promise<ToolResult> {
+    async execute(args: any, context: ToolExecutionContext): Promise<ToolResult> {
         try {
             const { operation, a, b } = args;
             let result: number = 0;

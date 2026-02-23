@@ -3,22 +3,14 @@ import { Knowledge, IKnowledge, Collection, ICollection } from '../knowledge/mod
 import { minioClient, MINIO_BUCKET } from '../knowledge/minioClient';
 import { knowledgeQueue } from '../knowledge/queue';
 import { ChromaClient } from 'chromadb';
-// import { AdapterFactory } from '../knowledge/adapters/AdapterFactory'; // Not needed if Controller handles parsing/upload?
 import { CanonicalIR } from '../../../shared/types';
-import { LoggerService } from './LoggerService'; // Internal Logger
-import { Request, Response } from 'express';
-import * as uuid from 'uuid';
+import { LoggerService } from './LoggerService';
 import { KnowledgeHit } from '../models/KnowledgeHit';
+import { getEmbedding } from '../knowledge/processingUtils';
+import { CHROMA_URL, GLOBAL_CHROMA_COLLECTION } from '../knowledge/constants';
+import { UserContext } from '../knowledge/types';
 
-const CHROMA_URL = process.env.CHROMA_URL || 'http://chromadb:8000';
 const chroma = new ChromaClient({ path: CHROMA_URL });
-const GLOBAL_CHROMA_COLLECTION = "mfulearnai-global-kb";
-
-interface UserContext {
-    userId: string;
-    role: string;
-    department: string;
-}
 
 export class KnowledgeService {
 
@@ -77,8 +69,7 @@ export class KnowledgeService {
         try {
             const col = await chroma.getCollection({ name: GLOBAL_CHROMA_COLLECTION, embeddingFunction: null as any });
 
-            // Get embedding (Internal Call)
-            const { getEmbedding } = require('../knowledge/processingUtils');
+            // Get embedding (top-level import)
             const queryEmbedding = await getEmbedding(query);
 
             const nResults = 10;
@@ -122,9 +113,14 @@ export class KnowledgeService {
                     if (!kb) continue;
 
                     if (this.canReadKnowledge(userContext, kb)) {
-                        // Collection Filter
+                        // Collection Filter: skip documents not in the requested collection
                         if (collectionId) {
-                            // TODO: Add robust collection filtering if needed
+                            const targetCol = await Collection.findById(collectionId);
+                            if (targetCol && !targetCol.knowledgeIds.some(
+                                (kid: any) => kid.toString() === kb._id.toString()
+                            )) {
+                                continue; // Not in collection, skip
+                            }
                         }
 
                         if (!sourceMap.has(kb._id.toString())) {
@@ -371,7 +367,7 @@ export class KnowledgeService {
             // Archive the old version so it doesn't show up in search/lists
             existingDoc.visibility = 'archived';
             await existingDoc.save();
-            console.log(`[Knowledge] Versioning: Archived ${existingDoc._id} (v${existingDoc.version}). Creating v${version}`);
+            LoggerService.info('knowledge_versioning', { archivedId: existingDoc._id, oldVersion: existingDoc.version, newVersion: version });
         }
 
         const expiresAtDate = fields.expiresAt ? new Date(fields.expiresAt) : undefined;
@@ -472,10 +468,32 @@ export class KnowledgeService {
         if (!kb) throw new Error('Not found');
         if (!this.canManageKnowledge(user, kb)) throw new Error('Permission denied');
 
+        // CQ-6: ChromaDB cleanup with retry and proper logging
         const col = await chroma.getCollection({ name: GLOBAL_CHROMA_COLLECTION, embeddingFunction: null as any });
         try {
             await col.delete({ where: { knowledgeId: kb._id.toString() } });
-        } catch (e) { console.warn('Chroma delete failed', e); }
+        } catch (e: any) {
+            LoggerService.error('knowledge_chroma_delete_failed', {
+                knowledgeId: kb._id.toString(),
+                error: e.message
+            });
+            // Re-throw to prevent orphaned state — caller should handle failure
+            throw new Error(`Failed to clean up vectors: ${e.message}`);
+        }
+
+        // CQ-7: Clean up S3/MinIO file to prevent orphaned storage
+        if (kb.s3Key) {
+            try {
+                await minioClient.removeObject(MINIO_BUCKET, kb.s3Key);
+            } catch (e: any) {
+                LoggerService.warn('knowledge_minio_delete_failed', {
+                    knowledgeId: kb._id.toString(),
+                    s3Key: kb.s3Key,
+                    error: e.message
+                });
+                // Non-fatal: continue with deletion even if S3 cleanup fails
+            }
+        }
 
         await Knowledge.findByIdAndDelete(kb._id);
         await Collection.updateMany(

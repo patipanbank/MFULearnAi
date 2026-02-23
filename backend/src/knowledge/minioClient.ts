@@ -1,5 +1,6 @@
 import { Client } from 'minio';
 import dotenv from 'dotenv';
+import { LoggerService } from '../services/LoggerService';
 
 dotenv.config();
 
@@ -19,28 +20,22 @@ export const minioClient = new Client({
 
 export const initMinio = async () => {
     try {
-        console.log(`[MinIO] Connecting to ${MINIO_ENDPOINT}:${MINIO_PORT}...`);
+        LoggerService.info('minio_connecting', { endpoint: MINIO_ENDPOINT, port: MINIO_PORT });
         const exists = await minioClient.bucketExists(MINIO_BUCKET);
         if (exists) {
-            console.log(`[MinIO] Bucket '${MINIO_BUCKET}' exists.`);
+            LoggerService.info('minio_bucket_exists', { bucket: MINIO_BUCKET });
         } else {
             await minioClient.makeBucket(MINIO_BUCKET, 'us-east-1');
-            console.log(`[MinIO] Bucket '${MINIO_BUCKET}' created.`);
+            LoggerService.info('minio_bucket_created', { bucket: MINIO_BUCKET });
         }
 
         const CHAT_BUCKET = 'chat-attachments';
         const chatExists = await minioClient.bucketExists(CHAT_BUCKET);
         if (!chatExists) {
             await minioClient.makeBucket(CHAT_BUCKET, 'us-east-1');
-            console.log(`[MinIO] Bucket '${CHAT_BUCKET}' created.`);
+            LoggerService.info('minio_bucket_created', { bucket: CHAT_BUCKET });
         }
-
-        // Set policy to download if needed (public) or keep private
-        // For now, keep private or use presigned URLs. 
-        // If we need public download:
-        // const policy = { ... };
-        // await minioClient.setBucketPolicy(MINIO_BUCKET, JSON.stringify(policy));
-    } catch (err) {
-        console.error('[MinIO] Initialization failed:', err);
+    } catch (err: any) {
+        LoggerService.error('minio_init_failed', { error: err.message });
     }
 };

@@ -1,20 +1,19 @@
-// ReRankerService handles document validation via Bedrock
-// Wait, Knowledge Service doesn't have BedrockService imported.
-// I should either:
-// A. Call Bedrock directly from Knowledge (need access/env)
-// B. Make Knowledge call Orchestrator (circular?)
-// C. Knowledge implements its own Bedrock client.
-
-// Analysis: Knowledge service already has getEmbedding which calls a Bedrock-Proxy.
-// I'll implement a simple sendChat counterpart in Knowledge service for re-ranking.
-
 import { MODELS, SYSTEM_MODELS } from '../config/models';
 import axios from 'axios';
-const BEDROCK_ENDPOINT = process.env.BEDROCK_TEXT_URL || 'http://bedrock-text:5001/api/bedrock';
+import { LoggerService } from '../services/LoggerService';
 import { TokenUtil } from './tokenUtils';
 
+const BEDROCK_ENDPOINT = process.env.BEDROCK_TEXT_URL || 'http://bedrock-text:5001/api/bedrock';
+
+/**
+ * ReRankerService — Uses a lightweight LLM to re-rank RAG search results
+ * by relevance to the user's query and intent.
+ *
+ * Note: Currently not invoked from the search pipeline (CQ-13).
+ * Wire into KnowledgeService.search() when ready to enable LLM re-ranking.
+ */
 export class ReRankerService {
-    static async reRank(query: string, intent: string, candidates: any[]): Promise<any[]> {
+    static async reRank(query: string, intent: string, candidates: Array<{ score: number; content: string }>): Promise<Array<{ score: number; content: string }>> {
         if (candidates.length <= 1) return candidates;
 
         try {
@@ -46,8 +45,8 @@ Task:
                 let textContent = '';
                 if (Array.isArray(response.data.content)) {
                     textContent = response.data.content
-                        .filter((b: any) => b.type === 'text')
-                        .map((b: any) => b.text)
+                        .filter((b: { type: string }) => b.type === 'text')
+                        .map((b: { text: string }) => b.text)
                         .join('');
                 } else if (typeof response.data.content === 'string') {
                     textContent = response.data.content;
@@ -61,8 +60,8 @@ Task:
                     }
                 }
             }
-        } catch (e) {
-            console.warn('[ReRanker] Re-ranking failed, falling back to original order.', e);
+        } catch (e: any) {
+            LoggerService.warn('reranker_failed', { error: e.message, fallback: 'original_order' });
         }
         return candidates.slice(0, 5); // Fallback to top 5
     }

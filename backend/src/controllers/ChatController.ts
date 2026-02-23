@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import crypto from 'crypto';
 import busboy from 'busboy';
 import { KnowledgeService } from '../services/KnowledgeService';
 import { HistoryService } from '../services/HistoryService';
@@ -37,9 +38,7 @@ export class ChatController {
                     const { AgentWorkflow } = await import('../workflows/AgentWorkflow');
 
                     // Generate traceId and return immediately
-                    const traceId = (global as any).crypto
-                        ? (global as any).crypto.randomUUID()
-                        : require('crypto').randomUUID();
+                    const traceId = crypto.randomUUID();
 
                     // Return traceId to client immediately (JSON, not SSE)
                     res.json({ traceId, sessionId: actualSessionId });
@@ -83,7 +82,7 @@ export class ChatController {
 
             // @ts-ignore
             bb.on('file', (name: string, file: any, info: any) => {
-                console.log(`[ChatController] busboy FILE event: fieldName="${name}", filename="${info.filename}", mimeType="${info.mimeType}"`);
+                LoggerService.debug('chat_busboy_file_event', { fieldName: name, filename: info.filename, mimeType: info.mimeType });
                 const mimeType = info.mimeType || info.mime;
                 const promise = new Promise<any>(async (resolve) => {
                     const chunks: any[] = [];
@@ -108,7 +107,7 @@ export class ChatController {
                 results.forEach(f => {
                     if (f) files.push(f);
                 });
-                console.log(`[ChatController] busboy CLOSE: files=${files.length}, filePromises=${filePromises.length}, fileDetails=${JSON.stringify(files.map(f => ({ name: f.name, size: f.size, hasBuffer: !!f.buffer })))}`);
+                LoggerService.debug('chat_busboy_close', { fileCount: files.length, fileDetails: files.map(f => ({ name: f.name, size: f.size, hasBuffer: !!f.buffer })) });
                 executeAgent(); // Always use Agent
             });
 
@@ -125,7 +124,7 @@ export class ChatController {
             images = ChatController.transformImages(req.body.images);
             // Files via JSON body lack Buffer data — warn if present
             if (req.body.files?.length) {
-                console.warn('[ChatController] Files sent via JSON body will not have buffer data. Use multipart/form-data for file uploads.');
+                LoggerService.warn('chat_json_body_files', { message: 'Files sent via JSON body will not have buffer data. Use multipart/form-data for file uploads.' });
             }
 
             executeAgent();
@@ -156,11 +155,11 @@ export class ChatController {
             const data = await BedrockService.getModels();
             res.json(data);
         } catch (error: any) {
-            console.error('[ChatController] getModels Error:', error.message);
-            if (error.response) {
-                console.error('[ChatController] getModels Error Data:', error.response.data);
-                console.error('[ChatController] getModels Error Status:', error.response.status);
-            }
+            LoggerService.error('chat_get_models_error', {
+                message: error.message,
+                responseData: error.response?.data,
+                responseStatus: error.response?.status
+            });
             res.status(500).json({
                 error: 'Failed to fetch available models',
                 details: error.message,

@@ -4,7 +4,7 @@ import { LoggerService } from '../services/LoggerService';
 import { CalculatorTool } from '../tools/CalculatorTool';
 import { SearchTool } from '../tools/SearchTool';
 import { PolicyCheckerTool } from '../tools/PolicyCheckerTool';
-import { SYSTEM_MODELS, AGENT_CONFIG } from '../config/models';
+import { SYSTEM_MODELS } from '../config/models';
 import * as crypto from 'crypto';
 
 // New Components & Types
@@ -259,7 +259,7 @@ export class AgentWorkflow {
             // --- STREAMING CALL ---
             const { text: fullResponse, content: contentBlocks, usage: stepUsage, stopReason } = await BedrockService.streamChatSSE(
                 SYSTEM_MODELS.AGENT,
-                this.state.messages,
+                this.state.messages as any,
                 (delta) => {
                     if (!firstTokenTime) firstTokenTime = Date.now();
                     bufferedText += delta;

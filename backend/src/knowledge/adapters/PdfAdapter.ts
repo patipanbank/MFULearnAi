@@ -2,17 +2,17 @@ import { BaseAdapter } from './BaseAdapter';
 import { CanonicalIR, IRBlock, Warning } from '../../../../shared/types';
 import axios from 'axios';
 import FormData from 'form-data';
+import { LoggerService } from '../../services/LoggerService';
+import { OCR_SERVICE_URL } from '../constants';
 
 interface PdfAdapterConfig {
     minAvgLineLength: number;
     maxNonPrintableRatio: number;
-    ocrServiceUrl: string;
 }
 
 const CONFIG: PdfAdapterConfig = {
     minAvgLineLength: 5,
     maxNonPrintableRatio: 0.2, // 20% garbage chars is suspicious
-    ocrServiceUrl: process.env.OCR_SERVICE_URL || 'http://ocr-service:5000'
 };
 
 export class PdfAdapter implements BaseAdapter {
@@ -27,36 +27,35 @@ export class PdfAdapter implements BaseAdapter {
 
             // 2. Validate Quality (Garbage Detection)
             if (this.isGarbageText(result)) {
-                console.log('[PdfAdapter] Text layer detected as garbage. Falling back to OCR.');
+                LoggerService.info('pdf_adapter_garbage_detected', { file: originalName });
                 return await this.performOcr(buffer, originalName, 'GARBAGE_TEXT_LAYER');
             }
 
             // 3. Validate Quantity (Scanned Detection)
             if (this.isScanned(result)) {
-                console.log('[PdfAdapter] Low text density (Scanned). Falling back to OCR.');
+                LoggerService.info('pdf_adapter_scanned_detected', { file: originalName });
                 return await this.performOcr(buffer, originalName, 'SCANNED_PDF');
             }
 
             // Quality is Good
-            return this.convertToIR(result, buffer.length); // Calculate real metadata
+            return this.convertToIR(result, buffer.length);
 
-        } catch (e) {
-            console.error('[PdfAdapter] Native parse failed:', e);
-            // Fallback to OCR on error?
+        } catch (e: any) {
+            LoggerService.error('pdf_adapter_native_parse_failed', { file: originalName, error: e.message });
+            // Fallback to OCR on error
             return await this.performOcr(buffer, originalName, 'PARTIAL_PARSE');
         }
     }
 
     private async extractNativeText(buffer: Buffer): Promise<{ pages: { text: string, pageNum: number }[] }> {
-        // Dynamic Import for PDF.js (Legacy build for Node)
-        const importDynamic = new Function('modulePath', 'return import(modulePath)');
-        const pdfjs = await importDynamic('pdfjs-dist/legacy/build/pdf.mjs');
+        // Standard dynamic import for PDF.js (no new Function hack — CQ-10)
+        const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs');
 
         const loadingTask = pdfjs.getDocument({
             data: new Uint8Array(buffer),
             useSystemFonts: true,
             disableFontFace: true,
-            verbosity: 0
+            verbosity: 0 // Suppress PDF.js warnings at library level
         });
 
         const doc = await loadingTask.promise;
@@ -65,9 +64,6 @@ export class PdfAdapter implements BaseAdapter {
         for (let i = 1; i <= doc.numPages; i++) {
             const page = await doc.getPage(i);
             const content = await page.getTextContent();
-            // Simple sort by geometry could go here if needed, but pdfjs usually returns in reading order roughly
-            // For now, joining items with space. 
-            // Better: Check 'transform' via logic, but simple join is usually "okay" for flat text.
             const text = content.items.map((item: any) => item.str).join(' ');
             pages.push({ text, pageNum: i });
         }
@@ -76,22 +72,18 @@ export class PdfAdapter implements BaseAdapter {
 
     private isGarbageText(result: { pages: { text: string }[] }): boolean {
         const fullText = result.pages.map(p => p.text).join(' ');
-        if (fullText.length < 100) return false; // Too short to judge encoding, likely scanned logic handles it
+        if (fullText.length < 100) return false; // Too short to judge encoding
 
-        // Heuristic A: Non-printable characters
-        // Removing common whitespace/punctuation
-        const printable = fullText.replace(/[^\x20-\x7E\s\u0E00-\u0E7F]/g, ''); // ASCII + Thai
+        // Heuristic A: Non-printable characters (ASCII + Thai range)
+        const printable = fullText.replace(/[^\x20-\x7E\s\u0E00-\u0E7F]/g, '');
         const garbageRatio = 1 - (printable.length / fullText.length);
 
         if (garbageRatio > CONFIG.maxNonPrintableRatio) return true;
 
-        // Heuristic B: Avg Line Length (Pseudo-lines based on spacing?)
-        // Hard to do without strict layout. 
-        // Instead check avg token length? 
-        // If "t o k e n s a r e l i k e t h i s", avg length is 1.
+        // Heuristic B: Average word length (broken text like "t o k e n s" has avg ~1)
         const words = fullText.split(/\s+/);
         const avgWordLen = words.reduce((acc, w) => acc + w.length, 0) / (words.length || 1);
-        if (avgWordLen < 1.5) return true; // Suspiciously broken text
+        if (avgWordLen < 1.5) return true;
 
         return false;
     }
@@ -107,14 +99,12 @@ export class PdfAdapter implements BaseAdapter {
             const formData = new FormData();
             formData.append('file', buffer, { filename });
 
-            const res = await axios.post(`${CONFIG.ocrServiceUrl}/ocr`, formData, {
+            const res = await axios.post(`${OCR_SERVICE_URL}/ocr`, formData, {
                 headers: formData.getHeaders(),
                 maxBodyLength: Infinity,
                 maxContentLength: Infinity
             });
 
-            // OCR Service returns: { text: "...", pages: 1 } (It concatenates pages with delimiters usually)
-            // Existing service uses "--- Page X ---"
             const fullText = res.data.text || '';
 
             // Split back into pages
@@ -126,7 +116,7 @@ export class PdfAdapter implements BaseAdapter {
                 content: text.trim(),
                 metadata: {
                     page: idx + 1,
-                    confidence: 0.7, // Assume OCR is lower confidence
+                    confidence: 0.7, // OCR is lower confidence
                     source: 'ocr'
                 }
             }));
@@ -140,15 +130,13 @@ export class PdfAdapter implements BaseAdapter {
                 }
             };
 
-        } catch (e) {
-            console.error('[PdfAdapter] OCR failed:', e);
+        } catch (e: any) {
+            LoggerService.error('pdf_adapter_ocr_failed', { file: filename, error: e.message });
             throw new Error('OCR processing failed');
         }
     }
 
     private convertToIR(result: { pages: { text: string, pageNum: number }[] }, totalSize: number): CanonicalIR {
-        // Header/Footer Deduplication Logic could go here
-        // For now, mapping directly
         const blocks: IRBlock[] = result.pages.map((p, idx) => ({
             id: `pdf_b${idx}`,
             type: 'text',
@@ -160,11 +148,16 @@ export class PdfAdapter implements BaseAdapter {
             }
         }));
 
+        // CQ-14: Improved token estimation (rough but better than bytes/4)
+        const fullText = result.pages.map(p => p.text).join(' ');
+        const wordCount = fullText.split(/\s+/).filter(w => w.length > 0).length;
+        const estimatedTokens = Math.ceil(wordCount * 1.3); // ~1.3 tokens per word (accounts for subwords)
+
         return {
             file_type: 'document',
             blocks,
             metadata: {
-                total_tokens: totalSize / 4 // Crude
+                total_tokens: estimatedTokens
             }
         };
     }

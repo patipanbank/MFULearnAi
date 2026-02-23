@@ -1,5 +1,5 @@
 import { MCPClient } from './MCPClient';
-import { AgentTool, ToolResult, AgentContext } from '../tools/AgentTool';
+import { AgentTool, ToolResult, ToolExecutionContext } from '../tools/AgentTool';
 
 export class McpToolAdapter extends AgentTool {
     public name: string;
@@ -25,7 +25,7 @@ export class McpToolAdapter extends AgentTool {
         };
     }
 
-    async execute(input: any, context?: AgentContext): Promise<ToolResult> {
+    async execute(input: any, context?: ToolExecutionContext): Promise<ToolResult> {
         try {
             const rawResult = await this.client.callTool(this.toolDef.name, input);
 

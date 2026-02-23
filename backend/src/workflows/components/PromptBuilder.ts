@@ -1,6 +1,7 @@
-import { AgentContext, WorkflowState, NativeDocBlock, ExtractedTextBlock } from '../types/AgentTypes';
+import { AgentContext, WorkflowState, NativeDocBlock, ExtractedTextBlock, BedrockMessage } from '../types/AgentTypes';
 import { PromptService, PromptVariableValues } from '../../services/PromptService';
 import { SYSTEM_MODELS } from '../../config/models';
+import { AGENT_CONSTANTS } from '../types/AgentConstants';
 import { LoggerService } from '../../services/LoggerService';
 
 /**
@@ -17,7 +18,7 @@ export class PromptBuilder {
      * Build the initial message stack for the agent.
      * Now async — pulls the system prompt dynamically from DB via PromptService.
      */
-    static async buildInitialMessages(ctx: AgentContext, state: WorkflowState, allowedTools: any[] = []) {
+    static async buildInitialMessages(ctx: AgentContext, state: WorkflowState, allowedTools: any[] = []): Promise<BedrockMessage[]> {
         const { message, images } = ctx;
         const { smartContext, nativeDocBlocks, extractedTextBlocks, history } = state;
 
@@ -124,12 +125,15 @@ ${JSON.stringify(smartContext?.rolling || {}, null, 2)}`
         userContent.push({ type: 'text', text: message });
 
         if (images && images.length > 0) {
-            console.log('[PromptBuilder] Processing images:', JSON.stringify(images.map((i: any) => ({
-                type: i?.type,
-                format: i?.format,
-                sourceKeys: i?.source ? Object.keys(i.source) : 'missing',
-                hasBytes: i?.source?.bytes ? true : false
-            })), null, 2));
+            LoggerService.debug('prompt_builder_images', {
+                imageCount: images.length,
+                imageInfo: images.map((i: any) => ({
+                    type: i?.type,
+                    format: i?.format,
+                    sourceKeys: i?.source ? Object.keys(i.source) : 'missing',
+                    hasBytes: !!i?.source?.bytes
+                }))
+            });
 
             userContent.push(...images.map((img: any) => ({
                 type: 'image',
@@ -139,9 +143,9 @@ ${JSON.stringify(smartContext?.rolling || {}, null, 2)}`
 
         // --- Final Message Stack ---
         return [
-            { role: 'system', content: systemBlocks },
-            ...history.slice(-10).map((m: any) => ({ role: m.role, content: m.content, images: m.images })),
-            { role: 'user', content: userContent }
+            { role: 'system' as const, content: systemBlocks },
+            ...history.slice(-AGENT_CONSTANTS.HISTORY_WINDOW_SIZE).map((m: any) => ({ role: m.role as BedrockMessage['role'], content: m.content, images: m.images })),
+            { role: 'user' as const, content: userContent }
         ];
     }
 

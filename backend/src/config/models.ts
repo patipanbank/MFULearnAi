@@ -116,16 +116,3 @@ export const BEDROCK_MODELS = {
     CLAUDE_3_5_SONNET: SYSTEM_MODELS.CHAT,
     CLAUDE_3_HAIKU: SYSTEM_MODELS.UTILITY
 } as const;
-
-
-/** Agent loop configuration */
-export const AGENT_CONFIG = {
-    /** Maximum tool-use iterations before forcing a response */
-    MAX_STEPS: 8,
-
-    /** Maximum wall-clock time (ms) for the entire agent loop */
-    MAX_WALL_MS: 120_000, // 2 minutes
-
-    /** Bedrock request timeout (ms) per step */
-    STEP_TIMEOUT_MS: 60_000,
-} as const;

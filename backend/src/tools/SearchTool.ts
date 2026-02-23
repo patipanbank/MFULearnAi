@@ -1,4 +1,4 @@
-import { AgentTool, AgentContext, ToolResult } from './AgentTool';
+import { AgentTool, ToolExecutionContext, ToolResult } from './AgentTool';
 import { KnowledgeService } from '../services/KnowledgeService';
 
 export class SearchTool extends AgentTool {
@@ -28,7 +28,7 @@ export class SearchTool extends AgentTool {
         }
     };
 
-    async execute(args: any, context: AgentContext): Promise<ToolResult> {
+    async execute(args: any, context: ToolExecutionContext): Promise<ToolResult> {
         try {
             const { query, context: queryContext } = args;
 
