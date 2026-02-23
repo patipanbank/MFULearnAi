@@ -510,6 +510,17 @@ export const useChatStore = defineStore('chat', () => {
                 }
 
                 const errText = await response.text()
+
+                // Handle 429 quota exceeded gracefully
+                if (response.status === 429) {
+                    let msg = 'คุณใช้งานเกินโควตาประจำวันแล้ว กรุณาลองใหม่ในวันพรุ่งนี้'
+                    try {
+                        const errJson = JSON.parse(errText)
+                        if (errJson.message) msg = errJson.message
+                    } catch {}
+                    throw new Error(msg)
+                }
+
                 throw new Error(`Server Error ${response.status}: ${errText}`)
             }
 
@@ -555,7 +566,7 @@ export const useChatStore = defineStore('chat', () => {
                 console.log('[ChatStore] Request Aborted')
             } else {
                 console.error('[ChatStore] Error:', error)
-                messages.value[assistantIndex].content += `\n\n**System Error**: ${error.message}`
+                messages.value[assistantIndex].content = `⚠️ ${error.message}`
                 messages.value[assistantIndex].error = true
             }
         } finally {
