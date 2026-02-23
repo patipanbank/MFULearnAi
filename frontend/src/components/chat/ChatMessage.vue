@@ -62,33 +62,36 @@ const agentSummary = computed(() => {
 
 const timelineEvents = computed(() => {
   if (!hasAgentEvents.value) return []
-  const rawEvents = props.message.agentEvents.filter(e =>
-    ['thinking', 'tool_start', 'tool_complete'].includes(e.type)
+  // Filter only block and tool events. Legacy thinking events are ignored or mapped.
+  let rawEvents = props.message.agentEvents.filter(e =>
+    ['block', 'tool_start', 'tool_complete'].includes(e.type)
   )
+
+  // Remove the very last event from the timeline if it's a text block, 
+  // because that will become our main bubble text.
+  if (rawEvents.length > 0) {
+    const lastEvent = rawEvents[rawEvents.length - 1]
+    if (lastEvent.type === 'block') {
+      rawEvents = rawEvents.slice(0, -1)
+    }
+  }
+
   const mergedEvents = []
-  const thinkingByStep = {}
+  const blockByStep = {}
   const toolByStep = {}
-  const maxStep = Math.max(...rawEvents.map(e => e.step || 0), 0)
   const isComplete = props.message.agentEvents.some(e =>
-    e.type === 'agent_complete' || e.type === 'answer_done'
+    e.type === 'agent_complete'
   )
 
   rawEvents.forEach(evt => {
-    if (evt.type === 'thinking') {
+    if (evt.type === 'block') {
       const step = evt.step
-      const isPlaceholder = evt.message && evt.message.startsWith('กำลังวิเคราะห์...')
-      if (thinkingByStep[step] !== undefined) {
-        if (!isPlaceholder && evt.message?.trim()) {
-          mergedEvents[thinkingByStep[step]] = { ...evt, isActive: false }
-        }
+      // A block replaces the legacy thinking bubble. It contains actual text.
+      if (blockByStep[step] !== undefined) {
+        mergedEvents[blockByStep[step]] = { ...evt, isActive: false }
       } else {
-        if (!isPlaceholder && evt.message?.trim()) {
-          mergedEvents.push({ ...evt, isActive: false })
-          thinkingByStep[step] = mergedEvents.length - 1
-        } else if (!isComplete && step === maxStep) {
-          mergedEvents.push({ ...evt, isActive: true })
-          thinkingByStep[step] = mergedEvents.length - 1
-        }
+        mergedEvents.push({ ...evt, isActive: !evt.isFinished })
+        blockByStep[step] = mergedEvents.length - 1
       }
     } else if (evt.type === 'tool_start') {
       mergedEvents.push({ ...evt, result: null, isToolComplete: false, success: false })
@@ -114,18 +117,36 @@ const timelineEvents = computed(() => {
       }
     }
   })
-  return mergedEvents
+  
+  // Clean up empty blocks (blocks with no text) unless it's the only one and active
+  return mergedEvents.filter(e => e.type !== 'block' || e.content?.trim() || e.isActive)
+})
+
+const mainBubbleText = computed(() => {
+  if (props.message.content) return props.message.content;
+  if (!hasAgentEvents.value) return '';
+  
+  const rawEvents = props.message.agentEvents.filter(e =>
+    ['block', 'tool_start', 'tool_complete'].includes(e.type)
+  );
+  if (rawEvents.length === 0) return '';
+  
+  const lastEvent = rawEvents[rawEvents.length - 1];
+  if (lastEvent.type === 'block') {
+    return lastEvent.content || '';
+  }
+  return '';
 })
 
 const showAgentFlow = computed(() =>
   props.isStreaming || (hasAgentEvents.value && timelineEvents.value.length > 0)
 )
 
-// Flow header summary text — shows "thoughts for Xs"
+// Flow header summary text — shows "agent process for Xs"
 const flowHeaderText = computed(() => {
   if (!agentSummary.value?.isComplete) return 'Working...'
   const sec = agentSummary.value.durationStr || ''
-  return sec ? `thoughts for ${sec}` : 'thoughts'
+  return sec ? `Process took ${sec}` : 'Process complete'
 })
 
 // Tool label mapping
@@ -147,11 +168,11 @@ const toolIcon = (name) => {
 const viewImage = (src) => { viewingImage.value = src }
 
 const handleCopy = async () => {
-  const success = await copyToClipboard(props.message.content)
+  const success = await copyToClipboard(mainBubbleText.value || props.message.content)
   if (success) {
     copied.value = true
     setTimeout(() => { copied.value = false }, 2000)
-    emit('copy', props.message.content)
+    emit('copy', mainBubbleText.value || props.message.content)
   }
 }
 
@@ -349,8 +370,8 @@ const getFileIcon = (file) => {
                   <div class="tl-spine">
                     <div class="tl-line" />
 
-                    <!-- Thinking icon -->
-                    <div v-if="evt.type === 'thinking'" class="tl-dot thinking" :class="{ active: evt.isActive }">
+                    <!-- Block icon -->
+                    <div v-if="evt.type === 'block'" class="tl-dot block" :class="{ active: evt.isActive }">
                       <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
                       </svg>
@@ -369,16 +390,15 @@ const getFileIcon = (file) => {
                   <!-- Content -->
                   <div class="tl-content">
 
-                    <!-- Thinking -->
-                    <template v-if="evt.type === 'thinking'">
-                      <div class="tl-label thinking-label">
-                        Thinking · Step {{ evt.step }}
+                    <!-- Text Block -->
+                    <template v-if="evt.type === 'block'">
+                      <div class="tl-label block-label">
+                        Phase {{ evt.step || 1 }}
                       </div>
-                      <div v-if="evt.isActive" class="thinking-active">
+                      <div class="block-text markdown-body" v-html="render(evt.content || '')" />
+                      <div v-if="evt.isActive" class="block-active">
                         <span class="dot-pulse" /><span class="dot-pulse" /><span class="dot-pulse" />
-                        <span class="thinking-live" v-if="evt.message">{{ evt.message }}</span>
                       </div>
-                      <div v-else class="thinking-text markdown-body" v-html="render(evt.message)" />
                     </template>
 
                     <!-- Tool -->
@@ -416,17 +436,17 @@ const getFileIcon = (file) => {
           <div
             ref="messageRef"
             class="prose markdown-body"
-            v-if="message.content"
-            v-html="render(message.content)"
+            v-if="mainBubbleText"
+            v-html="render(mainBubbleText)"
           />
 
           <!-- Typing dots (fallback when no agent flow) -->
-          <div v-if="!message.content && !showAgentFlow && isStreaming" class="typing-dots">
+          <div v-if="!mainBubbleText && !showAgentFlow && isStreaming" class="typing-dots">
             <span /><span /><span />
           </div>
 
           <!-- Action Bar: Copy | Like | Dislike -->
-          <div class="action-bar" v-if="message.content">
+          <div class="action-bar" v-if="mainBubbleText">
             <!-- Copy -->
             <button class="action-btn" @click="handleCopy" :class="{ copied }" :title="t('copy')">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -612,8 +632,8 @@ const getFileIcon = (file) => {
   background: var(--color-bg-secondary); border: 1px solid var(--color-border);
   color: var(--color-text-muted); z-index: 1;
 }
-.tl-dot.thinking { background: #eff6ff; border-color: #bfdbfe; color: #3b82f6; }
-.tl-dot.thinking.active { animation: pulse-ring 2s infinite; }
+.tl-dot.block { background: #eff6ff; border-color: #bfdbfe; color: #3b82f6; }
+.tl-dot.block.active { animation: pulse-ring 2s infinite; }
 .tl-dot.tool { background: #fff7ed; border-color: #fed7aa; color: #f97316; }
 .tl-dot.pulsing { background: var(--color-bg-tertiary); animation: pulse-ring 1.5s infinite; }
 
@@ -629,30 +649,18 @@ const getFileIcon = (file) => {
   font-size: 12px; font-weight: 600; margin-bottom: 4px;
   text-transform: uppercase; letter-spacing: 0.4px;
 }
-.thinking-label { color: #3b82f6; }
+.block-label { color: #3b82f6; }
 .tool-label { color: #f97316; }
 
-/* Thinking content */
-.thinking-active {
-  display: flex; align-items: center; gap: 4px; padding: 4px 0;
+/* Block content */
+.block-text {
+  font-size: 14px; line-height: 1.6; color: var(--color-text-primary);
+  /* Strip markdown bottom padding inside timeline */
+  margin-bottom: 0 !important;
 }
-.dot-pulse {
-  width: 5px; height: 5px; border-radius: 50%;
-  background: var(--color-text-muted);
-  animation: bounce 1.4s infinite ease-in-out both;
-}
-.dot-pulse:nth-child(1) { animation-delay: -0.32s; }
-.dot-pulse:nth-child(2) { animation-delay: -0.16s; }
-@keyframes bounce {
-  0%, 80%, 100% { transform: scale(0.5); opacity: 0.4; }
-  40% { transform: scale(1); opacity: 1; }
-}
-.thinking-live {
-  font-size: 12px; color: var(--color-text-muted);
-  font-style: italic; margin-left: 4px;
-}
-.thinking-text {
-  font-size: 13px; line-height: 1.6; color: var(--color-text-secondary);
+.block-text :deep(p:last-child) { margin-bottom: 0; }
+.block-active {
+  display: flex; align-items: center; gap: 4px; padding: 4px 0; margin-top: 4px;
 }
 
 /* Tool content */

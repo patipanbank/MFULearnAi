@@ -201,14 +201,15 @@ export class AgentWorkflow {
                 stack: error.stack,
                 traceId: this.state.traceId
             });
+            // Final Answer fallback for errors
             this.state.finalAnswer = 'เกิดข้อผิดพลาดในการประมวลผล กรุณาลองใหม่อีกครั้ง';
             this.state.answerMode = 'internal';
             this.state.answerState = 'ERROR';
 
-            // Emit answer events so frontend bubble shows the error message
-            this.emit(AGENT_EVENTS.ANSWER_START, { answerMode: 'internal' });
-            this.emit(AGENT_EVENTS.ANSWER_DELTA, { delta: this.state.finalAnswer });
-            this.emit(AGENT_EVENTS.ANSWER_DONE, { fullLength: this.state.finalAnswer.length });
+            // Emit error block so frontend bubble shows the error message
+            this.emit(AGENT_EVENTS.BLOCK_START, { answerMode: 'internal', step: this.state.steps });
+            this.emit(AGENT_EVENTS.BLOCK_DELTA, { delta: this.state.finalAnswer });
+            this.emit(AGENT_EVENTS.BLOCK_END, { step: this.state.steps });
             this.emit(AGENT_EVENTS.ERROR, { error: 'Agent workflow failed', traceId: this.state.traceId });
         } finally {
             // 5. Finalize & Persist
@@ -246,16 +247,13 @@ export class AgentWorkflow {
 
             this.state.steps++;
             this.emit(AGENT_EVENTS.AGENT_STEP, { step: this.state.steps, maxSteps: AGENT_CONSTANTS.MAX_AGENT_STEPS });
-            this.emit(AGENT_EVENTS.THINKING, { step: this.state.steps, message: `กำลังวิเคราะห์... (ขั้นตอนที่ ${this.state.steps})` });
 
             LoggerService.info('agent_step', { step: this.state.steps, traceId: this.state.traceId }, this.ctx.userId);
 
             const stepStartTime = Date.now();
             let firstTokenTime: number | null = null;
-            let bufferedText = '';
-
-            // Redesigned: Explicit Timeline State Parsing
-            let isThinking = false;
+            let currentBlockText = '';
+            let hasEmittedBlockStart = false;
 
             this.state.phase = AgentPhase.GENERATING_RESPONSE;
 
@@ -266,79 +264,25 @@ export class AgentWorkflow {
                 (delta) => {
                     if (!firstTokenTime) firstTokenTime = Date.now();
 
-                    bufferedText += delta;
+                    currentBlockText += delta;
 
-                    // Check for tag transitions in the accumulated buffer
-                    if (!isThinking && bufferedText.includes('<thinking>')) {
-                        isThinking = true;
-                        // Extract anything before <thinking> as answer if it exists (unlikely but safe)
-                        const beforeThink = bufferedText.split('<thinking>')[0];
-                        if (beforeThink.trim()) {
-                            if (!this.state.hasEmittedAnswerStart) {
-                                this.determineAnswerMode(beforeThink);
-                                this.emit(AGENT_EVENTS.ANSWER_START, { answerMode: this.state.answerMode });
-                                this.state.hasEmittedAnswerStart = true;
-                            }
-                            this.emit(AGENT_EVENTS.ANSWER_DELTA, { delta: beforeThink });
-                        }
-
-                        // Emit the opening delta for the thought
-                        const afterThink = bufferedText.split('<thinking>')[1];
-                        if (afterThink) {
-                            this.emit(AGENT_EVENTS.THINKING_DELTA, { delta: afterThink });
-                        }
-                        bufferedText = ''; // Clear buffer since we handled it
-                        return;
+                    if (!hasEmittedBlockStart) {
+                        this.determineAnswerMode(delta); // Quick peek, though better to do it earlier or post-hoc
+                        this.emit(AGENT_EVENTS.BLOCK_START, { answerMode: this.state.answerMode, step: this.state.steps });
+                        hasEmittedBlockStart = true;
                     }
 
-                    if (isThinking && bufferedText.includes('</thinking>')) {
-                        isThinking = false;
-
-                        // Extract the thought content
-                        const beforeEndThink = bufferedText.split('</thinking>')[0];
-                        if (beforeEndThink) {
-                            this.emit(AGENT_EVENTS.THINKING_DELTA, { delta: beforeEndThink });
-                        }
-
-                        // Close the thought block
-                        this.emit(AGENT_EVENTS.THINKING_END, { step: this.state.steps });
-
-                        // Any text after </thinking> is standard answer
-                        const afterEndThink = bufferedText.split('</thinking>')[1];
-                        if (afterEndThink) {
-                            if (!this.state.hasEmittedAnswerStart) {
-                                this.determineAnswerMode(afterEndThink);
-                                this.emit(AGENT_EVENTS.ANSWER_START, { answerMode: this.state.answerMode });
-                                this.state.hasEmittedAnswerStart = true;
-                            }
-                            this.emit(AGENT_EVENTS.ANSWER_DELTA, { delta: afterEndThink });
-                        }
-                        bufferedText = ''; // Clear buffer
-                        return;
-                    }
-
-                    // Normal streaming depending on state
-                    if (isThinking) {
-                        this.emit(AGENT_EVENTS.THINKING_DELTA, { delta });
-                    } else {
-                        // We are outside <thinking>. If we haven't seen <thinking> yet, 
-                        // we must ensure we aren't splitting a tag like "<thin".
-                        // Wait until buffer is large enough to know it's not a tag.
-                        if (bufferedText.length > 15 || (bufferedText.length > 0 && !'<thinking>'.startsWith(bufferedText))) {
-                            if (!this.state.hasEmittedAnswerStart) {
-                                this.determineAnswerMode(bufferedText);
-                                this.emit(AGENT_EVENTS.ANSWER_START, { answerMode: this.state.answerMode });
-                                this.state.hasEmittedAnswerStart = true;
-                            }
-                            this.emit(AGENT_EVENTS.ANSWER_DELTA, { delta: bufferedText });
-                            bufferedText = ''; // Clear buffer since it's flushed
-                        }
-                    }
+                    this.emit(AGENT_EVENTS.BLOCK_DELTA, { delta });
                 },
                 0.5,
                 toolConfig,
                 guardrailConfig
             );
+
+            // If we generated any text, close the block naturally
+            if (hasEmittedBlockStart) {
+                this.emit(AGENT_EVENTS.BLOCK_END, { step: this.state.steps });
+            }
 
             // Update Usage
             const stepDurationMs = Date.now() - stepStartTime;
@@ -357,12 +301,6 @@ export class AgentWorkflow {
             // Logic: Tool Use vs Final Answer
             if (stopReason === 'tool_use') {
                 this.state.phase = AgentPhase.EXECUTING_TOOL;
-                this.state.hasEmittedAnswerStart = false; // Reset for next turn
-
-                // Force close the thought block if the LLM didn't close it explicitly before calling the tool
-                if (isThinking) {
-                    this.emit(AGENT_EVENTS.THINKING_END, { step: this.state.steps });
-                }
 
                 const { usedTools, toolResults } = await ToolExecutor.executeTools(
                     fullResponse,
@@ -391,27 +329,11 @@ export class AgentWorkflow {
 
             } else {
                 this.state.phase = AgentPhase.COMPLETED;
-                // Final Answer Logic
-
-                // Force close thought block if omitted by LLM
-                if (isThinking) {
-                    this.emit(AGENT_EVENTS.THINKING_END, { step: this.state.steps });
-                }
-
-                // Clean any stray thinking tags from the final string for the DB message history
-                const cleanResponse = fullResponse.replace(/<thinking>[\s\S]*?<\/thinking>/g, '').trim();
-
-                // If we haven't emitted START yet, emit now
-                if (!this.state.hasEmittedAnswerStart && cleanResponse) {
-                    this.determineAnswerMode(cleanResponse);
-                    this.emit(AGENT_EVENTS.ANSWER_START, { answerMode: this.state.answerMode });
-                    this.state.hasEmittedAnswerStart = true;
-                }
+                // Final Answer Logic (Claude Native Block Streaming handles this naturally)
 
                 // 3. Update State & Emit DONE
-                this.state.finalAnswer = cleanResponse;
-                this.state.messages.push({ role: 'assistant', content: cleanResponse });
-                this.emit(AGENT_EVENTS.ANSWER_DONE, { fullLength: cleanResponse.length });
+                this.state.finalAnswer = fullResponse;
+                this.state.messages.push({ role: 'assistant', content: fullResponse });
 
                 break;
             }
@@ -441,9 +363,9 @@ export class AgentWorkflow {
         this.state.answerState = 'TIMEOUT';
 
         // Emit answer events so frontend bubble shows the timeout message
-        this.emit(AGENT_EVENTS.ANSWER_START, { answerMode: 'internal' });
-        this.emit(AGENT_EVENTS.ANSWER_DELTA, { delta: this.state.finalAnswer });
-        this.emit(AGENT_EVENTS.ANSWER_DONE, { fullLength: this.state.finalAnswer.length });
+        this.emit(AGENT_EVENTS.BLOCK_START, { answerMode: 'internal', step: this.state.steps });
+        this.emit(AGENT_EVENTS.BLOCK_DELTA, { delta: this.state.finalAnswer });
+        this.emit(AGENT_EVENTS.BLOCK_END, { step: this.state.steps });
         this.emit(AGENT_EVENTS.STATUS, { message: 'หมดเวลาดำเนินการ' });
     }
 

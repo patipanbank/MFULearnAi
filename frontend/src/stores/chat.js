@@ -301,8 +301,8 @@ export const useChatStore = defineStore('chat', () => {
             }
 
             // ══ Agent Flow Events ══
-            if (['agent_start', 'context_loaded', 'agent_step', 'thinking',
-                'answer_start', 'answer_done', 'step_usage', 'agent_complete'].includes(data.type)) {
+            if (['agent_start', 'context_loaded', 'agent_step',
+                'block_start', 'block_end', 'step_usage', 'agent_complete'].includes(data.type)) {
                 ensureEvents()
                 messages.value[assistantIndex].agentEvents.push({
                     type: data.type,
@@ -336,23 +336,55 @@ export const useChatStore = defineStore('chat', () => {
                 })
             }
 
-            // ══ Answer Streaming (Token-by-token) ══
-            if (data.type === 'answer_start') {
-                messages.value[assistantIndex].answerMode = data.answerMode || 'text'
+            // ══ Block Streaming ══
+            if (data.type === 'block_start') {
+                ensureEvents()
+                const events = messages.value[assistantIndex].agentEvents
+                events.push({
+                    type: 'block',
+                    content: '', // Will hold the text
+                    step: data.step || (events.length > 0 ? Math.max(...events.map(e => e.step || 0)) : 0),
+                    receivedAt: Date.now(),
+                    isFinished: false,
+                    isActive: true
+                })
             }
 
-            if (data.type === 'answer_delta') {
-                const msg = messages.value[assistantIndex]
-                if (msg) msg.content += data.delta
+            if (data.type === 'block_delta') {
+                ensureEvents()
+                const events = messages.value[assistantIndex].agentEvents
+                // Find the latest active block
+                const lastBlock = [...events].reverse().find(e => e.type === 'block' && !e.isFinished && e.isActive)
+
+                if (lastBlock) {
+                    lastBlock.content += data.delta
+                } else {
+                    // Fallback if delta arrives without start (shouldn't happen robustly, but just in case)
+                    const maxStep = events.length > 0 ? Math.max(...events.map(e => e.step || 0)) : 0
+                    events.push({
+                        type: 'block',
+                        content: data.delta,
+                        step: maxStep,
+                        receivedAt: Date.now(),
+                        isFinished: false,
+                        isActive: true
+                    })
+                }
+            }
+
+            if (data.type === 'block_end') {
+                ensureEvents()
+                const events = messages.value[assistantIndex].agentEvents
+                // Find the latest active block and close it
+                const lastBlock = [...events].reverse().find(e => e.type === 'block' && !e.isFinished && e.isActive)
+                if (lastBlock) {
+                    lastBlock.isFinished = true
+                    lastBlock.isActive = false
+                }
             }
 
             // Status Updates
             if (data.type === 'status') {
-                messages.value[assistantIndex].status = data.message
-            }
-
-            // Thinking status
-            if (data.type === 'thinking') {
                 messages.value[assistantIndex].status = data.message
             }
 
@@ -399,39 +431,7 @@ export const useChatStore = defineStore('chat', () => {
                 }
             }
 
-            // Thinking Delta (Real-time updates for Thinking Card)
-            if (data.type === 'thinking_delta') {
-                ensureEvents()
-                const events = messages.value[assistantIndex].agentEvents
-                const lastEvt = events[events.length - 1]
 
-                if (lastEvt && lastEvt.type === 'thinking' && !lastEvt.isFinished) {
-                    lastEvt.message = (lastEvt.message || '') + data.delta
-                } else {
-                    // Create new thinking block if none active
-                    const maxStep = events.length > 0 ? Math.max(...events.map(e => e.step || 0)) : 0
-
-                    messages.value[assistantIndex].agentEvents.push({
-                        type: 'thinking',
-                        message: data.delta,
-                        step: maxStep + 1,
-                        receivedAt: Date.now(),
-                        isFinished: false,
-                        isActive: true
-                    })
-                }
-            }
-
-            // Thinking End
-            if (data.type === 'thinking_end') {
-                ensureEvents()
-                const events = messages.value[assistantIndex].agentEvents
-                const lastEvt = events[events.length - 1]
-                if (lastEvt && lastEvt.type === 'thinking' && !lastEvt.isFinished) {
-                    lastEvt.isFinished = true
-                    lastEvt.isActive = false
-                }
-            }
 
             // File Persisted
             if (data.type === 'file_uploaded') {

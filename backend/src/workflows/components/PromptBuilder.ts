@@ -89,8 +89,7 @@ You can see and analyze attached images. Use this capability to answer questions
 4. Internal Knowledge
 
 === CRITICAL RULES ===
-${toolInstructions}- If you need to plan or think before using a tool, you MUST wrap your internal thoughts in <thinking>...</thinking> tags. Do NOT use these tags for your final answer to the user.
-- Always start by planning your next step if complex.
+${toolInstructions}- Always start by planning your next step when using tools or answering complex tasks.
 - If the attached files or search results do NOT contain the answer, say so clearly. Do NOT guess.
 - For any question about policies, rules, regulations, or compliance: you MUST use check_policy. Never answer from internal knowledge alone.`
         });
