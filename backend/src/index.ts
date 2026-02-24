@@ -54,6 +54,10 @@ app.use('/auth', authRoutes);
 
 app.use('/api', routes);
 
+// OpenAI-Compatible API (v1)
+import v1Routes from './routes/v1';
+app.use('/v1', v1Routes);
+
 // Health Check
 app.get('/health', (req, res) => res.json({
     status: 'ok',

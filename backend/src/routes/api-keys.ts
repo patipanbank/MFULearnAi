@@ -10,6 +10,9 @@ const checkAuth = AuthService.authenticateUser;
 // List all keys
 router.get('/', checkAuth, ApiKeyController.listApiKeys);
 
+// Available models (for key creation UI)
+router.get('/models', checkAuth, ApiKeyController.listModels);
+
 // Create a new key
 router.post('/', checkAuth, ApiKeyController.createApiKey);
 

@@ -14,6 +14,10 @@ export interface ToolExecutionContext {
     role: string;
     department?: string;
     collectionId?: string;
+    // API Key KB access restrictions
+    isApiKey?: boolean;
+    allowedDepartments?: string[];
+    allowedKnowledgeIds?: string[];
 }
 
 /** Bedrock Converse API tool definition schema. */

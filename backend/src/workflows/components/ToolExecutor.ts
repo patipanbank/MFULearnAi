@@ -123,7 +123,10 @@ export class ToolExecutor {
                     userId: ctx.userId,
                     role: ctx.userRole,
                     department: ctx.userDepartment,
-                    collectionId: ctx.collectionId
+                    collectionId: ctx.collectionId,
+                    isApiKey: ctx.isApiKey,
+                    allowedDepartments: ctx.allowedDepartments,
+                    allowedKnowledgeIds: ctx.allowedKnowledgeIds,
                 });
                 result = exec.success ? exec.result : `Error: ${exec.error}`;
                 success = exec.success;

@@ -55,6 +55,9 @@
               <div class="card-top">
                 <div class="card-title-row">
                   <h3 class="key-name">{{ key.name }}</h3>
+                  <span class="mode-badge" :class="key.mode === 'model' ? 'badge-model' : 'badge-agent'">
+                    {{ key.mode === 'model' ? '⚡ Model' : '🤖 Agent' }}
+                  </span>
                   <span class="status-badge" :class="key.revokedAt ? 'badge-revoked' : 'badge-active'">
                     {{ key.revokedAt ? t('revoked') : t('active') }}
                   </span>
@@ -81,6 +84,14 @@
                     {{ key.lastUsedAt ? formatDate(key.lastUsedAt) : t('never') }}
                   </span>
                 </div>
+                <div v-if="key.organization" class="meta-row">
+                  <span class="meta-label">🏢 {{ t('organization') }}</span>
+                  <span class="meta-value">{{ key.organization }}</span>
+                </div>
+                <div v-if="key.totalRequests" class="meta-row">
+                  <span class="meta-label">📊 {{ t('requests') }}</span>
+                  <span class="meta-value">{{ key.totalRequests?.toLocaleString() || 0 }} req / {{ (key.totalTokens || 0).toLocaleString() }} tokens</span>
+                </div>
                 <div v-if="key.expiresAt" class="meta-row">
                   <span class="meta-label">
                     <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
@@ -94,6 +105,24 @@
             </div>
 
             <div class="card-actions">
+              <!-- Rotate Key -->
+              <button
+                v-if="!key.revokedAt"
+                @click="rotateKey(key)"
+                class="btn-icon btn-secondary"
+                :title="t('rotate')"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+              </button>
+              <!-- Usage -->
+              <button
+                @click="viewUsage(key)"
+                class="btn-icon"
+                :title="t('viewUsage')"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+              </button>
+              <!-- Revoke -->
               <button
                 v-if="!key.revokedAt"
                 @click="revokeKey(key)"
@@ -113,12 +142,13 @@
     <Teleport to="body">
       <Transition name="modal">
         <div v-if="showCreateModal" class="modal-backdrop" @click.self="closeCreateModal">
-          <div class="modal-panel">
+          <div class="modal-panel modal-panel-wide">
             <div class="modal-header">
               <h3>{{ t('createTitle') }}</h3>
               <button @click="closeCreateModal" class="btn-close">&times;</button>
             </div>
             <div class="modal-body">
+              <!-- Name -->
               <div class="field">
                 <label for="key-name">{{ t('keyName') }} <span class="required">*</span></label>
                 <input
@@ -126,9 +156,146 @@
                   v-model="newItem.name"
                   :placeholder="t('namePlaceholder')"
                   class="input"
-                  @keyup.enter="createKey"
                 />
               </div>
+
+              <!-- Mode Selector -->
+              <div class="field">
+                <label>{{ t('modeLabel') }} <span class="required">*</span></label>
+                <div class="mode-selector">
+                  <button
+                    type="button"
+                    class="mode-btn"
+                    :class="{ active: newItem.mode === 'agent' }"
+                    @click="newItem.mode = 'agent'"
+                  >
+                    <span class="mode-icon">🤖</span>
+                    <span class="mode-title">Agent</span>
+                    <span class="mode-desc">{{ t('modeAgentDesc') }}</span>
+                  </button>
+                  <button
+                    type="button"
+                    class="mode-btn"
+                    :class="{ active: newItem.mode === 'model' }"
+                    @click="newItem.mode = 'model'"
+                  >
+                    <span class="mode-icon">⚡</span>
+                    <span class="mode-title">Model</span>
+                    <span class="mode-desc">{{ t('modeModelDesc') }}</span>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Agent Mode Settings -->
+              <template v-if="newItem.mode === 'agent'">
+                <div class="settings-section">
+                  <div class="section-label">{{ t('agentSettings') }}</div>
+
+                  <div class="field">
+                    <label>{{ t('allowedDepts') }}</label>
+                    <input
+                      v-model="newItem.allowedDepartmentsStr"
+                      :placeholder="t('allowedDeptsPlaceholder')"
+                      class="input"
+                    />
+                    <span class="field-hint">{{ t('allowedDeptsHint') }}</span>
+                  </div>
+
+                  <div class="field">
+                    <label>{{ t('allowedKbIds') }}</label>
+                    <input
+                      v-model="newItem.allowedKnowledgeIdsStr"
+                      :placeholder="t('allowedKbIdsPlaceholder')"
+                      class="input"
+                    />
+                    <span class="field-hint">{{ t('allowedKbIdsHint') }}</span>
+                  </div>
+
+                  <div class="field">
+                    <label>{{ t('allowedTools') }}</label>
+                    <input
+                      v-model="newItem.allowedToolsStr"
+                      :placeholder="t('allowedToolsPlaceholder')"
+                      class="input"
+                    />
+                    <span class="field-hint">{{ t('allowedToolsHint') }}</span>
+                  </div>
+                </div>
+              </template>
+
+              <!-- Model Mode Settings -->
+              <template v-if="newItem.mode === 'model'">
+                <div class="settings-section">
+                  <div class="section-label">{{ t('modelSettings') }}</div>
+
+                  <div class="field">
+                    <label for="model-select">{{ t('selectModel') }} <span class="required">*</span></label>
+                    <select id="model-select" v-model="newItem.modelId" class="input">
+                      <option value="">-- {{ t('selectModelPlaceholder') }} --</option>
+                      <option v-for="m in availableModels" :key="m.id" :value="m.id">{{ m.name || m.id }}</option>
+                    </select>
+                  </div>
+
+                  <div class="usage-preview">
+                    <div class="section-label">{{ t('usagePreview') }} (OpenAI-compatible)</div>
+                    <div class="tab-bar">
+                      <button v-for="tab in ['curl', 'python', 'javascript']" :key="tab"
+                        class="tab-btn" :class="{ active: previewTab === tab }"
+                        @click="previewTab = tab">{{ tab }}</button>
+                    </div>
+                    <pre class="code-block"><code>{{ getPreviewCode(previewTab) }}</code></pre>
+                  </div>
+                </div>
+              </template>
+
+              <!-- Organization & Project -->
+              <div class="settings-section">
+                <div class="section-label">{{ t('orgProject') }}</div>
+                <div class="field-row">
+                  <div class="field">
+                    <label>{{ t('organization') }}</label>
+                    <input v-model="newItem.organization" :placeholder="t('orgPlaceholder')" class="input" />
+                  </div>
+                  <div class="field">
+                    <label>{{ t('project') }}</label>
+                    <input v-model="newItem.project" :placeholder="t('projectPlaceholder')" class="input" />
+                  </div>
+                </div>
+              </div>
+
+              <!-- Rate Limits -->
+              <div class="settings-section">
+                <div class="section-label">{{ t('rateLimits') }}</div>
+                <div class="field-row">
+                  <div class="field">
+                    <label>{{ t('reqPerMin') }}</label>
+                    <input v-model.number="newItem.rateLimit.requestsPerMinute" type="number" class="input" min="0" />
+                  </div>
+                  <div class="field">
+                    <label>{{ t('reqPerHour') }}</label>
+                    <input v-model.number="newItem.rateLimit.requestsPerHour" type="number" class="input" min="0" />
+                  </div>
+                </div>
+                <div class="field-row">
+                  <div class="field">
+                    <label>{{ t('dailyTokens') }}</label>
+                    <input v-model.number="newItem.dailyTokenLimit" type="number" class="input" min="0" placeholder="0 = use global" />
+                  </div>
+                  <div class="field">
+                    <label>{{ t('monthlyBudget') }}</label>
+                    <input v-model.number="newItem.monthlyBudget" type="number" class="input" min="0" placeholder="0 = unlimited" />
+                  </div>
+                </div>
+              </div>
+
+              <!-- IP Allowlisting -->
+              <div class="field">
+                <label>{{ t('allowedIPs') }}</label>
+                <input v-model="newItem.allowedIPsStr" :placeholder="t('allowedIPsPlaceholder')" class="input" />
+                <span class="field-hint">{{ t('allowedIPsHint') }}</span>
+              </div>
+
+              <!-- Expiration -->
               <div class="field">
                 <label for="key-expiry">{{ t('expiration') }}</label>
                 <select id="key-expiry" v-model="newItem.expiration" class="input">
@@ -141,7 +308,7 @@
             </div>
             <div class="modal-footer">
               <button @click="closeCreateModal" class="btn btn-ghost">{{ t('cancel') }}</button>
-              <button @click="createKey" :disabled="!newItem.name.trim() || creating" class="btn btn-accent">
+              <button @click="createKey" :disabled="!canCreate || creating" class="btn btn-accent">
                 <span v-if="creating" class="btn-spinner"></span>
                 {{ creating ? t('creating') : t('create') }}
               </button>
@@ -173,6 +340,19 @@
                   <span v-if="isCopied">✓</span>
                   <svg v-else xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
                 </button>
+              </div>
+              <!-- Usage Guide (OpenAI SDK compatible) -->
+              <div v-if="createdUsageGuide" class="usage-guide">
+                <div class="section-label" style="margin-top: 16px;">{{ t('usagePreview') }} (OpenAI SDK)</div>
+                <div class="tab-bar">
+                  <button v-for="tab in ['curl', 'python', 'javascript']" :key="tab"
+                    class="tab-btn" :class="{ active: successTab === tab }"
+                    @click="successTab = tab">{{ tab }}</button>
+                </div>
+                <pre class="code-block"><code>{{ createdUsageGuide[tab2field(successTab)] || '' }}</code></pre>
+                <div class="base-url-note">
+                  <code>base_url: {{ createdUsageGuide.base_url }}</code>
+                </div>
               </div>
             </div>
             <div class="modal-footer">
@@ -239,7 +419,43 @@ const I18N = {
     confirmRevoke: 'ยกเลิก Key นี้? การกระทำนี้ไม่สามารถย้อนกลับได้',
     revokeFailed: 'ยกเลิกไม่สำเร็จ',
     createFailed: 'สร้างไม่สำเร็จ',
-    revokeSuccess: 'ยกเลิก Key สำเร็จ'
+    revokeSuccess: 'ยกเลิก Key สำเร็จ',
+    // New mode fields
+    modeLabel: 'โหมด',
+    modeAgentDesc: 'Agent Workflow + Tools + KB',
+    modeModelDesc: 'เรียก Model ตรง (OpenAI SDK compatible)',
+    agentSettings: 'ตั้งค่า Agent',
+    allowedDepts: 'Department ที่เข้าถึง KB ได้',
+    allowedDeptsPlaceholder: '* (ทั้งหมด) หรือ IT, LAW, MEDICINE',
+    allowedDeptsHint: 'ใส่ * สำหรับทุก dept หรือชื่อ dept คั่นด้วย , (ว่าง = dept ของ user)',
+    allowedKbIds: 'Knowledge IDs เพิ่มเติม',
+    allowedKbIdsPlaceholder: 'KB ID คั่นด้วย , (ไม่บังคับ)',
+    allowedKbIdsHint: 'ระบุ ID ของ KB ที่ต้องการเข้าถึงเพิ่มเติม (OR กับ dept)',
+    allowedTools: 'Tools ที่ใช้ได้',
+    allowedToolsPlaceholder: '* (ทั้งหมด) หรือ search, check_policy',
+    allowedToolsHint: 'ใส่ * สำหรับทุก tool หรือชื่อ tool คั่นด้วย , (ว่าง = ไม่มี tool)',
+    modelSettings: 'ตั้งค่า Model',
+    selectModel: 'เลือก Model',
+    selectModelPlaceholder: 'เลือก Model',
+    usagePreview: 'ตัวอย่างการเรียก',
+    responsePreview: 'ตัวอย่าง Response',
+    orgProject: 'Organization & Project',
+    organization: 'Organization',
+    orgPlaceholder: 'เช่น MFU, PartnerCo',
+    project: 'Project',
+    projectPlaceholder: 'เช่น chatbot-v2, research',
+    rateLimits: 'Rate Limits',
+    reqPerMin: 'Requests/นาที',
+    reqPerHour: 'Requests/ชั่วโมง',
+    dailyTokens: 'Token รายวัน',
+    monthlyBudget: 'Budget รายเดือน',
+    allowedIPs: 'IP ที่อนุญาต',
+    allowedIPsPlaceholder: 'เว้นว่าง = ทุก IP, หรือ 10.0.0.0/24, 1.2.3.4',
+    allowedIPsHint: 'ระบุ IP/CIDR คั่น comma — เว้นว่างอนุญาตทุก IP',
+    rotate: 'หมุนเปลี่ยน Key',
+    viewUsage: 'ดูสถิติ',
+    rotateSuccess: 'หมุนเปลี่ยน Key สำเร็จ — Key ใหม่ด้านล่าง',
+    requests: 'สถิติ',
   },
   en: {
     title: 'API Keys',
@@ -274,7 +490,43 @@ const I18N = {
     confirmRevoke: 'Revoke this key? This action cannot be undone.',
     revokeFailed: 'Failed to revoke key',
     createFailed: 'Failed to create key',
-    revokeSuccess: 'Key revoked successfully'
+    revokeSuccess: 'Key revoked successfully',
+    // New mode fields
+    modeLabel: 'Mode',
+    modeAgentDesc: 'Agent Workflow + Tools + KB',
+    modeModelDesc: 'Direct Model (OpenAI SDK compatible)',
+    agentSettings: 'Agent Settings',
+    allowedDepts: 'Allowed Departments (KB Access)',
+    allowedDeptsPlaceholder: '* (all) or IT, LAW, MEDICINE',
+    allowedDeptsHint: 'Use * for all depts, or comma-separated names (empty = user\'s dept only)',
+    allowedKbIds: 'Additional Knowledge IDs',
+    allowedKbIdsPlaceholder: 'Comma-separated KB IDs (optional)',
+    allowedKbIdsHint: 'Specific KB IDs to grant access (OR logic with departments)',
+    allowedTools: 'Allowed Tools',
+    allowedToolsPlaceholder: '* (all) or search, check_policy',
+    allowedToolsHint: 'Use * for all tools, or comma-separated names (empty = no tools)',
+    modelSettings: 'Model Settings',
+    selectModel: 'Select Model',
+    selectModelPlaceholder: 'Choose a model',
+    usagePreview: 'Example Request',
+    responsePreview: 'Example Response',
+    orgProject: 'Organization & Project',
+    organization: 'Organization',
+    orgPlaceholder: 'e.g. MFU, PartnerCo',
+    project: 'Project',
+    projectPlaceholder: 'e.g. chatbot-v2, research',
+    rateLimits: 'Rate Limits',
+    reqPerMin: 'Requests/min',
+    reqPerHour: 'Requests/hour',
+    dailyTokens: 'Daily token limit',
+    monthlyBudget: 'Monthly budget',
+    allowedIPs: 'Allowed IPs',
+    allowedIPsPlaceholder: 'Empty = all IPs, or 10.0.0.0/24, 1.2.3.4',
+    allowedIPsHint: 'Comma-separated IPs/CIDRs — leave empty to allow all',
+    rotate: 'Rotate Key',
+    viewUsage: 'View Usage',
+    rotateSuccess: 'Key rotated — new key below',
+    requests: 'Stats',
   }
 }
 const t = (key) => I18N[lang.value]?.[key] || I18N.en[key] || key
@@ -285,12 +537,36 @@ const loading = ref(false)
 const creating = ref(false)
 const showCreateModal = ref(false)
 const showSuccessModal = ref(false)
-const newItem = ref({ name: '', expiration: '' })
+const previewTab = ref('curl')
+const successTab = ref('python')
+const newItem = ref({
+  name: '',
+  expiration: '',
+  mode: 'model',
+  allowedDepartmentsStr: '',
+  allowedKnowledgeIdsStr: '',
+  allowedToolsStr: '*',
+  modelId: '',
+  organization: '',
+  project: '',
+  rateLimit: { requestsPerMinute: 60, requestsPerHour: 1000 },
+  dailyTokenLimit: 0,
+  monthlyBudget: 0,
+  allowedIPsStr: '',
+})
 const createdKey = ref('')
+const createdUsageGuide = ref(null)
 const isCopied = ref(false)
 const toast = ref({ show: false, message: '', type: 'success' })
+const availableModels = ref([])
 
 // ── Computed ────────────────────────────────────────────────────
+const canCreate = computed(() => {
+  if (!newItem.value.name.trim()) return false
+  if (newItem.value.mode === 'model' && !newItem.value.modelId) return false
+  return true
+})
+
 const sortedKeys = computed(() =>
   [...apiKeys.value].sort((a, b) => {
     // Active keys first, then by creation date descending
@@ -309,8 +585,14 @@ const showToast = (message, type = 'success') => {
 const fetchKeys = async () => {
   loading.value = true
   try {
-    const res = await api.get('/keys')
-    apiKeys.value = res.data || []
+    // Try new v1 endpoint first, fallback to legacy
+    try {
+      const res = await api.get('/v1/api-keys')
+      apiKeys.value = res.data?.data || res.data || []
+    } catch {
+      const res = await api.get('/keys')
+      apiKeys.value = res.data || []
+    }
   } catch (e) {
     showToast(t('createFailed'), 'error')
   } finally {
@@ -318,22 +600,62 @@ const fetchKeys = async () => {
   }
 }
 
+const fetchModels = async () => {
+  try {
+    // Try v1 models endpoint first
+    try {
+      const res = await api.get('/v1/models')
+      availableModels.value = (res.data?.data || []).filter(m => m.id !== 'text-embedding-titan-v1')
+    } catch {
+      const res = await api.get('/keys/models')
+      availableModels.value = res.data || []
+    }
+  } catch { /* ignore */ }
+}
+
+/** Parse comma-separated string into trimmed array, filtering empties */
+const parseCSV = (str) => str ? str.split(',').map(s => s.trim()).filter(Boolean) : []
+
 const createKey = async () => {
-  if (!newItem.value.name.trim() || creating.value) return
+  if (!canCreate.value || creating.value) return
   creating.value = true
   try {
     const expiresAt = computeExpiry(newItem.value.expiration)
-    const res = await api.post('/keys', {
+    const payload = {
       name: newItem.value.name.trim(),
-      expiresAt
-    })
+      mode: newItem.value.mode,
+      expiresAt,
+      organization: newItem.value.organization || undefined,
+      project: newItem.value.project || undefined,
+      rateLimit: newItem.value.rateLimit,
+      dailyTokenLimit: newItem.value.dailyTokenLimit || 0,
+      monthlyBudget: newItem.value.monthlyBudget || 0,
+      allowedIPs: parseCSV(newItem.value.allowedIPsStr),
+    }
+
+    if (newItem.value.mode === 'agent') {
+      payload.allowedDepartments = parseCSV(newItem.value.allowedDepartmentsStr)
+      payload.allowedKnowledgeIds = parseCSV(newItem.value.allowedKnowledgeIdsStr)
+      payload.allowedTools = parseCSV(newItem.value.allowedToolsStr)
+    } else {
+      payload.modelId = newItem.value.modelId
+    }
+
+    // Try v1 endpoint first, fallback to legacy
+    let res
+    try {
+      res = await api.post('/v1/api-keys', payload)
+    } catch {
+      res = await api.post('/keys', payload)
+    }
 
     createdKey.value = res.data.key
+    createdUsageGuide.value = res.data.usage_guide || res.data.usage || null
     await fetchKeys()
     closeCreateModal()
     showSuccessModal.value = true
   } catch (e) {
-    showToast(`${t('createFailed')}: ${e.response?.data?.error || e.message}`, 'error')
+    showToast(`${t('createFailed')}: ${e.response?.data?.error?.message || e.response?.data?.error || e.message}`, 'error')
   } finally {
     creating.value = false
   }
@@ -342,12 +664,45 @@ const createKey = async () => {
 const revokeKey = async (key) => {
   if (!await showConfirm(t('confirmRevoke'), { variant: 'danger' })) return
   try {
-    await api.delete(`/keys/${key._id}`)
+    try {
+      await api.delete(`/v1/api-keys/${key._id}`)
+    } catch {
+      await api.delete(`/keys/${key._id}`)
+    }
     const idx = apiKeys.value.findIndex(k => k._id === key._id)
     if (idx !== -1) apiKeys.value[idx].revokedAt = new Date().toISOString()
     showToast(t('revokeSuccess'))
   } catch (e) {
     showToast(t('revokeFailed'), 'error')
+  }
+}
+
+const rotateKey = async (key) => {
+  if (!await showConfirm(`${t('rotate')} "${key.name}"? Old key remains valid for 24 hours.`, { variant: 'warning' })) return
+  try {
+    const res = await api.post(`/v1/api-keys/${key._id}/rotate`, { gracePeriodHours: 24 })
+    createdKey.value = res.data.key
+    createdUsageGuide.value = null
+    showSuccessModal.value = true
+    showToast(t('rotateSuccess'))
+  } catch (e) {
+    showToast(e.response?.data?.error?.message || 'Rotation failed', 'error')
+  }
+}
+
+const viewUsage = async (key) => {
+  try {
+    const res = await api.get(`/v1/api-keys/${key._id}/usage?days=30`)
+    const data = res.data
+    const summary = data.summary || {}
+    const msg = `${key.name}\n` +
+      `Requests: ${summary.requests || 0}\n` +
+      `Tokens: ${(summary.totalTokens || 0).toLocaleString()}\n` +
+      `Weighted: ${(summary.weightedTokens || 0).toLocaleString()}\n` +
+      `Avg Latency: ${Math.round(summary.avgLatency || 0)}ms`
+    alert(msg) // Simple for now — can be a modal later
+  } catch (e) {
+    showToast('Failed to load usage', 'error')
   }
 }
 
@@ -382,13 +737,80 @@ const copyKey = async () => {
 }
 
 const openCreateModal = () => {
-  newItem.value = { name: '', expiration: '' }
+  newItem.value = {
+    name: '',
+    expiration: '',
+    mode: 'model',
+    allowedDepartmentsStr: '',
+    allowedKnowledgeIdsStr: '',
+    allowedToolsStr: '*',
+    modelId: '',
+    organization: '',
+    project: '',
+    rateLimit: { requestsPerMinute: 60, requestsPerHour: 1000 },
+    dailyTokenLimit: 0,
+    monthlyBudget: 0,
+    allowedIPsStr: '',
+  }
+  previewTab.value = 'curl'
   showCreateModal.value = true
 }
 const closeCreateModal = () => { showCreateModal.value = false }
-const closeSuccessModal = () => { showSuccessModal.value = false; createdKey.value = '' }
+const closeSuccessModal = () => { showSuccessModal.value = false; createdKey.value = ''; createdUsageGuide.value = null }
 
-onMounted(fetchKeys)
+/** Get preview code for create modal tabs */
+const getPreviewCode = (tab) => {
+  const model = newItem.value.modelId || 'claude-3.5-sonnet'
+  const baseUrl = `${window.location.origin}/v1`
+  if (tab === 'curl') {
+    return `curl ${baseUrl}/chat/completions \\
+  -H "Authorization: Bearer sk_model_xxx" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "model": "${model}",
+    "messages": [{"role": "user", "content": "Hello!"}],
+    "stream": true
+  }'`
+  }
+  if (tab === 'python') {
+    return `from openai import OpenAI
+
+client = OpenAI(
+    api_key="sk_model_xxx",
+    base_url="${baseUrl}"
+)
+
+response = client.chat.completions.create(
+    model="${model}",
+    messages=[{"role": "user", "content": "Hello!"}],
+    stream=True
+)
+for chunk in response:
+    print(chunk.choices[0].delta.content or "", end="")`
+  }
+  return `import OpenAI from 'openai';
+
+const client = new OpenAI({
+    apiKey: 'sk_model_xxx',
+    baseURL: '${baseUrl}'
+});
+
+const stream = await client.chat.completions.create({
+    model: '${model}',
+    messages: [{ role: 'user', content: 'Hello!' }],
+    stream: true,
+});
+for await (const chunk of stream) {
+    process.stdout.write(chunk.choices[0]?.delta?.content || '');
+}`
+}
+
+/** Map tab name to usage_guide field */
+const tab2field = (tab) => {
+  return { curl: 'curl_example', python: 'python_example', javascript: 'javascript_example' }[tab] || 'curl_example'
+}
+
+onMounted(() => { fetchKeys(); fetchModels() })
 </script>
 
 <style scoped>
@@ -571,6 +993,16 @@ onMounted(fetchKeys)
   box-shadow: var(--shadow-lg);
   border: 1px solid var(--color-border);
 }
+.modal-panel-wide {
+  width: 560px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+}
+.modal-panel-wide .modal-body {
+  overflow-y: auto;
+  max-height: calc(90vh - 140px);
+}
 .modal-header {
   padding: 18px 22px; border-bottom: 1px solid var(--color-border);
   display: flex; justify-content: space-between; align-items: center;
@@ -688,5 +1120,117 @@ onMounted(fetchKeys)
   .page-title { font-size: 16px; }
   .key-grid { grid-template-columns: 1fr; }
   .modal-panel { margin: 16px; }
+  .mode-selector { flex-direction: column; }
 }
+
+/* ── Mode Selector ───────────────────────────────────── */
+.mode-selector {
+  display: flex; gap: 10px;
+}
+.mode-btn {
+  flex: 1; display: flex; flex-direction: column; align-items: center;
+  gap: 4px; padding: 14px 12px;
+  background: var(--color-bg-tertiary);
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-md);
+  cursor: pointer; transition: all 0.2s;
+  text-align: center;
+}
+.mode-btn:hover { border-color: var(--color-accent); }
+.mode-btn.active {
+  border-color: var(--color-accent);
+  background: var(--color-accent-light);
+}
+.mode-icon { font-size: 24px; }
+.mode-title { font-size: 14px; font-weight: 700; color: var(--color-text-primary); }
+.mode-desc { font-size: 11px; color: var(--color-text-muted); }
+
+/* ── Settings Section ────────────────────────────────── */
+.settings-section {
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 16px; margin-bottom: 16px;
+}
+.section-label {
+  font-size: 11px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.05em; color: var(--color-text-muted);
+  margin-bottom: 12px;
+}
+.field-hint {
+  display: block; margin-top: 4px;
+  font-size: 11px; color: var(--color-text-muted);
+}
+
+/* ── Code Block ──────────────────────────────────────── */
+.code-block {
+  background: var(--color-bg-tertiary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px; margin: 6px 0;
+  font-family: 'JetBrains Mono', 'Consolas', monospace;
+  font-size: 11px; color: var(--color-text-secondary);
+  overflow-x: auto; white-space: pre-wrap; word-break: break-all;
+}
+.code-block code { font-size: inherit; }
+
+/* ── Mode Badge on Card ──────────────────────────────── */
+.mode-badge {
+  font-size: 10px; font-weight: 700; padding: 2px 8px;
+  border-radius: 99px; letter-spacing: 0.02em; flex-shrink: 0;
+}
+.badge-agent { background: rgba(99,102,241,0.12); color: #6366f1; border: 1px solid rgba(99,102,241,0.2); }
+.badge-model { background: rgba(245,158,11,0.12); color: #f59e0b; border: 1px solid rgba(245,158,11,0.2); }
+
+/* ── Usage Guide in Success Modal ────────────────────── */
+.usage-guide { margin-top: 8px; }
+
+/* ── Tab Bar ─────────────────────────────────────────── */
+.tab-bar {
+  display: flex; gap: 4px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid var(--color-border);
+  padding-bottom: 0;
+}
+.tab-btn {
+  background: none; border: none; cursor: pointer;
+  padding: 6px 14px; font-size: 12px; font-weight: 600;
+  color: var(--color-text-muted);
+  border-bottom: 2px solid transparent;
+  text-transform: capitalize;
+  transition: all 0.15s;
+}
+.tab-btn:hover { color: var(--color-text-secondary); }
+.tab-btn.active {
+  color: var(--color-accent);
+  border-bottom-color: var(--color-accent);
+}
+
+/* ── Field Row (side-by-side) ────────────────────────── */
+.field-row {
+  display: flex; gap: 12px;
+  margin-bottom: 4px;
+}
+.field-row > .field { flex: 1; }
+
+/* ── Usage Preview ───────────────────────────────────── */
+.usage-preview { margin-top: 4px; }
+
+/* ── Base URL Note ───────────────────────────────────── */
+.base-url-note {
+  margin-top: 6px; padding: 6px 10px;
+  background: var(--color-bg-tertiary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-size: 11px; color: var(--color-text-muted);
+}
+.base-url-note code {
+  font-family: 'JetBrains Mono', 'Consolas', monospace;
+  font-size: 11px;
+}
+
+/* ── Card Action Button Variants ─────────────────────── */
+.btn-icon:hover { background: var(--color-bg-hover); color: var(--color-text-primary); }
+.btn-icon.btn-secondary { color: var(--color-text-muted); }
+.btn-icon.btn-secondary:hover { background: rgba(99,102,241,0.1); color: #6366f1; }
 </style>

@@ -95,7 +95,9 @@ export class PolicyCheckerTool extends AgentTool {
             const userContext = {
                 userId: context.userId,
                 role: context.role || 'student',
-                department: context.department || 'General'
+                department: context.department || 'General',
+                allowedDepartments: context.allowedDepartments,
+                allowedKnowledgeIds: context.allowedKnowledgeIds,
             };
 
             const expandedQuery = additionalContext

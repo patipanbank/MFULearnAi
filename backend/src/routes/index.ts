@@ -7,6 +7,7 @@ import { AuthService } from '../auth/AuthService';
 import { RateLimiter } from '../middleware/rateLimiter';
 import { rateLimitByKey } from '../middleware/ApiKeyLimiter';
 import { quotaEnforcer } from '../middleware/quotaEnforcer';
+import { CompletionsController } from '../controllers/CompletionsController';
 import apiKeyRoutes from './api-keys';
 
 const router = Router();
@@ -32,6 +33,7 @@ router.use('/keys', apiKeyRoutes);
 
 // Chat Routes
 router.post('/chat', checkAuth, RateLimiter.limit, rateLimitByKey, quotaEnforcer, ChatController.chat);
+router.post('/chat/completions', checkAuth, RateLimiter.limit, rateLimitByKey, quotaEnforcer, CompletionsController.complete);
 router.get('/chat/models', checkAuth, ChatController.getModels);
 router.get('/chat/attachment/*', checkAuth, ChatController.downloadAttachment);
 router.post('/chat/feedback', checkAuth, ChatController.submitFeedback);

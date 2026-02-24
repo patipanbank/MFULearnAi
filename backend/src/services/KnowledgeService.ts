@@ -41,6 +41,34 @@ export class KnowledgeService {
     static canReadKnowledge(user: UserContext, kb: IKnowledge): boolean {
         if (kb.type === 'public') return true;
         if (kb.type === 'policy') return true; // Policies are readable by everyone? Assuming yes for RAG.
+
+        // API Key KB access override: check allowedDepartments and allowedKnowledgeIds
+        if ((user as any).allowedDepartments || (user as any).allowedKnowledgeIds) {
+            const allowedDepts: string[] = (user as any).allowedDepartments || [];
+            const allowedKbIds: string[] = (user as any).allowedKnowledgeIds || [];
+
+            // Check allowedKnowledgeIds first (explicit access)
+            if (allowedKbIds.length > 0 && allowedKbIds.includes(kb._id?.toString())) {
+                return true;
+            }
+
+            // Check allowedDepartments
+            if (allowedDepts.includes('*')) {
+                // Wildcard: all departments accessible
+                if (kb.type === 'department') return true;
+            } else if (allowedDepts.length > 0) {
+                if (kb.type === 'department' && allowedDepts.includes(kb.department)) return true;
+            }
+
+            // If no department wildcard and no explicit KB ID match, fall through to default
+            if (allowedDepts.length > 0 || allowedKbIds.length > 0) {
+                // API Key has restrictions defined — use default department check as fallback
+                if (kb.type === 'department') return user.department === kb.department;
+                if (kb.type === 'personal') return kb.ownerId === user.userId;
+                return false;
+            }
+        }
+
         if (kb.type === 'department') return user.department === kb.department;
         if (kb.type === 'personal') return kb.ownerId === user.userId;
         return false;

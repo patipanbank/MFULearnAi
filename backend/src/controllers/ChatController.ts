@@ -49,6 +49,22 @@ export class ChatController {
                     // Return traceId and sessionId to client immediately
                     res.json({ traceId, sessionId: actualSessionId });
 
+                    // Build API Key context if applicable
+                    const apiKeyContext = req.user.isApiKey ? {
+                        isApiKey: true,
+                        allowedDepartments: req.user.allowedDepartments || [],
+                        allowedKnowledgeIds: req.user.allowedKnowledgeIds || [],
+                        allowedTools: req.user.allowedTools || ['*'],
+                    } : undefined;
+
+                    // Block model-mode keys from agent endpoint
+                    if (req.user.isApiKey && req.user.apiKeyMode === 'model') {
+                        return res.status(403).json({
+                            error: 'This API Key is in "model" mode. Use POST /api/chat/completions instead.',
+                            endpoint: '/api/chat/completions'
+                        });
+                    }
+
                     // Start workflow in background (fire-and-forget)
                     AgentWorkflow.execute(
                         userId,
@@ -60,7 +76,8 @@ export class ChatController {
                         images,
                         files,
                         traceId, // Pass the traceId we just sent to client
-                        modelId || undefined // Pass modelId for cost weighting
+                        modelId || undefined, // Pass modelId for cost weighting
+                        apiKeyContext
                     ).catch((err: any) => {
                         LoggerService.error('agent_workflow_error', { error: err.message, stack: err.stack });
                     });

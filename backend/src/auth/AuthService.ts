@@ -10,6 +10,43 @@ const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret';
 const JWT_EXPIRY = process.env.ENV_TYPE === 'PROD' ? '12h' : '24h';
 const INTERNAL_API_KEY = process.env.INTERNAL_API_KEY || 'internal-secret-key';
 
+/**
+ * Helper: Attach API key context to request and call next().
+ */
+async function handleApiKeyAuth(req: Request, res: Response, next: NextFunction, apiKey: any) {
+    // Update usage stats (async, non-blocking)
+    ApiKey.updateOne({ _id: apiKey._id }, {
+        lastUsedAt: new Date(),
+        lastUsedIP: req.ip || req.socket?.remoteAddress || '',
+    }).exec();
+
+    // Fetch User
+    const user = await User.findById(apiKey.user);
+    if (!user) return res.status(401).json({ error: 'User not found' });
+
+    // Attach to Request
+    // @ts-ignore
+    req.apiKey = apiKey;
+    // @ts-ignore
+    req.user = {
+        userId: user._id,
+        role: user.role,
+        email: user.email,
+        department: user.department,
+        departmentId: user.departmentId,
+        permissions: user.permissions,
+        environment: process.env.ENV_TYPE,
+        isApiKey: true,
+        apiKeyMode: apiKey.mode || 'agent',
+        allowedDepartments: apiKey.allowedDepartments || [],
+        allowedKnowledgeIds: apiKey.allowedKnowledgeIds || [],
+        allowedTools: apiKey.allowedTools || ['*'],
+        apiKeyModelId: apiKey.modelId || undefined,
+    };
+
+    next();
+}
+
 export class AuthService {
     /**
      * Generate JWT Token for a user
@@ -63,39 +100,38 @@ export class AuthService {
             const keyHash = crypto.createHash('sha256').update(rawKey).digest('hex');
 
             // Find valid key
+            // Try primary keyHash first, then check previousKeyHashes (rotation grace period)
+            const now = new Date();
             ApiKey.findOne({
-                keyHash,
                 revokedAt: { $exists: false },
-                $or: [
-                    { expiresAt: { $exists: false } },
-                    { expiresAt: { $gt: new Date() } }
+                $and: [
+                    { $or: [
+                        { keyHash },
+                        { 'previousKeyHashes.hash': keyHash, 'previousKeyHashes.expiresAt': { $gt: now } },
+                    ] },
+                    { $or: [
+                        { expiresAt: { $exists: false } },
+                        { expiresAt: { $gt: now } }
+                    ] }
                 ]
             }).then(async (apiKey) => {
-                if (!apiKey) return res.status(401).json({ error: 'Invalid or expired API key' });
+                // Fallback: if primary didn't match, search previousKeyHashes separately
+                if (!apiKey) {
+                    const rotatedKey = await ApiKey.findOne({
+                        revokedAt: { $exists: false },
+                        'previousKeyHashes.hash': keyHash,
+                        'previousKeyHashes.expiresAt': { $gt: now },
+                        $or: [
+                            { expiresAt: { $exists: false } },
+                            { expiresAt: { $gt: now } }
+                        ]
+                    });
+                    if (!rotatedKey) return res.status(401).json({ error: 'Invalid or expired API key' });
+                    // Use the rotated key (grace period active)
+                    return handleApiKeyAuth(req, res, next, rotatedKey);
+                }
 
-                // Update usage stats (async)
-                ApiKey.updateOne({ _id: apiKey._id }, { lastUsedAt: new Date() }).exec();
-
-                // Fetch User
-                const user = await User.findById(apiKey.user);
-                if (!user) return res.status(401).json({ error: 'User not found' });
-
-                // Attach to Request
-                // @ts-ignore
-                req.apiKey = apiKey;
-                // @ts-ignore
-                req.user = {
-                    userId: user._id,
-                    role: user.role,
-                    email: user.email,
-                    department: user.department,
-                    departmentId: user.departmentId,
-                    permissions: user.permissions, // Or use apiKey.scopes if restrictive
-                    environment: process.env.ENV_TYPE,
-                    isApiKey: true // Flag
-                };
-
-                next();
+                return handleApiKeyAuth(req, res, next, apiKey);
             }).catch(err => {
                 console.error('API Key Auth Error:', err);
                 return res.status(500).json({ error: 'Auth Error' });

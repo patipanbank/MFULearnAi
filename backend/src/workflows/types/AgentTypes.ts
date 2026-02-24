@@ -15,6 +15,16 @@ export interface AgentContext {
     /** Raw file buffers from multipart upload. */
     files: Array<{ name?: string; originalname?: string; mediaType?: string; size?: number; buffer?: Buffer;[key: string]: unknown }>;
     traceId?: string;
+
+    // ── API Key Context (Optional — only set when request is via API Key) ──
+    /** Whether this request is from an API Key */
+    isApiKey?: boolean;
+    /** Departments the API Key is allowed to access. ['*'] = all. */
+    allowedDepartments?: string[];
+    /** Specific Knowledge IDs the API Key is allowed to access. */
+    allowedKnowledgeIds?: string[];
+    /** Tool names the API Key is allowed to use. ['*'] = all. Empty = none. */
+    allowedTools?: string[];
 }
 
 export interface WorkflowState {

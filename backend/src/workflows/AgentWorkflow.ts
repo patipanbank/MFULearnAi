@@ -78,10 +78,17 @@ export class AgentWorkflow {
         images: any[] = [],
         files: any[] = [],
         traceId?: string,
-        modelId?: string
+        modelId?: string,
+        apiKeyContext?: {
+            isApiKey: boolean;
+            allowedDepartments?: string[];
+            allowedKnowledgeIds?: string[];
+            allowedTools?: string[];
+        }
     ): Promise<{ traceId: string }> {
         const workflow = new AgentWorkflow({
-            userId, sessionId, message, userRole, userDepartment, collectionId, modelId, images, files, traceId
+            userId, sessionId, message, userRole, userDepartment, collectionId, modelId, images, files, traceId,
+            ...(apiKeyContext || {})
         });
         return workflow.run();
     }
@@ -183,7 +190,22 @@ export class AgentWorkflow {
 
             // 3.1 Filter tools by user role (DB override > code defaults)
             const userRole = this.ctx.userRole;
-            const allowedTools = await ToolAccessService.filterAllowed(allTools, userRole);
+            let allowedTools = await ToolAccessService.filterAllowed(allTools, userRole);
+
+            // 3.2 Filter tools by API Key allowedTools (if API key request)
+            if (this.ctx.isApiKey && this.ctx.allowedTools) {
+                const apiToolScope = this.ctx.allowedTools;
+                if (!apiToolScope.includes('*')) {
+                    allowedTools = allowedTools.filter(t => {
+                        const toolName = t.schemaJSON?.name || t.name;
+                        return apiToolScope.includes(toolName);
+                    });
+                }
+                // If allowedTools is empty array → no tools allowed
+                if (apiToolScope.length === 0) {
+                    allowedTools = [];
+                }
+            }
 
             // 4. Build Prompt & Initial Messages
             this.state.phase = AgentPhase.PLANNING;

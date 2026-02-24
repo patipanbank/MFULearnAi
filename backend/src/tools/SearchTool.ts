@@ -38,7 +38,9 @@ export class SearchTool extends AgentTool {
             const userContext = {
                 userId: context.userId,
                 role: context.role || 'student',
-                department: context.department || 'General'
+                department: context.department || 'General',
+                allowedDepartments: context.allowedDepartments,
+                allowedKnowledgeIds: context.allowedKnowledgeIds,
             };
 
             const { text, sources, blocks } = await KnowledgeService.search(
