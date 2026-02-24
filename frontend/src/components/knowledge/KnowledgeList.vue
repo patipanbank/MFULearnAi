@@ -428,12 +428,15 @@ const handleRetry = async (id) => {
 .data-table th, .data-table td {
   padding: 12px 16px;
   text-align: left;
-  border-bottom: 1px solid var(--color-border);
   color: var(--color-text-primary);
   vertical-align: middle;
 }
 
-.data-table tbody tr:last-child td {
+.data-table tr {
+  border-bottom: 1px solid var(--color-border);
+}
+
+.data-table tbody tr:last-child {
   border-bottom: none;
 }
 

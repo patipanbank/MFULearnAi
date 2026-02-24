@@ -501,6 +501,9 @@ onBeforeUnmount(() => {
 .data-table td {
   padding: 16px;
   text-align: left;
+}
+
+.data-table tr {
   border-bottom: 1px solid var(--color-border, #374151);
 }
 
