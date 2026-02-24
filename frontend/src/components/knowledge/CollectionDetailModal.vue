@@ -22,6 +22,7 @@ const authStore = useAuthStore()
 const knowledgeStore = useKnowledgeStore()
 const fullCollection = ref(null)
 const isLoading = ref(true)
+const actionLoading = ref(null) // track which item is being added/removed
 
 // ── Keyboard support ──
 const modalRef = ref(null)
@@ -34,6 +35,7 @@ useModalKeyboard({
 const isMapping = ref(false)
 const availableKnowledge = ref([])
 const searchQuery = ref('')
+const searchInputRef = ref(null)
 
 onMounted(async () => {
     await fetchDetails()
@@ -66,107 +68,203 @@ const filteredAvailable = computed(() => {
     return availableKnowledge.value.filter(k => k.title.toLowerCase().includes(searchQuery.value.toLowerCase()))
 })
 
+const getTypeLabel = (type) => {
+    switch (type) {
+        case 'default': return t('filterAll')
+        case 'department': return t('filterDepartment')
+        case 'personal': return t('filterPersonal')
+        default: return type
+    }
+}
+
+const getTypeColor = (type) => {
+    switch (type) {
+        case 'personal': return 'badge-personal'
+        case 'department': return 'badge-department'
+        case 'default': return 'badge-default'
+        default: return 'badge-default'
+    }
+}
+
 // Toggle Mapping Mode
 const toggleMapping = async () => {
     if (!isMapping.value) {
-        // Fetch all available knowledge to select from
-        // We need a way to fetch 'all' or 'candidates'. 
-        // For now, fetch all user has access to.
         await knowledgeStore.fetchKnowledge()
-        // Filter out already mapped ones (safeguard against nulls)
         const currentIds = items.value.filter(k => k).map(k => k._id)
         availableKnowledge.value = knowledgeStore.knowledge.filter(k => !currentIds.includes(k._id))
+        isMapping.value = true
+        // Focus search after toggle
+        setTimeout(() => searchInputRef.value?.focus(), 100)
+    } else {
+        isMapping.value = false
+        searchQuery.value = ''
     }
-    isMapping.value = !isMapping.value
 }
 
 const handleAdd = async (knowledgeId) => {
-    await knowledgeStore.mapKnowledge(props.collection._id, knowledgeId, 'add')
-    // Update local state is handled by store fetching details again? 
-    // The store 'mapKnowledge' refetches details if currentCollection matches.
-    // But we need to update available list too.
-    
-    // Refresh available
-    const newAdded = availableKnowledge.value.find(k => k._id === knowledgeId)
-    if (newAdded) {
-        // Manually update local view for speed or rely on store? 
-        // Store updates `currentCollection`.
+    actionLoading.value = knowledgeId
+    try {
+        await knowledgeStore.mapKnowledge(props.collection._id, knowledgeId, 'add')
         fullCollection.value = knowledgeStore.currentCollection
         availableKnowledge.value = availableKnowledge.value.filter(k => k._id !== knowledgeId)
+    } finally {
+        actionLoading.value = null
     }
 }
 
 const handleRemove = async (knowledgeId) => {
     if(!await showConfirm(t('confirmRemoveFromCollection'), { variant: 'warning' })) return
-    await knowledgeStore.mapKnowledge(props.collection._id, knowledgeId, 'remove')
-    fullCollection.value = knowledgeStore.currentCollection
+    actionLoading.value = knowledgeId
+    try {
+        await knowledgeStore.mapKnowledge(props.collection._id, knowledgeId, 'remove')
+        fullCollection.value = knowledgeStore.currentCollection
+    } finally {
+        actionLoading.value = null
+    }
 }
 
+const getFileIcon = (type) => {
+    if (!type) return '📄'
+    if (type.includes('pdf')) return '📕'
+    if (type.includes('image')) return '🖼️'
+    if (type.includes('doc') || type.includes('word')) return '📘'
+    if (type.includes('sheet') || type.includes('excel')) return '📊'
+    if (type.includes('text')) return '📝'
+    if (type.includes('url')) return '🔗'
+    return '📄'
+}
 </script>
 
 <template>
-  <div class="modal-overlay" @click="$emit('close')">
-    <div ref="modalRef" class="collection-modal" @click.stop>
-      <div class="modal-header">
-        <div class="header-content">
-            <h3>{{ collection.name }}</h3>
-            <span class="badge" :class="collection.type">{{ collection.type }}</span>
-        </div>
-        <button class="close-btn" @click="$emit('close')">×</button>
-      </div>
-
-      <div class="modal-content" v-if="!isLoading && fullCollection">
-          <p class="desc">{{ fullCollection.description }}</p>
-
-          <div class="section-header">
-              <h4>{{ t('collectionContents') }} ({{ items.length }})</h4>
-              <button v-if="isOwner" class="btn-sm" @click="toggleMapping">
-                  {{ isMapping ? t('doneBtn') : t('addContentBtn') }}
-              </button>
+  <Transition name="modal-fade" appear>
+    <div class="modal-overlay" @click="$emit('close')">
+      <Transition name="modal-slide" appear>
+        <div ref="modalRef" class="collection-modal" @click.stop>
+          <div class="modal-header">
+            <div class="header-content">
+                <h3>{{ collection.name }}</h3>
+                <div class="header-meta">
+                  <span class="badge" :class="getTypeColor(collection.type)">{{ getTypeLabel(collection.type) }}</span>
+                  <span class="item-count-badge" v-if="!isLoading">{{ items.length }} {{ t('collectionItemCount') }}</span>
+                </div>
+            </div>
+            <button class="close-btn" @click="$emit('close')">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
           </div>
 
-          <!-- List Content -->
-          <div class="content-list" v-if="!isMapping">
-              <div v-for="item in items.filter(i => i)" :key="item._id" class="content-item" @click="$emit('open-item', item)">
-                  <div class="item-icon">📄</div>
-                  <div class="item-info">
-                      <div class="item-title">{{ item.title }}</div>
-                      <div class="item-meta">{{ item.type }} • {{ new Date(item.createdAt).toLocaleDateString() }}</div>
-                  </div>
-                  <button v-if="isOwner" class="btn-remove" @click.stop="handleRemove(item._id)">×</button>
-              </div>
-              <div v-if="items.length === 0" class="empty-state">
-                  {{ t('emptyCollection') }}
-              </div>
-          </div>
+          <div class="modal-content" v-if="!isLoading && fullCollection">
+              <p v-if="fullCollection.description" class="desc">{{ fullCollection.description }}</p>
+              <p v-else class="desc desc-empty">{{ t('collectionNoDesc') }}</p>
 
-          <!-- Mapping Mode -->
-          <div class="mapping-ui" v-else>
-              <input v-model="searchQuery" :placeholder="t('searchKnowledgeToAdd')" class="search-input" autoFocus />
-              <div class="candidates-list">
-                  <div v-for="k in filteredAvailable" :key="k._id" class="candidate-item">
-                      <div class="candidate-info">
-                          <div class="candidate-title">{{ k.title }}</div>
-                          <div class="candidate-meta">{{ k.type }}</div>
+              <div class="section-header">
+                  <h4>{{ t('collectionContents') }} ({{ items.length }})</h4>
+                  <button v-if="isOwner" class="btn-sm" :class="{ 'btn-sm-done': isMapping }" @click="toggleMapping">
+                      <svg v-if="!isMapping" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                      <svg v-else width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                      {{ isMapping ? t('doneBtn') : t('addContentBtn') }}
+                  </button>
+              </div>
+
+              <!-- List Content -->
+              <Transition name="fade-switch" mode="out-in">
+                <div v-if="!isMapping" key="content-list" class="content-list">
+                    <TransitionGroup name="item-list">
+                      <div v-for="item in items.filter(i => i)" :key="item._id" class="content-item" @click="$emit('open-item', item)">
+                          <div class="item-icon">{{ getFileIcon(item.type) }}</div>
+                          <div class="item-info">
+                              <div class="item-title">{{ item.title }}</div>
+                              <div class="item-meta">{{ item.type }} • {{ new Date(item.createdAt).toLocaleDateString() }}</div>
+                          </div>
+                          <button v-if="isOwner" class="btn-remove" :disabled="actionLoading === item._id" @click.stop="handleRemove(item._id)" :title="t('removeFromCollectionBtn')">
+                            <svg v-if="actionLoading === item._id" class="spinner" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/></svg>
+                            <svg v-else width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                          </button>
                       </div>
-                      <button class="btn-add" @click="handleAdd(k._id)">{{ t('addBtn') }}</button>
-                  </div>
-                   <div v-if="filteredAvailable.length === 0" class="empty-state">
-                      {{ t('noMatchingKnowledge') }}
-                  </div>
-              </div>
+                    </TransitionGroup>
+                    <div v-if="items.filter(i => i).length === 0" class="empty-state">
+                        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="opacity: 0.4; margin-bottom: 8px;">
+                          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
+                          <line x1="12" y1="12" x2="12" y2="18"/><line x1="9" y1="15" x2="15" y2="15"/>
+                        </svg>
+                        <p>{{ t('emptyCollection') }}</p>
+                        <p v-if="isOwner" class="empty-hint">{{ t('emptyCollectionHint') }}</p>
+                    </div>
+                </div>
+
+                <!-- Mapping Mode -->
+                <div v-else key="mapping-ui" class="mapping-ui">
+                    <div class="search-wrapper">
+                      <svg class="search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                      <input
+                        ref="searchInputRef"
+                        v-model="searchQuery"
+                        :placeholder="t('searchKnowledgeToAdd')"
+                        class="search-input"
+                      />
+                      <button v-if="searchQuery" class="search-clear" @click="searchQuery = ''">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                      </button>
+                    </div>
+                    <div class="candidates-list">
+                        <TransitionGroup name="item-list">
+                          <div v-for="k in filteredAvailable" :key="k._id" class="candidate-item">
+                              <div class="item-icon">{{ getFileIcon(k.type) }}</div>
+                              <div class="candidate-info">
+                                  <div class="candidate-title">{{ k.title }}</div>
+                                  <div class="candidate-meta">{{ k.type }}</div>
+                              </div>
+                              <button class="btn-add" :disabled="actionLoading === k._id" @click="handleAdd(k._id)">
+                                <svg v-if="actionLoading === k._id" class="spinner" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/></svg>
+                                <template v-else>
+                                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                                  {{ t('addBtn') }}
+                                </template>
+                              </button>
+                          </div>
+                        </TransitionGroup>
+                        <div v-if="filteredAvailable.length === 0" class="empty-state">
+                            {{ t('noMatchingKnowledge') }}
+                        </div>
+                    </div>
+                </div>
+              </Transition>
           </div>
 
-      </div>
-      <div v-else class="loading">
-          {{ t('loadingData') }}
-      </div>
-      
+          <div v-else class="loading">
+              <div class="loading-spinner"></div>
+              <p>{{ t('loadingData') }}</p>
+          </div>
+          
+        </div>
+      </Transition>
     </div>
-  </div>
+  </Transition>
 </template>
 
 <style scoped>
+/* Modal transitions */
+.modal-fade-enter-active { transition: opacity 0.2s ease; }
+.modal-fade-leave-active { transition: opacity 0.15s ease; }
+.modal-fade-enter-from, .modal-fade-leave-to { opacity: 0; }
+
+.modal-slide-enter-active { transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1); }
+.modal-slide-leave-active { transition: all 0.15s ease-in; }
+.modal-slide-enter-from { opacity: 0; transform: translateY(16px) scale(0.97); }
+.modal-slide-leave-to { opacity: 0; transform: translateY(8px) scale(0.98); }
+
+/* Content switch transition */
+.fade-switch-enter-active { transition: all 0.2s ease-out; }
+.fade-switch-leave-active { transition: all 0.15s ease-in; }
+.fade-switch-enter-from { opacity: 0; transform: translateX(8px); }
+.fade-switch-leave-to { opacity: 0; transform: translateX(-8px); }
+
+/* Item list transitions */
+.item-list-enter-active { transition: all 0.25s ease; }
+.item-list-leave-active { transition: all 0.2s ease; }
+.item-list-enter-from { opacity: 0; transform: translateY(8px); }
+.item-list-leave-to { opacity: 0; transform: translateX(-12px); }
+
 .modal-overlay {
   position: fixed;
   top: 0;
@@ -184,57 +282,106 @@ const handleRemove = async (knowledgeId) => {
 .collection-modal {
   background: var(--color-bg-card);
   padding: 0;
-  border-radius: 12px;
+  border-radius: 14px;
   width: 600px;
-  height: 80vh; /* Fixed height for scrollable content */
+  max-width: 92vw;
+  height: 80vh;
+  max-height: 700px;
   display: flex;
   flex-direction: column;
   border: 1px solid var(--color-border);
   color: var(--color-text-primary);
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 20px 40px -5px rgba(0, 0, 0, 0.2), 0 10px 20px -5px rgba(0, 0, 0, 0.1);
 }
 
 .modal-header {
-  padding: 24px;
+  padding: 20px 24px;
   border-bottom: 1px solid var(--color-border);
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
+  flex-shrink: 0;
 }
 
 .header-content h3 {
     margin: 0 0 8px 0;
     font-size: 20px;
+    font-weight: 600;
+}
+
+.header-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
 }
 
 .badge {
-    padding: 2px 8px;
-    border-radius: 4px;
+    padding: 3px 8px;
+    border-radius: 6px;
     font-size: 11px;
     text-transform: uppercase;
     font-weight: 700;
-    background: var(--color-bg-tertiary);
+    letter-spacing: 0.3px;
+}
+
+.badge-personal {
+    background: rgba(99,102,241,0.12);
+    color: #818cf8;
+}
+.badge-department {
+    background: rgba(245,158,11,0.12);
+    color: #d97706;
+}
+.badge-default {
+    background: rgba(34,197,94,0.12);
+    color: #16a34a;
+}
+
+.item-count-badge {
+    font-size: 12px;
     color: var(--color-text-muted);
+    background: var(--color-bg-tertiary);
+    padding: 2px 8px;
+    border-radius: 12px;
 }
 
 .close-btn {
   background: none;
-  border: none;
-  font-size: 24px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
   color: var(--color-text-muted);
+  transition: all 0.15s;
+  flex-shrink: 0;
+}
+.close-btn:hover {
+  background: var(--color-bg-hover);
+  border-color: var(--color-border);
+  color: var(--color-text-primary);
 }
 
 .modal-content {
-    padding: 24px;
+    padding: 20px 24px;
     flex: 1;
     overflow-y: auto;
+    min-height: 0;
 }
 
 .desc {
     color: var(--color-text-secondary);
-    margin: 0 0 24px 0;
+    margin: 0 0 20px 0;
     line-height: 1.5;
+    font-size: 14px;
+}
+
+.desc-empty {
+    font-style: italic;
+    opacity: 0.6;
 }
 
 .section-header {
@@ -246,94 +393,209 @@ const handleRemove = async (knowledgeId) => {
 
 .section-header h4 {
     margin: 0;
-    font-size: 14px;
+    font-size: 13px;
     color: var(--color-text-muted);
     text-transform: uppercase;
+    font-weight: 600;
+    letter-spacing: 0.3px;
 }
 
 .btn-sm {
-    padding: 4px 12px;
+    padding: 5px 12px;
     background: var(--color-accent);
     color: white;
     border: none;
-    border-radius: 6px;
+    border-radius: 8px;
     font-size: 12px;
+    font-weight: 500;
     cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    transition: all 0.2s;
+}
+.btn-sm:hover { opacity: 0.9; }
+
+.btn-sm-done {
+    background: #10b981;
 }
 
 .content-list, .candidates-list {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 6px;
 }
 
 .content-item, .candidate-item {
     display: flex;
     align-items: center;
-    padding: 12px;
+    padding: 10px 12px;
     background: var(--color-bg-tertiary);
-    border-radius: 8px;
+    border-radius: 10px;
     cursor: pointer;
-    transition: background 0.2s;
+    transition: all 0.15s ease;
+    border: 1px solid transparent;
 }
 
 .content-item:hover {
     background: var(--color-bg-hover);
+    border-color: var(--color-border);
+}
+
+.candidate-item {
+    cursor: default;
 }
 
 .item-icon {
     font-size: 20px;
     margin-right: 12px;
+    flex-shrink: 0;
 }
 
 .item-info, .candidate-info {
     flex: 1;
+    min-width: 0;
 }
 
 .item-title, .candidate-title {
     font-size: 14px;
     font-weight: 500;
     color: var(--color-text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .item-meta, .candidate-meta {
     font-size: 12px;
     color: var(--color-text-muted);
+    margin-top: 2px;
 }
 
 .btn-remove {
     background: none;
-    border: none;
+    border: 1px solid transparent;
     color: var(--color-text-muted);
-    font-size: 20px;
     cursor: pointer;
-    padding: 0 8px;
+    padding: 6px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s;
+    flex-shrink: 0;
 }
-.btn-remove:hover { color: #ef4444; }
+.btn-remove:hover { color: #ef4444; background: rgba(239,68,68,0.08); border-color: rgba(239,68,68,0.15); }
+.btn-remove:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .btn-add {
-    padding: 4px 12px;
+    padding: 5px 12px;
     background: #10b981;
     color: white;
     border: none;
-    border-radius: 4px;
+    border-radius: 6px;
     font-size: 12px;
+    font-weight: 500;
     cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    transition: all 0.15s;
+    flex-shrink: 0;
+}
+.btn-add:hover { background: #059669; }
+.btn-add:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* Search wrapper */
+.search-wrapper {
+    position: relative;
+    margin-bottom: 12px;
+}
+
+.search-icon {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--color-text-muted);
+    pointer-events: none;
 }
 
 .search-input {
     width: 100%;
-    padding: 10px;
-    margin-bottom: 12px;
-    border-radius: 8px;
+    padding: 10px 36px 10px 34px;
+    border-radius: 10px;
     border: 1px solid var(--color-border);
-    background: var(--color-bg-input);
+    background: var(--color-bg-input, var(--color-bg-secondary));
     color: var(--color-text-primary);
+    font-size: 13px;
+    box-sizing: border-box;
+    transition: border-color 0.15s, box-shadow 0.15s;
 }
+.search-input:focus {
+    outline: none;
+    border-color: var(--color-accent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent, #6366f1) 12%, transparent);
+}
+
+.search-clear {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: transparent;
+    border: none;
+    color: var(--color-text-muted);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s;
+}
+.search-clear:hover { background: var(--color-bg-tertiary); color: var(--color-text-primary); }
 
 .empty-state {
     text-align: center;
-    padding: 32px;
+    padding: 32px 16px;
+    color: var(--color-text-muted);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.empty-state p { margin: 0; }
+
+.empty-hint {
+    font-size: 12px;
+    margin-top: 4px !important;
+    opacity: 0.7;
+}
+
+.loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 24px;
+    gap: 12px;
     color: var(--color-text-muted);
 }
+
+.loading-spinner {
+    width: 28px;
+    height: 28px;
+    border: 3px solid var(--color-border);
+    border-top-color: var(--color-accent);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+}
+
+.spinner {
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
 </style>

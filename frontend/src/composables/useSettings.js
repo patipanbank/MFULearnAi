@@ -211,6 +211,16 @@ const translations = {
         searchKnowledgeToAdd: 'ค้นหาความรู้เพื่อเพิ่ม...',
         noMatchingKnowledge: 'ไม่พบความรู้ที่ตรงกัน',
         confirmRemoveFromCollection: 'ต้องการนำรายการนี้ออกจากคอลเลกชันหรือไม่?',
+        collectionNoDesc: 'ไม่มีคำอธิบาย',
+        collectionItemCount: 'รายการ',
+        collectionNameRequired: 'กรุณากรอกชื่อคอลเลกชัน',
+        collectionNameMinLength: 'ชื่อต้องมีอย่างน้อย 2 ตัวอักษร',
+        deletingBtn: 'กำลังลบ...',
+        removeFromCollectionBtn: 'นำออกจากคอลเลกชัน',
+        emptyCollectionHint: 'กดปุ่ม "+ เพิ่มเนื้อหา" เพื่อเพิ่มความรู้ลงในคอลเลกชัน',
+        noCollectionsFound: 'ไม่พบคอลเลกชัน',
+        noCollectionsHint: 'สร้างคอลเลกชันเพื่อจัดระเบียบความรู้ของคุณ',
+        openBtn: 'เปิด',
 
         // Login & Auth
         appSubtitle: 'ผู้ช่วย AI ขับเคลื่อนโดย MFU',
@@ -455,6 +465,16 @@ const translations = {
         searchKnowledgeToAdd: 'Search knowledge to add...',
         noMatchingKnowledge: 'No matching knowledge found to add.',
         confirmRemoveFromCollection: 'Remove this item from collection?',
+        collectionNoDesc: 'No description',
+        collectionItemCount: 'items',
+        collectionNameRequired: 'Collection name is required',
+        collectionNameMinLength: 'Name must be at least 2 characters',
+        deletingBtn: 'Deleting...',
+        removeFromCollectionBtn: 'Remove from collection',
+        emptyCollectionHint: 'Click "+ Add Content" to add knowledge to this collection',
+        noCollectionsFound: 'No collections found',
+        noCollectionsHint: 'Create a collection to organize your knowledge',
+        openBtn: 'Open',
 
         // Login & Auth
         appSubtitle: 'AI Assistant powered by MFU',
