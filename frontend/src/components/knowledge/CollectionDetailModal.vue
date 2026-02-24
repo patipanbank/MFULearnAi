@@ -4,8 +4,10 @@ import { useAuthStore } from '@/stores/auth'
 import { useKnowledgeStore } from '@/stores/knowledge'
 import { useModalKeyboard } from '@/composables/useModalKeyboard'
 import { useConfirmDialog } from '@/composables/useConfirmDialog'
+import { useLanguage } from '@/composables/useSettings'
 
 const { confirm: showConfirm } = useConfirmDialog()
+const { t } = useLanguage()
 
 const props = defineProps({
   collection: {
@@ -95,7 +97,7 @@ const handleAdd = async (knowledgeId) => {
 }
 
 const handleRemove = async (knowledgeId) => {
-    if(!await showConfirm('Remove this item from collection?', { variant: 'warning' })) return
+    if(!await showConfirm(t('confirmRemoveFromCollection'), { variant: 'warning' })) return
     await knowledgeStore.mapKnowledge(props.collection._id, knowledgeId, 'remove')
     fullCollection.value = knowledgeStore.currentCollection
 }
@@ -117,9 +119,9 @@ const handleRemove = async (knowledgeId) => {
           <p class="desc">{{ fullCollection.description }}</p>
 
           <div class="section-header">
-              <h4>Contents ({{ items.length }})</h4>
+              <h4>{{ t('collectionContents') }} ({{ items.length }})</h4>
               <button v-if="isOwner" class="btn-sm" @click="toggleMapping">
-                  {{ isMapping ? 'Done' : '+ Add Content' }}
+                  {{ isMapping ? t('doneBtn') : t('addContentBtn') }}
               </button>
           </div>
 
@@ -134,30 +136,30 @@ const handleRemove = async (knowledgeId) => {
                   <button v-if="isOwner" class="btn-remove" @click.stop="handleRemove(item._id)">×</button>
               </div>
               <div v-if="items.length === 0" class="empty-state">
-                  This collection is empty.
+                  {{ t('emptyCollection') }}
               </div>
           </div>
 
           <!-- Mapping Mode -->
           <div class="mapping-ui" v-else>
-              <input v-model="searchQuery" placeholder="Search knowledge to add..." class="search-input" autoFocus />
+              <input v-model="searchQuery" :placeholder="t('searchKnowledgeToAdd')" class="search-input" autoFocus />
               <div class="candidates-list">
                   <div v-for="k in filteredAvailable" :key="k._id" class="candidate-item">
                       <div class="candidate-info">
                           <div class="candidate-title">{{ k.title }}</div>
                           <div class="candidate-meta">{{ k.type }}</div>
                       </div>
-                      <button class="btn-add" @click="handleAdd(k._id)">Add</button>
+                      <button class="btn-add" @click="handleAdd(k._id)">{{ t('addBtn') }}</button>
                   </div>
                    <div v-if="filteredAvailable.length === 0" class="empty-state">
-                      No matching knowledge found to add.
+                      {{ t('noMatchingKnowledge') }}
                   </div>
               </div>
           </div>
 
       </div>
       <div v-else class="loading">
-          Loading details...
+          {{ t('loadingData') }}
       </div>
       
     </div>

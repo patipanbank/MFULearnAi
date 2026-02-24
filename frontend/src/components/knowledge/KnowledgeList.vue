@@ -69,16 +69,16 @@ const getProcessingBadgeClass = (status) => {
 }
 
 // Translations for filters (can be moved to useSettings)
-const filterOptions = [
-    { value: 'all', label: 'All' },
-    { value: 'personal', label: 'Personal' },
-    { value: 'department', label: 'Department' },
-    { value: 'public', label: 'Public' },
-    { value: 'policy', label: 'Policy' }
-]
+const filterOptions = computed(() => [
+    { value: 'all', label: t('filterAll') },
+    { value: 'personal', label: t('filterPersonal') },
+    { value: 'department', label: t('filterDepartment') },
+    { value: 'public', label: t('filterPublic') },
+    { value: 'policy', label: t('filterPolicy') }
+])
 
 const handleRequestPublish = async (id, type) => {
-    if (await showConfirm(`Request to publish this as ${type}?`, { variant: 'info', title: 'Publish Request' })) {
+    if (await showConfirm(t('confirmPublishRequest').replace('{type}', type), { variant: 'info', title: t('publishRequestTitle') })) {
         await knowledgeStore.requestPublish(id, type)
     }
 }
@@ -92,7 +92,7 @@ const handleReject = async (id) => {
 }
 
 const handleDelete = async (id) => {
-    if (await showConfirm('Are you sure you want to delete this item?', { variant: 'danger' })) {
+    if (await showConfirm(t('confirmDeleteKnowledge'), { variant: 'danger' })) {
         await knowledgeStore.deleteKnowledge(id)
     }
 }
@@ -115,7 +115,7 @@ const handleRetry = async (id) => {
           v-model="searchQuery"
           type="text"
           class="search-input"
-          placeholder="Search by name, tag, or description..."
+          :placeholder="t('searchKnowledge')"
         />
         <button v-if="searchQuery" class="search-clear" @click="searchQuery = ''">×</button>
       </div>
@@ -137,11 +137,11 @@ const handleRetry = async (id) => {
       <table class="data-table">
         <thead>
           <tr>
-            <th>Name</th>
-            <th>Type</th>
-            <th>Department</th>
-            <th>Status</th>
-            <th>Actions</th>
+            <th>{{ t('colName') }}</th>
+            <th>{{ t('colType') }}</th>
+            <th>{{ t('colDepartment') }}</th>
+            <th>{{ t('colStatus') }}</th>
+            <th>{{ t('colActions') }}</th>
           </tr>
         </thead>
         <tbody>
@@ -176,7 +176,7 @@ const handleRetry = async (id) => {
                <div v-if="item.processingStatus && item.processingStatus !== 'completed' && item.processingStatus !== 'none'" 
                     class="status-badge" 
                     :class="getProcessingBadgeClass(item.processingStatus)">
-                 {{ item.processingStatus === 'processing' ? 'Processing...' : item.processingStatus }}
+                 {{ item.processingStatus === 'processing' ? t('processingStatus') : item.processingStatus }}
                  <span v-if="item.processingStatus === 'failed'" :title="item.errorReason">⚠️</span>
                </div>
 
@@ -190,33 +190,33 @@ const handleRetry = async (id) => {
             </td>
             <td class="actions-cell">
                <!-- Request Publish (Owner Only) -->
-               <div v-if="item.type === 'personal' && item.ownerId === authStore.userId && item.requestStatus === 'none'" class="dropdown">
-                  <button class="action-btn">Publish</button>
+               <div v-if="item.type === 'personal' && item.ownerId === authStore.userId && item.requestStatus === 'none'" class="dropdown" @click.stop>
+                  <button class="action-btn">{{ t('publishBtn') }}</button>
                   <div class="dropdown-content">
-                     <a @click="handleRequestPublish(item._id, 'department')">To Department</a>
-                     <a href="#" class="disabled">To Public (Admin Only)</a> 
+                     <a @click="handleRequestPublish(item._id, 'department')">{{ t('toDepartment') }}</a>
+                     <a href="#" class="disabled">{{ t('toPublicAdminOnly') }}</a> 
                   </div>
                </div>
 
                <!-- Admin Approve/Reject -->
                <div v-if="(authStore.role === 'admin' || authStore.role === 'superadmin') && item.requestStatus === 'pending'" class="admin-actions">
-                  <button class="btn-approve" @click="handleApprove(item._id)">✓</button>
-                  <button class="btn-reject" @click="handleReject(item._id)">✗</button>
+                  <button class="btn-approve" @click.stop="handleApprove(item._id)">✓</button>
+                  <button class="btn-reject" @click.stop="handleReject(item._id)">✗</button>
                </div>
 
                <!-- Delete -->
-               <button class="btn-icon delete" @click="handleDelete(item._id)">
+               <button class="btn-icon delete" @click.stop="handleDelete(item._id)">
                   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
                </button>
 
                <!-- Retry (Failed only) -->
-                <button v-if="item.processingStatus === 'failed'" class="btn-icon retry" @click="handleRetry(item._id)" title="Retry Processing">
+                <button v-if="item.processingStatus === 'failed'" class="btn-icon retry" @click.stop="handleRetry(item._id)" :title="t('retryProcessing')">
                   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
                </button>
             </td>
           </tr>
           <tr v-if="filteredKnowledge.length === 0">
-             <td colspan="5" class="empty-row">No knowledge found.</td>
+             <td colspan="5" class="empty-row">{{ t('noKnowledgeFound') }}</td>
           </tr>
         </tbody>
       </table>
@@ -261,7 +261,7 @@ const handleRetry = async (id) => {
         </div>
         
         <div v-if="filteredKnowledge.length === 0" class="empty-row">
-             No knowledge found.
+             {{ t('noKnowledgeFound') }}
         </div>
     </div>
   </div>

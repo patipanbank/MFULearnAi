@@ -4,8 +4,10 @@ import { useKnowledgeStore } from '@/stores/knowledge'
 import { useAuthStore } from '@/stores/auth'
 import { useModalKeyboard } from '@/composables/useModalKeyboard'
 import { useConfirmDialog } from '@/composables/useConfirmDialog'
+import { useLanguage } from '@/composables/useSettings'
 
 const { confirm: showConfirm } = useConfirmDialog()
+const { t } = useLanguage()
 
 const props = defineProps({
     collection: { type: Object, default: null }
@@ -69,7 +71,7 @@ useModalKeyboard({
 })
 
 const handleDelete = async () => {
-    if (!await showConfirm('Are you sure you want to delete this collection? This cannot be undone.', { variant: 'danger' })) return
+    if (!await showConfirm(t('confirmDeleteCollection'), { variant: 'danger' })) return
     
     loading.value = true
     error.value = null
@@ -87,34 +89,34 @@ const handleDelete = async () => {
 <template>
   <div class="modal-overlay" @click.self="emit('close')">
     <div ref="modalRef" class="knowledge-modal">
-       <h2>{{ isEditMode ? 'Edit Collection' : 'New Collection' }}</h2>
+       <h2>{{ isEditMode ? t('editCollection') : t('newCollectionTitle') }}</h2>
        
        <div class="form-group">
-          <label>Name</label>
-          <input v-model="name" placeholder="Collection Name">
+          <label>{{ t('collectionName') }}</label>
+          <input v-model="name" :placeholder="t('collectionNamePlaceholder')">
        </div>
        
        <div class="form-group">
-          <label>Description (Optional)</label>
-          <input v-model="description" placeholder="What is this collection for?">
+          <label>{{ t('collectionDescLabel') }}</label>
+          <input v-model="description" :placeholder="t('collectionDescPlaceholder')">
        </div>
        
        <div class="form-group">
-          <label>Type</label>
+          <label>{{ t('colType') }}</label>
           <select v-model="type">
-              <option value="personal">Personal</option>
-              <option v-if="isAdmin" value="department">Department</option>
+              <option value="personal">{{ t('filterPersonal') }}</option>
+              <option v-if="isAdmin" value="department">{{ t('filterDepartment') }}</option>
           </select>
        </div>
 
        <div v-if="error" class="error">{{ error }}</div>
 
        <div class="actions">
-           <button v-if="isEditMode" class="btn-delete" @click="handleDelete" :disabled="loading">Delete</button>
+           <button v-if="isEditMode" class="btn-delete" @click="handleDelete" :disabled="loading">{{ t('deleteBtn') }}</button>
            <div class="spacer"></div>
-           <button class="btn-cancel" @click="emit('close')">Cancel</button>
+           <button class="btn-cancel" @click="emit('close')">{{ t('cancelBtn') }}</button>
            <button class="btn-primary" @click="handleSubmit" :disabled="!name || loading">
-               {{ loading ? 'Saving...' : (isEditMode ? 'Update' : 'Create') }}
+               {{ loading ? t('savingBtn') : (isEditMode ? t('updateBtn') : t('createBtn')) }}
            </button>
        </div>
     </div>
