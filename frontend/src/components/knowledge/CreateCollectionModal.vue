@@ -27,6 +27,7 @@ const touched = ref(false)
 
 const nameInputRef = ref(null)
 const isAdmin = authStore.role === 'admin' || authStore.role === 'superadmin'
+const isSuperadmin = authStore.role === 'superadmin'
 const isEditMode = !!props.collection
 
 const nameError = computed(() => {
@@ -160,6 +161,15 @@ const handleDelete = async () => {
                 >
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="12" y1="6" x2="12" y2="6.01"/><line x1="12" y1="10" x2="12" y2="10.01"/></svg>
                   {{ t('filterDepartment') }}
+                </button>
+                <button
+                  v-if="isSuperadmin"
+                  class="type-option"
+                  :class="{ active: type === 'default' }"
+                  @click="type = 'default'"
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+                  {{ t('filterPublic') }}
                 </button>
               </div>
           </div>

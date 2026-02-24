@@ -13,7 +13,7 @@ const emit = defineEmits(['open', 'edit', 'delete'])
 
 const getTypeLabel = (type) => {
     switch (type) {
-        case 'default': return t('filterAll')
+        case 'default': return t('filterPublic')
         case 'department': return t('filterDepartment')
         case 'personal': return t('filterPersonal')
         default: return type
