@@ -7,6 +7,7 @@
  * - Organization-level billing summaries
  */
 
+import mongoose from 'mongoose';
 import ApiKeyUsage from '../models/ApiKeyUsage';
 import ApiKey from '../models/ApiKey';
 import { redis } from '../config/redis';
@@ -116,7 +117,7 @@ export class ApiKeyUsageService {
 
         // Fallback to MongoDB
         const result = await ApiKeyUsage.aggregate([
-            { $match: { apiKeyId, dateKey } },
+            { $match: { apiKeyId: new mongoose.Types.ObjectId(apiKeyId), dateKey } },
             { $group: { _id: null, total: { $sum: '$weightedTokens' } } },
         ]);
 
@@ -141,7 +142,7 @@ export class ApiKeyUsageService {
         } catch { /* fall through */ }
 
         const result = await ApiKeyUsage.aggregate([
-            { $match: { apiKeyId, monthKey } },
+            { $match: { apiKeyId: new mongoose.Types.ObjectId(apiKeyId), monthKey } },
             { $group: { _id: null, total: { $sum: '$weightedTokens' } } },
         ]);
 
@@ -161,10 +162,12 @@ export class ApiKeyUsageService {
         const startDate = new Date();
         startDate.setDate(startDate.getDate() - days);
 
+        const objectId = new mongoose.Types.ObjectId(apiKeyId);
+
         const [daily, byModel, summary] = await Promise.all([
             // Daily breakdown
             ApiKeyUsage.aggregate([
-                { $match: { apiKeyId, timestamp: { $gte: startDate } } },
+                { $match: { apiKeyId: objectId, timestamp: { $gte: startDate } } },
                 {
                     $group: {
                         _id: '$dateKey',
@@ -180,7 +183,7 @@ export class ApiKeyUsageService {
 
             // By model
             ApiKeyUsage.aggregate([
-                { $match: { apiKeyId, timestamp: { $gte: startDate } } },
+                { $match: { apiKeyId: objectId, timestamp: { $gte: startDate } } },
                 {
                     $group: {
                         _id: '$modelAlias',
@@ -194,7 +197,7 @@ export class ApiKeyUsageService {
 
             // Total summary
             ApiKeyUsage.aggregate([
-                { $match: { apiKeyId, timestamp: { $gte: startDate } } },
+                { $match: { apiKeyId: objectId, timestamp: { $gte: startDate } } },
                 {
                     $group: {
                         _id: null,
