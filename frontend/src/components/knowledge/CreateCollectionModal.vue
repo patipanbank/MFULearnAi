@@ -21,7 +21,7 @@ const type = ref('personal')
 const loading = ref(false)
 const error = ref(null)
 
-const isAdmin = authStore.role === 'admin'
+const isAdmin = authStore.role === 'admin' || authStore.role === 'superadmin'
 const isEditMode = !!props.collection
 
 onMounted(() => {

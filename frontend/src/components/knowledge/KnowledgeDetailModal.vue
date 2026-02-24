@@ -12,7 +12,7 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['close', 'success'])
+const emit = defineEmits(['close', 'success', 'update'])
 
 const authStore = useAuthStore()
 const knowledgeStore = useKnowledgeStore()
@@ -52,7 +52,7 @@ const saveDesc = async () => {
     savingDesc.value = true
     try {
         await knowledgeStore.updateKnowledge(props.item._id, { description: editDesc.value })
-        props.item.description = editDesc.value
+        emit('update', { description: editDesc.value })
         editingDesc.value = false
         descSaved.value = true
         setTimeout(() => descSaved.value = false, 2000)
@@ -83,7 +83,7 @@ const saveFolder = async () => {
     savingFolder.value = true
     try {
         await knowledgeStore.updateKnowledge(props.item._id, { folder: editFolder.value })
-        props.item.folder = editFolder.value
+        emit('update', { folder: editFolder.value })
         editingFolder.value = false
         folderSaved.value = true
         setTimeout(() => folderSaved.value = false, 2000)
@@ -115,7 +115,7 @@ const saveExpires = async () => {
     try {
         const payload = editExpires.value ? { expiresAt: new Date(editExpires.value).toISOString() } : { expiresAt: null }
         await knowledgeStore.updateKnowledge(props.item._id, payload)
-        props.item.expiresAt = payload.expiresAt
+        emit('update', { expiresAt: payload.expiresAt })
         editingExpires.value = false
         expiresSaved.value = true
         setTimeout(() => expiresSaved.value = false, 2000)
@@ -151,7 +151,7 @@ const saveTagsToServer = async () => {
     savingTags.value = true
     try {
         await knowledgeStore.updateKnowledge(props.item._id, { tags: localTags.value })
-        props.item.tags = [...localTags.value]
+        emit('update', { tags: [...localTags.value] })
         tagsSaved.value = true
         setTimeout(() => tagsSaved.value = false, 2000)
     } catch (e) {

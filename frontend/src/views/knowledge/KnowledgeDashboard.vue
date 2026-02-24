@@ -63,6 +63,12 @@ const handleCollectionItemOpen = (item) => {
     showKnowledgeDetail.value = true
 }
 
+const handleKnowledgeUpdate = (updates) => {
+    if (selectedKnowledge.value) {
+        selectedKnowledge.value = { ...selectedKnowledge.value, ...updates }
+    }
+}
+
 const openEditCollection = (col) => {
     editingCollection.value = col
     showCollectionModal.value = true
@@ -227,7 +233,7 @@ const maxTrendHit = computed(() => {
     <Teleport to="body">
       <UploadModal v-if="showUploadModal" @close="showUploadModal = false" @success="handleUploadSuccess" />
       <CreateCollectionModal v-if="showCollectionModal" :collection="editingCollection" @close="closeCollectionModal" @success="handleCollectionSuccess" />
-      <KnowledgeDetailModal v-if="showKnowledgeDetail && selectedKnowledge" :item="selectedKnowledge" @close="showKnowledgeDetail = false" @success="knowledgeStore.fetchKnowledge()" />
+      <KnowledgeDetailModal v-if="showKnowledgeDetail && selectedKnowledge" :item="selectedKnowledge" @close="showKnowledgeDetail = false" @success="knowledgeStore.fetchKnowledge()" @update="handleKnowledgeUpdate" />
       <CollectionDetailModal v-if="showCollectionDetail && selectedCollection" :collection="selectedCollection" @close="showCollectionDetail = false" @open-item="handleCollectionItemOpen" />
       <AdminRequestsModal v-if="showAdminModal" @close="showAdminModal = false; fetchPendingCount()" />
     </Teleport>
