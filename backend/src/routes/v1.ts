@@ -55,6 +55,15 @@ router.get('/api-keys/:id/usage', checkAuth, EnhancedApiKeyController.getKeyUsag
 // Available models for key creation
 router.get('/api-keys/models', checkAuth, EnhancedApiKeyController.listModels);
 
+// Available tools for agent key creation
+router.get('/api-keys/tools', checkAuth, EnhancedApiKeyController.listTools);
+
+// Available knowledge items for agent key scoping
+router.get('/api-keys/knowledge', checkAuth, EnhancedApiKeyController.listKnowledge);
+
+// Available departments for agent key scoping
+router.get('/api-keys/departments', checkAuth, EnhancedApiKeyController.listDepartments);
+
 // Organization usage (admin)
 router.get('/usage/organization', checkAuth, AuthService.requireRole(['admin', 'superadmin']), EnhancedApiKeyController.getOrgUsage);
 

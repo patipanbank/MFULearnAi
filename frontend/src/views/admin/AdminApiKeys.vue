@@ -191,34 +191,77 @@
                 <div class="settings-section">
                   <div class="section-label">{{ t('agentSettings') }}</div>
 
+                  <!-- Tools Selector -->
+                  <div class="field">
+                    <label>{{ t('allowedTools') }}</label>
+                    <div v-if="availableTools.length" class="chip-selector">
+                      <button type="button"
+                        class="chip" :class="{ active: newItem.selectedTools.includes('*') }"
+                        @click="toggleTool('*')">
+                        🌐 {{ t('allTools') }}
+                      </button>
+                      <button v-for="tool in availableTools" :key="tool.name" type="button"
+                        class="chip" :class="{ active: newItem.selectedTools.includes(tool.name), disabled: newItem.selectedTools.includes('*') }"
+                        @click="toggleTool(tool.name)"
+                        :disabled="newItem.selectedTools.includes('*')">
+                        <span class="chip-icon">{{ tool.source === 'mcp' ? '🔌' : '🔧' }}</span>
+                        {{ tool.name }}
+                        <span class="chip-desc">{{ tool.description?.slice(0, 40) }}</span>
+                      </button>
+                    </div>
+                    <div v-else class="field-loading">{{ t('loading') }}</div>
+                    <span class="field-hint">{{ t('allowedToolsHint') }}</span>
+                  </div>
+
+                  <!-- Departments Selector -->
                   <div class="field">
                     <label>{{ t('allowedDepts') }}</label>
-                    <input
-                      v-model="newItem.allowedDepartmentsStr"
-                      :placeholder="t('allowedDeptsPlaceholder')"
-                      class="input"
-                    />
+                    <div v-if="availableDepartments.length" class="chip-selector">
+                      <button type="button"
+                        class="chip" :class="{ active: newItem.selectedDepartments.includes('*') }"
+                        @click="toggleDepartment('*')">
+                        🌐 {{ t('allDepts') }}
+                      </button>
+                      <button v-for="dept in availableDepartments" :key="dept.name" type="button"
+                        class="chip" :class="{ active: newItem.selectedDepartments.includes(dept.name), disabled: newItem.selectedDepartments.includes('*') }"
+                        @click="toggleDepartment(dept.name)"
+                        :disabled="newItem.selectedDepartments.includes('*')">
+                        🏢 {{ dept.name }}
+                      </button>
+                    </div>
+                    <div v-else class="field-loading">{{ t('loading') }}</div>
                     <span class="field-hint">{{ t('allowedDeptsHint') }}</span>
                   </div>
 
+                  <!-- Knowledge Base Selector -->
                   <div class="field">
                     <label>{{ t('allowedKbIds') }}</label>
-                    <input
-                      v-model="newItem.allowedKnowledgeIdsStr"
-                      :placeholder="t('allowedKbIdsPlaceholder')"
-                      class="input"
-                    />
+                    <div v-if="availableKnowledge.length" class="kb-selector">
+                      <div v-for="(kbs, dept) in groupedKnowledge" :key="dept" class="kb-group">
+                        <div class="kb-group-header" @click="toggleKbGroup(dept)">
+                          <span class="kb-group-arrow" :class="{ expanded: expandedKbGroups.includes(dept) }">▶</span>
+                          <span class="kb-group-name">{{ dept }}</span>
+                          <span class="kb-group-count">{{ kbs.length }}</span>
+                          <button type="button" class="kb-group-toggle" @click.stop="selectAllKbInGroup(dept)">
+                            {{ t('selectAll') }}
+                          </button>
+                        </div>
+                        <div v-if="expandedKbGroups.includes(dept)" class="kb-group-items">
+                          <label v-for="kb in kbs" :key="kb.id" class="kb-item">
+                            <input type="checkbox" :value="kb.id"
+                              v-model="newItem.selectedKnowledgeIds"
+                              class="kb-checkbox" />
+                            <span class="kb-type-badge" :class="'kb-' + kb.type">{{ kb.type }}</span>
+                            <span class="kb-title">{{ kb.title }}</span>
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+                    <div v-else class="field-loading">{{ t('loading') }}</div>
                     <span class="field-hint">{{ t('allowedKbIdsHint') }}</span>
-                  </div>
-
-                  <div class="field">
-                    <label>{{ t('allowedTools') }}</label>
-                    <input
-                      v-model="newItem.allowedToolsStr"
-                      :placeholder="t('allowedToolsPlaceholder')"
-                      class="input"
-                    />
-                    <span class="field-hint">{{ t('allowedToolsHint') }}</span>
+                    <div v-if="newItem.selectedKnowledgeIds.length" class="selected-count">
+                      {{ newItem.selectedKnowledgeIds.length }} {{ t('itemsSelected') }}
+                    </div>
                   </div>
                 </div>
               </template>
@@ -426,14 +469,15 @@ const I18N = {
     modeModelDesc: 'เรียก Model ตรง (OpenAI SDK compatible)',
     agentSettings: 'ตั้งค่า Agent',
     allowedDepts: 'Department ที่เข้าถึง KB ได้',
-    allowedDeptsPlaceholder: '* (ทั้งหมด) หรือ IT, LAW, MEDICINE',
-    allowedDeptsHint: 'ใส่ * สำหรับทุก dept หรือชื่อ dept คั่นด้วย , (ว่าง = dept ของ user)',
-    allowedKbIds: 'Knowledge IDs เพิ่มเติม',
-    allowedKbIdsPlaceholder: 'KB ID คั่นด้วย , (ไม่บังคับ)',
-    allowedKbIdsHint: 'ระบุ ID ของ KB ที่ต้องการเข้าถึงเพิ่มเติม (OR กับ dept)',
+    allowedDeptsHint: 'เลือก * สำหรับทุก dept หรือเลือก dept ที่ต้องการ (ว่าง = dept ของ user)',
+    allowedKbIds: 'Knowledge Base เพิ่มเติม',
+    allowedKbIdsHint: 'เลือก KB ที่ต้องการให้เข้าถึงเพิ่มเติม (OR กับ dept)',
     allowedTools: 'Tools ที่ใช้ได้',
-    allowedToolsPlaceholder: '* (ทั้งหมด) หรือ search, check_policy',
-    allowedToolsHint: 'ใส่ * สำหรับทุก tool หรือชื่อ tool คั่นด้วย , (ว่าง = ไม่มี tool)',
+    allowedToolsHint: 'เลือก * สำหรับทุก tool หรือเลือก tool ที่ต้องการ',
+    allTools: 'ทั้งหมด',
+    allDepts: 'ทุก Department',
+    selectAll: 'เลือกทั้งหมด',
+    itemsSelected: 'รายการที่เลือก',
     modelSettings: 'ตั้งค่า Model',
     selectModel: 'เลือก Model',
     selectModelPlaceholder: 'เลือก Model',
@@ -497,14 +541,15 @@ const I18N = {
     modeModelDesc: 'Direct Model (OpenAI SDK compatible)',
     agentSettings: 'Agent Settings',
     allowedDepts: 'Allowed Departments (KB Access)',
-    allowedDeptsPlaceholder: '* (all) or IT, LAW, MEDICINE',
-    allowedDeptsHint: 'Use * for all depts, or comma-separated names (empty = user\'s dept only)',
-    allowedKbIds: 'Additional Knowledge IDs',
-    allowedKbIdsPlaceholder: 'Comma-separated KB IDs (optional)',
-    allowedKbIdsHint: 'Specific KB IDs to grant access (OR logic with departments)',
+    allowedDeptsHint: 'Select * for all depts, or pick specific ones (empty = user\'s dept only)',
+    allowedKbIds: 'Knowledge Base Access',
+    allowedKbIdsHint: 'Select specific KBs to grant access (OR logic with departments)',
     allowedTools: 'Allowed Tools',
-    allowedToolsPlaceholder: '* (all) or search, check_policy',
-    allowedToolsHint: 'Use * for all tools, or comma-separated names (empty = no tools)',
+    allowedToolsHint: 'Select * for all tools, or pick specific ones',
+    allTools: 'All',
+    allDepts: 'All Departments',
+    selectAll: 'Select all',
+    itemsSelected: 'selected',
     modelSettings: 'Model Settings',
     selectModel: 'Select Model',
     selectModelPlaceholder: 'Choose a model',
@@ -543,9 +588,9 @@ const newItem = ref({
   name: '',
   expiration: '',
   mode: 'model',
-  allowedDepartmentsStr: '',
-  allowedKnowledgeIdsStr: '',
-  allowedToolsStr: '*',
+  selectedTools: ['*'],
+  selectedDepartments: ['*'],
+  selectedKnowledgeIds: [],
   modelId: '',
   organization: '',
   project: '',
@@ -559,6 +604,11 @@ const createdUsageGuide = ref(null)
 const isCopied = ref(false)
 const toast = ref({ show: false, message: '', type: 'success' })
 const availableModels = ref([])
+const availableTools = ref([])
+const availableDepartments = ref([])
+const availableKnowledge = ref([])
+const groupedKnowledge = ref({})
+const expandedKbGroups = ref([])
 
 // ── Computed ────────────────────────────────────────────────────
 const canCreate = computed(() => {
@@ -634,9 +684,9 @@ const createKey = async () => {
     }
 
     if (newItem.value.mode === 'agent') {
-      payload.allowedDepartments = parseCSV(newItem.value.allowedDepartmentsStr)
-      payload.allowedKnowledgeIds = parseCSV(newItem.value.allowedKnowledgeIdsStr)
-      payload.allowedTools = parseCSV(newItem.value.allowedToolsStr)
+      payload.allowedDepartments = newItem.value.selectedDepartments
+      payload.allowedKnowledgeIds = newItem.value.selectedKnowledgeIds
+      payload.allowedTools = newItem.value.selectedTools
     } else {
       payload.modelId = newItem.value.modelId
     }
@@ -741,9 +791,9 @@ const openCreateModal = () => {
     name: '',
     expiration: '',
     mode: 'model',
-    allowedDepartmentsStr: '',
-    allowedKnowledgeIdsStr: '',
-    allowedToolsStr: '*',
+    selectedTools: ['*'],
+    selectedDepartments: ['*'],
+    selectedKnowledgeIds: [],
     modelId: '',
     organization: '',
     project: '',
@@ -753,7 +803,10 @@ const openCreateModal = () => {
     allowedIPsStr: '',
   }
   previewTab.value = 'curl'
+  expandedKbGroups.value = []
   showCreateModal.value = true
+  // Fetch agent resources if not loaded yet
+  if (!availableTools.value.length) fetchAgentResources()
 }
 const closeCreateModal = () => { showCreateModal.value = false }
 const closeSuccessModal = () => { showSuccessModal.value = false; createdKey.value = ''; createdUsageGuide.value = null }
@@ -810,7 +863,71 @@ const tab2field = (tab) => {
   return { curl: 'curl_example', python: 'python_example', javascript: 'javascript_example' }[tab] || 'curl_example'
 }
 
-onMounted(() => { fetchKeys(); fetchModels() })
+// ── Agent resource toggle helpers ───────────────────────────────
+const toggleTool = (name) => {
+  const list = newItem.value.selectedTools
+  if (name === '*') {
+    newItem.value.selectedTools = list.includes('*') ? [] : ['*']
+    return
+  }
+  // Remove wildcard when selecting specific tools
+  const idx = list.indexOf(name)
+  const filtered = list.filter(t => t !== '*')
+  if (idx !== -1) filtered.splice(filtered.indexOf(name), 1)
+  else filtered.push(name)
+  newItem.value.selectedTools = filtered
+}
+
+const toggleDepartment = (name) => {
+  const list = newItem.value.selectedDepartments
+  if (name === '*') {
+    newItem.value.selectedDepartments = list.includes('*') ? [] : ['*']
+    return
+  }
+  const filtered = list.filter(d => d !== '*')
+  const idx = filtered.indexOf(name)
+  if (idx !== -1) filtered.splice(idx, 1)
+  else filtered.push(name)
+  newItem.value.selectedDepartments = filtered
+}
+
+const toggleKbGroup = (dept) => {
+  const idx = expandedKbGroups.value.indexOf(dept)
+  if (idx !== -1) expandedKbGroups.value.splice(idx, 1)
+  else expandedKbGroups.value.push(dept)
+}
+
+const selectAllKbInGroup = (dept) => {
+  const kbs = groupedKnowledge.value[dept] || []
+  const ids = kbs.map(kb => kb.id)
+  const current = new Set(newItem.value.selectedKnowledgeIds)
+  const allSelected = ids.every(id => current.has(id))
+  if (allSelected) {
+    newItem.value.selectedKnowledgeIds = newItem.value.selectedKnowledgeIds.filter(id => !ids.includes(id))
+  } else {
+    const merged = new Set([...newItem.value.selectedKnowledgeIds, ...ids])
+    newItem.value.selectedKnowledgeIds = [...merged]
+  }
+}
+
+// ── Fetch agent resources (tools, departments, knowledge) ───────
+const fetchAgentResources = async () => {
+  try {
+    const [toolsRes, deptsRes, kbRes] = await Promise.all([
+      api.get('/v1/api-keys/tools').catch(() => null),
+      api.get('/v1/api-keys/departments').catch(() => null),
+      api.get('/v1/api-keys/knowledge').catch(() => null),
+    ])
+    if (toolsRes) availableTools.value = toolsRes.data?.data || []
+    if (deptsRes) availableDepartments.value = deptsRes.data?.data || []
+    if (kbRes) {
+      availableKnowledge.value = kbRes.data?.data || []
+      groupedKnowledge.value = kbRes.data?.grouped || {}
+    }
+  } catch { /* ignore */ }
+}
+
+onMounted(() => { fetchKeys(); fetchModels(); fetchAgentResources() })
 </script>
 
 <style scoped>
@@ -1233,4 +1350,108 @@ onMounted(() => { fetchKeys(); fetchModels() })
 .btn-icon:hover { background: var(--color-bg-hover); color: var(--color-text-primary); }
 .btn-icon.btn-secondary { color: var(--color-text-muted); }
 .btn-icon.btn-secondary:hover { background: rgba(99,102,241,0.1); color: #6366f1; }
+
+/* ── Chip Selector (Tools & Departments) ─────────────── */
+.chip-selector {
+  display: flex; flex-wrap: wrap; gap: 6px;
+  padding: 8px;
+  background: var(--color-bg-tertiary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  max-height: 180px; overflow-y: auto;
+}
+.chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 5px 12px; border-radius: 99px;
+  font-size: 12px; font-weight: 500;
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-secondary);
+  cursor: pointer; transition: all 0.15s;
+  white-space: nowrap;
+}
+.chip:hover:not(:disabled) { border-color: var(--color-accent); color: var(--color-accent); }
+.chip.active {
+  background: var(--color-accent-light);
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+  font-weight: 600;
+}
+.chip.disabled { opacity: 0.4; cursor: not-allowed; }
+.chip-icon { font-size: 11px; }
+.chip-desc {
+  font-size: 10px; color: var(--color-text-muted);
+  max-width: 120px; overflow: hidden; text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── KB Selector (Knowledge Base) ────────────────────── */
+.kb-selector {
+  background: var(--color-bg-tertiary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  max-height: 280px; overflow-y: auto;
+}
+.kb-group { border-bottom: 1px solid var(--color-border); }
+.kb-group:last-child { border-bottom: none; }
+.kb-group-header {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 12px; cursor: pointer;
+  font-size: 12px; font-weight: 600;
+  color: var(--color-text-secondary);
+  transition: background 0.1s;
+}
+.kb-group-header:hover { background: var(--color-bg-hover); }
+.kb-group-arrow {
+  font-size: 9px; transition: transform 0.2s;
+  color: var(--color-text-muted);
+}
+.kb-group-arrow.expanded { transform: rotate(90deg); }
+.kb-group-name { flex: 1; }
+.kb-group-count {
+  font-size: 10px; font-weight: 700;
+  background: var(--color-bg-primary);
+  padding: 1px 7px; border-radius: 99px;
+  color: var(--color-text-muted);
+  border: 1px solid var(--color-border);
+}
+.kb-group-toggle {
+  font-size: 10px; font-weight: 600;
+  background: none; border: none; cursor: pointer;
+  color: var(--color-accent); padding: 2px 6px;
+  border-radius: var(--radius-sm);
+}
+.kb-group-toggle:hover { background: var(--color-accent-light); }
+.kb-group-items { padding: 0 12px 8px 28px; }
+.kb-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 4px 0; font-size: 12px;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+.kb-item:hover { color: var(--color-text-primary); }
+.kb-checkbox {
+  width: 15px; height: 15px; accent-color: var(--color-accent);
+  cursor: pointer; flex-shrink: 0;
+}
+.kb-type-badge {
+  font-size: 9px; font-weight: 700;
+  padding: 1px 6px; border-radius: 99px;
+  text-transform: uppercase; flex-shrink: 0;
+}
+.kb-public { background: rgba(34,197,94,0.1); color: #22c55e; }
+.kb-department { background: rgba(59,130,246,0.1); color: #3b82f6; }
+.kb-policy { background: rgba(245,158,11,0.1); color: #f59e0b; }
+.kb-personal { background: rgba(168,85,247,0.1); color: #a855f7; }
+.kb-title {
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.selected-count {
+  margin-top: 6px; font-size: 11px; font-weight: 600;
+  color: var(--color-accent);
+}
+.field-loading {
+  padding: 12px; text-align: center;
+  font-size: 12px; color: var(--color-text-muted);
+}
 </style>

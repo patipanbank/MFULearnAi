@@ -11,6 +11,14 @@ import crypto from 'crypto';
 import { AVAILABLE_MODELS } from '../config/models';
 import { ApiKeyUsageService } from '../services/ApiKeyUsageService';
 import { getAvailableModelsOpenAI, resolveModelId, getOpenAIModelName } from '../openai/modelMapping';
+import { ToolAccessService } from '../services/ToolAccessService';
+import { CalculatorTool } from '../tools/CalculatorTool';
+import { SearchTool } from '../tools/SearchTool';
+import { PolicyCheckerTool } from '../tools/PolicyCheckerTool';
+import { mcpManager } from '../mcp/McpManager';
+import { AgentTool } from '../tools/AgentTool';
+import { Knowledge } from '../knowledge/models';
+import Department from '../models/Department';
 
 export class EnhancedApiKeyController {
 
@@ -400,5 +408,142 @@ export class EnhancedApiKeyController {
             object: 'list',
             data: models,
         });
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // Dynamic Agent Resource Listing (Tools + KB + Departments)
+    // ═══════════════════════════════════════════════════════════
+
+    /** All known built-in tools — must stay in sync with AgentWorkflow */
+    private static readonly BUILTIN_TOOLS: AgentTool[] = [
+        new CalculatorTool(),
+        new SearchTool(),
+        new PolicyCheckerTool(),
+    ];
+
+    /**
+     * GET /v1/api-keys/tools — List all available tools for agent mode.
+     * Returns builtin + MCP tools with their access status.
+     */
+    static async listTools(req: Request, res: Response) {
+        try {
+            const allTools = [...EnhancedApiKeyController.BUILTIN_TOOLS, ...mcpManager.getTools()];
+            const summary = await ToolAccessService.getAccessSummary(allTools);
+
+            res.json({
+                object: 'list',
+                data: summary
+                    .filter(t => !t.isDisabled)
+                    .map(t => ({
+                        name: t.toolName,
+                        description: t.description,
+                        source: t.source,
+                        allowedRoles: t.allowedRoles,
+                    })),
+            });
+        } catch (error: any) {
+            res.status(500).json({ error: { message: error.message, type: 'server_error' } });
+        }
+    }
+
+    /**
+     * GET /v1/api-keys/knowledge — List knowledge items available for agent mode.
+     *
+     * Returns KB grouped by department, showing only completed (indexed) items.
+     * Query params:
+     *   ?type=public|department|policy  — filter by type
+     *   ?department=IT,LAW              — filter by departments (comma-separated)
+     */
+    static async listKnowledge(req: Request, res: Response) {
+        try {
+            const user = (req as any).user;
+            if (!user?.userId) return res.status(401).json({ error: { message: 'Unauthorized', type: 'authentication_error' } });
+
+            const { type, department } = req.query;
+
+            // Build filter — only show completed (indexed) KB
+            const filter: any = {
+                processingStatus: 'completed',
+                visibility: 'active',
+            };
+
+            if (type) filter.type = type;
+
+            // Permission scoping
+            if (user.role === 'superadmin') {
+                // superadmin sees all
+                if (department) {
+                    const depts = (department as string).split(',').map(d => d.trim());
+                    filter.department = { $in: depts };
+                }
+            } else if (user.role === 'admin') {
+                // admin sees public + own dept + policy
+                filter.$or = [
+                    { type: 'public' },
+                    { type: 'policy' },
+                    { type: 'department', department: user.department },
+                ];
+            } else {
+                // regular sees public + own dept
+                filter.$or = [
+                    { type: 'public' },
+                    { type: 'department', department: user.department },
+                ];
+            }
+
+            const kbs = await Knowledge.find(filter)
+                .select('title type department tags description createdAt')
+                .sort({ department: 1, title: 1 })
+                .lean();
+
+            // Group by department
+            const grouped: Record<string, any[]> = {};
+            for (const kb of kbs) {
+                const dept = kb.department || 'general';
+                if (!grouped[dept]) grouped[dept] = [];
+                grouped[dept].push({
+                    id: kb._id.toString(),
+                    title: kb.title,
+                    type: kb.type,
+                    department: kb.department,
+                    tags: kb.tags,
+                    description: kb.description,
+                });
+            }
+
+            res.json({
+                object: 'list',
+                total: kbs.length,
+                data: kbs.map(kb => ({
+                    id: kb._id.toString(),
+                    title: kb.title,
+                    type: kb.type,
+                    department: kb.department,
+                    tags: kb.tags,
+                    description: kb.description,
+                })),
+                grouped,
+            });
+        } catch (error: any) {
+            res.status(500).json({ error: { message: error.message, type: 'server_error' } });
+        }
+    }
+
+    /**
+     * GET /v1/api-keys/departments — List departments for agent key scoping.
+     */
+    static async listDepartments(_req: Request, res: Response) {
+        try {
+            const departments = await Department.find().select('name code -_id').sort({ name: 1 }).lean();
+            res.json({
+                object: 'list',
+                data: departments.map(d => ({
+                    name: d.name,
+                    code: (d as any).code || d.name,
+                })),
+            });
+        } catch (error: any) {
+            res.status(500).json({ error: { message: error.message, type: 'server_error' } });
+        }
     }
 }
