@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useLanguage } from '@/composables/useSettings'
+import { useConfirmDialog } from '@/composables/useConfirmDialog'
 import { useKnowledgeStore } from '@/stores/knowledge'
 import { useAuthStore } from '@/stores/auth'
 import KnowledgeList from '@/components/knowledge/KnowledgeList.vue'
@@ -12,6 +13,7 @@ import CollectionDetailModal from '@/components/knowledge/CollectionDetailModal.
 import AdminRequestsModal from '@/components/knowledge/AdminRequestsModal.vue'
 
 const { t } = useLanguage()
+const { confirm: showConfirm } = useConfirmDialog()
 const knowledgeStore = useKnowledgeStore()
 const authStore = useAuthStore()
 
@@ -90,6 +92,7 @@ const handleCollectionSuccess = () => {
 }
 
 const handleDeleteCollection = async (col) => {
+    if (!await showConfirm(t('confirmDeleteCollection'), { variant: 'danger' })) return
     try {
         await knowledgeStore.deleteCollection(col._id)
         knowledgeStore.fetchCollections()

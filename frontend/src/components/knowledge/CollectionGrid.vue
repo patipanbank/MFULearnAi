@@ -34,8 +34,9 @@ const getItemCount = (col) => {
 }
 
 const canManage = (col) => {
+    if (auth.role === 'superadmin') return true
     if (col.type === 'personal') return col.ownerId === auth.userId
-    if (col.type === 'department') return auth.role === 'admin' && auth.user?.department === col.department
+    if (col.type === 'department') return auth.role === 'admin' && auth.department === col.department
     if (col.type === 'default') return auth.role === 'admin'
     return false
 }

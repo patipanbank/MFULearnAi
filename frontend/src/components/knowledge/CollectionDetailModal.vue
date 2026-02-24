@@ -56,6 +56,7 @@ const fetchDetails = async () => {
 
 const isOwner = computed(() => {
     if (!fullCollection.value) return false
+    if (authStore.role === 'superadmin') return true
     if (fullCollection.value.type === 'personal') return fullCollection.value.ownerId === authStore.userId
     if (fullCollection.value.type === 'department') return authStore.role === 'admin' && authStore.department === fullCollection.value.department
     if (fullCollection.value.type === 'default') return authStore.role === 'admin'
