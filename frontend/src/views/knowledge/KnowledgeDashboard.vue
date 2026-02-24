@@ -89,6 +89,27 @@ const handleCollectionSuccess = () => {
     knowledgeStore.fetchCollections()
 }
 
+const handleDeleteCollection = async (col) => {
+    try {
+        await knowledgeStore.deleteCollection(col._id)
+        knowledgeStore.fetchCollections()
+    } catch (e) {
+        console.error('Delete collection failed', e)
+    }
+}
+
+const handleEditFromDetail = (col) => {
+    showCollectionDetail.value = false
+    selectedCollection.value = null
+    openEditCollection(col)
+}
+
+const handleDeletedFromDetail = () => {
+    showCollectionDetail.value = false
+    selectedCollection.value = null
+    knowledgeStore.fetchCollections()
+}
+
 const statsLoaded = ref(false)
 const switchDashboardTab = async (tab) => {
     activeTab.value = tab
@@ -166,7 +187,7 @@ const maxTrendHit = computed(() => {
         <KnowledgeList @open="openKnowledge" />
       </div>
       <div v-if="activeTab === 'collections'" class="tab-pane fade-in">
-        <CollectionGrid @open="openCollection" @edit="openEditCollection" />
+        <CollectionGrid @open="openCollection" @edit="openEditCollection" @delete="handleDeleteCollection" />
       </div>
       <div v-if="activeTab === 'stats'" class="tab-pane fade-in">
         <div v-if="knowledgeStore.statsLoading" class="stats-loading">
@@ -234,7 +255,7 @@ const maxTrendHit = computed(() => {
       <UploadModal v-if="showUploadModal" @close="showUploadModal = false" @success="handleUploadSuccess" />
       <CreateCollectionModal v-if="showCollectionModal" :collection="editingCollection" @close="closeCollectionModal" @success="handleCollectionSuccess" />
       <KnowledgeDetailModal v-if="showKnowledgeDetail && selectedKnowledge" :item="selectedKnowledge" @close="showKnowledgeDetail = false" @success="knowledgeStore.fetchKnowledge()" @update="handleKnowledgeUpdate" />
-      <CollectionDetailModal v-if="showCollectionDetail && selectedCollection" :collection="selectedCollection" @close="showCollectionDetail = false" @open-item="handleCollectionItemOpen" />
+      <CollectionDetailModal v-if="showCollectionDetail && selectedCollection" :collection="selectedCollection" @close="showCollectionDetail = false" @open-item="handleCollectionItemOpen" @edit="handleEditFromDetail" @deleted="handleDeletedFromDetail" />
       <AdminRequestsModal v-if="showAdminModal" @close="showAdminModal = false; fetchPendingCount()" />
     </Teleport>
   </div>

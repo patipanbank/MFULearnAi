@@ -16,7 +16,7 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['close', 'open-item'])
+const emit = defineEmits(['close', 'open-item', 'edit', 'deleted'])
 
 const authStore = useAuthStore()
 const knowledgeStore = useKnowledgeStore()
@@ -36,6 +36,7 @@ const isMapping = ref(false)
 const availableKnowledge = ref([])
 const searchQuery = ref('')
 const searchInputRef = ref(null)
+const deleteLoading = ref(false)
 
 onMounted(async () => {
     await fetchDetails()
@@ -133,6 +134,23 @@ const getFileIcon = (type) => {
     if (type.includes('url')) return '🔗'
     return '📄'
 }
+
+const handleEditCollection = () => {
+    emit('edit', props.collection)
+}
+
+const handleDeleteCollection = async () => {
+    if (!await showConfirm(t('confirmDeleteCollection'), { variant: 'danger' })) return
+    deleteLoading.value = true
+    try {
+        await knowledgeStore.deleteCollection(props.collection._id)
+        emit('deleted')
+    } catch (e) {
+        console.error('Delete collection failed', e)
+    } finally {
+        deleteLoading.value = false
+    }
+}
 </script>
 
 <template>
@@ -148,9 +166,24 @@ const getFileIcon = (type) => {
                   <span class="item-count-badge" v-if="!isLoading">{{ items.length }} {{ t('collectionItemCount') }}</span>
                 </div>
             </div>
-            <button class="close-btn" @click="$emit('close')">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-            </button>
+            <div class="header-actions">
+              <button v-if="isOwner" class="header-btn" @click="handleEditCollection" :title="t('editCollection')">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                </svg>
+              </button>
+              <button v-if="isOwner" class="header-btn header-btn-danger" @click="handleDeleteCollection" :disabled="deleteLoading" :title="t('deleteBtn')">
+                <svg v-if="deleteLoading" class="spinner" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/></svg>
+                <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="3 6 5 6 21 6"/>
+                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                </svg>
+              </button>
+              <button class="close-btn" @click="$emit('close')">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            </div>
           </div>
 
           <div class="modal-content" v-if="!isLoading && fullCollection">
@@ -313,6 +346,42 @@ const getFileIcon = (type) => {
     display: flex;
     align-items: center;
     gap: 8px;
+}
+
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+}
+
+.header-btn {
+    width: 34px;
+    height: 34px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    color: var(--color-text-muted);
+    cursor: pointer;
+    transition: all 0.15s;
+}
+.header-btn:hover {
+    background: var(--color-bg-hover);
+    border-color: var(--color-accent);
+    color: var(--color-accent);
+}
+.header-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.header-btn-danger:hover {
+    background: rgba(239, 68, 68, 0.08);
+    border-color: rgba(239, 68, 68, 0.4);
+    color: #ef4444;
 }
 
 .badge {

@@ -652,25 +652,31 @@ const getQualityClass = (score) => {
 </template>
 
 <style scoped>
-/* ─── Modal Transition ───────────────────────────────────────── */
-.modal-fade-enter-active,
+/* ─── Modal Transition (spring-like) ─────────────────────────── */
+.modal-fade-enter-active {
+  transition: opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
 .modal-fade-leave-active {
-  transition: opacity 0.25s ease;
+  transition: opacity 0.2s ease-out;
 }
-.modal-fade-enter-active .knowledge-modal,
+.modal-fade-enter-active .knowledge-modal {
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
 .modal-fade-leave-active .knowledge-modal {
-  transition: transform 0.25s ease, opacity 0.25s ease;
+  transition: transform 0.2s ease-out, opacity 0.2s ease-out;
 }
-.modal-fade-enter-from,
+.modal-fade-enter-from {
+  opacity: 0;
+}
 .modal-fade-leave-to {
   opacity: 0;
 }
 .modal-fade-enter-from .knowledge-modal {
-  transform: translateY(16px) scale(0.97);
+  transform: translateY(24px) scale(0.92);
   opacity: 0;
 }
 .modal-fade-leave-to .knowledge-modal {
-  transform: translateY(8px) scale(0.98);
+  transform: translateY(10px) scale(0.96);
   opacity: 0;
 }
 
