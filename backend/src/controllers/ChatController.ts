@@ -29,7 +29,7 @@ export class ChatController {
 
         const executeAgent = () => {
             ContextService.run({ correlationId }, async () => {
-                const actualSessionId = sessionId || `session-${crypto.randomBytes(8).toString('hex')}`;
+                const actualSessionId = sessionId || crypto.randomUUID();
                 if (!message && (!images || images.length === 0) && (!files || files.length === 0)) {
                     return res.status(400).json({ error: 'Message or attachment is required' });
                 }

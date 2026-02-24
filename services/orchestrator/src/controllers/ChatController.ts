@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import crypto from 'crypto';
 import busboy from 'busboy';
 import { KnowledgeService } from '../services/KnowledgeService';
 import { HistoryService } from '../services/HistoryService';
@@ -28,7 +29,7 @@ export class ChatController {
 
         const executeAgent = () => {
             ContextService.run({ correlationId }, async () => {
-                const actualSessionId = sessionId || `session-${Date.now()}`;
+                const actualSessionId = sessionId || crypto.randomUUID();
                 if (!message && (!images || images.length === 0) && (!files || files.length === 0)) {
                     return res.status(400).json({ error: 'Message or attachment is required' });
                 }

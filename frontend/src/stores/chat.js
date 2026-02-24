@@ -61,8 +61,8 @@ export const useChatStore = defineStore('chat', () => {
     // Create new session
     function newSession(sessionId = null) {
         const generatedId = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
-            ? `session-${crypto.randomUUID()}`
-            : `session-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
+            ? crypto.randomUUID()
+            : `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
 
         currentSessionId.value = sessionId || generatedId
         messages.value = []
