@@ -1,4 +1,3 @@
-import { Response } from 'express';
 import { bedrockClient } from '../bedrock/client';
 import {
     ConverseCommand,
@@ -28,145 +27,6 @@ export class BedrockService {
             modelConfigs: AVAILABLE_MODELS, // Optional: send full config if frontend needs it
             environment: ENV_TYPE
         };
-    }
-
-    static async streamChat(
-        messages: ChatMessage[],
-        modelId: string,
-        res: Response,
-        onComplete: (fullText: string, usage: any) => void
-    ) {
-        const finalModelId = validateModel(modelId);
-
-        // Prepare System Prompt
-        const systemMsg = messages.find(msg => msg.role === 'system');
-        let system: any[] | undefined;
-        if (systemMsg) {
-            if (Array.isArray(systemMsg.content)) {
-                system = systemMsg.content.map((block: any) => (
-                    typeof block === 'string' ? { text: block } : block
-                ));
-            } else if (typeof systemMsg.content === 'string') {
-                system = [{ text: systemMsg.content }];
-            }
-        }
-
-        // Guardrails
-        let guardrailConfig: any = undefined;
-        if (GUARDRAIL_ID) {
-            guardrailConfig = {
-                guardrailIdentifier: GUARDRAIL_ID,
-                guardrailVersion: GUARDRAIL_VERSION
-            };
-        }
-
-        // Normalize Messages
-        const formattedMessages = normalizeMessages(messages.filter(msg => msg.role !== 'system'));
-
-        // Prompt Caching
-        const enableCaching = ENABLE_PROMPT_CACHE && CACHE_SUPPORTED_MODELS.some(m => finalModelId.includes(m));
-        let additionalModelRequestFields: any = undefined;
-        if (enableCaching && system && system.length > 0) {
-            additionalModelRequestFields = {
-                anthropic_beta: ['prompt-caching-2024-07-31']
-            };
-            // Add cachePoint to last system block
-            const lastBlock = system[system.length - 1];
-            if (!lastBlock.cachePoint) {
-                // Clone to avoid mutating original if reused? 
-                // Simple object spread for now
-                system[system.length - 1] = { ...lastBlock, cachePoint: { type: 'default' } };
-            }
-        }
-
-        try {
-            const streamCommandInput: any = {
-                modelId: finalModelId,
-                messages: formattedMessages,
-                system,
-                inferenceConfig: { maxTokens: 4096, temperature: 0.5 }
-            };
-            if (guardrailConfig) streamCommandInput.guardrailConfig = guardrailConfig;
-            if (additionalModelRequestFields) streamCommandInput.additionalModelRequestFields = additionalModelRequestFields;
-
-            const command = new ConverseStreamCommand(streamCommandInput);
-            const response = await bedrockClient.send(command);
-
-            let fullText = '';
-            let tokenUsage = { input: 0, output: 0, total: 0 };
-            let currentBlockIndex = 0;
-
-            if (response.stream) {
-                for await (const chunk of response.stream) {
-                    // Map AWS SDK events to Frontend SSE format
-
-                    // 1. Content Block Start
-                    if (chunk.contentBlockStart) {
-                        const start = chunk.contentBlockStart;
-                        currentBlockIndex = start.contentBlockIndex || 0;
-                        if (start.start?.toolUse) {
-                            res.write(`data: ${JSON.stringify({
-                                type: 'content_block_start',
-                                index: currentBlockIndex,
-                                toolUse: start.start.toolUse
-                            })}\n\n`);
-                        }
-                    }
-
-                    // 2. Content Block Delta
-                    if (chunk.contentBlockDelta) {
-                        const delta = chunk.contentBlockDelta.delta;
-                        if (delta?.text) {
-                            fullText += delta.text;
-                            res.write(`data: ${JSON.stringify({
-                                type: 'text_delta',
-                                text: delta.text,
-                                index: currentBlockIndex
-                            })}\n\n`);
-                        }
-                        if (delta?.toolUse) {
-                            res.write(`data: ${JSON.stringify({
-                                type: 'input_delta',
-                                input: delta.toolUse.input,
-                                index: currentBlockIndex
-                            })}\n\n`);
-                        }
-                    }
-
-                    // 3. Message Stop
-                    if (chunk.messageStop) {
-                        const stopReason = chunk.messageStop.stopReason;
-                        res.write(`data: ${JSON.stringify({ type: 'message_stop', stopReason })}\n\n`);
-                    }
-
-                    // 4. Metadata (Usage)
-                    if (chunk.metadata) {
-                        const usage = chunk.metadata.usage || { inputTokens: 0, outputTokens: 0, totalTokens: 0 };
-                        const cacheUsage = (chunk.metadata as any).cacheUsage || null;
-
-                        tokenUsage = { input: usage.inputTokens || 0, output: usage.outputTokens || 0, total: usage.totalTokens || 0 };
-
-                        const usagePayload: any = {
-                            type: 'usage',
-                            usage: tokenUsage
-                        };
-                        if (cacheUsage) usagePayload.cacheUsage = cacheUsage;
-                        res.write(`data: ${JSON.stringify(usagePayload)}\n\n`);
-                    }
-                }
-            }
-
-            res.write('data: [DONE]\n\n');
-            res.end();
-            onComplete(fullText, tokenUsage);
-
-        } catch (error: any) {
-            LoggerService.error('bedrock_stream_internal_error', { error: error.message });
-            if (!res.headersSent) {
-                res.write(`event: error\ndata: ${JSON.stringify({ error: error.message })}\n\n`);
-                res.end();
-            }
-        }
     }
 
     static async sendChat(
@@ -257,10 +117,10 @@ export class BedrockService {
         }
     }
     /**
-     * Stream chat response token-by-token via SSE.
-     * Used for the FINAL ANSWER step in the agent loop (non-tool-use).
+     * Stream chat response token-by-token via callback.
+     * Emits deltas through the provided `onDelta` callback (routed to Socket.IO by AgentWorkflow).
      */
-    static async streamChatSSE(
+    static async streamWithCallback(
         modelId: string,
         messages: ChatMessage[],
         onDelta: (delta: string) => void,
@@ -368,7 +228,7 @@ export class BedrockService {
                     try {
                         block.input = JSON.parse(block.input);
                     } catch (e) {
-                        LoggerService.warn('bedrock_stream_sse_parse_error', { input: block.input });
+                        LoggerService.warn('bedrock_stream_tool_input_parse_error', { input: block.input });
                     }
                 }
             });
@@ -376,7 +236,7 @@ export class BedrockService {
             return { text: fullText, content: contentBlocks, usage: tokenUsage, stopReason };
 
         } catch (error: any) {
-            LoggerService.error('bedrock_stream_sse_error', { error: error.message });
+            LoggerService.error('bedrock_stream_callback_error', { error: error.message });
             throw error;
         }
     }

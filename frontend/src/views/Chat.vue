@@ -114,9 +114,13 @@ onMounted(async () => {
   await chatStore.fetchModels()
   await chatStore.loadSessions()
 
-  // Load session from URL if present
-  if (route.params.sessionId) {
-    chatStore.loadSession(route.params.sessionId)
+  // Load conversation from URL (canonical: /chat/:conversationId)
+  const conversationId = route.params.conversationId
+  if (conversationId) {
+    chatStore.loadSession(conversationId)
+  } else {
+    // Clean slate — no session created until first message is sent
+    chatStore.resetSession()
   }
   nextTick(() => {
     messagesRef.value?.addEventListener('scroll', handleScroll)
@@ -129,12 +133,13 @@ onBeforeUnmount(() => {
 })
 
 // Watchers
-watch(() => route.params.sessionId, (newId) => {
+watch(() => route.params.conversationId, (newId) => {
   if (newId) {
     if (chatStore.currentSessionId !== newId) {
        chatStore.loadSession(newId)
     }
   } else {
+    // Navigate to /chat → reset to welcome screen (no session pre-created)
     chatStore.resetSession()
   }
 })
@@ -172,7 +177,7 @@ watch(() => chatStore.messages[chatStore.messages.length - 1]?.agentEvents?.leng
 
 // Methods
 const handleNewChat = () => {
-  chatStore.newSession()
+  chatStore.resetSession()
   router.push('/chat')
   inputRef.value?.focus()
 }
@@ -184,7 +189,7 @@ const handleSelectSession = (sessionId) => {
 const handleSendMessage = async (message) => {
   if (!message?.trim() && attachments.value.length === 0) return
 
-  const isNewSession = !chatStore.currentSessionId
+  const isNewConversation = !chatStore.currentSessionId
 
   // Separate images (base64) and files (raw File objects)
   const imagesToSend = []
@@ -204,14 +209,16 @@ const handleSendMessage = async (message) => {
   // Clear attachments immediately so UI resets
   attachments.value = []
 
-  // Send to store
-  await chatStore.sendMessage(message || '', null, imagesToSend, filesToSend)
-  
-  // If it was a new session, update URL so refresh works
-  if (isNewSession && chatStore.currentSessionId) {
+  // Fire sendMessage — session ID is created synchronously before any await,
+  // so we can update the URL immediately without waiting for the full response.
+  const sendPromise = chatStore.sendMessage(message || '', null, imagesToSend, filesToSend)
+
+  // Update URL immediately for new conversations (session ID is already set)
+  if (isNewConversation && chatStore.currentSessionId) {
     router.replace(`/chat/${chatStore.currentSessionId}`)
   }
-  
+
+  await sendPromise
   inputRef.value?.focus()
 }
 

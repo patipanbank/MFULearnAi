@@ -1,6 +1,5 @@
 import axios from 'axios';
 import { ChatMessage } from '../../../../shared/types';
-import { Response } from 'express';
 import { TokenService } from './TokenService';
 import { ContextService } from './ContextService';
 import { LoggerService } from './LoggerService';
@@ -19,73 +18,6 @@ function sleep(ms: number): Promise<void> {
 }
 
 export class BedrockService {
-    static async streamChat(
-        messages: ChatMessage[],
-        modelId: string,
-        res: Response,
-        onComplete: (fullText: string, usage: any) => void
-    ) {
-        try {
-            const response = await axios({
-                method: 'post',
-                url: `${BEDROCK_TEXT_URL}/chat`,
-                data: { messages, modelId },
-                headers: {
-                    'Authorization': `Bearer ${TokenService.mint('bedrock', 'write')}`,
-                    'x-correlation-id': ContextService.getCorrelationId()
-                },
-                responseType: 'stream',
-                timeout: 120000
-            });
-
-            let fullResponseText = '';
-            let tokenUsage = { input: 0, output: 0, total: 0 };
-
-            let buffer = '';
-            response.data.on('data', (chunk: Buffer) => {
-                buffer += chunk.toString();
-                let params = buffer.split('\n');
-                buffer = params.pop() || '';
-
-                for (const line of params) {
-                    if (line.trim().startsWith('data: ')) {
-                        const dataStr = line.replace('data: ', '').trim();
-                        if (dataStr === '[DONE]') continue;
-                        try {
-                            const data = JSON.parse(dataStr);
-                            if (data.text) fullResponseText += data.text;
-                            if (data.type === 'usage' && data.usage) {
-                                tokenUsage = data.usage;
-                            }
-                        } catch (e) {
-                            // Partial JSON — skip
-                        }
-                    }
-                }
-                res.write(chunk);
-            });
-
-            response.data.on('end', () => {
-                res.end();
-                onComplete(fullResponseText, tokenUsage);
-            });
-
-            response.data.on('error', (err: Error) => {
-                LoggerService.error('bedrock_stream_error', { error: err.message });
-                if (!res.headersSent) res.write(`event: error\ndata: ${JSON.stringify({ error: err.message })}\n\n`);
-                res.end();
-            });
-
-        } catch (error: any) {
-            LoggerService.error('bedrock_stream_request_error', { error: error.message });
-            if (!res.headersSent && typeof res.status === 'function') {
-                res.status(500).json({ error: 'Upstream Model Error' });
-            } else if (!res.headersSent) {
-                res.write(`data: ${JSON.stringify({ error: 'Upstream Model Error', message: error.message })}\n\n`);
-                res.end();
-            }
-        }
-    }
 
     static async getModels() {
         const response = await axios.get(`${BEDROCK_TEXT_URL}/models`, {
@@ -216,7 +148,7 @@ export class BedrockService {
      * @param guardrailConfig - Optional guardrail configuration
      * @returns Accumulated full text + usage stats
      */
-    static async streamChatSSE(
+    static async streamWithCallback(
         modelId: string,
         messages: ChatMessage[],
         onDelta: (delta: string) => void,

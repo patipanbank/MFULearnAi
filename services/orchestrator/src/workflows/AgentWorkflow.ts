@@ -233,7 +233,7 @@ export class AgentWorkflow {
             this.state.phase = AgentPhase.GENERATING_RESPONSE;
 
             // --- STREAMING CALL ---
-            const { text: fullResponse, content: contentBlocks, usage: stepUsage, stopReason } = await BedrockService.streamChatSSE(
+            const { text: fullResponse, content: contentBlocks, usage: stepUsage, stopReason } = await BedrockService.streamWithCallback(
                 MODELS.PRIMARY,
                 this.state.messages,
                 (delta) => {

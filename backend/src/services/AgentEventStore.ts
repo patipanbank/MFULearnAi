@@ -3,7 +3,7 @@ import { getIO } from '../socket';
 /**
  * AgentEventStore — Emits agent workflow events via Socket.IO.
  *
- * Replaces `res.write(SSE)` with `io.to(user:userId).emit('agent:event', ...)`.
+ * Events are pushed to the client's room: `io.to(user:userId).emit('agent:event', ...)`
  * Also maintains an in-memory event log for MongoDB persistence.
  */
 export class AgentEventStore {

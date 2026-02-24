@@ -50,8 +50,8 @@ onMounted(() => {
 })
 
 const handleNewChat = () => {
-    chatStore.resetSession()
-    router.push('/chat')
+  chatStore.resetSession()
+  router.push('/chat')
     if (props.isMobile) emit('close-mobile')
 }
 
