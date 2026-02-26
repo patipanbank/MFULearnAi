@@ -337,10 +337,14 @@ const maxTrendHit = computed(() => {
   padding: 4px 12px 0 4px;
   border-bottom: 1px solid var(--color-border);
   border-radius: 8px 8px 0 0;
-  flex-shrink: 0;   /* ← ห้ามหด */
+  flex-shrink: 0;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
 }
+.tabs::-webkit-scrollbar { display: none; }
 
-.tabs-left { display: flex; gap: 2px; }
+.tabs-left { display: flex; gap: 2px; flex-shrink: 0; }
 
 .tab-btn {
   display: inline-flex;
@@ -412,6 +416,7 @@ const maxTrendHit = computed(() => {
 @media (max-width: 640px) {
   .knowledge-dashboard { padding: 16px; }
   .dashboard-content   { padding: 16px; }
+  .tab-btn { padding: 10px 14px; font-size: 13px; }
 }
 
 /* ─── Stats ──────────────────────────────────────────────────── */
