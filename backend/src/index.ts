@@ -16,6 +16,9 @@ const PORT = process.env.PORT || 8080;
 const ENV_TYPE = process.env.ENV_TYPE || 'TEST';
 const RATE_LIMIT = ENV_TYPE === 'PROD' ? 30 : 100;
 
+// Trust reverse proxy (nginx) so req.protocol returns 'https' correctly
+app.set('trust proxy', 1);
+
 // Connect to Database
 connectDB();
 
