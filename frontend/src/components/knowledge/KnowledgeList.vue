@@ -308,7 +308,7 @@ const cancelRename = () => { renamingId.value = null }
           </div>
 
           <!-- Department -->
-          <div class="kb-col kb-col--dept">
+          <div class="kb-col kb-col--dept" :title="item.department || ''">
             <span v-if="item.department" class="dept-text">{{ item.department }}</span>
             <span v-else class="dept-empty">—</span>
           </div>
@@ -334,9 +334,7 @@ const cancelRename = () => { renamingId.value = null }
               {{ item.requestStatus }}
               <span v-if="item.requestStatus === 'pending' && item.requestedType" class="req-type">({{ item.requestedType }})</span>
             </span>
-            <span v-else class="status-ok">
-              <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-            </span>
+            <!-- no active badge = ready, show nothing -->
           </div>
 
           <!-- Actions -->
@@ -525,11 +523,16 @@ const cancelRename = () => { renamingId.value = null }
   .kb-row uses display:contents so each cell participates
   in the SAME grid tracks → true column alignment regardless
   of content width differences per row.
-  Columns: name(1fr) | type(96px) | dept(130px) | status(136px) | actions(96px)
+  Column budget (desktop ≥901px):
+    name    → 1fr   (flexible)
+    type    → 110px (fits "DEPARTMENT" badge)
+    dept    → 160px (fits full dept names, truncates with ellipsis)
+    status  → 130px (fits approved/rejected/processing)
+    actions → 130px (fits publish + rename + delete)
 */
 .kb-list {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 96px 130px 136px 96px;
+  grid-template-columns: minmax(0, 1fr) 110px 160px 130px 130px;
   border: 1px solid var(--color-border);
   border-radius: 14px;
   overflow: hidden;
@@ -581,18 +584,21 @@ const cancelRename = () => { renamingId.value = null }
   text-transform: uppercase; letter-spacing: 0.7px;
   padding-top: 9px; padding-bottom: 9px;
   border-bottom: 1px solid var(--color-border);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .kb-col--name    { display: flex; align-items: center; gap: 10px; }
 .kb-col--type    { display: flex; flex-direction: column; gap: 4px; }
 .kb-col--dept    { }
 .kb-col--status  { display: flex; align-items: center; gap: 4px; }
-.kb-col--actions { display: flex; gap: 4px; align-items: center; justify-content: flex-end; }
+.kb-col--actions { display: flex; gap: 4px; align-items: center; justify-content: flex-end; flex-wrap: wrap; }
 
 /* Tablet ≤ 900px: hide dept column */
 @media (max-width: 900px) {
   .kb-list {
-    grid-template-columns: minmax(0, 1fr) 96px 136px 96px;
+    grid-template-columns: minmax(0, 1fr) 110px 130px 130px;
   }
   .kb-col--dept { display: none; }
 }
@@ -600,7 +606,7 @@ const cancelRename = () => { renamingId.value = null }
 /* Small tablet 601-720px: tighter */
 @media (max-width: 720px) and (min-width: 601px) {
   .kb-list {
-    grid-template-columns: minmax(0, 1fr) 88px 120px 88px;
+    grid-template-columns: minmax(0, 1fr) 100px 120px 120px;
   }
 }
 
@@ -646,7 +652,6 @@ const cancelRename = () => { renamingId.value = null }
   .kb-col--type    { grid-area: type;    flex-direction: row; flex-wrap: wrap; align-items: center; gap: 6px; }
   .kb-col--dept    { display: none; }
   .kb-col--status  { grid-area: status;  flex-direction: row; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 6px; }
-  .kb-col--status .status-ok { display: none; }
   .kb-col--actions {
     grid-area: actions;
     justify-content: flex-start;
@@ -777,14 +782,6 @@ const cancelRename = () => { renamingId.value = null }
 
 .fail-hint { display: flex; align-items: center; cursor: help; }
 .req-type  { opacity: 0.7; font-size: 10px; }
-
-/* OK check mark */
-.status-ok {
-  color: var(--color-text-muted);
-  opacity: 0.4;
-  display: flex;
-  align-items: center;
-}
 
 /* ── List item transition ── */
 .list-item-enter-active { transition: all 0.25s ease; }
