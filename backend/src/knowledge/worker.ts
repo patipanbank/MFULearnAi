@@ -37,39 +37,95 @@ export const processKnowledgeJob = async (job: Job) => {
             const googleSlidesMatch = url.match(/docs\.google\.com\/presentation\/d\/([\w-]+)/);
 
             if (googleSheetsMatch) {
-                // 1a. Google Sheets → export as XLSX then parse with XLSX library
+                // 1a. Google Sheets — try XLSX export first, fall back to gviz CSV
+                // The /export endpoint requires a logged-in session for "Anyone with link" sheets.
+                // The gviz/tq endpoint works without auth for "Anyone with link" sheets.
                 const sheetId = googleSheetsMatch[1];
                 LoggerService.info('worker_google_sheets_detected', { jobId: job.id, sheetId });
 
-                const exportUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=xlsx`;
-                const sheetResponse = await axios.get(exportUrl, {
-                    responseType: 'arraybuffer',
-                    headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
-                    timeout: 30000,
-                    maxRedirects: 5
-                });
+                let parsedTitle: string | undefined;
 
-                // Guard: if Google returned HTML (login redirect) instead of binary XLSX
-                const contentType: string = sheetResponse.headers['content-type'] || '';
-                if (contentType.includes('text/html')) {
-                    throw new Error('Google Sheets export returned an HTML page — the sheet may not be publicly shared. Set sharing to "Anyone with the link" and retry.');
+                // ── Attempt 1: XLSX export (works when sheet is "Published to the web") ──
+                let xlsxOk = false;
+                try {
+                    const xlsxUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=xlsx`;
+                    const xlsxRes = await axios.get(xlsxUrl, {
+                        responseType: 'arraybuffer',
+                        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
+                        timeout: 30000,
+                        maxRedirects: 5,
+                        validateStatus: (s) => s < 400
+                    });
+                    const ct: string = xlsxRes.headers['content-type'] || '';
+                    if (!ct.includes('text/html')) {
+                        const xlsBuffer = Buffer.from(xlsxRes.data);
+                        const workbook = XLSX.read(xlsBuffer, { type: 'buffer' });
+                        parsedTitle = (workbook.Props as any)?.Title?.trim() || undefined;
+                        workbook.SheetNames.forEach(name => {
+                            const sheet = workbook.Sheets[name];
+                            const csv = XLSX.utils.sheet_to_csv(sheet);
+                            if (csv.trim()) markdown += `\n--- Sheet: ${name} ---\n${csv}\n`;
+                        });
+                        xlsxOk = true;
+                        LoggerService.info('worker_google_sheets_xlsx_ok', { jobId: job.id, sheetId });
+                    }
+                } catch (xlsxErr: any) {
+                    LoggerService.warn('worker_google_sheets_xlsx_fallback', { jobId: job.id, reason: xlsxErr.message });
                 }
 
-                const xlsBuffer = Buffer.from(sheetResponse.data);
-                const workbook = XLSX.read(xlsBuffer, { type: 'buffer' });
+                // ── Attempt 2: gviz/tq CSV (works for "Anyone with link can view") ──
+                if (!xlsxOk) {
+                    // First fetch default sheet to get at least one sheet worth of data.
+                    // Then attempt to enumerate additional sheets via the HTML index page.
+                    const gvizBase = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv`;
+                    const csvRes = await axios.get(gvizBase, {
+                        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
+                        timeout: 30000,
+                        maxRedirects: 5
+                    });
+                    const csvText: string = csvRes.data as string;
+                    if (!csvText.trim()) throw new Error('Google Sheets returned empty content — check the sheet has data and sharing is set to "Anyone with the link".');
+                    markdown = `--- Sheet: Sheet1 ---\n${csvText.trim()}`;
 
-                // Use workbook title if available, otherwise fall back to a sensible default
-                const wbTitle = (workbook.Props as any)?.Title?.trim();
-                const docTitle = wbTitle || `Google Sheets: ${sheetId}`;
+                    // Try to get more sheet names from the sheet's pub page
+                    try {
+                        const pubUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/pubhtml`;
+                        const pubRes = await axios.get(pubUrl, {
+                            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
+                            timeout: 10000,
+                            maxRedirects: 5
+                        });
+                        const cheerio = require('cheerio');
+                        const $ = cheerio.load(pubRes.data as string);
+                        const sheetNames: string[] = [];
+                        // Sheet tabs appear as <li id="..."> with data-sheet-id
+                        $('[data-sheet-id]').each((_: any, el: any) => {
+                            const name = $(el).text().trim();
+                            if (name) sheetNames.push(name);
+                        });
+                        if (sheetNames.length > 1) {
+                            // Re-fetch each sheet individually via gviz
+                            markdown = '';
+                            for (const name of sheetNames) {
+                                const sheetCsvRes = await axios.get(`${gvizBase}&sheet=${encodeURIComponent(name)}`, {
+                                    headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
+                                    timeout: 20000,
+                                    maxRedirects: 5
+                                });
+                                const sheetCsv: string = sheetCsvRes.data as string;
+                                if (sheetCsv.trim()) markdown += `\n--- Sheet: ${name} ---\n${sheetCsv.trim()}\n`;
+                            }
+                            markdown = markdown.trim();
+                            // Try to grab doc title from page title
+                            const pageTitle = $('title').text().trim();
+                            if (pageTitle) parsedTitle = pageTitle.replace(/\s*-\s*Google Sheets.*$/i, '').trim();
+                        }
+                    } catch (_) { /* sheet enumeration failed — keep default single sheet */ }
+                    LoggerService.info('worker_google_sheets_gviz_ok', { jobId: job.id, sheetId });
+                }
+
+                const docTitle = parsedTitle || `Google Sheets: ${sheetId}`;
                 await Knowledge.findByIdAndUpdate(knowledgeId, { title: docTitle.substring(0, 100) });
-
-                workbook.SheetNames.forEach(name => {
-                    const sheet = workbook.Sheets[name];
-                    const csv = XLSX.utils.sheet_to_csv(sheet);
-                    if (csv.trim()) {
-                        markdown += `\n--- Sheet: ${name} ---\n${csv}\n`;
-                    }
-                });
                 markdown = markdown.trim();
 
             } else if (googleDocsMatch) {
