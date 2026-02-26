@@ -395,18 +395,10 @@ const handleDeleteCollection = async () => {
     letter-spacing: 0.3px;
 }
 
-.badge-personal {
-    background: rgba(99,102,241,0.12);
-    color: #818cf8;
-}
-.badge-department {
-    background: rgba(245,158,11,0.12);
-    color: #d97706;
-}
-.badge-default {
-    background: rgba(34,197,94,0.12);
-    color: #16a34a;
-}
+/* personal=purple · department=blue · default(public)=green */
+.badge-personal   { background: rgba(139,92,246,0.12); color: #8b5cf6; }
+.badge-department { background: rgba(59,130,246,0.12);  color: #3b82f6; }
+.badge-default    { background: rgba(16,185,129,0.12);  color: #10b981; }
 
 .item-count-badge {
     font-size: 12px;

@@ -206,7 +206,7 @@ const handleRetry = async (id) => {
                 {{ item.type }}
               </span>
               <!-- Expiry Check -->
-              <span v-if="item.expiresAt && new Date(item.expiresAt) < new Date()" class="status-badge" style="background: rgba(239, 68, 68, 0.1); color: #ef4444; margin-top: 4px; display: inline-block;">
+              <span v-if="item.expiresAt && new Date(item.expiresAt) < new Date()" class="status-badge status-expired">
                  ⚠️ Expired
               </span>
             </td>
@@ -294,7 +294,7 @@ const handleRetry = async (id) => {
                  <span v-if="item.requestStatus && item.requestStatus !== 'none'" class="status-badge" :class="getStatusBadge(item.requestStatus)">
                      {{ item.requestStatus }}
                  </span>
-                 <span v-if="item.expiresAt && new Date(item.expiresAt) < new Date()" class="status-badge" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">
+                 <span v-if="item.expiresAt && new Date(item.expiresAt) < new Date()" class="status-badge status-expired">
                      ⚠️ Expired
                  </span>
             </div>
@@ -534,23 +534,25 @@ const handleRetry = async (id) => {
   text-transform: uppercase;
 }
 
-.badge-personal { background: rgba(59, 130, 246, 0.1); color: #3b82f6; }
-.badge-dept { background: rgba(16, 185, 129, 0.1); color: #10b981; }
-.badge-public { background: rgba(245, 158, 11, 0.1); color: #f59e0b; }
-.badge-policy { background: rgba(139, 92, 246, 0.1); color: #8b5cf6; }
+/* personal=purple · department=blue · public=green · policy=amber */
+.badge-personal { background: rgba(139, 92, 246, 0.12); color: #8b5cf6; }
+.badge-dept     { background: rgba(59, 130, 246, 0.12);  color: #3b82f6; }
+.badge-public   { background: rgba(16, 185, 129, 0.12);  color: #10b981; }
+.badge-policy   { background: rgba(245, 158, 11, 0.12);  color: #f59e0b; }
 
 .status-badge {
     font-size: 12px;
     padding: 2px 6px;
     border-radius: 4px;
-    background: var(--color-bg-tertiary);
     color: var(--color-text-muted);
 }
-.status-pending { color: #f59e0b; }
-.status-approved { color: #10b981; }
-.status-rejected { color: #ef4444; }
-.status-processing { color: #3b82f6; display: inline-flex; align-items: center; gap: 4px; }
-.status-failed { color: #ef4444; }
+/* pending=amber · approved=green · rejected=red */
+.status-pending    { background: rgba(245, 158, 11, 0.12);  color: #f59e0b; }
+.status-approved   { background: rgba(16, 185, 129, 0.12);  color: #10b981; }
+.status-rejected   { background: rgba(239, 68, 68, 0.12);   color: #ef4444; }
+.status-expired    { background: rgba(239, 68, 68, 0.12);   color: #ef4444; }
+.status-processing { background: rgba(59, 130, 246, 0.12);  color: #3b82f6; display: inline-flex; align-items: center; gap: 4px; }
+.status-failed     { background: rgba(239, 68, 68, 0.12);   color: #ef4444; }
 
 .actions-cell {
     display: flex;

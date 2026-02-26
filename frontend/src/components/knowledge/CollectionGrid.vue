@@ -141,9 +141,10 @@ const canManage = (col) => {
     box-shadow: 0 12px 32px -8px rgba(0,0,0,0.25);
 }
 
-.collection-card.type-personal:hover { border-color: rgba(99,102,241,0.4); }
-.collection-card.type-department:hover { border-color: rgba(245,158,11,0.4); }
-.collection-card.type-default:hover { border-color: rgba(34,197,94,0.4); }
+/* personal=purple · department=blue · default(public)=green */
+.collection-card.type-personal:hover   { border-color: rgba(139,92,246,0.4);  }
+.collection-card.type-department:hover { border-color: rgba(59,130,246,0.4);  }
+.collection-card.type-default:hover    { border-color: rgba(16,185,129,0.4);  }
 
 .card-header {
     display: flex;
@@ -158,9 +159,9 @@ const canManage = (col) => {
     align-items: center;
 }
 
-.collection-card.type-personal .folder-icon { color: #6366f1; }
-.collection-card.type-department .folder-icon { color: #d97706; }
-.collection-card.type-default .folder-icon { color: #16a34a; }
+.collection-card.type-personal .folder-icon   { color: #8b5cf6; }
+.collection-card.type-department .folder-icon { color: #3b82f6; }
+.collection-card.type-default .folder-icon    { color: #10b981; }
 
 .card-type {
     font-size: 11px;
@@ -171,18 +172,9 @@ const canManage = (col) => {
     letter-spacing: 0.3px;
 }
 
-.card-type.type-personal {
-    background: rgba(99,102,241,0.12);
-    color: #818cf8;
-}
-.card-type.type-department {
-    background: rgba(245,158,11,0.12);
-    color: #d97706;
-}
-.card-type.type-default {
-    background: rgba(34,197,94,0.12);
-    color: #16a34a;
-}
+.card-type.type-personal   { background: rgba(139,92,246,0.12); color: #8b5cf6; }
+.card-type.type-department { background: rgba(59,130,246,0.12);  color: #3b82f6; }
+.card-type.type-default    { background: rgba(16,185,129,0.12);  color: #10b981; }
 
 h3 {
     margin: 0 0 6px 0;

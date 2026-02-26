@@ -195,7 +195,7 @@ const actionStateLabel = (id) => {
                       <polyline points="12 5 19 12 12 19"></polyline>
                     </svg>
                   </div>
-                  <span class="target-badge">{{ item.requestedType }}</span>
+                  <span class="target-badge" :class="`target-${item.requestedType}`">{{ item.requestedType }}</span>
                 </div>
 
                 <div class="card-actions">
@@ -582,15 +582,19 @@ const actionStateLabel = (id) => {
 }
 
 .target-badge {
-  background: linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(168, 85, 247, 0.12));
-  color: #a78bfa;
   padding: 3px 10px;
   border-radius: 20px;
   font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+  /* fallback */
+  background: var(--color-bg-tertiary);
+  color: var(--color-text-muted);
 }
+/* department=blue · public=green (ตรงกับ KB type badge) */
+.target-badge.target-department { background: rgba(59, 130, 246, 0.15);  color: #60a5fa; }
+.target-badge.target-public     { background: rgba(16, 185, 129, 0.15); color: #34d399; }
 
 .card-actions { display: flex; gap: 8px; flex-shrink: 0; }
 

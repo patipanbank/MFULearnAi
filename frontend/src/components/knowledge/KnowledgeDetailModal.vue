@@ -1213,10 +1213,11 @@ label {
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
-.badge.personal { background: rgba(59, 130, 246, 0.12); color: #3b82f6; }
-.badge.department { background: rgba(16, 185, 129, 0.12); color: #10b981; }
-.badge.public { background: rgba(245, 158, 11, 0.12); color: #f59e0b; }
-.badge.policy { background: rgba(139, 92, 246, 0.12); color: #8b5cf6; }
+/* personal=purple · department=blue · public=green · policy=amber */
+.badge.personal   { background: rgba(139, 92, 246, 0.12); color: #8b5cf6; }
+.badge.department { background: rgba(59, 130, 246, 0.12);  color: #3b82f6; }
+.badge.public     { background: rgba(16, 185, 129, 0.12);  color: #10b981; }
+.badge.policy     { background: rgba(245, 158, 11, 0.12);  color: #f59e0b; }
 
 /* ─── Content Preview ────────────────────────────────────────── */
 .content-header {
