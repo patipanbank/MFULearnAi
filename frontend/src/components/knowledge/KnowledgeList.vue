@@ -5,7 +5,7 @@ import { useAuthStore } from '@/stores/auth'
 import { useLanguage } from '@/composables/useSettings'
 import { useConfirmDialog } from '@/composables/useConfirmDialog'
 
-const { confirm: showConfirm } = useConfirmDialog()
+const { confirm: showConfirm, alert: showAlert } = useConfirmDialog()
 
 const authStore = useAuthStore()
 const knowledgeStore = useKnowledgeStore()
@@ -84,16 +84,41 @@ const handleRequestPublish = async (id, type) => {
         ? t('confirmDirectPublish').replace('{type}', type)
         : t('confirmPublishRequest').replace('{type}', type)
     if (await showConfirm(confirmMsg, { variant: 'info', title: t('publishRequestTitle') })) {
-        await knowledgeStore.requestPublish(id, type)
+        try {
+            await knowledgeStore.requestPublish(id, type)
+            await showAlert(
+                isAdmin.value ? t('publishSuccess') : t('publishRequestSent'),
+                { variant: 'success', title: t('publishRequestTitle') }
+            )
+        } catch (e) {
+            await showAlert(
+                e.response?.data?.error || e.message || t('publishFailed'),
+                { variant: 'error', title: t('publishRequestTitle') }
+            )
+        }
     }
 }
 
 const handleApprove = async (id) => {
-    await knowledgeStore.approvePublish(id, 'approve')
+    try {
+        await knowledgeStore.approvePublish(id, 'approve')
+    } catch (e) {
+        await showAlert(
+            e.response?.data?.error || e.message || 'Approve failed',
+            { variant: 'error' }
+        )
+    }
 }
 
 const handleReject = async (id) => {
-    await knowledgeStore.approvePublish(id, 'reject')
+    try {
+        await knowledgeStore.approvePublish(id, 'reject')
+    } catch (e) {
+        await showAlert(
+            e.response?.data?.error || e.message || 'Reject failed',
+            { variant: 'error' }
+        )
+    }
 }
 
 const handleDelete = async (id) => {

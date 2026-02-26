@@ -35,7 +35,13 @@ export class AuthController {
                 user: {
                     _id: user._id,
                     username: user.username,
-                    role: user.role
+                    role: user.role,
+                    department: user.department,
+                    departmentId: user.departmentId,
+                    email: user.email,
+                    firstName: user.firstName,
+                    lastName: user.lastName,
+                    picture: user.picture
                 }
             });
         } catch (e: any) {

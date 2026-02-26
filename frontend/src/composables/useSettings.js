@@ -192,6 +192,9 @@ const translations = {
         confirmDirectPublish: 'ต้องการเผยแพร่เป็น {type} หรือไม่?',
         publishRequestTitle: 'คำขอเผยแพร่',
         retryProcessing: 'ลองประมวลผลใหม่',
+        publishSuccess: 'เผยแพร่สำเร็จแล้ว',
+        publishRequestSent: 'ส่งคำขอเผยแพร่แล้ว รอการอนุมัติจาก Admin',
+        publishFailed: 'ไม่สามารถเผยแพร่ได้',
         processingStatus: 'กำลังประมวลผล...',
         noKnowledgeFound: 'ไม่พบข้อมูลความรู้',
 
@@ -450,6 +453,9 @@ const translations = {
         confirmDirectPublish: 'Publish this as {type}?',
         publishRequestTitle: 'Publish Request',
         retryProcessing: 'Retry Processing',
+        publishSuccess: 'Published successfully',
+        publishRequestSent: 'Publish request sent. Awaiting admin approval.',
+        publishFailed: 'Publish failed',
         processingStatus: 'Processing...',
         noKnowledgeFound: 'No knowledge found.',
 
