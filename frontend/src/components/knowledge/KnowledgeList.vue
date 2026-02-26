@@ -599,16 +599,16 @@ const cancelRename = () => { renamingId.value = null }
 .kb-col--status  { display: flex; align-items: center; gap: 4px; }
 .kb-col--actions { display: flex; gap: 3px; align-items: center; justify-content: flex-end; flex-wrap: nowrap; overflow: visible; }
 
-/* Container < 600px: 4 columns (hide dept) */
-@container (max-width: 599px) and (min-width: 501px) {
+/* Container 661-860px: 4 columns (hide dept) */
+@container (max-width: 860px) and (min-width: 661px) {
   .kb-list {
     grid-template-columns: minmax(0, 1fr) 88px 110px 160px;
   }
   .kb-col--dept { display: none; }
 }
 
-/* Container ≤500px: card layout */
-@container (max-width: 500px) {
+/* Container ≤660px: card layout — prevents cramped grid at small sizes */
+@container (max-width: 660px) {
   .kb-list {
     display: block;
   }
@@ -617,10 +617,11 @@ const cancelRename = () => { renamingId.value = null }
 
   .kb-row {
     display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-columns: 1fr 1fr;
     grid-template-areas:
-      "name    name    name"
-      "type    status  actions";
+      "name    name"
+      "type    status"
+      "actions actions";
     row-gap: 8px;
     column-gap: 8px;
     padding: 14px;
@@ -638,6 +639,7 @@ const cancelRename = () => { renamingId.value = null }
     background: transparent;
     cursor: inherit;
     box-shadow: none;
+    display: flex;
   }
   .kb-row > .kb-col:first-child { padding-left: 0; }
   .kb-row > .kb-col:last-child  { padding-right: 0; }
@@ -645,13 +647,15 @@ const cancelRename = () => { renamingId.value = null }
   .kb-col--name    { grid-area: name;    align-items: flex-start; }
   .kb-col--type    { grid-area: type;    flex-direction: row; flex-wrap: wrap; align-items: center; gap: 6px; }
   .kb-col--dept    { display: none; }
-  .kb-col--status  { grid-area: status;  flex-direction: row; flex-wrap: wrap; align-items: center; justify-content: center; gap: 6px; }
+  .kb-col--status  { grid-area: status;  flex-direction: row; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 6px; }
   .kb-col--actions {
     grid-area: actions;
-    justify-content: flex-end;
-    flex-wrap: wrap;
+    justify-content: flex-start;
+    flex-wrap: nowrap;
     gap: 6px;
     overflow: visible;
+    border-top: 1px solid var(--color-border);
+    padding-top: 8px;
   }
 }
 
