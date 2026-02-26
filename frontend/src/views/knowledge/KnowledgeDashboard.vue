@@ -10,7 +10,7 @@ import UploadModal from '@/components/knowledge/UploadModal.vue'
 import CreateCollectionModal from '@/components/knowledge/CreateCollectionModal.vue'
 import KnowledgeDetailModal from '@/components/knowledge/KnowledgeDetailModal.vue'
 import CollectionDetailModal from '@/components/knowledge/CollectionDetailModal.vue'
-import AdminRequestsModal from '@/components/knowledge/AdminRequestsModal.vue'
+import AdminRequestsPanel from '@/components/knowledge/AdminRequestsPanel.vue'
 
 const { t } = useLanguage()
 const { confirm: showConfirm } = useConfirmDialog()
@@ -20,8 +20,6 @@ const authStore = useAuthStore()
 const activeTab = ref('knowledge')
 const showUploadModal = ref(false)
 const showCollectionModal = ref(false)
-const showAdminModal = ref(false)
-
 const showKnowledgeDetail = ref(false)
 const selectedKnowledge = ref(null)
 
@@ -131,6 +129,10 @@ const switchDashboardTab = async (tab) => {
     }
 }
 
+const handleRequestCountChange = (count) => {
+    pendingCount.value = count
+}
+
 const maxTrendHit = computed(() => {
     if (!knowledgeStore.stats?.dailyTrend?.length) return 1
     return Math.max(...knowledgeStore.stats.dailyTrend.map(d => d.count), 1)
@@ -174,19 +176,13 @@ const maxTrendHit = computed(() => {
           {{ t('collections') }}
         </button>
         <button v-if="isAdmin" class="tab-btn" :class="{ active: activeTab === 'stats' }" @click="switchDashboardTab('stats')">
-          📊 Stats
+          Stats
+        </button>
+        <button v-if="isAdmin" class="tab-btn" :class="{ active: activeTab === 'requests' }" @click="switchDashboardTab('requests')">
+          {{ t('manageRequests') }}
+          <span v-if="pendingCount > 0" class="tab-badge">{{ pendingCount }}</span>
         </button>
       </div>
-      <button v-if="isAdmin" class="btn-admin" @click="showAdminModal = true">
-        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-          <polyline points="14 2 14 8 20 8"></polyline>
-          <line x1="16" y1="13" x2="8" y2="13"></line>
-          <line x1="16" y1="17" x2="8" y2="17"></line>
-        </svg>
-        {{ t('manageRequests') }}
-        <span v-if="pendingCount > 0" class="badge-count">{{ pendingCount }}</span>
-      </button>
     </div>
 
     <!-- Content -->
@@ -196,6 +192,9 @@ const maxTrendHit = computed(() => {
       </div>
       <div v-if="activeTab === 'collections'" class="tab-pane fade-in">
         <CollectionGrid @open="openCollection" @edit="openEditCollection" @delete="handleDeleteCollection" />
+      </div>
+      <div v-if="activeTab === 'requests'" class="tab-pane fade-in">
+        <AdminRequestsPanel @countChange="handleRequestCountChange" />
       </div>
       <div v-if="activeTab === 'stats'" class="tab-pane fade-in">
         <div v-if="knowledgeStore.statsLoading" class="stats-loading">
@@ -213,11 +212,11 @@ const maxTrendHit = computed(() => {
               <div class="ov-label">Total Hits</div>
             </div>
             <div class="overview-card">
-              <div class="ov-value">👍 {{ knowledgeStore.stats.feedback.liked }}</div>
+              <div class="ov-value">{{ knowledgeStore.stats.feedback.liked }}</div>
               <div class="ov-label">Liked</div>
             </div>
             <div class="overview-card">
-              <div class="ov-value">👎 {{ knowledgeStore.stats.feedback.disliked }}</div>
+              <div class="ov-value">{{ knowledgeStore.stats.feedback.disliked }}</div>
               <div class="ov-label">Disliked</div>
             </div>
           </div>
@@ -247,7 +246,7 @@ const maxTrendHit = computed(() => {
             </div>
           </div>
           <div class="stats-section" v-if="knowledgeStore.stats.neverUsed?.length">
-            <h3>⚠️ Never Used Documents ({{ knowledgeStore.stats.totals.neverUsedCount }})</h3>
+            <h3>Never Used Documents ({{ knowledgeStore.stats.totals.neverUsedCount }})</h3>
             <div class="stats-table">
               <div v-for="doc in knowledgeStore.stats.neverUsed" :key="doc._id" class="stats-row unused">
                 <span class="stats-doc-title">{{ doc.title }}</span>
@@ -264,7 +263,6 @@ const maxTrendHit = computed(() => {
       <CreateCollectionModal v-if="showCollectionModal" :collection="editingCollection" @close="closeCollectionModal" @success="handleCollectionSuccess" />
       <KnowledgeDetailModal v-if="showKnowledgeDetail && selectedKnowledge" :item="selectedKnowledge" @close="showKnowledgeDetail = false" @success="knowledgeStore.fetchKnowledge()" @update="handleKnowledgeUpdate" />
       <CollectionDetailModal v-if="showCollectionDetail && selectedCollection" :collection="selectedCollection" @close="showCollectionDetail = false" @open-item="handleCollectionItemOpen" @edit="handleEditFromDetail" @deleted="handleDeletedFromDetail" />
-      <AdminRequestsModal v-if="showAdminModal" @close="showAdminModal = false; fetchPendingCount()" />
     </Teleport>
   </div>
 </template>
@@ -330,49 +328,6 @@ const maxTrendHit = computed(() => {
 }
 .btn-primary:hover { opacity: 0.9; }
 
-.btn-admin {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 14px;
-  background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(168, 85, 247, 0.08));
-  color: #818cf8;
-  border: 1px solid rgba(99, 102, 241, 0.25);
-  border-radius: 8px;
-  font-weight: 600;
-  font-size: 12px;
-  cursor: pointer;
-  margin-bottom: 4px;
-  transition: all 0.2s ease;
-  flex-shrink: 0;
-  white-space: nowrap;
-}
-.btn-admin:hover {
-  background: linear-gradient(135deg, rgba(99, 102, 241, 0.18), rgba(168, 85, 247, 0.15));
-  border-color: rgba(99, 102, 241, 0.4);
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.15);
-}
-
-.badge-count {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 20px;
-  height: 20px;
-  padding: 0 6px;
-  background: linear-gradient(135deg, #ef4444, #dc2626);
-  color: white;
-  font-size: 11px;
-  font-weight: 700;
-  border-radius: 20px;
-  animation: badge-pulse 2s ease-in-out infinite;
-}
-@keyframes badge-pulse {
-  0%, 100% { transform: scale(1); }
-  50%       { transform: scale(1.1); }
-}
-
 /* ─── Tabs ───────────────────────────────────────────────────── */
 .tabs {
   display: flex;
@@ -388,6 +343,9 @@ const maxTrendHit = computed(() => {
 .tabs-left { display: flex; gap: 2px; }
 
 .tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   padding: 10px 24px;
   background: transparent;
   border: none;
@@ -405,6 +363,25 @@ const maxTrendHit = computed(() => {
   color: var(--color-accent);
   background: var(--color-bg-secondary);
   border-bottom: 2px solid var(--color-accent);
+}
+
+.tab-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  color: white;
+  font-size: 10px;
+  font-weight: 700;
+  border-radius: 20px;
+  animation: badge-pulse 2s ease-in-out infinite;
+}
+@keyframes badge-pulse {
+  0%, 100% { transform: scale(1); }
+  50%       { transform: scale(1.1); }
 }
 
 /* ─── Content ────────────────────────────────────────────────── */
