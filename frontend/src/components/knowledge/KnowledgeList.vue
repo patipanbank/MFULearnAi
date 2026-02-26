@@ -549,7 +549,9 @@ const cancelRename = () => { renamingId.value = null }
 .kb-row > .kb-col {
   padding: 12px 8px;
   border-bottom: 1px solid var(--color-border);
-  align-self: center;
+  align-self: stretch;   /* stretch to row height → borders align perfectly */
+  display: flex;
+  align-items: center;   /* content stays vertically centered inside */
   min-width: 0;
   background: transparent;
   transition: background 0.12s;
