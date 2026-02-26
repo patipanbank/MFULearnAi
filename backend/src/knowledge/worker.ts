@@ -29,37 +29,106 @@ export const processKnowledgeJob = async (job: Job) => {
 
             LoggerService.debug('worker_fetching_url', { url });
 
-            // 1. Fetch HTML
-            const response = await axios.get(url, {
-                headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
-                timeout: 15000
-            });
-            const html = response.data;
+            let markdown = '';
 
-            // 2. Parse and Clean with Cheerio
-            const cheerio = require('cheerio');
-            const $ = cheerio.load(html);
-            // Remove noise
-            $('script, style, nav, footer, header, aside, .sidebar, .menu, iframe').remove();
+            // --- Google Drive document detection ---
+            const googleSheetsMatch = url.match(/docs\.google\.com\/spreadsheets\/d\/([\w-]+)/);
+            const googleDocsMatch   = url.match(/docs\.google\.com\/document\/d\/([\w-]+)/);
+            const googleSlidesMatch = url.match(/docs\.google\.com\/presentation\/d\/([\w-]+)/);
 
-            let title = $('title').text().trim();
-            if (!title) {
-                const h1 = $('h1').first().text().trim();
-                if (h1) title = h1;
+            if (googleSheetsMatch) {
+                // 1a. Google Sheets → export as XLSX then parse with XLSX library
+                const sheetId = googleSheetsMatch[1];
+                LoggerService.info('worker_google_sheets_detected', { jobId: job.id, sheetId });
+
+                const exportUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=xlsx`;
+                const sheetResponse = await axios.get(exportUrl, {
+                    responseType: 'arraybuffer',
+                    headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
+                    timeout: 30000,
+                    maxRedirects: 5
+                });
+
+                const xlsBuffer = Buffer.from(sheetResponse.data);
+                const workbook = XLSX.read(xlsBuffer, { type: 'buffer' });
+
+                // Use workbook title if available, otherwise fall back to a sensible default
+                const wbTitle = (workbook.Props as any)?.Title?.trim();
+                const docTitle = wbTitle || `Google Sheets: ${sheetId}`;
+                await Knowledge.findByIdAndUpdate(knowledgeId, { title: docTitle.substring(0, 100) });
+
+                workbook.SheetNames.forEach(name => {
+                    const sheet = workbook.Sheets[name];
+                    const csv = XLSX.utils.sheet_to_csv(sheet);
+                    if (csv.trim()) {
+                        markdown += `\n--- Sheet: ${name} ---\n${csv}\n`;
+                    }
+                });
+                markdown = markdown.trim();
+
+            } else if (googleDocsMatch) {
+                // 1b. Google Docs → export as plain text
+                const docId = googleDocsMatch[1];
+                LoggerService.info('worker_google_docs_detected', { jobId: job.id, docId });
+
+                const exportUrl = `https://docs.google.com/document/d/${docId}/export?format=txt`;
+                const docResponse = await axios.get(exportUrl, {
+                    headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
+                    timeout: 30000,
+                    maxRedirects: 5
+                });
+                markdown = (docResponse.data as string).trim();
+
+                // Try to grab the doc title from the export URL redirect or fall back
+                await Knowledge.findByIdAndUpdate(knowledgeId, { title: `Google Docs: ${docId}`.substring(0, 100) });
+
+            } else if (googleSlidesMatch) {
+                // 1c. Google Slides → export as plain text
+                const presId = googleSlidesMatch[1];
+                LoggerService.info('worker_google_slides_detected', { jobId: job.id, presId });
+
+                const exportUrl = `https://docs.google.com/presentation/d/${presId}/export/txt`;
+                const slidesResponse = await axios.get(exportUrl, {
+                    headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
+                    timeout: 30000,
+                    maxRedirects: 5
+                });
+                markdown = (slidesResponse.data as string).trim();
+                await Knowledge.findByIdAndUpdate(knowledgeId, { title: `Google Slides: ${presId}`.substring(0, 100) });
+
+            } else {
+                // 1d. Regular webpage → scrape HTML and convert to Markdown
+                const response = await axios.get(url, {
+                    headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
+                    timeout: 15000
+                });
+                const html = response.data;
+
+                // 2. Parse and Clean with Cheerio
+                const cheerio = require('cheerio');
+                const $ = cheerio.load(html);
+                // Remove noise
+                $('script, style, nav, footer, header, aside, .sidebar, .menu, iframe').remove();
+
+                let title = $('title').text().trim();
+                if (!title) {
+                    const h1 = $('h1').first().text().trim();
+                    if (h1) title = h1;
+                }
+                if (title) {
+                    await Knowledge.findByIdAndUpdate(knowledgeId, { title: title.substring(0, 100) });
+                }
+
+                const cleanHtml = $('body').html() || '';
+
+                // 3. Convert to Markdown
+                const TurndownService = require('turndown');
+                const turndownService = new TurndownService({ headingStyle: 'atx' });
+                markdown = turndownService.turndown(cleanHtml);
+
+                // Clean up excessive whitespace
+                markdown = markdown.replace(/\n\s*\n/g, '\n\n').trim();
             }
-            if (title) {
-                await Knowledge.findByIdAndUpdate(knowledgeId, { title: title.substring(0, 100) });
-            }
-
-            const cleanHtml = $('body').html() || '';
-
-            // 3. Convert to Markdown
-            const TurndownService = require('turndown');
-            const turndownService = new TurndownService({ headingStyle: 'atx' });
-            let markdown = turndownService.turndown(cleanHtml);
-
-            // Clean up excessive whitespace
-            markdown = markdown.replace(/\n\s*\n/g, '\n\n').trim();
 
             if (!markdown) throw new Error('No readable content found at URL');
 

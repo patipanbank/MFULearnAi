@@ -49,6 +49,8 @@ const uploadMode = ref('file')
 const urlInput = ref('')
 const urlLoading = ref(false)
 
+const isGoogleDriveUrl = computed(() => /docs\.google\.com\/(spreadsheets|document|presentation)/.test(urlInput.value))
+
 // Text state
 const textTitle = ref('')
 const textContent = ref('')
@@ -302,6 +304,9 @@ const handleTextUpload = async () => {
              class="url-input"
            />
            <p class="hint">{{ t('urlExtractionHint') }}</p>
+           <p v-if="isGoogleDriveUrl" class="hint hint--warning">
+             ⚠️ Google Drive: ตรวจสอบให้แน่ใจว่าไฟล์ถูกแชร์เป็น <strong>"ทุกคนที่มีลิงก์สามารถดู"</strong> ก่อนอัปโหลด
+           </p>
          </div>
        </template>
 
@@ -649,6 +654,15 @@ input[type="date"].form-control {
     font-size: 12px;
     color: var(--color-text-muted);
     margin-top: 4px;
+}
+
+.hint--warning {
+    color: #b45309;
+    background: #fef3c7;
+    border: 1px solid #fcd34d;
+    border-radius: 4px;
+    padding: 6px 8px;
+    margin-top: 6px;
 }
 
 /* Upload Progress */

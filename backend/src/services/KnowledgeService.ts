@@ -529,11 +529,22 @@ export class KnowledgeService {
             throw new Error('Insufficient permissions');
         }
 
-        // Extract host/path for default title
+        // Extract a meaningful default title
         let title = url;
         try {
-            const u = new URL(url);
-            title = `Web: ${u.hostname}${u.pathname}`.substring(0, 100);
+            const sheetsMatch = url.match(/docs\.google\.com\/spreadsheets\/d\/([\w-]+)/);
+            const docsMatch   = url.match(/docs\.google\.com\/document\/d\/([\w-]+)/);
+            const slidesMatch = url.match(/docs\.google\.com\/presentation\/d\/([\w-]+)/);
+            if (sheetsMatch) {
+                title = `Google Sheets: ${sheetsMatch[1]}`.substring(0, 100);
+            } else if (docsMatch) {
+                title = `Google Docs: ${docsMatch[1]}`.substring(0, 100);
+            } else if (slidesMatch) {
+                title = `Google Slides: ${slidesMatch[1]}`.substring(0, 100);
+            } else {
+                const u = new URL(url);
+                title = `Web: ${u.hostname}${u.pathname}`.substring(0, 100);
+            }
         } catch (e) { /* fallback to full URL */ }
 
         const kbId = new mongoose.Types.ObjectId().toString();
