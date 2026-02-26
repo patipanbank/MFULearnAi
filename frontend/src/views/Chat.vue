@@ -12,7 +12,7 @@ import { useAuthStore } from '@/stores/auth'
 import { useChatStore } from '@/stores/chat'
 import { useKnowledgeStore } from '@/stores/knowledge'
 import { useTheme, useLanguage } from '@/composables/useSettings'
-import { useScrollToBottom } from '@/composables/useUtils'
+import { useScrollToBottom, useThrottleFn } from '@/composables/useUtils'
 import PDFViewer from '@/components/common/PDFViewer.vue'
 
 
@@ -49,8 +49,13 @@ const showEvidenceViewer = ref(false)
 const envName = import.meta.env.VITE_ENV_NAME || 'MFULearnAI'
 
 // Composables
-const { scrollToBottom } = useScrollToBottom(messagesRef)
+const { scrollToBottom, isProgrammaticScroll } = useScrollToBottom(messagesRef)
 const route = useRoute()
+
+// Throttled scroll for streaming updates (max once per 80ms to avoid jank)
+const throttledStreamScroll = useThrottleFn(() => {
+  scrollToBottom(false)
+}, 80)
 
 // Computeds
 const userInitial = computed(() => 
@@ -66,14 +71,19 @@ const isUserScrolledUp = ref(false)
 const handleScroll = () => {
   const el = messagesRef.value
   if (!el) return
+
+  // Ignore scroll events caused by our own programmatic scrollToBottom calls.
+  // Without this, every streaming scroll fires handleScroll and can falsely
+  // set isUserScrolledUp = true (race between content growth and scroll position).
+  if (isProgrammaticScroll.value) return
   
   const distFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight
   
-  // "Stuck" to bottom threshold: strict (e.g. 30px)
-  // If user scrolls up even a little, we stop auto-scrolling
-  isUserScrolledUp.value = distFromBottom > 30
+  // "Stuck" to bottom threshold: 60px
+  // Generous enough to tolerate fast content growth between frames
+  isUserScrolledUp.value = distFromBottom > 60
 
-  // "Show Button" threshold: loose (e.g. 200px)
+  // "Show Button" threshold: loose (200px)
   // Don't show button for minor scroll ups
   showScrollBtn.value = distFromBottom > 200
 
@@ -81,6 +91,13 @@ const handleScroll = () => {
   if (el.scrollTop < 80 && chatStore.hasMoreHistory && !chatStore.isLoadingHistory) {
     loadMoreWithAnchor()
   }
+}
+
+// Click handler for "scroll to bottom" button — also resumes auto-scroll
+const handleScrollToBottomClick = () => {
+  isUserScrolledUp.value = false
+  showScrollBtn.value = false
+  scrollToBottom(true)
 }
 
 // Load older messages while maintaining scroll position
@@ -130,6 +147,7 @@ onMounted(async () => {
 // cleanup
 onBeforeUnmount(() => {
   messagesRef.value?.removeEventListener('scroll', handleScroll)
+  throttledStreamScroll.cancel()
 })
 
 // Watchers
@@ -144,36 +162,46 @@ watch(() => route.params.conversationId, (newId) => {
   }
 })
 
-// Auto-scroll logic
+// ═══ Auto-Scroll Logic ═══
+
+// 1. New message added → scroll
 watch(() => chatStore.messages.length, () => {
-    // New message added: Always scroll to bottom if it's from user, 
-    // or if we were already at bottom.
-    // Actually, usually beneficial to scroll on new message.
-    // If user sent it, definitely scroll.
     const lastMsg = chatStore.messages[chatStore.messages.length - 1]
     if (lastMsg?.role === 'user') {
-        isUserScrolledUp.value = false // force reset
+        // User just sent a message → always snap to bottom & reset
+        isUserScrolledUp.value = false
         scrollToBottom(true)
     } else if (!isUserScrolledUp.value) {
         scrollToBottom(true)
     }
 })
 
-// Watch last message content (streaming)
+// 2. Streaming content updates → throttled scroll (avoids jank from rapid updates)
 watch(() => chatStore.messages[chatStore.messages.length - 1]?.content, () => {
-    // Only auto-scroll if user hasn't scrolled up
     if (!isUserScrolledUp.value) {
-        // Disable smooth scroll for streaming to prevent jitter/lag
-        scrollToBottom(false) 
+        throttledStreamScroll()
     }
 })
 
-// Also watch for agent events/tools updates to keep scrolling
+// 3. Agent events (tool badges) → throttled scroll
 watch(() => chatStore.messages[chatStore.messages.length - 1]?.agentEvents?.length, () => {
-     if (!isUserScrolledUp.value) {
-        scrollToBottom(false)
+    if (!isUserScrolledUp.value) {
+        throttledStreamScroll()
     }
 }, { deep: true })
+
+// 4. Streaming lifecycle → reset on start, final snap on end
+watch(() => chatStore.isStreaming, (streaming, wasStreaming) => {
+    if (streaming && !wasStreaming) {
+        // Streaming just started (user sent a message) → reset scroll lock
+        isUserScrolledUp.value = false
+        scrollToBottom(false)
+    } else if (!streaming && wasStreaming) {
+        // Streaming just ended → cancel pending throttle & do final scroll
+        throttledStreamScroll.cancel()
+        nextTick(() => scrollToBottom(true))
+    }
+})
 
 // Methods
 const handleNewChat = () => {
@@ -429,7 +457,7 @@ const closeEvidenceViewer = () => {
           <button
             v-if="showScrollBtn"
             class="scroll-to-bottom-btn"
-            @click="scrollToBottom"
+            @click="handleScrollToBottomClick"
             :title="t('scrollToBottom') || 'Scroll to bottom'"
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
