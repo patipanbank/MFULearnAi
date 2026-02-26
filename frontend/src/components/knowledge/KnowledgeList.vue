@@ -842,7 +842,7 @@ const cancelRename = () => { renamingId.value = null }
 .btn-reject:hover { background: #ef4444; color: white; }
 
 /* ── Publish dropdown ── */
-.dropdown { position: relative; display: inline-block; }
+.dropdown { position: relative; display: inline-flex; flex-shrink: 1; min-width: 0; }
 .action-btn {
   display: inline-flex;
   align-items: center;
