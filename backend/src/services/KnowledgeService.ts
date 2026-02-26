@@ -9,6 +9,7 @@ import { KnowledgeHit } from '../models/KnowledgeHit';
 import { getEmbedding } from '../knowledge/processingUtils';
 import { CHROMA_URL, GLOBAL_CHROMA_COLLECTION } from '../knowledge/constants';
 import { UserContext } from '../knowledge/types';
+import User from '../models/User';
 
 const chroma = new ChromaClient({ path: CHROMA_URL });
 
@@ -86,6 +87,42 @@ export class KnowledgeService {
             return false;
         }
         return false;
+    }
+
+    /**
+     * Enrich knowledge items with ownerName from User collection.
+     * Batches all unique ownerIds into a single DB query for efficiency.
+     */
+    private static async enrichWithOwnerNames(items: any[]): Promise<any[]> {
+        if (!items.length) return items;
+        const ownerIds = [...new Set(items.map(i => i.ownerId).filter(Boolean))];
+        if (!ownerIds.length) return items;
+
+        try {
+            // ownerId is stored as string (_id.toString()), query by _id
+            const objectIds = ownerIds
+                .filter(id => mongoose.Types.ObjectId.isValid(id))
+                .map(id => new mongoose.Types.ObjectId(id));
+            const users = await User.find({ _id: { $in: objectIds } })
+                .select('_id firstName lastName username')
+                .lean();
+            const nameMap = new Map<string, string>();
+            for (const u of users) {
+                const name = u.firstName
+                    ? `${u.firstName} ${u.lastName || ''}`.trim()
+                    : u.username;
+                nameMap.set(u._id.toString(), name);
+            }
+
+            return items.map(item => {
+                const doc = typeof item.toObject === 'function' ? item.toObject() : { ...item };
+                doc.ownerName = nameMap.get(doc.ownerId) || undefined;
+                return doc;
+            });
+        } catch (err: any) {
+            LoggerService.warn('enrich_owner_names_failed', { error: err.message });
+            return items; // Graceful fallback — return items without names
+        }
     }
 
     // --- Search ---
@@ -269,76 +306,66 @@ export class KnowledgeService {
         const limit = Math.min(200, Math.max(1, filters.limit || 50));
         const skip = (page - 1) * limit;
 
+        let resultQuery: any;
+        let total: number;
+
         // --- Special case: requestStatus filter (used by Manage Requests modal) ---
         if (requestStatus) {
             const statusFilter: any = { requestStatus };
 
             if (user.role === 'superadmin') {
-                // Superadmin sees all items with this requestStatus
-                const total = await Knowledge.countDocuments(statusFilter);
-                const items = await Knowledge.find(statusFilter).sort({ createdAt: -1 }).skip(skip).limit(limit);
-                return { items, total, page, limit };
+                resultQuery = statusFilter;
+            } else if (this.isAdmin(user)) {
+                resultQuery = { ...statusFilter, department: user.department };
+            } else {
+                resultQuery = { ...statusFilter, ownerId: user.userId };
             }
 
-            if (this.isAdmin(user)) {
-                // Admin sees pending requests from their department
-                const deptFilter = { ...statusFilter, department: user.department };
-                const total = await Knowledge.countDocuments(deptFilter);
-                const items = await Knowledge.find(deptFilter).sort({ createdAt: -1 }).skip(skip).limit(limit);
-                return { items, total, page, limit };
-            }
-
-            // Non-admin: see only their own pending requests
-            const ownFilter = { ...statusFilter, ownerId: user.userId };
-            const total = await Knowledge.countDocuments(ownFilter);
-            const items = await Knowledge.find(ownFilter).sort({ createdAt: -1 }).skip(skip).limit(limit);
-            return { items, total, page, limit };
+            total = await Knowledge.countDocuments(resultQuery);
+            const items = await Knowledge.find(resultQuery).sort({ createdAt: -1 }).skip(skip).limit(limit);
+            const enriched = await this.enrichWithOwnerNames(items);
+            return { items: enriched, total, page, limit };
         }
 
         // --- Standard list (with optional type filter) ---
 
-        // Superadmin sees ALL knowledge across all departments
         if (user.role === 'superadmin') {
-            const query: any = {};
-            if (type) query.type = type;
-            const total = await Knowledge.countDocuments(query);
-            const items = await Knowledge.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit);
-            return { items, total, page, limit };
-        }
+            // Superadmin sees ALL knowledge across all departments
+            resultQuery = {};
+            if (type) resultQuery.type = type;
+        } else {
+            // Build permission-based conditions
+            const conditions: any[] = [
+                { type: 'public' },
+                { type: 'department', department: user.department },
+                { type: 'personal', ownerId: user.userId }
+            ];
 
-        // Build permission-based conditions
-        const conditions: any[] = [
-            { type: 'public' },
-            { type: 'department', department: user.department },
-            { type: 'personal', ownerId: user.userId }
-        ];
-
-        if (this.isAdmin(user)) {
-            conditions.push({ type: 'policy' });
-        }
-
-        const query: any = { $or: conditions };
-
-        // Apply type filter: narrow down the $or conditions to only the matching type
-        if (type) {
-            query.type = type;
-            // Remove conflicting $or — instead apply direct permission check for the requested type
-            delete query.$or;
-
-            // Validate the user can see this type
-            if (type === 'personal') {
-                query.ownerId = user.userId;
-            } else if (type === 'department') {
-                query.department = user.department;
-            } else if (type === 'policy' && !this.isAdmin(user)) {
-                return { items: [], total: 0, page, limit }; // Non-admin cannot filter by policy type
+            if (this.isAdmin(user)) {
+                conditions.push({ type: 'policy' });
             }
-            // 'public' needs no additional filter
+
+            resultQuery = { $or: conditions };
+
+            // Apply type filter: narrow down the $or conditions to only the matching type
+            if (type) {
+                resultQuery = { type };
+                // Validate the user can see this type
+                if (type === 'personal') {
+                    resultQuery.ownerId = user.userId;
+                } else if (type === 'department') {
+                    resultQuery.department = user.department;
+                } else if (type === 'policy' && !this.isAdmin(user)) {
+                    return { items: [], total: 0, page, limit }; // Non-admin cannot filter by policy type
+                }
+                // 'public' needs no additional filter
+            }
         }
 
-        const total = await Knowledge.countDocuments(query);
-        const items = await Knowledge.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit);
-        return { items, total, page, limit };
+        total = await Knowledge.countDocuments(resultQuery);
+        const items = await Knowledge.find(resultQuery).sort({ createdAt: -1 }).skip(skip).limit(limit);
+        const enriched = await this.enrichWithOwnerNames(items);
+        return { items: enriched, total, page, limit };
     }
 
     // --- Knowledge CRUD ---
