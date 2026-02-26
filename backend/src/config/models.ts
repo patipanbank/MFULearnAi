@@ -30,6 +30,8 @@ export const RAW_MODELS = {
     GEMMA_3_4B_IT: 'google.gemma-3-4b-it',
     //Nvidia AI
     NEMOTRON_NANO_12B_V2: 'nvidia.nemotron-nano-12b-v2',
+    // Cohere (Reranker — cross-encoder, not generative)
+    COHERE_RERANK_V3_5: 'cohere.rerank-v3-5:0',
 } as const;
 
 // 2. ACTIVE SYSTEM CONFIGURATION (The "Configuration" of what to use)
@@ -37,9 +39,12 @@ export const RAW_MODELS = {
 export const SYSTEM_MODELS = {
     AGENT: RAW_MODELS.CLAUDE_3_5_SONNET,
     CHAT: RAW_MODELS.MISTRAL_LARGE_3,
+    /** Lightweight LLM for policy compliance analysis (NOT a cross-encoder reranker) */
     RERANK: RAW_MODELS.GEMMA_3_4B_IT,
     SUMMARIZE: RAW_MODELS.QWEN_80B_A3B,
     UTILITY: RAW_MODELS.NEMOTRON_NANO_12B_V2,
+    /** Cohere cross-encoder reranker for RAG pipeline (two-stage retrieval) */
+    COHERE_RERANK: RAW_MODELS.COHERE_RERANK_V3_5,
 } as const;
 
 // 3. AVAILABLE MODELS LIST (The "Menu" for the UI/Validation)

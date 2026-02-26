@@ -62,6 +62,13 @@ services:
       # Observability
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
       - OTEL_SERVICE_NAME=backend
+      # Reranker (Cohere Rerank v3.5 on Bedrock — two-stage RAG retrieval)
+      - RERANKER_ENABLED=${RERANKER_ENABLED:-true}
+      # - RERANKER_MODEL_ID=cohere.rerank-v3-5:0
+      # - RERANKER_TOP_N=5
+      # - RERANKER_MIN_SCORE=0.1
+      # - RERANKER_TIMEOUT_MS=5000
+      # - RERANKER_FALLBACK_ON_ERROR=true
       # Token Quota (optional overrides — defaults in config/quotas.ts)
       # - DAILY_TOKEN_LIMIT=50000
       # - DAILY_TOKEN_WARNING=0.8

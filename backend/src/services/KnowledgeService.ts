@@ -10,6 +10,7 @@ import { getEmbedding } from '../knowledge/processingUtils';
 import { CHROMA_URL, GLOBAL_CHROMA_COLLECTION } from '../knowledge/constants';
 import { UserContext } from '../knowledge/types';
 import User from '../models/User';
+import { RerankService, RerankHit } from './RerankService';
 
 const chroma = new ChromaClient({ path: CHROMA_URL });
 
@@ -136,6 +137,8 @@ export class KnowledgeService {
             metadataFilter?: any;
             topK?: number;
             allowedKnowledgeIds?: Set<string>;
+            /** Set to false to skip reranking for this call */
+            skipRerank?: boolean;
         } = {}
     ): Promise<{ text: string, sources: Array<{ id: string, name: string }>, blocks: CanonicalIR['blocks'], maxScore: number }> {
         const { collectionId, intent = 'QUERY', minScore = 0, metadataFilter } = options;
@@ -145,7 +148,8 @@ export class KnowledgeService {
             // Get embedding (top-level import)
             const queryEmbedding = await getEmbedding(query);
 
-            const nResults = 10;
+            // Stage 1: Retrieve broad (20 candidates for reranker to narrow down)
+            const nResults = 20;
             const queryParams: any = {
                 queryEmbeddings: [queryEmbedding],
                 nResults: nResults,
@@ -241,10 +245,39 @@ export class KnowledgeService {
                     return { text: '', sources: [], blocks: [], maxScore: 0 };
                 }
 
-                // Calculate Max Score
-                const maxScore = Math.max(...validHits.map(h => h.score));
+                // ── Stage 2: Rerank with Cohere cross-encoder ──────────────
+                // Re-scores and re-orders hits by query-document relevance.
+                // Falls back to cosine scores on error (configurable).
+                let finalHits: any[];
+                if (options.skipRerank) {
+                    finalHits = validHits.map(h => ({ ...h, rerankScore: h.score }));
+                } else {
+                    const rerankInput: RerankHit[] = validHits.map(h => ({
+                        id: h.id,
+                        content: h.content,
+                        metadata: h.metadata,
+                        score: h.score,
+                    }));
+                    finalHits = await RerankService.rerank(query, rerankInput);
+                }
 
-                const blocks = validHits.map((hit: any, index: number) => ({
+                // Rebuild sourceMap from reranked hits (subset may have changed)
+                sourceMap.clear();
+                for (const hit of finalHits) {
+                    const kb = knowledgeMap.get(hit.metadata.knowledgeId);
+                    if (kb && !sourceMap.has(kb._id.toString())) {
+                        sourceMap.set(kb._id.toString(), {
+                            id: kb._id.toString(),
+                            name: kb.title,
+                            canView: true
+                        });
+                    }
+                }
+
+                // Calculate Max Score (use rerankScore from cross-encoder)
+                const maxScore = Math.max(...finalHits.map((h: any) => h.rerankScore));
+
+                const blocks = finalHits.map((hit: any, index: number) => ({
                     id: hit.id || `search_b${index + 1}`,
                     content: hit.content,
                     type: 'text' as const,
@@ -252,13 +285,14 @@ export class KnowledgeService {
                         fileId: hit.metadata.knowledgeId,
                         fileName: hit.metadata.source,
                         page: hit.metadata.pageNumber,
-                        score: hit.score
+                        score: hit.rerankScore,
+                        cosineScore: hit.score,
                     }
                 }));
 
-                const text = validHits.map((hit: any, index: number) => {
+                const text = finalHits.map((hit: any, index: number) => {
                     const blockId = blocks[index].id;
-                    return `<block id="${blockId}" score="${hit.score.toFixed(4)}">\n${hit.content}\n</block>`;
+                    return `<block id="${blockId}" score="${hit.rerankScore.toFixed(4)}">\n${hit.content}\n</block>`;
                 }).join('\n\n');
 
                 const result = {
@@ -274,11 +308,11 @@ export class KnowledgeService {
                 if (hitDocs.length > 0) {
                     Promise.all(
                         hitDocs.map(knowledgeId => {
-                            const bestHit = validHits.find(h => h.metadata?.knowledgeId === knowledgeId);
+                            const bestHit = finalHits.find((h: any) => h.metadata?.knowledgeId === knowledgeId);
                             return KnowledgeHit.create({
                                 knowledgeId,
                                 query,
-                                score: bestHit?.score ?? 0,
+                                score: bestHit?.rerankScore ?? bestHit?.score ?? 0,
                                 userId,
                                 toolName: options.metadataFilter?.type === 'policy' ? 'check_policy' : 'search'
                             });
