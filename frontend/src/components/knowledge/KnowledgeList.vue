@@ -534,7 +534,7 @@ const cancelRename = () => { renamingId.value = null }
 */
 .kb-list {
   display: grid;
-  grid-template-columns: minmax(0, 4fr) minmax(80px, 1fr) minmax(100px, 1fr) minmax(90px, 1fr) minmax(130px, 1.5fr);
+  grid-template-columns: minmax(0, 4fr) minmax(80px, 1fr) minmax(100px, 1fr) minmax(90px, 1fr) minmax(130px, 3fr);
   border: 1px solid var(--color-border);
   border-radius: 14px;
   overflow: hidden;
