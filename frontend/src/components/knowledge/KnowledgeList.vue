@@ -531,7 +531,7 @@ const cancelRename = () => { renamingId.value = null }
 /* Grid: name | type | dept | status | actions */
 .kb-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 105px 120px 140px auto;
+  grid-template-columns: minmax(0, 1fr) 105px 120px 140px 160px;
   grid-template-areas: "name type dept status actions";
   column-gap: 12px;
   padding: 12px 16px;
@@ -571,13 +571,13 @@ const cancelRename = () => { renamingId.value = null }
 .kb-col--name    { grid-area: name;    display: flex; align-items: flex-start; gap: 10px; min-width: 0; }
 .kb-col--type    { grid-area: type;    display: flex; flex-direction: column; gap: 4px; }
 .kb-col--dept    { grid-area: dept; }
-.kb-col--status  { grid-area: status;  display: flex; align-items: center; gap: 4px; }
-.kb-col--actions { grid-area: actions; display: flex; gap: 4px; align-items: center; justify-content: flex-end; }
+.kb-col--status  { grid-area: status;  display: flex; align-items: center; gap: 4px; min-width: 0; }
+.kb-col--actions { grid-area: actions; display: flex; gap: 4px; align-items: center; justify-content: flex-end; flex-wrap: nowrap; overflow: hidden; width: 160px; }
 
 /* Tablet ≤ 900px: hide dept */
 @media (max-width: 900px) {
   .kb-row {
-    grid-template-columns: minmax(0, 1fr) 105px 140px auto;
+    grid-template-columns: minmax(0, 1fr) 105px 140px 160px;
     grid-template-areas: "name type status actions";
   }
   .kb-col--dept { display: none; }
