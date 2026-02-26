@@ -690,6 +690,11 @@ export class KnowledgeService {
         if (!this.canManageCollection(user, col)) throw new Error('Permission denied');
         if (!this.canReadKnowledge(user, kb)) throw new Error('Cannot access this knowledge');
 
+        // Policy KB should not be mapped to collections — check_policy tool reads all policies directly via ChromaDB
+        if (action === 'add' && kb.type === 'policy') {
+            throw new Error('Policy knowledge cannot be added to collections. Policies are accessed automatically via the policy checker.');
+        }
+
         if (action === 'add') {
             const exists = col.knowledgeIds.some((existingId: any) => existingId.toString() === kb._id.toString());
             if (!exists) {

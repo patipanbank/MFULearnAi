@@ -93,7 +93,8 @@ const toggleMapping = async () => {
     if (!isMapping.value) {
         await knowledgeStore.fetchKnowledge()
         const currentIds = items.value.filter(k => k).map(k => k._id)
-        availableKnowledge.value = knowledgeStore.knowledge.filter(k => !currentIds.includes(k._id))
+        // Exclude policy KB — policies are accessed automatically via check_policy tool, not through collections
+        availableKnowledge.value = knowledgeStore.knowledge.filter(k => !currentIds.includes(k._id) && k.type !== 'policy')
         isMapping.value = true
         // Focus search after toggle
         setTimeout(() => searchInputRef.value?.focus(), 100)
