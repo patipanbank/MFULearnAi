@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, ref, nextTick } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useKnowledgeStore } from '@/stores/knowledge'
 import { useLanguage } from '@/composables/useSettings'
@@ -166,8 +166,13 @@ const showPublishConfirm = ref(false)
 const publishing = ref(false)
 const publishTargetType = ref('department') // 'department' | 'public'
 
+const publishConfirmRef = ref(null)
+
 const askPublishConfirm = () => {
     showPublishConfirm.value = true
+    nextTick(() => {
+        publishConfirmRef.value?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+    })
 }
 
 const cancelPublish = () => {
@@ -183,7 +188,7 @@ const handleRequestPublish = async () => {
         emit('success')
         emit('close')
     } catch (e) {
-        publishError.value = e.message || 'Failed to request publish'
+        publishError.value = e.response?.data?.error || e.message || 'Failed to request publish'
     } finally {
         publishing.value = false
     }
@@ -565,7 +570,7 @@ const getQualityClass = (score) => {
 
             <!-- Inline Publish Confirm -->
             <Transition name="confirm-fade">
-              <div v-if="showPublishConfirm" class="publish-confirm">
+              <div v-if="showPublishConfirm" ref="publishConfirmRef" class="publish-confirm">
                 <p>{{ isAdmin ? t('confirmDirectPublish').replace('{type}', publishTargetType) : t('confirmPublishRequest').replace('{type}', publishTargetType) }}</p>
                 <div class="confirm-btns">
                   <button class="btn-cancel" @click="cancelPublish">{{ t('cancel') }}</button>

@@ -221,7 +221,7 @@ const handleRetry = async (id) => {
                </div>
 
                <!-- Publish Status -->
-               <span v-else-if="item.requestStatus !== 'none'" class="status-badge" :class="getStatusBadge(item.requestStatus)">
+               <span v-else-if="item.requestStatus && item.requestStatus !== 'none'" class="status-badge" :class="getStatusBadge(item.requestStatus)">
                  {{ item.requestStatus }}
                  <span v-if="item.requestStatus === 'pending' && item.requestedType">
                     ({{ item.requestedType }})
@@ -230,7 +230,7 @@ const handleRetry = async (id) => {
             </td>
             <td class="actions-cell">
                <!-- Request Publish (Owner Only) -->
-               <div v-if="item.type === 'personal' && item.ownerId === authStore.userId && (item.requestStatus === 'none' || item.requestStatus === 'rejected')" class="dropdown" @click.stop>
+               <div v-if="item.type === 'personal' && String(item.ownerId) === String(authStore.userId) && (!item.requestStatus || item.requestStatus === 'none' || item.requestStatus === 'rejected')" class="dropdown" @click.stop>
                   <button class="action-btn">{{ isAdmin ? t('directPublishBtn') : t('publishBtn') }}</button>
                   <div class="dropdown-content">
                      <a @click="handleRequestPublish(item._id, 'department')">{{ t('toDepartment') }}</a>
@@ -290,8 +290,8 @@ const handleRetry = async (id) => {
                 <span class="detail-label">{{ item.department }}</span>
             </div>
 
-            <div class="card-details" v-if="item.requestStatus !== 'none' || (item.expiresAt && new Date(item.expiresAt) < new Date())">
-                 <span v-if="item.requestStatus !== 'none'" class="status-badge" :class="getStatusBadge(item.requestStatus)">
+            <div class="card-details" v-if="(item.requestStatus && item.requestStatus !== 'none') || (item.expiresAt && new Date(item.expiresAt) < new Date())">
+                 <span v-if="item.requestStatus && item.requestStatus !== 'none'" class="status-badge" :class="getStatusBadge(item.requestStatus)">
                      {{ item.requestStatus }}
                  </span>
                  <span v-if="item.expiresAt && new Date(item.expiresAt) < new Date()" class="status-badge" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">
