@@ -185,6 +185,23 @@ const commitRename = async (id) => {
 
 const cancelRename = () => { renamingId.value = null }
 
+// ── Publish dropdown toggle ──
+const openDropdownId = ref(null)
+const toggleDropdown = (id) => {
+  openDropdownId.value = openDropdownId.value === id ? null : id
+}
+const closeDropdown = () => { openDropdownId.value = null }
+// Close on outside click
+const onDocClick = (e) => {
+  if (!e.target.closest('.dropdown')) closeDropdown()
+}
+onMounted(() => {
+  document.addEventListener('click', onDocClick)
+})
+onUnmounted(() => {
+  document.removeEventListener('click', onDocClick)
+})
+
 // ── Responsive layout via ResizeObserver ──
 // Avoids @container CSS which is unreliable in Vue scoped styles
 const listEl = ref(null)
@@ -362,16 +379,16 @@ onUnmounted(() => ro?.disconnect())
               v-if="item.type === 'personal' && String(item.ownerId) === String(authStore.userId) && (!item.requestStatus || item.requestStatus === 'none' || item.requestStatus === 'rejected')"
               class="dropdown"
             >
-              <button class="action-btn" :title="isAdmin ? t('directPublishBtn') : t('publishBtn')">
+              <button class="action-btn" :title="isAdmin ? t('directPublishBtn') : t('publishBtn')" @click.stop="toggleDropdown(item._id)">
                 <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/><path d="M5 21h14"/></svg>
                 <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
               </button>
-              <div class="dropdown-content">
-                <a @click="handleRequestPublish(item._id, 'department')">
+              <div class="dropdown-content" :class="{ open: openDropdownId === item._id }">
+                <a @click.stop="handleRequestPublish(item._id, 'department'); closeDropdown()">
                   <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
                   {{ t('toDepartment') }}
                 </a>
-                <a @click="handleRequestPublish(item._id, 'public')">
+                <a @click.stop="handleRequestPublish(item._id, 'public'); closeDropdown()">
                   <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
                   {{ t('toPublic') }}
                 </a>
@@ -876,17 +893,18 @@ onUnmounted(() => ro?.disconnect())
 
 .dropdown-content {
   display: none;
-  position: absolute;
-  right: 0; top: calc(100% + 6px);
+  position: fixed; /* fixed so it escapes any overflow:hidden parent */
   background: var(--color-bg-card);
   min-width: 170px;
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.15);
-  z-index: 20;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.25);
+  z-index: 9999;
   border: 1px solid var(--color-border);
   border-radius: 10px;
   overflow: hidden;
   animation: dropdownIn 0.15s ease;
 }
+.dropdown-content.open { display: block; }
+.dropdown:hover .dropdown-content { display: none; } /* disable old hover */
 @keyframes dropdownIn {
   from { opacity: 0; transform: translateY(-6px); }
   to   { opacity: 1; transform: translateY(0); }
