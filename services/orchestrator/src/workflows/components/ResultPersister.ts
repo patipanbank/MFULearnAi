@@ -19,9 +19,12 @@ export class ResultPersister {
         let confidence = 'Low';
         let explanation = { basis: 'Internal', assumptions: [], missing_info: [] };
 
-        if (answerMode === 'file_grounded' || answerMode === 'rag') {
+        if (answerMode === 'file_grounded' || answerMode === 'rag' || answerMode === 'policy_grounded' || answerMode === 'policy_rag') {
             confidence = 'High';
-            explanation.basis = 'RAG'; // simplified for now
+            explanation.basis = answerMode === 'policy_grounded' ? 'Policy KB'
+                : answerMode === 'policy_rag' ? 'Policy KB + RAG'
+                : answerMode === 'file_grounded' ? 'Attached File'
+                : 'RAG';
         }
 
         emit(AGENT_EVENTS.METADATA, {

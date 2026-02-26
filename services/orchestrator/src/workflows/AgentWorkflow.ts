@@ -317,11 +317,20 @@ export class AgentWorkflow {
     }
 
     private determineAnswerMode(response: string) {
-        // Simple heuristic - can be moved to a Helper if complex
+        const usedSearch = this.state.usedTools.has('search');
+        const usedPolicy = this.state.usedTools.has('check_policy');
+
         if (this.state.nativeDocBlocks.length > 0) {
             this.state.answerMode = 'file_grounded';
             this.state.answerState = 'VERIFIED';
-        } else if (this.state.usedTools.has('search')) {
+        } else if (usedPolicy && usedSearch) {
+            // Both tools used — policy + general search combined
+            this.state.answerMode = 'policy_rag';
+            this.state.answerState = 'VERIFIED';
+        } else if (usedPolicy) {
+            this.state.answerMode = 'policy_grounded';
+            this.state.answerState = 'VERIFIED';
+        } else if (usedSearch) {
             this.state.answerMode = 'rag';
             this.state.answerState = 'VERIFIED';
         } else {
