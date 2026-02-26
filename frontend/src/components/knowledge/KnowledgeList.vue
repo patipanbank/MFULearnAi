@@ -140,6 +140,33 @@ const handleDelete = async (id) => {
 const handleRetry = async (id) => {
     await knowledgeStore.retryKnowledge(id)
 }
+
+// ── Inline Rename ──
+const renamingId = ref(null)
+const renameValue = ref('')
+const renameInput = ref(null)
+
+const startRename = (item, event) => {
+    event.stopPropagation()
+    renamingId.value = item._id
+    renameValue.value = item.title
+    // focus after DOM update
+    setTimeout(() => renameInput.value?.focus(), 50)
+}
+
+const commitRename = async (id) => {
+    const newTitle = renameValue.value.trim()
+    if (!newTitle) { cancelRename(); return }
+    try {
+        await knowledgeStore.updateKnowledge(id, { title: newTitle })
+    } catch (e) {
+        await showAlert(e.response?.data?.error || e.message || 'Rename failed', { variant: 'error' })
+    } finally {
+        renamingId.value = null
+    }
+}
+
+const cancelRename = () => { renamingId.value = null }
 </script>
 
 <template>
@@ -191,14 +218,31 @@ const handleRetry = async (id) => {
               <div class="name-column">
                 <!-- Folder Path -->
                 <span v-if="item.folder" class="folder-path text-muted" style="font-size: 11px; margin-bottom: 2px;">📁 {{ item.folder }}</span>
-                <span class="kb-title">
-                  {{ item.title }}
-                  <span v-if="item.version > 1" class="version-badge">v{{ item.version }}</span>
-                </span>
-                <div v-if="item.tags?.length" class="tag-chips-inline">
-                  <span v-for="tag in item.tags.slice(0, 3)" :key="tag" class="tag-mini">{{ tag }}</span>
-                  <span v-if="item.tags.length > 3" class="tag-more">+{{ item.tags.length - 3 }}</span>
-                </div>
+                <!-- Inline rename input -->
+                <template v-if="renamingId === item._id">
+                  <div class="rename-inline" @click.stop>
+                    <input
+                      ref="renameInput"
+                      v-model="renameValue"
+                      class="rename-input"
+                      maxlength="200"
+                      @keyup.enter="commitRename(item._id)"
+                      @keyup.esc="cancelRename"
+                    />
+                    <button class="rename-save" @click.stop="commitRename(item._id)" title="Save">✓</button>
+                    <button class="rename-cancel" @click.stop="cancelRename" title="Cancel">✕</button>
+                  </div>
+                </template>
+                <template v-else>
+                  <span class="kb-title">
+                    {{ item.title }}
+                    <span v-if="item.version > 1" class="version-badge">v{{ item.version }}</span>
+                  </span>
+                  <div v-if="item.tags?.length" class="tag-chips-inline">
+                    <span v-for="tag in item.tags.slice(0, 3)" :key="tag" class="tag-mini">{{ tag }}</span>
+                    <span v-if="item.tags.length > 3" class="tag-more">+{{ item.tags.length - 3 }}</span>
+                  </div>
+                </template>
               </div>
             </td>
             <td>
@@ -249,6 +293,11 @@ const handleRetry = async (id) => {
                   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
                </button>
 
+               <!-- Rename -->
+               <button v-if="canManage(item)" class="btn-icon rename" @click.stop="startRename(item, $event)" :title="t('renameKnowledge')">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+               </button>
+
                <!-- Retry (Failed only) -->
                 <button v-if="item.processingStatus === 'failed'" class="btn-icon retry" @click.stop="handleRetry(item._id)" :title="t('retryProcessing')">
                   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
@@ -274,15 +323,37 @@ const handleRetry = async (id) => {
                 <div class="card-title-group">
                    <!-- Folder Path -->
                    <div v-if="item.folder" class="folder-path text-muted" style="font-size: 11px; margin-bottom: 2px;">📁 {{ item.folder }}</div>
-                   <div class="card-title">
-                     <div class="file-icon">📄</div>
-                     {{ item.title }}
-                     <span v-if="item.version > 1" class="version-badge">v{{ item.version }}</span>
-                   </div>
+                   <!-- Inline rename input (mobile) -->
+                   <template v-if="renamingId === item._id">
+                     <div class="rename-inline" @click.stop>
+                       <input
+                         ref="renameInput"
+                         v-model="renameValue"
+                         class="rename-input"
+                         maxlength="200"
+                         @keyup.enter="commitRename(item._id)"
+                         @keyup.esc="cancelRename"
+                       />
+                       <button class="rename-save" @click.stop="commitRename(item._id)" title="Save">✓</button>
+                       <button class="rename-cancel" @click.stop="cancelRename" title="Cancel">✕</button>
+                     </div>
+                   </template>
+                   <template v-else>
+                     <div class="card-title">
+                       <div class="file-icon">📄</div>
+                       {{ item.title }}
+                       <span v-if="item.version > 1" class="version-badge">v{{ item.version }}</span>
+                     </div>
+                   </template>
                 </div>
-                <button v-if="canManage(item)" class="btn-icon delete" @click.stop="handleDelete(item._id)">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
-               </button>
+                <div class="card-header-actions" @click.stop>
+                  <button v-if="canManage(item)" class="btn-icon rename" @click.stop="startRename(item, $event)" :title="t('renameKnowledge')">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                  </button>
+                  <button v-if="canManage(item)" class="btn-icon delete" @click.stop="handleDelete(item._id)">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                  </button>
+                </div>
             </div>
             
             <div class="card-details">
@@ -621,6 +692,53 @@ const handleRetry = async (id) => {
     text-align: center;
     color: var(--color-text-muted);
     padding: 32px;
+}
+
+/* ── Inline Rename ── */
+.rename-inline {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    width: 100%;
+}
+.rename-input {
+    flex: 1;
+    padding: 3px 7px;
+    font-size: 13px;
+    border: 1px solid var(--color-accent, #3b82f6);
+    border-radius: 4px;
+    background: var(--color-bg-primary);
+    color: var(--color-text-primary);
+    outline: none;
+    min-width: 0;
+}
+.rename-save,
+.rename-cancel {
+    flex-shrink: 0;
+    width: 24px;
+    height: 24px;
+    border: none;
+    border-radius: 4px;
+    font-size: 13px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+}
+.rename-save  { background: #22c55e; color: #fff; }
+.rename-save:hover { background: #16a34a; }
+.rename-cancel { background: var(--color-bg-tertiary); color: var(--color-text-muted); }
+.rename-cancel:hover { background: var(--color-bg-hover); }
+
+.btn-icon.rename { color: var(--color-text-muted); }
+.btn-icon.rename:hover { color: var(--color-accent, #3b82f6); background: var(--color-bg-tertiary); }
+
+.card-header-actions {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+    flex-shrink: 0;
 }
 
 .clickable-row {

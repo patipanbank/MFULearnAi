@@ -410,11 +410,19 @@ export class KnowledgeService {
     static async updateKnowledge(
         id: string,
         user: UserContext,
-        updates: { description?: string; tags?: string[]; folder?: string; expiresAt?: string }
+        updates: { title?: string; description?: string; tags?: string[]; folder?: string; expiresAt?: string }
     ) {
         const kb = await Knowledge.findById(id);
         if (!kb) throw new Error('Not found');
         if (!this.canManageKnowledge(user, kb)) throw new Error('Permission denied');
+
+        // Validate title
+        if (updates.title !== undefined) {
+            const title = updates.title.trim();
+            if (!title) throw new Error('Title cannot be empty');
+            if (title.length > 200) throw new Error('Title too long (max 200 characters)');
+            kb.title = title;
+        }
 
         // Validate tags
         if (updates.tags !== undefined) {

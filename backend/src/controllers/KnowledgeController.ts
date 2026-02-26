@@ -266,18 +266,18 @@ export class KnowledgeController {
         }
     }
 
-    // 1.07 UPDATE (description, tags, folder, expiresAt)
+    // 1.07 UPDATE (title, description, tags, folder, expiresAt)
     static async update(req: Request, res: Response) {
         const user = extractUser(req);
         if (!user) return res.status(401).json({ error: 'Unauthorized' });
 
-        const { description, tags, folder, expiresAt } = req.body;
-        if (description === undefined && tags === undefined && folder === undefined && expiresAt === undefined) {
+        const { title, description, tags, folder, expiresAt } = req.body;
+        if (title === undefined && description === undefined && tags === undefined && folder === undefined && expiresAt === undefined) {
             return res.status(400).json({ error: 'Nothing to update.' });
         }
 
         try {
-            const kb = await KnowledgeService.updateKnowledge(req.params.id, user, { description, tags, folder, expiresAt });
+            const kb = await KnowledgeService.updateKnowledge(req.params.id, user, { title, description, tags, folder, expiresAt });
             res.json({ success: true, knowledge: kb });
         } catch (e: any) {
             const msg = e.message || 'Update failed';
