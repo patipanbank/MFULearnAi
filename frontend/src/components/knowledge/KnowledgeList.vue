@@ -412,6 +412,7 @@ const cancelRename = () => { renamingId.value = null }
   display: flex;
   flex-direction: column;
   gap: 14px;
+  container-type: inline-size; /* enables @container queries on this element */
 }
 
 /* ── Search + Filters ── */
@@ -599,23 +600,22 @@ const cancelRename = () => { renamingId.value = null }
 .kb-col--status  { display: flex; align-items: center; gap: 4px; }
 .kb-col--actions { display: flex; gap: 3px; align-items: center; justify-content: flex-end; flex-wrap: nowrap; overflow: hidden; }
 
-/* Tablet 769-900px: hide dept */
-@media (max-width: 900px) and (min-width: 769px) {
+/* Container 501-700px: 4 columns (hide dept) */
+@container (max-width: 700px) and (min-width: 501px) {
   .kb-list {
     grid-template-columns: minmax(0, 4fr) minmax(80px, 1fr) minmax(90px, 1fr) minmax(130px, 1.5fr);
   }
   .kb-col--dept { display: none; }
 }
 
-/* Mobile ≤ 768px: switch to card layout — avoids cramped 4-column grid */
-@media (max-width: 768px) {
+/* Container ≤500px: card layout */
+@container (max-width: 500px) {
   .kb-list {
-    display: block; /* exit grid mode */
+    display: block;
   }
 
   .kb-row--header { display: none; }
 
-  /* Each data row becomes a card with 3-column grid */
   .kb-row {
     display: grid;
     grid-template-columns: 1fr 1fr 1fr;
@@ -633,7 +633,6 @@ const cancelRename = () => { renamingId.value = null }
   .kb-row:last-child { border-bottom: none; }
   .kb-row:hover { background: var(--color-bg-hover, rgba(99,102,241,0.03)); }
 
-  /* Reset cell styles set by container-grid rules */
   .kb-row > .kb-col {
     padding: 0;
     border-bottom: none;
