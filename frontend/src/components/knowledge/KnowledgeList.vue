@@ -615,14 +615,13 @@ const cancelRename = () => { renamingId.value = null }
 
   .kb-row--header { display: none; }
 
-  /* Each data row becomes a flex card */
+  /* Each data row becomes a card with 3-column grid */
   .kb-row {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr 1fr 1fr;
     grid-template-areas:
-      "name    name"
-      "type    status"
-      "actions actions";
+      "name    name    name"
+      "type    status  actions";
     row-gap: 8px;
     column-gap: 8px;
     padding: 14px;
@@ -648,14 +647,12 @@ const cancelRename = () => { renamingId.value = null }
   .kb-col--name    { grid-area: name;    align-items: flex-start; }
   .kb-col--type    { grid-area: type;    flex-direction: row; flex-wrap: wrap; align-items: center; gap: 6px; }
   .kb-col--dept    { display: none; }
-  .kb-col--status  { grid-area: status;  flex-direction: row; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 6px; }
+  .kb-col--status  { grid-area: status;  flex-direction: row; flex-wrap: wrap; align-items: center; justify-content: center; gap: 6px; }
   .kb-col--actions {
     grid-area: actions;
-    justify-content: flex-start;
+    justify-content: flex-end;
     flex-wrap: wrap;
     gap: 6px;
-    border-top: 1px solid var(--color-border);
-    padding-top: 8px;
   }
 }
 
