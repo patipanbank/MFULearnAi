@@ -25,7 +25,7 @@ useModalKeyboard({
   modalRef,
 })
 
-const isOwner = computed(() => props.item.ownerId === authStore.userId)
+const isOwner = computed(() => String(props.item.ownerId) === String(authStore.userId))
 const isAdmin = computed(() => authStore.role === 'admin' || authStore.role === 'superadmin')
 const canEdit = computed(() => isOwner.value || isAdmin.value)
 
@@ -503,7 +503,7 @@ const getQualityClass = (score) => {
           </Teleport>
 
           <!-- Publish Status Section -->
-          <div class="status-section" v-if="item.requestStatus !== 'none'">
+          <div class="status-section" v-if="item.requestStatus && item.requestStatus !== 'none'">
             <h4>{{ t('publishStatus') }}</h4>
             <div class="status-box" :class="item.requestStatus">
               <div class="status-indicator">
@@ -529,7 +529,7 @@ const getQualityClass = (score) => {
             </div>
 
             <!-- Target type selection -->
-            <div v-if="item.requestStatus === 'none' || item.requestStatus === 'rejected'" class="publish-target-select" style="margin-bottom: 12px;">
+            <div v-if="!item.requestStatus || item.requestStatus === 'none' || item.requestStatus === 'rejected'" class="publish-target-select" style="margin-bottom: 12px;">
               <label style="font-size: 13px; color: var(--color-text-muted); margin-bottom: 6px; display: block;">{{ t('publishTargetLabel') }}</label>
               <div style="display: flex; gap: 8px;">
                 <button
@@ -549,7 +549,7 @@ const getQualityClass = (score) => {
 
             <div class="btn-group">
               <button
-                v-if="item.requestStatus === 'none' || item.requestStatus === 'rejected'"
+                v-if="!item.requestStatus || item.requestStatus === 'none' || item.requestStatus === 'rejected'"
                 class="btn-action"
                 :disabled="publishing"
                 @click="askPublishConfirm"
