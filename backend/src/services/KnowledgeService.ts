@@ -78,7 +78,13 @@ export class KnowledgeService {
         if (user.role === 'superadmin') return true; // Superadmin can manage any collection
         if (col.type === 'default') return user.role === 'admin';
         if (col.type === 'department') return user.role === 'admin' && user.department === col.department;
-        if (col.type === 'personal') return col.ownerId === user.userId;
+        if (col.type === 'personal') {
+            // Owner can always manage their own personal collection
+            if (col.ownerId === user.userId) return true;
+            // Admin can manage personal collections within their department (e.g. to promote type)
+            if (user.role === 'admin' && user.department === col.department) return true;
+            return false;
+        }
         return false;
     }
 
