@@ -187,38 +187,49 @@ const cancelRename = () => { renamingId.value = null }
 
 // ── Publish dropdown toggle ──
 const openDropdownId = ref(null)
-const toggleDropdown = (id) => {
-  openDropdownId.value = openDropdownId.value === id ? null : id
+const dropdownPos = ref({ top: 0, right: 0 })
+
+const toggleDropdown = (id, event) => {
+  if (openDropdownId.value === id) {
+    openDropdownId.value = null
+    return
+  }
+  // Calculate position relative to viewport for position:fixed
+  const btn = event.currentTarget
+  const rect = btn.getBoundingClientRect()
+  dropdownPos.value = {
+    top: rect.bottom + 6,
+    right: window.innerWidth - rect.right
+  }
+  openDropdownId.value = id
 }
 const closeDropdown = () => { openDropdownId.value = null }
 // Close on outside click
 const onDocClick = (e) => {
   if (!e.target.closest('.dropdown')) closeDropdown()
 }
+
+// ── Responsive layout via ResizeObserver ──
+const listEl = ref(null)
+const listSizeClass = ref('list-wide') // list-wide | list-medium | list-narrow
+let ro = null
+
 onMounted(() => {
   document.addEventListener('click', onDocClick)
+  if (listEl.value) {
+    ro = new ResizeObserver(([entry]) => {
+      const w = entry.contentRect.width
+      if (w <= 660)      listSizeClass.value = 'list-narrow'
+      else if (w <= 860) listSizeClass.value = 'list-medium'
+      else               listSizeClass.value = 'list-wide'
+    })
+    ro.observe(listEl.value)
+  }
 })
 onUnmounted(() => {
   document.removeEventListener('click', onDocClick)
+  ro?.disconnect()
 })
-
-// ── Responsive layout via ResizeObserver ──
-// Avoids @container CSS which is unreliable in Vue scoped styles
-const listEl = ref(null)
-const listSizeClass = ref('list-wide') // list-wide | list-medium | list-narrow
-
-let ro = null
-onMounted(() => {
-  if (!listEl.value) return
-  ro = new ResizeObserver(([entry]) => {
-    const w = entry.contentRect.width
-    if (w <= 660)       listSizeClass.value = 'list-narrow'
-    else if (w <= 860)  listSizeClass.value = 'list-medium'
-    else                listSizeClass.value = 'list-wide'
-  })
-  ro.observe(listEl.value)
-})
-onUnmounted(() => ro?.disconnect())
 </script>
 
 <template>
@@ -379,11 +390,11 @@ onUnmounted(() => ro?.disconnect())
               v-if="item.type === 'personal' && String(item.ownerId) === String(authStore.userId) && (!item.requestStatus || item.requestStatus === 'none' || item.requestStatus === 'rejected')"
               class="dropdown"
             >
-              <button class="action-btn" :title="isAdmin ? t('directPublishBtn') : t('publishBtn')" @click.stop="toggleDropdown(item._id)">
+              <button class="action-btn" :title="isAdmin ? t('directPublishBtn') : t('publishBtn')" @click.stop="toggleDropdown(item._id, $event)">
                 <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/><path d="M5 21h14"/></svg>
                 <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
               </button>
-              <div class="dropdown-content" :class="{ open: openDropdownId === item._id }">
+              <div class="dropdown-content" :class="{ open: openDropdownId === item._id }" :style="openDropdownId === item._id ? { top: dropdownPos.top + 'px', right: dropdownPos.right + 'px' } : {}">
                 <a @click.stop="handleRequestPublish(item._id, 'department'); closeDropdown()">
                   <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
                   {{ t('toDepartment') }}
