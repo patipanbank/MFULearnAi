@@ -27,13 +27,13 @@ const extractUser = (req: Request): UserContext | null => {
 export class KnowledgeController {
 
     // 0. LIST KNOWLEDGE
-    // Supports query params: ?type=personal|department|public|policy  &requestStatus=pending|approved|rejected
+    // Supports query params: ?type=personal|department|public|policy  &requestStatus=pending|approved|rejected  &page=1  &limit=50
     static async listKnowledge(req: Request, res: Response) {
         const user = extractUser(req);
         if (!user) return res.status(401).json({ error: 'Unauthorized' });
 
         try {
-            const filters: { type?: string; requestStatus?: string } = {};
+            const filters: { type?: string; requestStatus?: string; page?: number; limit?: number } = {};
 
             if (req.query.type && typeof req.query.type === 'string') {
                 filters.type = req.query.type;
@@ -41,9 +41,18 @@ export class KnowledgeController {
             if (req.query.requestStatus && typeof req.query.requestStatus === 'string') {
                 filters.requestStatus = req.query.requestStatus;
             }
+            if (req.query.page) {
+                filters.page = parseInt(req.query.page as string, 10) || 1;
+            }
+            if (req.query.limit) {
+                filters.limit = parseInt(req.query.limit as string, 10) || 50;
+            }
 
-            const knowledge = await KnowledgeService.getKnowledgeList(user, filters);
-            res.json({ knowledge });
+            const result = await KnowledgeService.getKnowledgeList(user, filters);
+            res.json({
+                knowledge: result.items,
+                pagination: { total: result.total, page: result.page, limit: result.limit }
+            });
         } catch (e: any) {
             res.status(500).json({ error: e.message });
         }
@@ -235,7 +244,10 @@ export class KnowledgeController {
             const id = await KnowledgeService.deleteKnowledge(req.params.id, user);
             res.json({ success: true, id });
         } catch (e: any) {
-            res.status(500).json({ error: e.message });
+            const msg = e.message || 'Delete failed';
+            if (msg.includes('Not found')) return res.status(404).json({ error: msg });
+            if (msg.includes('Permission')) return res.status(403).json({ error: msg });
+            res.status(500).json({ error: msg });
         }
     }
 
@@ -247,7 +259,10 @@ export class KnowledgeController {
             const kb = await KnowledgeService.retryProcessing(req.params.id, user);
             res.json({ success: true, knowledge: kb });
         } catch (e: any) {
-            res.status(500).json({ error: e.message });
+            const msg = e.message || 'Retry failed';
+            if (msg.includes('Not found')) return res.status(404).json({ error: msg });
+            if (msg.includes('Permission')) return res.status(403).json({ error: msg });
+            res.status(500).json({ error: msg });
         }
     }
 
@@ -352,8 +367,15 @@ export class KnowledgeController {
         const user = extractUser(req);
         if (!user) return res.status(401).json({ error: 'Unauthorized' });
         try {
-            const collections = await KnowledgeService.getCollections(user);
-            res.json({ collections });
+            const pagination = {
+                page: req.query.page ? parseInt(req.query.page as string, 10) : undefined,
+                limit: req.query.limit ? parseInt(req.query.limit as string, 10) : undefined
+            };
+            const result = await KnowledgeService.getCollections(user, pagination);
+            res.json({
+                collections: result.items,
+                pagination: { total: result.total, page: result.page, limit: result.limit }
+            });
         } catch (e: any) {
             res.status(500).json({ error: e.message });
         }
@@ -366,18 +388,33 @@ export class KnowledgeController {
             const collection = await KnowledgeService.getCollectionDetails(req.params.id, user);
             res.json({ collection });
         } catch (e: any) {
-            res.status(500).json({ error: e.message });
+            const msg = e.message || 'Failed';
+            if (msg.includes('Not found')) return res.status(404).json({ error: msg });
+            if (msg.includes('Access denied') || msg.includes('Permission')) return res.status(403).json({ error: msg });
+            res.status(500).json({ error: msg });
         }
     }
 
     static async createCollection(req: Request, res: Response) {
         const user = extractUser(req);
         if (!user) return res.status(401).json({ error: 'Unauthorized' });
+
+        // Input validation
+        const { name, type } = req.body;
+        if (!name || typeof name !== 'string' || !name.trim()) {
+            return res.status(400).json({ error: 'Collection name is required' });
+        }
+        if (!type || !['personal', 'department', 'default'].includes(type)) {
+            return res.status(400).json({ error: 'Invalid collection type. Must be "personal", "department", or "default".' });
+        }
+
         try {
             const col = await KnowledgeService.createCollection(user, req.body);
-            res.json({ success: true, collection: col });
+            res.status(201).json({ success: true, collection: col });
         } catch (e: any) {
-            res.status(500).json({ error: e.message });
+            const msg = e.message || 'Create failed';
+            if (msg.includes('Not allowed') || msg.includes('Permission')) return res.status(403).json({ error: msg });
+            res.status(500).json({ error: msg });
         }
     }
 
@@ -388,7 +425,11 @@ export class KnowledgeController {
             const col = await KnowledgeService.updateCollection(req.params.id, user, req.body);
             res.json({ success: true, collection: col });
         } catch (e: any) {
-            res.status(500).json({ error: e.message });
+            const msg = e.message || 'Update failed';
+            if (msg.includes('Not found')) return res.status(404).json({ error: msg });
+            if (msg.includes('Permission') || msg.includes('Only admin')) return res.status(403).json({ error: msg });
+            if (msg.includes('Invalid')) return res.status(400).json({ error: msg });
+            res.status(500).json({ error: msg });
         }
     }
 
@@ -399,18 +440,34 @@ export class KnowledgeController {
             const id = await KnowledgeService.deleteCollection(req.params.id, user);
             res.json({ success: true, id });
         } catch (e: any) {
-            res.status(500).json({ error: e.message });
+            const msg = e.message || 'Delete failed';
+            if (msg.includes('Not found')) return res.status(404).json({ error: msg });
+            if (msg.includes('Permission')) return res.status(403).json({ error: msg });
+            res.status(500).json({ error: msg });
         }
     }
 
     static async mapKnowledge(req: Request, res: Response) {
         const user = extractUser(req);
         if (!user) return res.status(401).json({ error: 'Unauthorized' });
+
+        // Input validation
+        const { knowledgeId, action } = req.body;
+        if (!knowledgeId || typeof knowledgeId !== 'string') {
+            return res.status(400).json({ error: 'knowledgeId is required' });
+        }
+        if (!action || !['add', 'remove'].includes(action)) {
+            return res.status(400).json({ error: 'action must be "add" or "remove"' });
+        }
+
         try {
-            const col = await KnowledgeService.mapKnowledgeToCollection(req.params.id, user, req.body.knowledgeId, req.body.action);
+            const col = await KnowledgeService.mapKnowledgeToCollection(req.params.id, user, knowledgeId, action);
             res.json({ success: true, collection: col });
         } catch (e: any) {
-            res.status(500).json({ error: e.message });
+            const msg = e.message || 'Map failed';
+            if (msg.includes('Not found')) return res.status(404).json({ error: msg });
+            if (msg.includes('Permission') || msg.includes('Cannot access')) return res.status(403).json({ error: msg });
+            res.status(500).json({ error: msg });
         }
     }
 
@@ -441,8 +498,11 @@ export class KnowledgeController {
 
             (stream as any).pipe(res);
         } catch (e: any) {
+            const msg = e.message || 'View failed';
             if (!res.headersSent) {
-                res.status(500).json({ error: e.message });
+                if (msg.includes('Not found')) return res.status(404).json({ error: msg });
+                if (msg.includes('Permission')) return res.status(403).json({ error: msg });
+                res.status(500).json({ error: msg });
             }
         }
     }

@@ -13,6 +13,16 @@ const { t } = useLanguage()
 
 const isAdmin = computed(() => authStore.role === 'admin' || authStore.role === 'superadmin')
 
+// Permission helper: determine if user can manage (edit/delete) a knowledge item
+const canManage = (item) => {
+    if (authStore.role === 'superadmin') return true
+    if (item.type === 'personal') return item.ownerId === authStore.userId
+    if (item.type === 'department') return authStore.role === 'admin' && authStore.department === item.department
+    if (item.type === 'public') return authStore.role === 'admin' && authStore.department === item.department
+    if (item.type === 'policy') return authStore.role === 'admin'
+    return false
+}
+
 const emit = defineEmits(['open'])
 
 const filterType = ref('all') // 'all', 'personal', 'department', 'public'
@@ -235,7 +245,7 @@ const handleRetry = async (id) => {
                </div>
 
                <!-- Delete -->
-               <button class="btn-icon delete" @click.stop="handleDelete(item._id)">
+               <button v-if="canManage(item)" class="btn-icon delete" @click.stop="handleDelete(item._id)">
                   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
                </button>
 
@@ -270,7 +280,7 @@ const handleRetry = async (id) => {
                      <span v-if="item.version > 1" class="version-badge">v{{ item.version }}</span>
                    </div>
                 </div>
-                <button class="btn-icon delete" @click.stop="handleDelete(item._id)">
+                <button v-if="canManage(item)" class="btn-icon delete" @click.stop="handleDelete(item._id)">
                   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
                </button>
             </div>

@@ -148,7 +148,7 @@ export class KnowledgeService {
                 const ids = results.ids[0];
                 const metadatas = results.metadatas[0];
                 const documents = results.documents[0];
-                const distances = results.distances?.[0]; // L2 Distances
+                const distances = results.distances?.[0]; // Cosine Distances (range 0–2)
 
                 const uniqueKnowledgeIds = new Set(metadatas.map((m: any) => m.knowledgeId));
                 const knowledgeDocs = await Knowledge.find({ _id: { $in: Array.from(uniqueKnowledgeIds) } });
@@ -181,12 +181,13 @@ export class KnowledgeService {
                             });
                         }
 
-                        // Calculate Score: 1 / (1 + distance)
-                        // Chroma L2 distance logic
+                        // Calculate Score from Cosine Distance
+                        // ChromaDB cosine distance = 1 - cos(a,b), range [0, 2]
+                        // Convert to similarity score [0, 1]: score = 1 - (distance / 2)
                         const distVal = distances?.[i];
                         const isValidDistance = typeof distVal === 'number';
-                        const distance = isValidDistance ? (distVal as number) : 0;
-                        const score = isValidDistance ? (1 / (1 + distance)) : 0;
+                        const distance = isValidDistance ? (distVal as number) : 2;
+                        const score = isValidDistance ? Math.max(0, 1 - (distance / 2)) : 0;
 
                         if (score >= minScore) {
                             validHits.push({
@@ -261,9 +262,12 @@ export class KnowledgeService {
 
 
     // --- Knowledge List ---
-    // Supports optional filters: { type?, requestStatus? }
-    static async getKnowledgeList(user: UserContext, filters: { type?: string; requestStatus?: string } = {}) {
+    // Supports optional filters: { type?, requestStatus?, page?, limit? }
+    static async getKnowledgeList(user: UserContext, filters: { type?: string; requestStatus?: string; page?: number; limit?: number } = {}) {
         const { type, requestStatus } = filters;
+        const page = Math.max(1, filters.page || 1);
+        const limit = Math.min(200, Math.max(1, filters.limit || 50));
+        const skip = (page - 1) * limit;
 
         // --- Special case: requestStatus filter (used by Manage Requests modal) ---
         if (requestStatus) {
@@ -271,22 +275,24 @@ export class KnowledgeService {
 
             if (user.role === 'superadmin') {
                 // Superadmin sees all items with this requestStatus
-                return await Knowledge.find(statusFilter).sort({ createdAt: -1 });
+                const total = await Knowledge.countDocuments(statusFilter);
+                const items = await Knowledge.find(statusFilter).sort({ createdAt: -1 }).skip(skip).limit(limit);
+                return { items, total, page, limit };
             }
 
             if (this.isAdmin(user)) {
                 // Admin sees pending requests from their department
-                return await Knowledge.find({
-                    ...statusFilter,
-                    department: user.department
-                }).sort({ createdAt: -1 });
+                const deptFilter = { ...statusFilter, department: user.department };
+                const total = await Knowledge.countDocuments(deptFilter);
+                const items = await Knowledge.find(deptFilter).sort({ createdAt: -1 }).skip(skip).limit(limit);
+                return { items, total, page, limit };
             }
 
             // Non-admin: see only their own pending requests
-            return await Knowledge.find({
-                ...statusFilter,
-                ownerId: user.userId
-            }).sort({ createdAt: -1 });
+            const ownFilter = { ...statusFilter, ownerId: user.userId };
+            const total = await Knowledge.countDocuments(ownFilter);
+            const items = await Knowledge.find(ownFilter).sort({ createdAt: -1 }).skip(skip).limit(limit);
+            return { items, total, page, limit };
         }
 
         // --- Standard list (with optional type filter) ---
@@ -295,7 +301,9 @@ export class KnowledgeService {
         if (user.role === 'superadmin') {
             const query: any = {};
             if (type) query.type = type;
-            return await Knowledge.find(query).sort({ createdAt: -1 });
+            const total = await Knowledge.countDocuments(query);
+            const items = await Knowledge.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit);
+            return { items, total, page, limit };
         }
 
         // Build permission-based conditions
@@ -323,12 +331,14 @@ export class KnowledgeService {
             } else if (type === 'department') {
                 query.department = user.department;
             } else if (type === 'policy' && !this.isAdmin(user)) {
-                return []; // Non-admin cannot filter by policy type
+                return { items: [], total: 0, page, limit }; // Non-admin cannot filter by policy type
             }
             // 'public' needs no additional filter
         }
 
-        return await Knowledge.find(query).sort({ createdAt: -1 });
+        const total = await Knowledge.countDocuments(query);
+        const items = await Knowledge.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit);
+        return { items, total, page, limit };
     }
 
     // --- Knowledge CRUD ---
@@ -693,10 +703,16 @@ export class KnowledgeService {
         return col;
     }
 
-    static async getCollections(user: UserContext) {
+    static async getCollections(user: UserContext, pagination?: { page?: number; limit?: number }) {
+        const page = Math.max(1, pagination?.page || 1);
+        const limit = Math.min(200, Math.max(1, pagination?.limit || 50));
+        const skip = (page - 1) * limit;
+
         // Superadmin sees all collections
         if (user.role === 'superadmin') {
-            return await Collection.find({}).sort({ type: 1, createdAt: -1 });
+            const total = await Collection.countDocuments({});
+            const items = await Collection.find({}).sort({ type: 1, createdAt: -1 }).skip(skip).limit(limit);
+            return { items, total, page, limit };
         }
 
         const query = {
@@ -706,7 +722,9 @@ export class KnowledgeService {
                 { type: 'personal', ownerId: user.userId }
             ]
         };
-        return await Collection.find(query).sort({ type: 1, createdAt: -1 });
+        const total = await Collection.countDocuments(query);
+        const items = await Collection.find(query).sort({ type: 1, createdAt: -1 }).skip(skip).limit(limit);
+        return { items, total, page, limit };
     }
 
     static async getCollectionDetails(id: string, user: UserContext) {
@@ -730,7 +748,15 @@ export class KnowledgeService {
         if (!this.canReadKnowledge(user, kb)) throw new Error('Permission denied');
 
         const stream = await minioClient.getObject(MINIO_BUCKET, kb.s3Key || '');
-        return { stream, headers: { 'content-type': kb.contentType, 'content-disposition': `inline; filename="${kb.title}"` } };
+        // Sanitize filename to prevent header injection (CQ-Security)
+        const safeFilename = encodeURIComponent(kb.title).replace(/%20/g, ' ');
+        return {
+            stream,
+            headers: {
+                'content-type': kb.contentType,
+                'content-disposition': `inline; filename="${safeFilename}"; filename*=UTF-8''${encodeURIComponent(kb.title)}`
+            }
+        };
     }
 
     // --- Analytics ---

@@ -66,8 +66,7 @@ export const useKnowledgeStore = defineStore('knowledge', () => {
                 ...getHeaders()
             })
 
-            // If fetching specific requests (like pending), we might return them or update main list
-            // For now, update main list as Admin UI will likely use a separate store call or just filter this list.
+            // Handle both paginated and non-paginated response formats
             knowledge.value = res.data.knowledge
 
             // Start polling if needed
@@ -76,7 +75,10 @@ export const useKnowledgeStore = defineStore('knowledge', () => {
             )
             if (hasPending) startPolling()
 
-            return res.data.knowledge
+            return {
+                items: res.data.knowledge,
+                pagination: res.data.pagination || null
+            }
         } catch (e) {
             error.value = e.response?.data?.error || e.message
             console.error('Fetch knowledge failed:', e)
@@ -234,6 +236,7 @@ export const useKnowledgeStore = defineStore('knowledge', () => {
         loading.value = true
         try {
             const res = await axios.get(`${API_URL}/knowledge/collections`, getHeaders())
+            // Handle both paginated and non-paginated response formats
             collections.value = res.data.collections
         } catch (e) {
             error.value = e.response?.data?.error || e.message
@@ -403,6 +406,7 @@ export const useKnowledgeStore = defineStore('knowledge', () => {
         createFromUrl,
         createFromText,
         fetchStats,
-        fetchDocumentAnalytics
+        fetchDocumentAnalytics,
+        stopPolling
     }
 })

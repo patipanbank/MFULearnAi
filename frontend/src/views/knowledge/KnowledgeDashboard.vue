@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useLanguage } from '@/composables/useSettings'
 import { useConfirmDialog } from '@/composables/useConfirmDialog'
 import { useKnowledgeStore } from '@/stores/knowledge'
@@ -48,6 +48,11 @@ onMounted(() => {
     knowledgeStore.fetchKnowledge()
     knowledgeStore.fetchCollections()
     fetchPendingCount()
+})
+
+// Cleanup polling when leaving the knowledge page
+onUnmounted(() => {
+    knowledgeStore.stopPolling()
 })
 
 const openKnowledge = (item) => {
