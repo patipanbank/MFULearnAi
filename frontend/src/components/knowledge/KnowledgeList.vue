@@ -525,14 +525,16 @@ const cancelRename = () => { renamingId.value = null }
   of content width differences per row.
   Column budget (desktop ≥901px):
     name    → 1fr   (flexible)
-    type    → 110px (fits "DEPARTMENT" badge)
-    dept    → 160px (fits full dept names, truncates with ellipsis)
-    status  → 130px (fits approved/rejected/processing)
-    actions → 130px (fits publish + rename + delete)
+    name    → 6fr  (60% — dominant column)
+    type    → 1fr  (10%)
+    dept    → 1fr  (10%)
+    status  → 1fr  (10%)
+    actions → 1fr  (10%)
+    Using pure fr units ensures proportional sizing and consistent borders across all rows.
 */
 .kb-list {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 110px 160px 130px 130px;
+  grid-template-columns: 6fr 1fr 1fr 1fr 1fr;
   border: 1px solid var(--color-border);
   border-radius: 14px;
   overflow: hidden;
@@ -595,19 +597,12 @@ const cancelRename = () => { renamingId.value = null }
 .kb-col--status  { display: flex; align-items: center; gap: 4px; }
 .kb-col--actions { display: flex; gap: 4px; align-items: center; justify-content: flex-end; flex-wrap: wrap; }
 
-/* Tablet ≤ 900px: hide dept column */
+/* Tablet ≤ 900px: hide dept, keep 6:1:1:1 proportions */
 @media (max-width: 900px) {
   .kb-list {
-    grid-template-columns: minmax(0, 1fr) 110px 130px 130px;
+    grid-template-columns: 6fr 1fr 1fr 1fr;
   }
   .kb-col--dept { display: none; }
-}
-
-/* Small tablet 601-720px: tighter */
-@media (max-width: 720px) and (min-width: 601px) {
-  .kb-list {
-    grid-template-columns: minmax(0, 1fr) 100px 120px 120px;
-  }
 }
 
 /* Mobile ≤ 600px: switch to block card layout per item */
