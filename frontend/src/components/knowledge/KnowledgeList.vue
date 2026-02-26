@@ -583,21 +583,63 @@ const cancelRename = () => { renamingId.value = null }
   .kb-col--dept { display: none; }
 }
 
+/* Small tablet ≤ 720px: tighter columns, no dept */
+@media (max-width: 720px) and (min-width: 601px) {
+  .kb-row {
+    grid-template-columns: minmax(0, 1fr) 90px 120px 130px;
+    grid-template-areas: "name type status actions";
+  }
+}
+
 /* Mobile ≤ 600px */
 @media (max-width: 600px) {
   .kb-row {
-    grid-template-columns: 1fr auto;
+    grid-template-columns: 1fr 1fr;
     grid-template-areas:
-      "name    actions"
-      "type    type"
-      "status  status";
-    row-gap: 6px;
-    padding: 12px 14px;
+      "name     name"
+      "type     status"
+      "actions  actions";
+    row-gap: 8px;
+    column-gap: 8px;
+    padding: 14px 14px;
+    align-items: start;
   }
   .kb-row--header { display: none; }
   .kb-col--dept   { display: none; }
-  .kb-col--type   { flex-direction: row; flex-wrap: wrap; }
-  .kb-col--actions { align-self: start; }
+
+  /* name: full width, icon stays inline */
+  .kb-col--name { align-items: flex-start; }
+
+  /* type: left-align, row direction */
+  .kb-col--type {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 6px;
+  }
+
+  /* status: right-align, row direction */
+  .kb-col--status {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 6px;
+  }
+  /* hide the "all good" ✓ icon on mobile to save space */
+  .kb-col--status .status-ok { display: none; }
+
+  /* actions: full-width action bar */
+  .kb-col--actions {
+    width: auto;
+    overflow: visible;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    gap: 6px;
+    border-top: 1px solid var(--color-border);
+    padding-top: 8px;
+  }
 }
 
 /* ── File icon ── */
