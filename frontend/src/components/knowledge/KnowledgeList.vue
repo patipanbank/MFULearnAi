@@ -579,7 +579,7 @@ onUnmounted(() => {
 */
 .kb-list {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 88px 130px 110px 160px;
+  grid-template-columns: minmax(0,0.5fr) 88px 130px 110px 160px;
   border: 1px solid var(--color-border);
   border-radius: 14px;
   overflow: hidden;
