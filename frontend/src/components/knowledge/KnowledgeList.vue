@@ -5,6 +5,22 @@ import { useAuthStore } from '@/stores/auth'
 import { useLanguage } from '@/composables/useSettings'
 import { useConfirmDialog } from '@/composables/useConfirmDialog'
 
+// Detect file type from title/filename for richer icons
+const getFileIcon = (item) => {
+  const name = (item.title || item.filename || '').toLowerCase()
+  if (name.endsWith('.pdf'))                        return 'pdf'
+  if (name.match(/\.(docx?|odt)$/))                return 'word'
+  if (name.match(/\.(xlsx?|csv|ods)$/))             return 'excel'
+  if (name.match(/\.(pptx?|odp)$/))                return 'ppt'
+  if (name.match(/\.(png|jpe?g|gif|webp|svg)$/))   return 'image'
+  if (name.match(/\.(mp4|mov|avi|mkv|webm)$/))     return 'video'
+  if (name.match(/\.(mp3|wav|ogg|flac)$/))         return 'audio'
+  if (name.match(/\.(zip|rar|7z|tar\.gz)$/))       return 'archive'
+  if (name.match(/\.(md|txt)$/))                   return 'text'
+  if (name.match(/\.(js|ts|py|java|go|rb|php)$/)) return 'code'
+  return 'doc'
+}
+
 const { confirm: showConfirm, alert: showAlert } = useConfirmDialog()
 
 const authStore = useAuthStore()
@@ -27,6 +43,7 @@ const emit = defineEmits(['open'])
 
 const filterType = ref('all') // 'all', 'personal', 'department', 'public'
 const searchQuery = ref('')
+const searchFocused = ref(false)
 
 const filteredKnowledge = computed(() => {
     let list = knowledgeStore.knowledge
@@ -173,7 +190,7 @@ const cancelRename = () => { renamingId.value = null }
   <div class="knowledge-list">
     <!-- Search + Filters -->
     <div class="search-filters">
-      <div class="search-bar">
+      <div class="search-bar" :class="{ focused: searchFocused }">
         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="search-icon">
           <circle cx="11" cy="11" r="8"/>
           <line x1="21" y1="21" x2="16.65" y2="16.65"/>
@@ -183,23 +200,35 @@ const cancelRename = () => { renamingId.value = null }
           type="text"
           class="search-input"
           :placeholder="t('searchKnowledge')"
+          @focus="searchFocused = true"
+          @blur="searchFocused = false"
         />
-        <button v-if="searchQuery" class="search-clear" @click="searchQuery = ''">×</button>
+        <transition name="fade-quick">
+          <button v-if="searchQuery" class="search-clear" @click="searchQuery = ''" aria-label="Clear search">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </transition>
+        <span v-if="searchQuery && filteredKnowledge.length > 0" class="search-count">{{ filteredKnowledge.length }}</span>
       </div>
       <div class="filters">
-        <button 
-          v-for="opt in filterOptions" 
+        <button
+          v-for="opt in filterOptions"
           :key="opt.value"
           class="filter-btn"
           :class="{ active: filterType === opt.value }"
           @click="filterType = opt.value"
         >
+          <span v-if="opt.value === 'all'" class="filter-dot all"></span>
+          <span v-else-if="opt.value === 'personal'" class="filter-dot personal"></span>
+          <span v-else-if="opt.value === 'department'" class="filter-dot dept"></span>
+          <span v-else-if="opt.value === 'public'" class="filter-dot public"></span>
+          <span v-else-if="opt.value === 'policy'" class="filter-dot policy"></span>
           {{ opt.label }}
         </button>
       </div>
     </div>
 
-    <!-- Knowledge Rows (unified responsive) -->
+    <!-- Knowledge Rows -->
     <div class="kb-list">
       <!-- Header row -->
       <div class="kb-row kb-row--header" aria-hidden="true">
@@ -211,124 +240,184 @@ const cancelRename = () => { renamingId.value = null }
       </div>
 
       <!-- Data rows -->
-      <div
-        v-for="item in filteredKnowledge"
-        :key="item._id"
-        class="kb-row"
-        @click="$emit('open', item)"
-      >
-        <!-- Name -->
-        <div class="kb-col kb-col--name">
-          <span class="file-icon">📄</span>
-          <div class="name-stack">
-            <span v-if="item.folder" class="folder-crumb">📁 {{ item.folder }}</span>
-            <template v-if="renamingId === item._id">
-              <div class="rename-inline" @click.stop>
-                <input
-                  ref="renameInput"
-                  v-model="renameValue"
-                  class="rename-input"
-                  maxlength="200"
-                  @keyup.enter="commitRename(item._id)"
-                  @keyup.esc="cancelRename"
-                />
-                <button class="rename-save" @click.stop="commitRename(item._id)" title="Save">✓</button>
-                <button class="rename-cancel" @click.stop="cancelRename" title="Cancel">✕</button>
-              </div>
-            </template>
-            <template v-else>
-              <span class="kb-title">
-                {{ item.title }}
-                <span v-if="item.version > 1" class="version-badge">v{{ item.version }}</span>
+      <transition-group name="list-item">
+        <div
+          v-for="item in filteredKnowledge"
+          :key="item._id"
+          class="kb-row"
+          @click="$emit('open', item)"
+        >
+          <!-- Name -->
+          <div class="kb-col kb-col--name">
+            <!-- File type icon -->
+            <div class="file-icon-wrap" :class="'icon-' + getFileIcon(item)">
+              <!-- PDF -->
+              <svg v-if="getFileIcon(item) === 'pdf'" class="ftype-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="9" y2="17"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="15" y1="14" x2="15" y2="17"/></svg>
+              <!-- Word -->
+              <svg v-else-if="getFileIcon(item) === 'word'" class="ftype-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+              <!-- Excel -->
+              <svg v-else-if="getFileIcon(item) === 'excel'" class="ftype-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="16" x2="16" y2="16"/><line x1="12" y1="10" x2="12" y2="18"/></svg>
+              <!-- Image -->
+              <svg v-else-if="getFileIcon(item) === 'image'" class="ftype-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+              <!-- Code -->
+              <svg v-else-if="getFileIcon(item) === 'code'" class="ftype-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+              <!-- Default doc -->
+              <svg v-else class="ftype-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+            </div>
+
+            <div class="name-stack">
+              <span v-if="item.folder" class="folder-crumb">
+                <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+                {{ item.folder }}
               </span>
-            </template>
-            <div v-if="item.tags?.length" class="tag-chips-inline">
-              <span v-for="tag in item.tags.slice(0, 3)" :key="tag" class="tag-mini">{{ tag }}</span>
-              <span v-if="item.tags.length > 3" class="tag-more">+{{ item.tags.length - 3 }}</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- Type + expiry -->
-        <div class="kb-col kb-col--type">
-          <span class="badge" :class="getBadgeClass(item.type)">{{ item.type }}</span>
-          <span v-if="item.expiresAt && new Date(item.expiresAt) < new Date()" class="status-badge status-expired">⚠️ Expired</span>
-        </div>
-
-        <!-- Department -->
-        <div class="kb-col kb-col--dept">{{ item.department }}</div>
-
-        <!-- Processing / Publish status -->
-        <div class="kb-col kb-col--status">
-          <div
-            v-if="item.processingStatus && item.processingStatus !== 'completed' && item.processingStatus !== 'none'"
-            class="status-badge"
-            :class="getProcessingBadgeClass(item.processingStatus)"
-          >
-            {{ item.processingStatus === 'processing' ? t('processingStatus') : item.processingStatus }}
-            <span v-if="item.processingStatus === 'failed'" :title="item.errorReason">⚠️</span>
-          </div>
-          <span
-            v-else-if="item.requestStatus && item.requestStatus !== 'none'"
-            class="status-badge"
-            :class="getStatusBadge(item.requestStatus)"
-          >
-            {{ item.requestStatus }}
-            <span v-if="item.requestStatus === 'pending' && item.requestedType">({{ item.requestedType }})</span>
-          </span>
-        </div>
-
-        <!-- Actions -->
-        <div class="kb-col kb-col--actions" @click.stop>
-          <!-- Publish dropdown (owner only) -->
-          <div
-            v-if="item.type === 'personal' && String(item.ownerId) === String(authStore.userId) && (!item.requestStatus || item.requestStatus === 'none' || item.requestStatus === 'rejected')"
-            class="dropdown"
-          >
-            <button class="action-btn">{{ isAdmin ? t('directPublishBtn') : t('publishBtn') }}</button>
-            <div class="dropdown-content">
-              <a @click="handleRequestPublish(item._id, 'department')">{{ t('toDepartment') }}</a>
-              <a @click="handleRequestPublish(item._id, 'public')">{{ t('toPublic') }}</a>
+              <template v-if="renamingId === item._id">
+                <div class="rename-inline" @click.stop>
+                  <input
+                    ref="renameInput"
+                    v-model="renameValue"
+                    class="rename-input"
+                    maxlength="200"
+                    @keyup.enter="commitRename(item._id)"
+                    @keyup.esc="cancelRename"
+                  />
+                  <button class="rename-save" @click.stop="commitRename(item._id)" title="Save">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                  </button>
+                  <button class="rename-cancel" @click.stop="cancelRename" title="Cancel">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                  </button>
+                </div>
+              </template>
+              <template v-else>
+                <span class="kb-title">
+                  {{ item.title }}
+                  <span v-if="item.version > 1" class="version-badge">v{{ item.version }}</span>
+                </span>
+              </template>
+              <div v-if="item.tags?.length" class="tag-chips-inline">
+                <span v-for="tag in item.tags.slice(0, 3)" :key="tag" class="tag-mini">#{{ tag }}</span>
+                <span v-if="item.tags.length > 3" class="tag-more">+{{ item.tags.length - 3 }}</span>
+              </div>
             </div>
           </div>
 
-          <!-- Admin Approve/Reject -->
-          <div v-if="(authStore.role === 'admin' || authStore.role === 'superadmin') && item.requestStatus === 'pending'" class="admin-actions">
-            <button class="btn-approve" @click.stop="handleApprove(item._id)" title="Approve">✓</button>
-            <button class="btn-reject"  @click.stop="handleReject(item._id)"  title="Reject">✗</button>
+          <!-- Type + expiry -->
+          <div class="kb-col kb-col--type">
+            <span class="badge" :class="getBadgeClass(item.type)">{{ item.type }}</span>
+            <span v-if="item.expiresAt && new Date(item.expiresAt) < new Date()" class="status-badge status-expired">Expired</span>
           </div>
 
-          <!-- Rename -->
-          <button v-if="canManage(item)" class="btn-icon rename" @click.stop="startRename(item, $event)" :title="t('renameKnowledge')">
-            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-          </button>
+          <!-- Department -->
+          <div class="kb-col kb-col--dept">
+            <span v-if="item.department" class="dept-text">{{ item.department }}</span>
+            <span v-else class="dept-empty">—</span>
+          </div>
 
-          <!-- Delete -->
-          <button v-if="canManage(item)" class="btn-icon delete" @click.stop="handleDelete(item._id)" :title="t('delete')">
-            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
-          </button>
+          <!-- Processing / Publish status -->
+          <div class="kb-col kb-col--status">
+            <div
+              v-if="item.processingStatus && item.processingStatus !== 'completed' && item.processingStatus !== 'none'"
+              class="status-badge"
+              :class="getProcessingBadgeClass(item.processingStatus)"
+            >
+              <span v-if="item.processingStatus === 'processing'" class="status-spinner"></span>
+              {{ item.processingStatus === 'processing' ? t('processingStatus') : item.processingStatus }}
+              <span v-if="item.processingStatus === 'failed'" class="fail-hint" :title="item.errorReason">
+                <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              </span>
+            </div>
+            <span
+              v-else-if="item.requestStatus && item.requestStatus !== 'none'"
+              class="status-badge"
+              :class="getStatusBadge(item.requestStatus)"
+            >
+              {{ item.requestStatus }}
+              <span v-if="item.requestStatus === 'pending' && item.requestedType" class="req-type">({{ item.requestedType }})</span>
+            </span>
+            <span v-else class="status-ok">
+              <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            </span>
+          </div>
 
-          <!-- Retry (failed only) -->
-          <button v-if="item.processingStatus === 'failed'" class="btn-icon retry" @click.stop="handleRetry(item._id)" :title="t('retryProcessing')">
-            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
-          </button>
+          <!-- Actions -->
+          <div class="kb-col kb-col--actions" @click.stop>
+            <!-- Publish dropdown (owner only) -->
+            <div
+              v-if="item.type === 'personal' && String(item.ownerId) === String(authStore.userId) && (!item.requestStatus || item.requestStatus === 'none' || item.requestStatus === 'rejected')"
+              class="dropdown"
+            >
+              <button class="action-btn">
+                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/><path d="M5 21h14"/></svg>
+                {{ isAdmin ? t('directPublishBtn') : t('publishBtn') }}
+                <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+              </button>
+              <div class="dropdown-content">
+                <a @click="handleRequestPublish(item._id, 'department')">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                  {{ t('toDepartment') }}
+                </a>
+                <a @click="handleRequestPublish(item._id, 'public')">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+                  {{ t('toPublic') }}
+                </a>
+              </div>
+            </div>
+
+            <!-- Admin Approve/Reject -->
+            <div v-if="(authStore.role === 'admin' || authStore.role === 'superadmin') && item.requestStatus === 'pending'" class="admin-actions">
+              <button class="btn-approve" @click.stop="handleApprove(item._id)" title="Approve">
+                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              </button>
+              <button class="btn-reject"  @click.stop="handleReject(item._id)"  title="Reject">
+                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            </div>
+
+            <!-- Retry (failed only) -->
+            <button v-if="item.processingStatus === 'failed'" class="btn-icon retry" @click.stop="handleRetry(item._id)" :title="t('retryProcessing')">
+              <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+            </button>
+
+            <!-- Rename -->
+            <button v-if="canManage(item)" class="btn-icon rename" @click.stop="startRename(item, $event)" :title="t('renameKnowledge')">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            </button>
+
+            <!-- Delete -->
+            <button v-if="canManage(item)" class="btn-icon delete" @click.stop="handleDelete(item._id)" :title="t('delete')">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+            </button>
+          </div>
         </div>
-      </div>
+      </transition-group>
 
-      <div v-if="filteredKnowledge.length === 0" class="empty-row">
-        {{ t('noKnowledgeFound') }}
+      <!-- Empty state -->
+      <div v-if="filteredKnowledge.length === 0" class="empty-state">
+        <div class="empty-illus">
+          <svg viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect width="80" height="80" rx="40" fill="currentColor" fill-opacity="0.05"/>
+            <path d="M25 55V28a2 2 0 0 1 2-2h17l11 11v18a2 2 0 0 1-2 2H27a2 2 0 0 1-2-2z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M44 26v11h11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            <line x1="31" y1="40" x2="49" y2="40" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+            <line x1="31" y1="46" x2="42" y2="46" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <p class="empty-title">{{ searchQuery ? t('noKnowledgeFound') : t('noKnowledgeFound') }}</p>
+        <p v-if="searchQuery" class="empty-sub">Try a different search term or filter</p>
       </div>
     </div>
   </div>
 </template>
 
 <style scoped>
+/* ── Root ── */
 .knowledge-list {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 14px;
 }
 
+/* ── Search + Filters ── */
 .search-filters {
   display: flex;
   flex-direction: column;
@@ -339,20 +428,18 @@ const cancelRename = () => { renamingId.value = null }
   display: flex;
   align-items: center;
   gap: 8px;
-  background: var(--color-bg-tertiary);
-  border: 1px solid var(--color-border);
-  border-radius: 10px;
-  padding: 8px 14px;
-  transition: border-color 0.15s;
+  background: var(--color-bg-secondary);
+  border: 1.5px solid var(--color-border);
+  border-radius: 12px;
+  padding: 9px 14px;
+  transition: border-color 0.2s, box-shadow 0.2s;
 }
-.search-bar:focus-within {
+.search-bar.focused {
   border-color: var(--color-accent, #6366f1);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
 }
 
-.search-icon {
-  color: var(--color-text-muted);
-  flex-shrink: 0;
-}
+.search-icon { color: var(--color-text-muted); flex-shrink: 0; }
 
 .search-input {
   flex: 1;
@@ -362,129 +449,141 @@ const cancelRename = () => { renamingId.value = null }
   color: var(--color-text-primary);
   font-size: 14px;
 }
-.search-input::placeholder {
-  color: var(--color-text-muted);
-}
+.search-input::placeholder { color: var(--color-text-muted); }
 
 .search-clear {
-  background: none;
+  background: var(--color-bg-tertiary);
   border: none;
   color: var(--color-text-muted);
   cursor: pointer;
-  font-size: 18px;
-  line-height: 1;
-  padding: 0 4px;
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  transition: background 0.15s, color 0.15s;
+  flex-shrink: 0;
 }
-.search-clear:hover { color: var(--color-text-primary); }
+.search-clear:hover { background: var(--color-bg-hover); color: var(--color-text-primary); }
 
+.search-count {
+  font-size: 11px; font-weight: 600;
+  color: var(--color-accent, #6366f1);
+  background: rgba(99, 102, 241, 0.1);
+  padding: 2px 7px; border-radius: 20px;
+  flex-shrink: 0;
+}
+
+/* Fade quick transition for clear button */
+.fade-quick-enter-active,
+.fade-quick-leave-active { transition: opacity 0.15s; }
+.fade-quick-enter-from,
+.fade-quick-leave-to { opacity: 0; }
+
+/* ── Filter pills ── */
 .filters {
   display: flex;
-  gap: 8px;
+  gap: 6px;
   flex-wrap: wrap;
 }
 
 .filter-btn {
-  padding: 6px 12px;
-  border-radius: 16px;
-  border: 1px solid var(--color-border);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 13px;
+  border-radius: 20px;
+  border: 1.5px solid var(--color-border);
   background: transparent;
   color: var(--color-text-secondary);
-  font-size: 13px;
+  font-size: 12.5px;
+  font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.18s;
   white-space: nowrap;
 }
-.filter-btn:hover { background: var(--color-bg-hover); }
-.filter-btn.active { background: var(--color-accent); color: white; border-color: var(--color-accent); }
-
-/* ── Shared badge / status tokens ── */
-.badge {
-  padding: 3px 8px;
-  border-radius: 4px;
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  white-space: nowrap;
+.filter-btn:hover { background: var(--color-bg-hover); color: var(--color-text-primary); }
+.filter-btn.active {
+  background: var(--color-accent);
+  color: white;
+  border-color: var(--color-accent);
+  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.25);
 }
-.badge-personal { background: rgba(139, 92, 246, 0.12); color: #8b5cf6; }
-.badge-dept     { background: rgba(59, 130, 246, 0.12);  color: #3b82f6; }
-.badge-public   { background: rgba(16, 185, 129, 0.12);  color: #10b981; }
-.badge-policy   { background: rgba(245, 158, 11, 0.12);  color: #f59e0b; }
 
-.status-badge { font-size: 11px; padding: 2px 6px; border-radius: 4px; white-space: nowrap; }
-.status-pending    { background: rgba(245, 158, 11, 0.12);  color: #f59e0b; }
-.status-approved   { background: rgba(16, 185, 129, 0.12);  color: #10b981; }
-.status-rejected   { background: rgba(239, 68, 68, 0.12);   color: #ef4444; }
-.status-expired    { background: rgba(239, 68, 68, 0.12);   color: #ef4444; }
-.status-processing { background: rgba(59, 130, 246, 0.12);  color: #3b82f6; }
-.status-failed     { background: rgba(239, 68, 68, 0.12);   color: #ef4444; }
-
-.version-badge {
-  font-size: 10px; font-weight: 700;
-  color: var(--color-accent);
-  background: rgba(99, 102, 241, 0.1);
-  padding: 1px 5px; border-radius: 4px;
+/* Color dots in filter buttons */
+.filter-dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
   flex-shrink: 0;
 }
+.filter-dot.all        { background: var(--color-text-muted); }
+.filter-dot.personal   { background: #8b5cf6; }
+.filter-dot.dept       { background: #3b82f6; }
+.filter-dot.public     { background: #10b981; }
+.filter-dot.policy     { background: #f59e0b; }
 
-.tag-chips-inline { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 2px; }
-.tag-mini {
-  padding: 1px 5px;
-  background: rgba(99, 102, 241, 0.08);
-  color: var(--color-accent, #6366f1);
-  border-radius: 10px; font-size: 10px; font-weight: 500;
-}
-.tag-more { padding: 1px 4px; font-size: 10px; color: var(--color-text-muted); }
-
-/* ── kb-list: unified responsive rows ── */
+/* ── kb-list ── */
 .kb-list {
   border: 1px solid var(--color-border);
-  border-radius: 12px;
+  border-radius: 14px;
   overflow: hidden;
+  background: var(--color-bg-secondary);
 }
 
 /* Grid: name | type | dept | status | actions */
 .kb-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 100px 110px 130px auto;
+  grid-template-columns: minmax(0, 1fr) 105px 120px 140px auto;
   grid-template-areas: "name type dept status actions";
   column-gap: 12px;
-  padding: 11px 16px;
+  padding: 12px 16px;
   align-items: center;
   border-bottom: 1px solid var(--color-border);
   cursor: pointer;
   transition: background 0.12s;
+  position: relative;
 }
 .kb-row:last-child { border-bottom: none; }
-.kb-row:hover { background: var(--color-bg-tertiary); }
+.kb-row:not(.kb-row--header):hover {
+  background: var(--color-bg-hover, rgba(99, 102, 241, 0.03));
+}
+/* Left accent line on hover */
+.kb-row:not(.kb-row--header):hover::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 8px; bottom: 8px;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: var(--color-accent, #6366f1);
+  opacity: 0.7;
+}
 
 /* Header row */
 .kb-row--header {
   cursor: default;
   background: var(--color-bg-tertiary);
-  font-size: 11px; font-weight: 600;
+  font-size: 10.5px; font-weight: 700;
   color: var(--color-text-muted);
-  text-transform: uppercase; letter-spacing: 0.6px;
+  text-transform: uppercase; letter-spacing: 0.7px;
   padding: 8px 16px;
 }
 .kb-row--header:hover { background: var(--color-bg-tertiary); }
+.kb-row--header::before { display: none !important; }
 
 .kb-col--name    { grid-area: name;    display: flex; align-items: flex-start; gap: 10px; min-width: 0; }
 .kb-col--type    { grid-area: type;    display: flex; flex-direction: column; gap: 4px; }
-.kb-col--dept    { grid-area: dept;    font-size: 13px; color: var(--color-text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.kb-col--status  { grid-area: status;  display: flex; flex-direction: column; gap: 4px; }
-.kb-col--actions { grid-area: actions; display: flex; gap: 5px; align-items: center; justify-content: flex-end; }
+.kb-col--dept    { grid-area: dept; }
+.kb-col--status  { grid-area: status;  display: flex; align-items: center; gap: 4px; }
+.kb-col--actions { grid-area: actions; display: flex; gap: 4px; align-items: center; justify-content: flex-end; }
 
-/* Tablet ≤ 900px: hide dept column */
+/* Tablet ≤ 900px: hide dept */
 @media (max-width: 900px) {
   .kb-row {
-    grid-template-columns: minmax(0, 1fr) 100px 130px auto;
+    grid-template-columns: minmax(0, 1fr) 105px 140px auto;
     grid-template-areas: "name type status actions";
   }
   .kb-col--dept { display: none; }
 }
 
-/* Mobile ≤ 600px: 2-col, name/actions on row 1, type+status below */
+/* Mobile ≤ 600px */
 @media (max-width: 600px) {
   .kb-row {
     grid-template-columns: 1fr auto;
@@ -501,17 +600,41 @@ const cancelRename = () => { renamingId.value = null }
   .kb-col--actions { align-self: start; }
 }
 
-/* Name internals */
-.file-icon { font-size: 18px; flex-shrink: 0; line-height: 1; margin-top: 2px; }
+/* ── File icon ── */
+.file-icon-wrap {
+  width: 34px; height: 34px;
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  background: rgba(99, 102, 241, 0.08);
+  color: #6366f1;
+  margin-top: 1px;
+}
+.file-icon-wrap.icon-pdf     { background: rgba(239, 68, 68, 0.08);   color: #ef4444; }
+.file-icon-wrap.icon-word    { background: rgba(59, 130, 246, 0.08);  color: #3b82f6; }
+.file-icon-wrap.icon-excel   { background: rgba(16, 185, 129, 0.08);  color: #10b981; }
+.file-icon-wrap.icon-ppt     { background: rgba(245, 158, 11, 0.08);  color: #f59e0b; }
+.file-icon-wrap.icon-image   { background: rgba(168, 85, 247, 0.08);  color: #a855f7; }
+.file-icon-wrap.icon-video   { background: rgba(239, 68, 68, 0.08);   color: #ef4444; }
+.file-icon-wrap.icon-audio   { background: rgba(236, 72, 153, 0.08);  color: #ec4899; }
+.file-icon-wrap.icon-archive { background: rgba(245, 158, 11, 0.08);  color: #f59e0b; }
+.file-icon-wrap.icon-text    { background: rgba(107, 114, 128, 0.08); color: #6b7280; }
+.file-icon-wrap.icon-code    { background: rgba(20, 184, 166, 0.08);  color: #14b8a6; }
 
+.ftype-svg { width: 16px; height: 16px; }
+
+/* ── Name stack ── */
 .name-stack {
   display: flex; flex-direction: column; gap: 3px;
   min-width: 0; flex: 1;
 }
+
 .folder-crumb {
+  display: flex; align-items: center; gap: 3px;
   font-size: 11px; color: var(--color-text-muted);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
+
 .kb-title {
   font-weight: 500; font-size: 14px;
   color: var(--color-text-primary);
@@ -519,77 +642,246 @@ const cancelRename = () => { renamingId.value = null }
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 
-/* Empty state */
-.empty-row {
-  padding: 40px;
-  text-align: center;
+.version-badge {
+  font-size: 10px; font-weight: 700;
+  color: var(--color-accent, #6366f1);
+  background: rgba(99, 102, 241, 0.1);
+  padding: 1px 5px; border-radius: 4px;
+  flex-shrink: 0;
+}
+
+/* ── Tags ── */
+.tag-chips-inline { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 2px; }
+.tag-mini {
+  padding: 1px 6px;
+  background: rgba(99, 102, 241, 0.07);
+  color: var(--color-accent, #6366f1);
+  border-radius: 10px;
+  font-size: 10px; font-weight: 500;
+  border: 1px solid rgba(99, 102, 241, 0.15);
+}
+.tag-more { padding: 1px 4px; font-size: 10px; color: var(--color-text-muted); }
+
+/* ── Dept ── */
+.dept-text {
+  font-size: 13px; color: var(--color-text-secondary);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  display: block;
+}
+.dept-empty { color: var(--color-text-muted); font-size: 13px; }
+
+/* ── Badges ── */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 9px;
+  border-radius: 20px;
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+  width: fit-content;
+}
+.badge-personal { background: rgba(139, 92, 246, 0.1); color: #8b5cf6; border: 1px solid rgba(139, 92, 246, 0.2); }
+.badge-dept     { background: rgba(59, 130, 246, 0.1);  color: #3b82f6; border: 1px solid rgba(59, 130, 246, 0.2); }
+.badge-public   { background: rgba(16, 185, 129, 0.1);  color: #10b981; border: 1px solid rgba(16, 185, 129, 0.2); }
+.badge-policy   { background: rgba(245, 158, 11, 0.1);  color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.2); }
+
+/* ── Status badges ── */
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 20px;
+  white-space: nowrap;
+  width: fit-content;
+}
+.status-pending    { background: rgba(245, 158, 11, 0.1);  color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.2); }
+.status-approved   { background: rgba(16, 185, 129, 0.1);  color: #10b981; border: 1px solid rgba(16, 185, 129, 0.2); }
+.status-rejected   { background: rgba(239, 68, 68, 0.1);   color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.2); }
+.status-expired    { background: rgba(239, 68, 68, 0.1);   color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.2); }
+.status-processing { background: rgba(59, 130, 246, 0.1);  color: #3b82f6; border: 1px solid rgba(59, 130, 246, 0.2); }
+.status-failed     { background: rgba(239, 68, 68, 0.1);   color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.2); }
+
+/* Processing spinner inside badge */
+.status-spinner {
+  width: 10px; height: 10px;
+  border: 1.5px solid rgba(59, 130, 246, 0.3);
+  border-top-color: #3b82f6;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  flex-shrink: 0;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.fail-hint { display: flex; align-items: center; cursor: help; }
+.req-type  { opacity: 0.7; font-size: 10px; }
+
+/* OK check mark */
+.status-ok {
   color: var(--color-text-muted);
-  font-size: 14px;
+  opacity: 0.4;
+  display: flex;
+  align-items: center;
+}
+
+/* ── List item transition ── */
+.list-item-enter-active { transition: all 0.25s ease; }
+.list-item-leave-active { transition: all 0.18s ease; }
+.list-item-enter-from   { opacity: 0; transform: translateY(-6px); }
+.list-item-leave-to     { opacity: 0; }
+
+/* ── Empty state ── */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 56px 24px;
+  gap: 10px;
+  color: var(--color-text-muted);
+}
+.empty-illus {
+  width: 80px; height: 80px;
+  color: var(--color-text-muted);
+  opacity: 0.5;
+  margin-bottom: 4px;
+}
+.empty-title {
+  font-size: 15px; font-weight: 600;
+  color: var(--color-text-secondary);
+  margin: 0;
+}
+.empty-sub {
+  font-size: 13px; color: var(--color-text-muted);
+  margin: 0;
 }
 
 /* ── Action buttons ── */
 .btn-icon {
-  background: none; border: none;
+  background: none;
+  border: none;
   cursor: pointer;
   color: var(--color-text-muted);
-  padding: 5px; border-radius: 6px;
+  padding: 6px;
+  border-radius: 7px;
   display: flex; align-items: center; justify-content: center;
   transition: color 0.15s, background 0.15s;
 }
 .btn-icon:hover               { color: var(--color-text-primary); background: var(--color-bg-hover); }
-.btn-icon.delete:hover        { color: #ef4444; background: rgba(239,68,68,0.08); }
-.btn-icon.retry:hover         { color: #3b82f6; background: rgba(59,130,246,0.08); }
-.btn-icon.rename:hover        { color: var(--color-accent, #6366f1); background: rgba(99,102,241,0.08); }
+.btn-icon.delete:hover        { color: #ef4444; background: rgba(239, 68, 68, 0.08); }
+.btn-icon.retry:hover         { color: #3b82f6; background: rgba(59, 130, 246, 0.08); }
+.btn-icon.rename:hover        { color: var(--color-accent, #6366f1); background: rgba(99, 102, 241, 0.08); }
 
 .admin-actions { display: flex; gap: 4px; }
-.btn-approve { background: #10b981; color: white; border: none; border-radius: 4px; width: 24px; height: 24px; cursor: pointer; font-size: 12px; }
-.btn-reject  { background: #ef4444; color: white; border: none; border-radius: 4px; width: 24px; height: 24px; cursor: pointer; font-size: 12px; }
-.btn-approve:hover { background: #059669; }
-.btn-reject:hover  { background: #dc2626; }
+.btn-approve {
+  background: rgba(16, 185, 129, 0.1);
+  color: #10b981;
+  border: 1px solid rgba(16, 185, 129, 0.2);
+  border-radius: 7px;
+  width: 28px; height: 28px;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.15s;
+}
+.btn-approve:hover { background: #10b981; color: white; }
+.btn-reject {
+  background: rgba(239, 68, 68, 0.08);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  border-radius: 7px;
+  width: 28px; height: 28px;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.15s;
+}
+.btn-reject:hover { background: #ef4444; color: white; }
 
+/* ── Publish dropdown ── */
 .dropdown { position: relative; display: inline-block; }
 .action-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
   background: var(--color-bg-tertiary);
   color: var(--color-text-primary);
-  border: 1px solid var(--color-border);
-  padding: 4px 8px; font-size: 12px; border-radius: 4px; cursor: pointer;
+  border: 1.5px solid var(--color-border);
+  padding: 5px 10px;
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: 7px;
+  cursor: pointer;
   white-space: nowrap;
+  transition: all 0.15s;
 }
+.action-btn:hover { border-color: var(--color-accent); color: var(--color-accent); }
+
 .dropdown-content {
-  display: none; position: absolute; right: 0;
-  background: var(--color-bg-card); min-width: 150px;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.15);
-  z-index: 10; border: 1px solid var(--color-border); border-radius: 8px;
+  display: none;
+  position: absolute;
+  right: 0; top: calc(100% + 6px);
+  background: var(--color-bg-card);
+  min-width: 170px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.15);
+  z-index: 20;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
   overflow: hidden;
+  animation: dropdownIn 0.15s ease;
 }
+@keyframes dropdownIn {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
 .dropdown-content a {
   color: var(--color-text-primary);
-  padding: 10px 14px; text-decoration: none;
-  display: block; font-size: 13px; cursor: pointer;
+  padding: 10px 14px;
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.12s;
 }
 .dropdown-content a:hover { background: var(--color-bg-hover); }
 .dropdown:hover .dropdown-content { display: block; }
 
 /* ── Inline Rename ── */
 .rename-inline {
-  display: flex; align-items: center; gap: 4px; width: 100%;
+  display: flex; align-items: center; gap: 5px; width: 100%;
 }
 .rename-input {
-  flex: 1; padding: 3px 7px; font-size: 13px;
-  border: 1px solid var(--color-accent, #3b82f6);
-  border-radius: 4px;
+  flex: 1;
+  padding: 4px 8px;
+  font-size: 13px;
+  border: 1.5px solid var(--color-accent, #3b82f6);
+  border-radius: 6px;
   background: var(--color-bg-primary);
   color: var(--color-text-primary);
-  outline: none; min-width: 0;
+  outline: none;
+  min-width: 0;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.08);
 }
 .rename-save,
 .rename-cancel {
-  flex-shrink: 0; width: 24px; height: 24px; border: none;
-  border-radius: 4px; font-size: 13px; cursor: pointer;
-  display: flex; align-items: center; justify-content: center; padding: 0;
+  flex-shrink: 0;
+  width: 26px; height: 26px;
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  padding: 0;
+  transition: all 0.15s;
 }
 .rename-save   { background: #22c55e; color: #fff; }
 .rename-save:hover { background: #16a34a; }
 .rename-cancel { background: var(--color-bg-tertiary); color: var(--color-text-muted); }
-.rename-cancel:hover { background: var(--color-bg-hover); }
+.rename-cancel:hover { background: var(--color-bg-hover); color: var(--color-text-primary); }
 </style>
