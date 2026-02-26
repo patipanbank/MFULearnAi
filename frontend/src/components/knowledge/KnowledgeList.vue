@@ -346,10 +346,9 @@ const cancelRename = () => { renamingId.value = null }
               v-if="item.type === 'personal' && String(item.ownerId) === String(authStore.userId) && (!item.requestStatus || item.requestStatus === 'none' || item.requestStatus === 'rejected')"
               class="dropdown"
             >
-              <button class="action-btn">
-                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/><path d="M5 21h14"/></svg>
-                <span class="btn-label">{{ isAdmin ? t('directPublishBtn') : t('publishBtn') }}</span>
-                <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+              <button class="action-btn" :title="isAdmin ? t('directPublishBtn') : t('publishBtn')">
+                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/><path d="M5 21h14"/></svg>
+                <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
               </button>
               <div class="dropdown-content">
                 <a @click="handleRequestPublish(item._id, 'department')">
@@ -520,118 +519,136 @@ const cancelRename = () => { renamingId.value = null }
 .filter-dot.public     { background: #10b981; }
 .filter-dot.policy     { background: #f59e0b; }
 
-/* ── kb-list ── */
+/* ── kb-list: SINGLE grid spanning all rows ── */
+/*
+  Architecture: .kb-list is the grid container.
+  .kb-row uses display:contents so each cell participates
+  in the SAME grid tracks → true column alignment regardless
+  of content width differences per row.
+  Columns: name(1fr) | type(96px) | dept(130px) | status(136px) | actions(96px)
+*/
 .kb-list {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 96px 130px 136px 96px;
   border: 1px solid var(--color-border);
   border-radius: 14px;
   overflow: hidden;
   background: var(--color-bg-secondary);
 }
 
-/* Grid: name | type | dept | status | actions */
 .kb-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 105px 120px 140px 160px;
-  grid-template-areas: "name type dept status actions";
-  column-gap: 12px;
-  padding: 12px 16px;
-  align-items: center;
-  border-bottom: 1px solid var(--color-border);
-  cursor: pointer;
-  transition: background 0.12s;
-  position: relative;
-}
-.kb-row:last-child { border-bottom: none; }
-.kb-row:not(.kb-row--header):hover {
-  background: var(--color-bg-hover, rgba(99, 102, 241, 0.03));
-}
-/* Left accent line on hover */
-.kb-row:not(.kb-row--header):hover::before {
-  content: '';
-  position: absolute;
-  left: 0; top: 8px; bottom: 8px;
-  width: 3px;
-  border-radius: 0 3px 3px 0;
-  background: var(--color-accent, #6366f1);
-  opacity: 0.7;
+  display: contents;
 }
 
-/* Header row */
-.kb-row--header {
-  cursor: default;
-  background: var(--color-bg-tertiary);
+/* Every direct cell gets common padding + border-bottom */
+.kb-row > .kb-col {
+  padding: 12px 8px;
+  border-bottom: 1px solid var(--color-border);
+  align-self: center;
+  min-width: 0;
+  background: transparent;
+  transition: background 0.12s;
+}
+.kb-row > .kb-col:first-child { padding-left: 16px; }
+.kb-row > .kb-col:last-child  { padding-right: 16px; }
+
+/* Hover: highlight all cells in hovered row via :has() */
+.kb-list:has(.kb-row > .kb-col:not(.kb-col--header):hover)
+  .kb-row:has(> .kb-col:hover) > .kb-col {
+  background: var(--color-bg-hover, rgba(99, 102, 241, 0.03));
+}
+
+/* Accent left border on hover — on the name cell */
+.kb-row:not(.kb-row--header) > .kb-col--name:hover,
+.kb-row:not(.kb-row--header):has(> .kb-col:hover) > .kb-col--name {
+  box-shadow: inset 3px 0 0 var(--color-accent, #6366f1);
+}
+
+/* Remove bottom border on last data row */
+.kb-row:last-child > .kb-col { border-bottom: none; }
+
+/* Pointer cursor on data rows */
+.kb-row:not(.kb-row--header) > .kb-col { cursor: pointer; }
+.kb-row:not(.kb-row--header) > .kb-col--actions { cursor: default; }
+
+/* ── Header row ── */
+.kb-row--header > .kb-col {
+  background: var(--color-bg-tertiary) !important;
+  cursor: default !important;
+  box-shadow: none !important;
   font-size: 10.5px; font-weight: 700;
   color: var(--color-text-muted);
   text-transform: uppercase; letter-spacing: 0.7px;
-  padding: 8px 16px;
+  padding-top: 9px; padding-bottom: 9px;
+  border-bottom: 1px solid var(--color-border);
 }
-.kb-row--header:hover { background: var(--color-bg-tertiary); }
-.kb-row--header::before { display: none !important; }
 
-.kb-col--name    { grid-area: name;    display: flex; align-items: center; gap: 10px; min-width: 0; }
-.kb-col--type    { grid-area: type;    display: flex; flex-direction: column; gap: 4px; }
-.kb-col--dept    { grid-area: dept; }
-.kb-col--status  { grid-area: status;  display: flex; align-items: center; gap: 4px; min-width: 0; }
-.kb-col--actions { grid-area: actions; display: flex; gap: 4px; align-items: center; justify-content: flex-end; flex-wrap: nowrap; min-width: 0; }
+.kb-col--name    { display: flex; align-items: center; gap: 10px; }
+.kb-col--type    { display: flex; flex-direction: column; gap: 4px; }
+.kb-col--dept    { }
+.kb-col--status  { display: flex; align-items: center; gap: 4px; }
+.kb-col--actions { display: flex; gap: 4px; align-items: center; justify-content: flex-end; }
 
-/* Tablet ≤ 900px: hide dept */
+/* Tablet ≤ 900px: hide dept column */
 @media (max-width: 900px) {
-  .kb-row {
-    grid-template-columns: minmax(0, 1fr) 105px 140px 160px;
-    grid-template-areas: "name type status actions";
+  .kb-list {
+    grid-template-columns: minmax(0, 1fr) 96px 136px 96px;
   }
   .kb-col--dept { display: none; }
 }
 
-/* Small tablet ≤ 720px: tighter columns, no dept */
+/* Small tablet 601-720px: tighter */
 @media (max-width: 720px) and (min-width: 601px) {
-  .kb-row {
-    grid-template-columns: minmax(0, 1fr) 90px 120px 130px;
-    grid-template-areas: "name type status actions";
+  .kb-list {
+    grid-template-columns: minmax(0, 1fr) 88px 120px 88px;
   }
 }
 
-/* Mobile ≤ 600px */
+/* Mobile ≤ 600px: switch to block card layout per item */
 @media (max-width: 600px) {
+  .kb-list {
+    display: block; /* exit grid mode */
+  }
+
+  .kb-row--header { display: none; }
+
+  /* Each data row becomes a flex card */
   .kb-row {
+    display: grid;
     grid-template-columns: 1fr 1fr;
     grid-template-areas:
-      "name     name"
-      "type     status"
-      "actions  actions";
+      "name    name"
+      "type    status"
+      "actions actions";
     row-gap: 8px;
     column-gap: 8px;
-    padding: 14px 14px;
-    align-items: start;
+    padding: 14px;
+    border-bottom: 1px solid var(--color-border);
+    cursor: pointer;
+    transition: background 0.12s;
+    background: transparent;
   }
-  .kb-row--header { display: none; }
-  .kb-col--dept   { display: none; }
+  .kb-row:last-child { border-bottom: none; }
+  .kb-row:hover { background: var(--color-bg-hover, rgba(99,102,241,0.03)); }
 
-  /* name: full width, icon stays inline */
-  .kb-col--name { align-items: flex-start; }
-
-  /* type: left-align, row direction */
-  .kb-col--type {
-    flex-direction: row;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: flex-start;
-    gap: 6px;
+  /* Reset cell styles set by container-grid rules */
+  .kb-row > .kb-col {
+    padding: 0;
+    border-bottom: none;
+    background: transparent;
+    cursor: inherit;
+    box-shadow: none;
   }
+  .kb-row > .kb-col:first-child { padding-left: 0; }
+  .kb-row > .kb-col:last-child  { padding-right: 0; }
 
-  /* status: right-align, row direction */
-  .kb-col--status {
-    flex-direction: row;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: flex-end;
-    gap: 6px;
-  }
-  /* hide the "all good" ✓ icon on mobile to save space */
+  .kb-col--name    { grid-area: name;    align-items: flex-start; }
+  .kb-col--type    { grid-area: type;    flex-direction: row; flex-wrap: wrap; align-items: center; gap: 6px; }
+  .kb-col--dept    { display: none; }
+  .kb-col--status  { grid-area: status;  flex-direction: row; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 6px; }
   .kb-col--status .status-ok { display: none; }
-
-  /* actions: full-width action bar */
   .kb-col--actions {
+    grid-area: actions;
     justify-content: flex-start;
     flex-wrap: wrap;
     gap: 6px;
@@ -842,31 +859,23 @@ const cancelRename = () => { renamingId.value = null }
 .btn-reject:hover { background: #ef4444; color: white; }
 
 /* ── Publish dropdown ── */
-.dropdown { position: relative; display: inline-flex; flex-shrink: 1; min-width: 0; }
+.dropdown { position: relative; display: inline-flex; flex-shrink: 0; }
+/* Publish trigger: compact icon-only button */
 .action-btn {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  justify-content: center;
+  gap: 3px;
   background: var(--color-bg-tertiary);
   color: var(--color-text-primary);
   border: 1.5px solid var(--color-border);
-  padding: 5px 10px;
-  font-size: 12px;
-  font-weight: 500;
+  padding: 5px 8px;
   border-radius: 7px;
   cursor: pointer;
-  min-width: 0;
-  max-width: 130px;
+  flex-shrink: 0;
   transition: all 0.15s;
 }
 .action-btn:hover { border-color: var(--color-accent); color: var(--color-accent); }
-.btn-label {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  flex: 1;
-  min-width: 0;
-}
 
 .dropdown-content {
   display: none;
