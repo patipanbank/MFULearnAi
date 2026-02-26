@@ -599,16 +599,16 @@ const cancelRename = () => { renamingId.value = null }
 .kb-col--status  { display: flex; align-items: center; gap: 4px; }
 .kb-col--actions { display: flex; gap: 3px; align-items: center; justify-content: flex-end; flex-wrap: nowrap; overflow: hidden; }
 
-/* Tablet ≤ 900px: hide dept, keep proportions with minimums */
-@media (max-width: 900px) {
+/* Tablet 769-900px: hide dept */
+@media (max-width: 900px) and (min-width: 769px) {
   .kb-list {
     grid-template-columns: minmax(0, 4fr) minmax(80px, 1fr) minmax(90px, 1fr) minmax(130px, 1.5fr);
   }
   .kb-col--dept { display: none; }
 }
 
-/* Mobile ≤ 600px: switch to block card layout per item */
-@media (max-width: 600px) {
+/* Mobile ≤ 768px: switch to card layout — avoids cramped 4-column grid */
+@media (max-width: 768px) {
   .kb-list {
     display: block; /* exit grid mode */
   }
@@ -653,6 +653,7 @@ const cancelRename = () => { renamingId.value = null }
     justify-content: flex-end;
     flex-wrap: wrap;
     gap: 6px;
+    overflow: visible;
   }
 }
 
