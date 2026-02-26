@@ -595,9 +595,9 @@ const cancelRename = () => { renamingId.value = null }
 
 .kb-col--name    { display: flex; align-items: center; gap: 10px; }
 .kb-col--type    { display: flex; flex-direction: column; gap: 4px; }
-.kb-col--dept    { }
+.kb-col--dept    { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .kb-col--status  { display: flex; align-items: center; gap: 4px; }
-.kb-col--actions { display: flex; gap: 4px; align-items: center; justify-content: flex-end; flex-wrap: wrap; }
+.kb-col--actions { display: flex; gap: 3px; align-items: center; justify-content: flex-end; flex-wrap: nowrap; overflow: hidden; }
 
 /* Tablet ≤ 900px: hide dept, keep 6:1:1:1 proportions */
 @media (max-width: 900px) {
@@ -815,10 +815,11 @@ const cancelRename = () => { renamingId.value = null }
   border: none;
   cursor: pointer;
   color: var(--color-text-muted);
-  padding: 6px;
-  border-radius: 7px;
+  padding: 4px;
+  border-radius: 6px;
   display: flex; align-items: center; justify-content: center;
   transition: color 0.15s, background 0.15s;
+  flex-shrink: 0;
 }
 .btn-icon:hover               { color: var(--color-text-primary); background: var(--color-bg-hover); }
 .btn-icon.delete:hover        { color: #ef4444; background: rgba(239, 68, 68, 0.08); }
@@ -856,14 +857,15 @@ const cancelRename = () => { renamingId.value = null }
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 3px;
+  gap: 2px;
   background: var(--color-bg-tertiary);
   color: var(--color-text-primary);
   border: 1.5px solid var(--color-border);
-  padding: 5px 8px;
-  border-radius: 7px;
+  padding: 4px 6px;
+  border-radius: 6px;
   cursor: pointer;
-  flex-shrink: 0;
+  flex-shrink: 1;
+  min-width: 0;
   transition: all 0.15s;
 }
 .action-btn:hover { border-color: var(--color-accent); color: var(--color-accent); }
