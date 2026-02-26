@@ -525,16 +525,16 @@ const cancelRename = () => { renamingId.value = null }
   of content width differences per row.
   Column budget (desktop ≥901px):
     name    → 1fr   (flexible)
-    name    → 6fr  (60% — dominant column)
-    type    → 1fr  (10%)
-    dept    → 1fr  (10%)
-    status  → 1fr  (10%)
-    actions → 1fr  (10%)
-    Using pure fr units ensures proportional sizing and consistent borders across all rows.
+    name    → flexible (takes remaining space, min 0)
+    type    → min 80px,  grow 1fr
+    dept    → min 100px, grow 1fr
+    status  → min 90px,  grow 1fr
+    actions → min 130px, grow 1.5fr  (always enough for 3 icon btns + publish)
+    Using minmax ensures columns never collapse below content while remaining proportional.
 */
 .kb-list {
   display: grid;
-  grid-template-columns: 6fr 1fr 1fr 1fr 1fr;
+  grid-template-columns: minmax(0, 4fr) minmax(80px, 1fr) minmax(100px, 1fr) minmax(90px, 1fr) minmax(130px, 1.5fr);
   border: 1px solid var(--color-border);
   border-radius: 14px;
   overflow: hidden;
@@ -599,10 +599,10 @@ const cancelRename = () => { renamingId.value = null }
 .kb-col--status  { display: flex; align-items: center; gap: 4px; }
 .kb-col--actions { display: flex; gap: 3px; align-items: center; justify-content: flex-end; flex-wrap: nowrap; overflow: hidden; }
 
-/* Tablet ≤ 900px: hide dept, keep 6:1:1:1 proportions */
+/* Tablet ≤ 900px: hide dept, keep proportions with minimums */
 @media (max-width: 900px) {
   .kb-list {
-    grid-template-columns: 6fr 1fr 1fr 1fr;
+    grid-template-columns: minmax(0, 4fr) minmax(80px, 1fr) minmax(90px, 1fr) minmax(130px, 1.5fr);
   }
   .kb-col--dept { display: none; }
 }
