@@ -163,7 +163,7 @@ const handleDelete = async () => {
                   {{ t('filterDepartment') }}
                 </button>
                 <button
-                  v-if="isSuperadmin"
+                  v-if="isAdmin"
                   class="type-option"
                   :class="{ active: type === 'default' }"
                   @click="type = 'default'"

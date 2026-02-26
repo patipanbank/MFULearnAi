@@ -618,6 +618,7 @@ export class KnowledgeService {
         if (user.role === 'superadmin') allowed = true; // Superadmin can create any collection type
         else if (data.type === 'personal') allowed = true;
         else if (data.type === 'department' && this.isAdmin(user)) allowed = true;
+        else if (data.type === 'default' && this.isAdmin(user)) allowed = true;
 
         if (!allowed) throw new Error('Not allowed to create this collection type');
 
@@ -631,13 +632,27 @@ export class KnowledgeService {
         });
     }
 
-    static async updateCollection(id: string, user: UserContext, data: { name?: string, description?: string }) {
+    static async updateCollection(id: string, user: UserContext, data: { name?: string, description?: string, type?: string }) {
         const col = await Collection.findById(id);
         if (!col) throw new Error('Not found');
         if (!this.canManageCollection(user, col)) throw new Error('Permission denied');
 
         if (data.name) col.name = data.name;
         if (data.description !== undefined) col.description = data.description;
+
+        // Allow type change (e.g. personal → department/default) with permission check
+        if (data.type && data.type !== col.type) {
+            const validTypes = ['personal', 'department', 'default'];
+            if (!validTypes.includes(data.type)) throw new Error('Invalid collection type');
+
+            // Only admin/superadmin can change to department or default (public)
+            if ((data.type === 'department' || data.type === 'default') && !this.isAdmin(user)) {
+                throw new Error('Only admin can set collection to department or public');
+            }
+
+            col.type = data.type as 'personal' | 'department' | 'default';
+        }
+
         await col.save();
         return col;
     }
