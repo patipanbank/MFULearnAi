@@ -11,6 +11,8 @@ const authStore = useAuthStore()
 const knowledgeStore = useKnowledgeStore()
 const { t } = useLanguage()
 
+const isAdmin = computed(() => authStore.role === 'admin' || authStore.role === 'superadmin')
+
 const emit = defineEmits(['open'])
 
 const filterType = ref('all') // 'all', 'personal', 'department', 'public'
@@ -78,7 +80,10 @@ const filterOptions = computed(() => [
 ])
 
 const handleRequestPublish = async (id, type) => {
-    if (await showConfirm(t('confirmPublishRequest').replace('{type}', type), { variant: 'info', title: t('publishRequestTitle') })) {
+    const confirmMsg = isAdmin.value
+        ? t('confirmDirectPublish').replace('{type}', type)
+        : t('confirmPublishRequest').replace('{type}', type)
+    if (await showConfirm(confirmMsg, { variant: 'info', title: t('publishRequestTitle') })) {
         await knowledgeStore.requestPublish(id, type)
     }
 }
@@ -190,11 +195,11 @@ const handleRetry = async (id) => {
             </td>
             <td class="actions-cell">
                <!-- Request Publish (Owner Only) -->
-               <div v-if="item.type === 'personal' && item.ownerId === authStore.userId && item.requestStatus === 'none'" class="dropdown" @click.stop>
-                  <button class="action-btn">{{ t('publishBtn') }}</button>
+               <div v-if="item.type === 'personal' && item.ownerId === authStore.userId && (item.requestStatus === 'none' || item.requestStatus === 'rejected')" class="dropdown" @click.stop>
+                  <button class="action-btn">{{ isAdmin ? t('directPublishBtn') : t('publishBtn') }}</button>
                   <div class="dropdown-content">
                      <a @click="handleRequestPublish(item._id, 'department')">{{ t('toDepartment') }}</a>
-                     <a href="#" class="disabled">{{ t('toPublicAdminOnly') }}</a> 
+                     <a @click="handleRequestPublish(item._id, 'public')">{{ t('toPublic') }}</a>
                   </div>
                </div>
 

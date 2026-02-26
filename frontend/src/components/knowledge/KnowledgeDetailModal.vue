@@ -164,6 +164,7 @@ const saveTagsToServer = async () => {
 // Inline confirm for publish request
 const showPublishConfirm = ref(false)
 const publishing = ref(false)
+const publishTargetType = ref('department') // 'department' | 'public'
 
 const askPublishConfirm = () => {
     showPublishConfirm.value = true
@@ -178,7 +179,7 @@ const handleRequestPublish = async () => {
     showPublishConfirm.value = false
 
     try {
-        await knowledgeStore.requestPublish(props.item._id, 'department')
+        await knowledgeStore.requestPublish(props.item._id, publishTargetType.value)
         emit('success')
         emit('close')
     } catch (e) {
@@ -527,6 +528,25 @@ const getQualityClass = (score) => {
               <button @click="publishError = ''">×</button>
             </div>
 
+            <!-- Target type selection -->
+            <div v-if="item.requestStatus === 'none' || item.requestStatus === 'rejected'" class="publish-target-select" style="margin-bottom: 12px;">
+              <label style="font-size: 13px; color: var(--color-text-muted); margin-bottom: 6px; display: block;">{{ t('publishTargetLabel') }}</label>
+              <div style="display: flex; gap: 8px;">
+                <button
+                  class="btn-action"
+                  :class="{ 'btn-active': publishTargetType === 'department' }"
+                  style="flex: 1; padding: 8px 12px;"
+                  @click="publishTargetType = 'department'"
+                >{{ t('toDepartment') }}</button>
+                <button
+                  class="btn-action"
+                  :class="{ 'btn-active': publishTargetType === 'public' }"
+                  style="flex: 1; padding: 8px 12px;"
+                  @click="publishTargetType = 'public'"
+                >{{ t('toPublic') }}</button>
+              </div>
+            </div>
+
             <div class="btn-group">
               <button
                 v-if="item.requestStatus === 'none' || item.requestStatus === 'rejected'"
@@ -539,14 +559,14 @@ const getQualityClass = (score) => {
                   <polyline points="16 6 12 2 8 6"></polyline>
                   <line x1="12" y1="2" x2="12" y2="15"></line>
                 </svg>
-                {{ publishing ? t('loadingData') : t('requestPublishToDept') }}
+                {{ publishing ? t('loadingData') : (isAdmin ? t('directPublishBtn') : t('requestPublishAction')) }}
               </button>
             </div>
 
             <!-- Inline Publish Confirm -->
             <Transition name="confirm-fade">
               <div v-if="showPublishConfirm" class="publish-confirm">
-                <p>{{ t('confirmPublishToDept') }}</p>
+                <p>{{ isAdmin ? t('confirmDirectPublish').replace('{type}', publishTargetType) : t('confirmPublishRequest').replace('{type}', publishTargetType) }}</p>
                 <div class="confirm-btns">
                   <button class="btn-cancel" @click="cancelPublish">{{ t('cancel') }}</button>
                   <button class="btn-confirm" @click="handleRequestPublish">{{ t('confirm') }}</button>
@@ -1356,6 +1376,13 @@ h4 {
 .btn-action:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+.btn-action.btn-active {
+  background: linear-gradient(135deg, var(--color-accent), #7c3aed);
+  color: white;
+  border-color: transparent;
+  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.25);
 }
 
 /* ─── Publish Confirm ────────────────────────────────────────── */

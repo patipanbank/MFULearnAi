@@ -549,16 +549,42 @@ export class KnowledgeService {
     }
 
     // --- Publishing ---
+    /**
+     * Request to publish personal knowledge to department/public.
+     * - admin/superadmin: auto-approved (direct publish, no approval needed)
+     * - staff/student: creates a pending request for admin review
+     */
     static async requestPublish(id: string, user: UserContext, targetType: string) {
         const kb = await Knowledge.findById(id);
         if (!kb) throw new Error('Not found');
         if (kb.ownerId !== user.userId) throw new Error('Only owner can request publish');
         if (kb.type !== 'personal') throw new Error('Only personal knowledge can be requested');
 
-        kb.requestStatus = 'pending';
         if (targetType !== 'public' && targetType !== 'department') {
             throw new Error('Invalid target type');
         }
+
+        // Admin/superadmin: auto-approve — directly change type without approval workflow
+        if (this.isAdmin(user)) {
+            // Superadmin can publish to any scope; admin can publish within their department
+            if (user.role !== 'superadmin' && targetType === 'public') {
+                // Admin publishing to public — allowed (they can create public directly too)
+            }
+            kb.type = targetType as 'public' | 'department';
+            kb.requestStatus = 'approved';
+            kb.requestedType = targetType as 'public' | 'department';
+            await kb.save();
+            LoggerService.info('knowledge_auto_published', {
+                knowledgeId: id,
+                targetType,
+                userId: user.userId,
+                role: user.role
+            });
+            return kb;
+        }
+
+        // Staff/student: create pending request for admin approval
+        kb.requestStatus = 'pending';
         kb.requestedType = targetType as 'public' | 'department';
         await kb.save();
         return kb;
