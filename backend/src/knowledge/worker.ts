@@ -49,6 +49,12 @@ export const processKnowledgeJob = async (job: Job) => {
                     maxRedirects: 5
                 });
 
+                // Guard: if Google returned HTML (login redirect) instead of binary XLSX
+                const contentType: string = sheetResponse.headers['content-type'] || '';
+                if (contentType.includes('text/html')) {
+                    throw new Error('Google Sheets export returned an HTML page — the sheet may not be publicly shared. Set sharing to "Anyone with the link" and retry.');
+                }
+
                 const xlsBuffer = Buffer.from(sheetResponse.data);
                 const workbook = XLSX.read(xlsBuffer, { type: 'buffer' });
 

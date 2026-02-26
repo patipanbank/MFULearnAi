@@ -586,12 +586,20 @@ export class KnowledgeService {
         kb.errorReason = '';
         await kb.save();
 
-        await knowledgeQueue.add('process-file', {
-            knowledgeId: kb._id.toString(),
-            s3Key: kb.s3Key,
-            mimetype: kb.contentType || 'application/pdf',
-            originalName: kb.title
-        });
+        // URL-sourced knowledge has no s3Key — re-queue as process-url
+        if (kb.contentSource && !kb.s3Key) {
+            await knowledgeQueue.add('process-url', {
+                knowledgeId: kb._id.toString(),
+                url: kb.contentSource
+            });
+        } else {
+            await knowledgeQueue.add('process-file', {
+                knowledgeId: kb._id.toString(),
+                s3Key: kb.s3Key,
+                mimetype: kb.contentType || 'application/pdf',
+                originalName: kb.title
+            });
+        }
 
         return kb;
     }
