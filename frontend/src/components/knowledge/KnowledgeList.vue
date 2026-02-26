@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, ref, onMounted, onUnmounted } from 'vue'
 import { useKnowledgeStore } from '@/stores/knowledge'
 import { useAuthStore } from '@/stores/auth'
 import { useLanguage } from '@/composables/useSettings'
@@ -184,10 +184,28 @@ const commitRename = async (id) => {
 }
 
 const cancelRename = () => { renamingId.value = null }
+
+// ── Responsive layout via ResizeObserver ──
+// Avoids @container CSS which is unreliable in Vue scoped styles
+const listEl = ref(null)
+const listSizeClass = ref('list-wide') // list-wide | list-medium | list-narrow
+
+let ro = null
+onMounted(() => {
+  if (!listEl.value) return
+  ro = new ResizeObserver(([entry]) => {
+    const w = entry.contentRect.width
+    if (w <= 660)       listSizeClass.value = 'list-narrow'
+    else if (w <= 860)  listSizeClass.value = 'list-medium'
+    else                listSizeClass.value = 'list-wide'
+  })
+  ro.observe(listEl.value)
+})
+onUnmounted(() => ro?.disconnect())
 </script>
 
 <template>
-  <div class="knowledge-list">
+  <div class="knowledge-list" ref="listEl" :class="listSizeClass">
     <!-- Search + Filters -->
     <div class="search-filters">
       <div class="search-bar" :class="{ focused: searchFocused }">
@@ -412,7 +430,6 @@ const cancelRename = () => { renamingId.value = null }
   display: flex;
   flex-direction: column;
   gap: 14px;
-  container-type: inline-size; /* enables @container queries on this element */
 }
 
 /* ── Search + Filters ── */
@@ -599,65 +616,49 @@ const cancelRename = () => { renamingId.value = null }
 .kb-col--status  { display: flex; align-items: center; gap: 4px; }
 .kb-col--actions { display: flex; gap: 3px; align-items: center; justify-content: flex-end; flex-wrap: nowrap; overflow: visible; }
 
-/* Container 661-860px: 4 columns (hide dept) */
-@container (max-width: 860px) and (min-width: 661px) {
-  .kb-list {
-    grid-template-columns: minmax(0, 1fr) 88px 110px 160px;
-  }
-  .kb-col--dept { display: none; }
+/* 4 columns: hide dept (ResizeObserver adds .list-medium) */
+.list-medium .kb-list {
+  grid-template-columns: minmax(0, 1fr) 88px 110px 160px;
 }
+.list-medium .kb-col--dept { display: none; }
 
-/* Container ≤660px: card layout — prevents cramped grid at small sizes */
-@container (max-width: 660px) {
-  .kb-list {
-    display: block;
-  }
-
-  .kb-row--header { display: none; }
-
-  .kb-row {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    grid-template-areas:
-      "name    name"
-      "type    status"
-      "actions actions";
-    row-gap: 8px;
-    column-gap: 8px;
-    padding: 14px;
-    border-bottom: 1px solid var(--color-border);
-    cursor: pointer;
-    transition: background 0.12s;
-    background: transparent;
-  }
-  .kb-row:last-child { border-bottom: none; }
-  .kb-row:hover { background: var(--color-bg-hover, rgba(99,102,241,0.03)); }
-
-  .kb-row > .kb-col {
-    padding: 0;
-    border-bottom: none;
-    background: transparent;
-    cursor: inherit;
-    box-shadow: none;
-    display: flex;
-  }
-  .kb-row > .kb-col:first-child { padding-left: 0; }
-  .kb-row > .kb-col:last-child  { padding-right: 0; }
-
-  .kb-col--name    { grid-area: name;    align-items: flex-start; }
-  .kb-col--type    { grid-area: type;    flex-direction: row; flex-wrap: wrap; align-items: center; gap: 6px; }
-  .kb-col--dept    { display: none; }
-  .kb-col--status  { grid-area: status;  flex-direction: row; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 6px; }
-  .kb-col--actions {
-    grid-area: actions;
-    justify-content: flex-start;
-    flex-wrap: nowrap;
-    gap: 6px;
-    overflow: visible;
-    border-top: 1px solid var(--color-border);
-    padding-top: 8px;
-  }
+/* Card layout (ResizeObserver adds .list-narrow) */
+.list-narrow .kb-list {
+  display: block;
 }
+.list-narrow .kb-row--header { display: none; }
+.list-narrow .kb-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-areas:
+    "name    name"
+    "type    status"
+    "actions actions";
+  row-gap: 8px;
+  column-gap: 8px;
+  padding: 14px;
+  border-bottom: 1px solid var(--color-border);
+  cursor: pointer;
+  transition: background 0.12s;
+  background: transparent;
+}
+.list-narrow .kb-row:last-child { border-bottom: none; }
+.list-narrow .kb-row:hover { background: var(--color-bg-hover, rgba(99,102,241,0.03)); }
+.list-narrow .kb-row > .kb-col {
+  padding: 0;
+  border-bottom: none;
+  background: transparent;
+  cursor: inherit;
+  box-shadow: none;
+  display: flex;
+}
+.list-narrow .kb-row > .kb-col:first-child { padding-left: 0; }
+.list-narrow .kb-row > .kb-col:last-child  { padding-right: 0; }
+.list-narrow .kb-col--name    { grid-area: name;    align-items: flex-start; }
+.list-narrow .kb-col--type    { grid-area: type;    flex-direction: row; flex-wrap: wrap; align-items: center; gap: 6px; }
+.list-narrow .kb-col--dept    { display: none; }
+.list-narrow .kb-col--status  { grid-area: status;  flex-direction: row; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 6px; }
+.list-narrow .kb-col--actions { grid-area: actions; justify-content: flex-start; flex-wrap: nowrap; gap: 6px; overflow: visible; border-top: 1px solid var(--color-border); padding-top: 8px; }
 
 /* ── File icon ── */
 .file-icon-wrap {
