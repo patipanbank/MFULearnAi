@@ -199,181 +199,125 @@ const cancelRename = () => { renamingId.value = null }
       </div>
     </div>
 
-    <!-- Table (Desktop) -->
-    <div class="table-container desktop-only">
-      <table class="data-table">
-        <thead>
-          <tr>
-            <th>{{ t('colName') }}</th>
-            <th>{{ t('colType') }}</th>
-            <th>{{ t('colDepartment') }}</th>
-            <th>{{ t('colStatus') }}</th>
-            <th>{{ t('colActions') }}</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="item in filteredKnowledge" :key="item._id" @click="$emit('open', item)" class="clickable-row">
-            <td class="col-name">
-              <div class="file-icon">📄</div>
-              <div class="name-column">
-                <!-- Folder Path -->
-                <span v-if="item.folder" class="folder-path text-muted" style="font-size: 11px; margin-bottom: 2px;">📁 {{ item.folder }}</span>
-                <!-- Inline rename input -->
-                <template v-if="renamingId === item._id">
-                  <div class="rename-inline" @click.stop>
-                    <input
-                      ref="renameInput"
-                      v-model="renameValue"
-                      class="rename-input"
-                      maxlength="200"
-                      @keyup.enter="commitRename(item._id)"
-                      @keyup.esc="cancelRename"
-                    />
-                    <button class="rename-save" @click.stop="commitRename(item._id)" title="Save">✓</button>
-                    <button class="rename-cancel" @click.stop="cancelRename" title="Cancel">✕</button>
-                  </div>
-                </template>
-                <template v-else>
-                  <span class="kb-title">
-                    {{ item.title }}
-                    <span v-if="item.version > 1" class="version-badge">v{{ item.version }}</span>
-                  </span>
-                  <div v-if="item.tags?.length" class="tag-chips-inline">
-                    <span v-for="tag in item.tags.slice(0, 3)" :key="tag" class="tag-mini">{{ tag }}</span>
-                    <span v-if="item.tags.length > 3" class="tag-more">+{{ item.tags.length - 3 }}</span>
-                  </div>
-                </template>
+    <!-- Knowledge Rows (unified responsive) -->
+    <div class="kb-list">
+      <!-- Header row -->
+      <div class="kb-row kb-row--header" aria-hidden="true">
+        <div class="kb-col kb-col--name">{{ t('colName') }}</div>
+        <div class="kb-col kb-col--type">{{ t('colType') }}</div>
+        <div class="kb-col kb-col--dept">{{ t('colDepartment') }}</div>
+        <div class="kb-col kb-col--status">{{ t('colStatus') }}</div>
+        <div class="kb-col kb-col--actions">{{ t('colActions') }}</div>
+      </div>
+
+      <!-- Data rows -->
+      <div
+        v-for="item in filteredKnowledge"
+        :key="item._id"
+        class="kb-row"
+        @click="$emit('open', item)"
+      >
+        <!-- Name -->
+        <div class="kb-col kb-col--name">
+          <span class="file-icon">📄</span>
+          <div class="name-stack">
+            <span v-if="item.folder" class="folder-crumb">📁 {{ item.folder }}</span>
+            <template v-if="renamingId === item._id">
+              <div class="rename-inline" @click.stop>
+                <input
+                  ref="renameInput"
+                  v-model="renameValue"
+                  class="rename-input"
+                  maxlength="200"
+                  @keyup.enter="commitRename(item._id)"
+                  @keyup.esc="cancelRename"
+                />
+                <button class="rename-save" @click.stop="commitRename(item._id)" title="Save">✓</button>
+                <button class="rename-cancel" @click.stop="cancelRename" title="Cancel">✕</button>
               </div>
-            </td>
-            <td>
-              <span class="badge" :class="getBadgeClass(item.type)">
-                {{ item.type }}
+            </template>
+            <template v-else>
+              <span class="kb-title">
+                {{ item.title }}
+                <span v-if="item.version > 1" class="version-badge">v{{ item.version }}</span>
               </span>
-              <!-- Expiry Check -->
-              <span v-if="item.expiresAt && new Date(item.expiresAt) < new Date()" class="status-badge status-expired">
-                 ⚠️ Expired
-              </span>
-            </td>
-            <td>{{ item.department }}</td>
-            <td>
-               <!-- Processing Status -->
-               <div v-if="item.processingStatus && item.processingStatus !== 'completed' && item.processingStatus !== 'none'" 
-                    class="status-badge" 
-                    :class="getProcessingBadgeClass(item.processingStatus)">
-                 {{ item.processingStatus === 'processing' ? t('processingStatus') : item.processingStatus }}
-                 <span v-if="item.processingStatus === 'failed'" :title="item.errorReason">⚠️</span>
-               </div>
-
-               <!-- Publish Status -->
-               <span v-else-if="item.requestStatus && item.requestStatus !== 'none'" class="status-badge" :class="getStatusBadge(item.requestStatus)">
-                 {{ item.requestStatus }}
-                 <span v-if="item.requestStatus === 'pending' && item.requestedType">
-                    ({{ item.requestedType }})
-                 </span>
-               </span>
-            </td>
-            <td class="actions-cell">
-               <!-- Request Publish (Owner Only) -->
-               <div v-if="item.type === 'personal' && String(item.ownerId) === String(authStore.userId) && (!item.requestStatus || item.requestStatus === 'none' || item.requestStatus === 'rejected')" class="dropdown" @click.stop>
-                  <button class="action-btn">{{ isAdmin ? t('directPublishBtn') : t('publishBtn') }}</button>
-                  <div class="dropdown-content">
-                     <a @click="handleRequestPublish(item._id, 'department')">{{ t('toDepartment') }}</a>
-                     <a @click="handleRequestPublish(item._id, 'public')">{{ t('toPublic') }}</a>
-                  </div>
-               </div>
-
-               <!-- Admin Approve/Reject -->
-               <div v-if="(authStore.role === 'admin' || authStore.role === 'superadmin') && item.requestStatus === 'pending'" class="admin-actions">
-                  <button class="btn-approve" @click.stop="handleApprove(item._id)">✓</button>
-                  <button class="btn-reject" @click.stop="handleReject(item._id)">✗</button>
-               </div>
-
-               <!-- Delete -->
-               <button v-if="canManage(item)" class="btn-icon delete" @click.stop="handleDelete(item._id)">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
-               </button>
-
-               <!-- Rename -->
-               <button v-if="canManage(item)" class="btn-icon rename" @click.stop="startRename(item, $event)" :title="t('renameKnowledge')">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-               </button>
-
-               <!-- Retry (Failed only) -->
-                <button v-if="item.processingStatus === 'failed'" class="btn-icon retry" @click.stop="handleRetry(item._id)" :title="t('retryProcessing')">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
-               </button>
-            </td>
-          </tr>
-          <tr v-if="filteredKnowledge.length === 0">
-             <td colspan="5" class="empty-row">{{ t('noKnowledgeFound') }}</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-
-    <!-- Mobile Cards -->
-    <div class="mobile-only">
-        <div 
-            v-for="item in filteredKnowledge" 
-            :key="item._id" 
-            class="knowledge-card"
-            @click="$emit('open', item)"
-        >
-            <div class="card-header">
-                <div class="card-title-group">
-                   <!-- Folder Path -->
-                   <div v-if="item.folder" class="folder-path text-muted" style="font-size: 11px; margin-bottom: 2px;">📁 {{ item.folder }}</div>
-                   <!-- Inline rename input (mobile) -->
-                   <template v-if="renamingId === item._id">
-                     <div class="rename-inline" @click.stop>
-                       <input
-                         ref="renameInput"
-                         v-model="renameValue"
-                         class="rename-input"
-                         maxlength="200"
-                         @keyup.enter="commitRename(item._id)"
-                         @keyup.esc="cancelRename"
-                       />
-                       <button class="rename-save" @click.stop="commitRename(item._id)" title="Save">✓</button>
-                       <button class="rename-cancel" @click.stop="cancelRename" title="Cancel">✕</button>
-                     </div>
-                   </template>
-                   <template v-else>
-                     <div class="card-title">
-                       <div class="file-icon">📄</div>
-                       {{ item.title }}
-                       <span v-if="item.version > 1" class="version-badge">v{{ item.version }}</span>
-                     </div>
-                   </template>
-                </div>
-                <div class="card-header-actions" @click.stop>
-                  <button v-if="canManage(item)" class="btn-icon rename" @click.stop="startRename(item, $event)" :title="t('renameKnowledge')">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                  </button>
-                  <button v-if="canManage(item)" class="btn-icon delete" @click.stop="handleDelete(item._id)">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
-                  </button>
-                </div>
+            </template>
+            <div v-if="item.tags?.length" class="tag-chips-inline">
+              <span v-for="tag in item.tags.slice(0, 3)" :key="tag" class="tag-mini">{{ tag }}</span>
+              <span v-if="item.tags.length > 3" class="tag-more">+{{ item.tags.length - 3 }}</span>
             </div>
-            
-            <div class="card-details">
-                <span class="badge" :class="getBadgeClass(item.type)">{{ item.type }}</span>
-                <span class="detail-label">{{ item.department }}</span>
-            </div>
-
-            <div class="card-details" v-if="(item.requestStatus && item.requestStatus !== 'none') || (item.expiresAt && new Date(item.expiresAt) < new Date())">
-                 <span v-if="item.requestStatus && item.requestStatus !== 'none'" class="status-badge" :class="getStatusBadge(item.requestStatus)">
-                     {{ item.requestStatus }}
-                 </span>
-                 <span v-if="item.expiresAt && new Date(item.expiresAt) < new Date()" class="status-badge status-expired">
-                     ⚠️ Expired
-                 </span>
-            </div>
+          </div>
         </div>
-        
-        <div v-if="filteredKnowledge.length === 0" class="empty-row">
-             {{ t('noKnowledgeFound') }}
+
+        <!-- Type + expiry -->
+        <div class="kb-col kb-col--type">
+          <span class="badge" :class="getBadgeClass(item.type)">{{ item.type }}</span>
+          <span v-if="item.expiresAt && new Date(item.expiresAt) < new Date()" class="status-badge status-expired">⚠️ Expired</span>
         </div>
+
+        <!-- Department -->
+        <div class="kb-col kb-col--dept">{{ item.department }}</div>
+
+        <!-- Processing / Publish status -->
+        <div class="kb-col kb-col--status">
+          <div
+            v-if="item.processingStatus && item.processingStatus !== 'completed' && item.processingStatus !== 'none'"
+            class="status-badge"
+            :class="getProcessingBadgeClass(item.processingStatus)"
+          >
+            {{ item.processingStatus === 'processing' ? t('processingStatus') : item.processingStatus }}
+            <span v-if="item.processingStatus === 'failed'" :title="item.errorReason">⚠️</span>
+          </div>
+          <span
+            v-else-if="item.requestStatus && item.requestStatus !== 'none'"
+            class="status-badge"
+            :class="getStatusBadge(item.requestStatus)"
+          >
+            {{ item.requestStatus }}
+            <span v-if="item.requestStatus === 'pending' && item.requestedType">({{ item.requestedType }})</span>
+          </span>
+        </div>
+
+        <!-- Actions -->
+        <div class="kb-col kb-col--actions" @click.stop>
+          <!-- Publish dropdown (owner only) -->
+          <div
+            v-if="item.type === 'personal' && String(item.ownerId) === String(authStore.userId) && (!item.requestStatus || item.requestStatus === 'none' || item.requestStatus === 'rejected')"
+            class="dropdown"
+          >
+            <button class="action-btn">{{ isAdmin ? t('directPublishBtn') : t('publishBtn') }}</button>
+            <div class="dropdown-content">
+              <a @click="handleRequestPublish(item._id, 'department')">{{ t('toDepartment') }}</a>
+              <a @click="handleRequestPublish(item._id, 'public')">{{ t('toPublic') }}</a>
+            </div>
+          </div>
+
+          <!-- Admin Approve/Reject -->
+          <div v-if="(authStore.role === 'admin' || authStore.role === 'superadmin') && item.requestStatus === 'pending'" class="admin-actions">
+            <button class="btn-approve" @click.stop="handleApprove(item._id)" title="Approve">✓</button>
+            <button class="btn-reject"  @click.stop="handleReject(item._id)"  title="Reject">✗</button>
+          </div>
+
+          <!-- Rename -->
+          <button v-if="canManage(item)" class="btn-icon rename" @click.stop="startRename(item, $event)" :title="t('renameKnowledge')">
+            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          </button>
+
+          <!-- Delete -->
+          <button v-if="canManage(item)" class="btn-icon delete" @click.stop="handleDelete(item._id)" :title="t('delete')">
+            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+          </button>
+
+          <!-- Retry (failed only) -->
+          <button v-if="item.processingStatus === 'failed'" class="btn-icon retry" @click.stop="handleRetry(item._id)" :title="t('retryProcessing')">
+            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
+          </button>
+        </div>
+      </div>
+
+      <div v-if="filteredKnowledge.length === 0" class="empty-row">
+        {{ t('noKnowledgeFound') }}
+      </div>
     </div>
   </div>
 </template>
@@ -436,6 +380,7 @@ const cancelRename = () => { renamingId.value = null }
 .filters {
   display: flex;
   gap: 8px;
+  flex-wrap: wrap;
 }
 
 .filter-btn {
@@ -447,305 +392,204 @@ const cancelRename = () => { renamingId.value = null }
   font-size: 13px;
   cursor: pointer;
   transition: all 0.2s;
-}
-
-.filter-btn:hover {
-  background: var(--color-bg-hover);
-}
-
-.filter-btn.active {
-  background: var(--color-accent);
-  color: white;
-  border-color: var(--color-accent);
-}
-
-.table-container {
-  overflow-x: auto;
-}
-
-.mobile-only { display: none; }
-
-@media (max-width: 768px) {
-    .desktop-only { display: none; }
-    .mobile-only { display: flex; flex-direction: column; gap: 12px; }
-}
-
-/* Card Styles */
-.knowledge-card {
-    background: var(--color-bg-tertiary);
-    border: 1px solid var(--color-border);
-    border-radius: 12px;
-    padding: 16px;
-    position: relative;
-    cursor: pointer;
-}
-
-.card-header {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin-bottom: 12px;
-}
-
-.card-title {
-    font-weight: 600;
-    flex: 1;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.card-details {
-    font-size: 13px;
-    color: var(--color-text-secondary);
-    margin-bottom: 4px;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-}
-
-.detail-label, .kb-title {
-  font-weight: 500;
-  color: var(--color-text-primary);
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.version-badge {
-  font-size: 10px;
-  font-weight: 700;
-  color: var(--color-accent);
-  background: rgba(99, 102, 241, 0.1);
-  padding: 2px 6px;
-  border-radius: 4px;
-}
-
-.inline-tags {
-    position: absolute;
-    top: 16px;
-    right: 16px;
-}
-
-.data-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 14px;
-}
-
-.data-table th, .data-table td {
-  padding: 12px 16px;
-  text-align: left;
-  color: var(--color-text-primary);
-  vertical-align: middle;
-}
-
-.data-table tr {
-  border-bottom: 1px solid var(--color-border);
-}
-
-.data-table tbody tr:last-child {
-  border-bottom: none;
-}
-
-.data-table th {
-  color: var(--color-text-muted);
-  font-weight: 500;
-  font-size: 13px;
-}
-
-.col-name {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  font-weight: 500;
-}
-
-.name-column {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-width: 0;
-}
-.name-column span {
-  overflow: hidden;
-  text-overflow: ellipsis;
   white-space: nowrap;
 }
+.filter-btn:hover { background: var(--color-bg-hover); }
+.filter-btn.active { background: var(--color-accent); color: white; border-color: var(--color-accent); }
 
-.tag-chips-inline {
-  display: flex;
-  gap: 4px;
-  flex-wrap: wrap;
-}
-
-.tag-mini {
-  padding: 1px 6px;
-  background: rgba(99, 102, 241, 0.08);
-  color: var(--color-accent, #6366f1);
-  border-radius: 10px;
-  font-size: 10px;
-  font-weight: 500;
-}
-
-.tag-more {
-  padding: 1px 4px;
-  font-size: 10px;
-  color: var(--color-text-muted);
-}
-
+/* ── Shared badge / status tokens ── */
 .badge {
-  padding: 4px 8px;
+  padding: 3px 8px;
   border-radius: 4px;
-  font-size: 12px;
-  font-weight: 600;
+  font-size: 11px;
+  font-weight: 700;
   text-transform: uppercase;
+  white-space: nowrap;
 }
-
-/* personal=purple · department=blue · public=green · policy=amber */
 .badge-personal { background: rgba(139, 92, 246, 0.12); color: #8b5cf6; }
 .badge-dept     { background: rgba(59, 130, 246, 0.12);  color: #3b82f6; }
 .badge-public   { background: rgba(16, 185, 129, 0.12);  color: #10b981; }
 .badge-policy   { background: rgba(245, 158, 11, 0.12);  color: #f59e0b; }
 
-.status-badge {
-    font-size: 12px;
-    padding: 2px 6px;
-    border-radius: 4px;
-    color: var(--color-text-muted);
-}
-/* pending=amber · approved=green · rejected=red */
+.status-badge { font-size: 11px; padding: 2px 6px; border-radius: 4px; white-space: nowrap; }
 .status-pending    { background: rgba(245, 158, 11, 0.12);  color: #f59e0b; }
 .status-approved   { background: rgba(16, 185, 129, 0.12);  color: #10b981; }
 .status-rejected   { background: rgba(239, 68, 68, 0.12);   color: #ef4444; }
 .status-expired    { background: rgba(239, 68, 68, 0.12);   color: #ef4444; }
-.status-processing { background: rgba(59, 130, 246, 0.12);  color: #3b82f6; display: inline-flex; align-items: center; gap: 4px; }
+.status-processing { background: rgba(59, 130, 246, 0.12);  color: #3b82f6; }
 .status-failed     { background: rgba(239, 68, 68, 0.12);   color: #ef4444; }
 
-.actions-cell {
-    display: flex;
-    gap: 8px;
-    align-items: center;
+.version-badge {
+  font-size: 10px; font-weight: 700;
+  color: var(--color-accent);
+  background: rgba(99, 102, 241, 0.1);
+  padding: 1px 5px; border-radius: 4px;
+  flex-shrink: 0;
 }
 
+.tag-chips-inline { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 2px; }
+.tag-mini {
+  padding: 1px 5px;
+  background: rgba(99, 102, 241, 0.08);
+  color: var(--color-accent, #6366f1);
+  border-radius: 10px; font-size: 10px; font-weight: 500;
+}
+.tag-more { padding: 1px 4px; font-size: 10px; color: var(--color-text-muted); }
+
+/* ── kb-list: unified responsive rows ── */
+.kb-list {
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+/* Grid: name | type | dept | status | actions */
+.kb-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 100px 110px 130px auto;
+  grid-template-areas: "name type dept status actions";
+  column-gap: 12px;
+  padding: 11px 16px;
+  align-items: center;
+  border-bottom: 1px solid var(--color-border);
+  cursor: pointer;
+  transition: background 0.12s;
+}
+.kb-row:last-child { border-bottom: none; }
+.kb-row:hover { background: var(--color-bg-tertiary); }
+
+/* Header row */
+.kb-row--header {
+  cursor: default;
+  background: var(--color-bg-tertiary);
+  font-size: 11px; font-weight: 600;
+  color: var(--color-text-muted);
+  text-transform: uppercase; letter-spacing: 0.6px;
+  padding: 8px 16px;
+}
+.kb-row--header:hover { background: var(--color-bg-tertiary); }
+
+.kb-col--name    { grid-area: name;    display: flex; align-items: flex-start; gap: 10px; min-width: 0; }
+.kb-col--type    { grid-area: type;    display: flex; flex-direction: column; gap: 4px; }
+.kb-col--dept    { grid-area: dept;    font-size: 13px; color: var(--color-text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.kb-col--status  { grid-area: status;  display: flex; flex-direction: column; gap: 4px; }
+.kb-col--actions { grid-area: actions; display: flex; gap: 5px; align-items: center; justify-content: flex-end; }
+
+/* Tablet ≤ 900px: hide dept column */
+@media (max-width: 900px) {
+  .kb-row {
+    grid-template-columns: minmax(0, 1fr) 100px 130px auto;
+    grid-template-areas: "name type status actions";
+  }
+  .kb-col--dept { display: none; }
+}
+
+/* Mobile ≤ 600px: 2-col, name/actions on row 1, type+status below */
+@media (max-width: 600px) {
+  .kb-row {
+    grid-template-columns: 1fr auto;
+    grid-template-areas:
+      "name    actions"
+      "type    type"
+      "status  status";
+    row-gap: 6px;
+    padding: 12px 14px;
+  }
+  .kb-row--header { display: none; }
+  .kb-col--dept   { display: none; }
+  .kb-col--type   { flex-direction: row; flex-wrap: wrap; }
+  .kb-col--actions { align-self: start; }
+}
+
+/* Name internals */
+.file-icon { font-size: 18px; flex-shrink: 0; line-height: 1; margin-top: 2px; }
+
+.name-stack {
+  display: flex; flex-direction: column; gap: 3px;
+  min-width: 0; flex: 1;
+}
+.folder-crumb {
+  font-size: 11px; color: var(--color-text-muted);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.kb-title {
+  font-weight: 500; font-size: 14px;
+  color: var(--color-text-primary);
+  display: flex; align-items: center; gap: 6px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+/* Empty state */
+.empty-row {
+  padding: 40px;
+  text-align: center;
+  color: var(--color-text-muted);
+  font-size: 14px;
+}
+
+/* ── Action buttons ── */
 .btn-icon {
-    background: none;
-    border: none;
-    cursor: pointer;
-    color: var(--color-text-muted);
-    padding: 4px;
+  background: none; border: none;
+  cursor: pointer;
+  color: var(--color-text-muted);
+  padding: 5px; border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+  transition: color 0.15s, background 0.15s;
 }
-.btn-icon:hover { color: var(--color-text-primary); }
-.btn-icon.delete:hover { color: #ef4444; }
-.btn-icon.retry:hover { color: #3b82f6; }
+.btn-icon:hover               { color: var(--color-text-primary); background: var(--color-bg-hover); }
+.btn-icon.delete:hover        { color: #ef4444; background: rgba(239,68,68,0.08); }
+.btn-icon.retry:hover         { color: #3b82f6; background: rgba(59,130,246,0.08); }
+.btn-icon.rename:hover        { color: var(--color-accent, #6366f1); background: rgba(99,102,241,0.08); }
 
-.admin-actions {
-    display: flex;
-    gap: 4px;
-}
-.btn-approve { background: #10b981; color: white; border: none; border-radius: 4px; width: 24px; height: 24px; cursor: pointer; }
-.btn-reject { background: #ef4444; color: white; border: none; border-radius: 4px; width: 24px; height: 24px; cursor: pointer; }
+.admin-actions { display: flex; gap: 4px; }
+.btn-approve { background: #10b981; color: white; border: none; border-radius: 4px; width: 24px; height: 24px; cursor: pointer; font-size: 12px; }
+.btn-reject  { background: #ef4444; color: white; border: none; border-radius: 4px; width: 24px; height: 24px; cursor: pointer; font-size: 12px; }
+.btn-approve:hover { background: #059669; }
+.btn-reject:hover  { background: #dc2626; }
 
-.dropdown {
-  position: relative;
-  display: inline-block;
-}
-
+.dropdown { position: relative; display: inline-block; }
 .action-btn {
   background: var(--color-bg-tertiary);
   color: var(--color-text-primary);
   border: 1px solid var(--color-border);
-  padding: 4px 8px;
-  font-size: 12px;
-  border-radius: 4px;
-  cursor: pointer;
+  padding: 4px 8px; font-size: 12px; border-radius: 4px; cursor: pointer;
+  white-space: nowrap;
 }
-
 .dropdown-content {
-  display: none;
-  position: absolute;
-  background-color: var(--color-bg-card);
-  min-width: 160px;
-  box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
-  z-index: 1;
-  border: 1px solid var(--color-border);
-  border-radius: 4px;
+  display: none; position: absolute; right: 0;
+  background: var(--color-bg-card); min-width: 150px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+  z-index: 10; border: 1px solid var(--color-border); border-radius: 8px;
+  overflow: hidden;
 }
-
 .dropdown-content a {
   color: var(--color-text-primary);
-  padding: 12px 16px;
-  text-decoration: none;
-  display: block;
-  font-size: 12px;
-  cursor: pointer;
+  padding: 10px 14px; text-decoration: none;
+  display: block; font-size: 13px; cursor: pointer;
 }
-
-.dropdown-content a:hover {background-color: var(--color-bg-hover);}
-
-.dropdown:hover .dropdown-content {display: block;}
-
-.empty-row {
-    text-align: center;
-    color: var(--color-text-muted);
-    padding: 32px;
-}
+.dropdown-content a:hover { background: var(--color-bg-hover); }
+.dropdown:hover .dropdown-content { display: block; }
 
 /* ── Inline Rename ── */
 .rename-inline {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    width: 100%;
+  display: flex; align-items: center; gap: 4px; width: 100%;
 }
 .rename-input {
-    flex: 1;
-    padding: 3px 7px;
-    font-size: 13px;
-    border: 1px solid var(--color-accent, #3b82f6);
-    border-radius: 4px;
-    background: var(--color-bg-primary);
-    color: var(--color-text-primary);
-    outline: none;
-    min-width: 0;
+  flex: 1; padding: 3px 7px; font-size: 13px;
+  border: 1px solid var(--color-accent, #3b82f6);
+  border-radius: 4px;
+  background: var(--color-bg-primary);
+  color: var(--color-text-primary);
+  outline: none; min-width: 0;
 }
 .rename-save,
 .rename-cancel {
-    flex-shrink: 0;
-    width: 24px;
-    height: 24px;
-    border: none;
-    border-radius: 4px;
-    font-size: 13px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0;
+  flex-shrink: 0; width: 24px; height: 24px; border: none;
+  border-radius: 4px; font-size: 13px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; padding: 0;
 }
-.rename-save  { background: #22c55e; color: #fff; }
+.rename-save   { background: #22c55e; color: #fff; }
 .rename-save:hover { background: #16a34a; }
 .rename-cancel { background: var(--color-bg-tertiary); color: var(--color-text-muted); }
 .rename-cancel:hover { background: var(--color-bg-hover); }
-
-.btn-icon.rename { color: var(--color-text-muted); }
-.btn-icon.rename:hover { color: var(--color-accent, #3b82f6); background: var(--color-bg-tertiary); }
-
-.card-header-actions {
-    display: flex;
-    gap: 4px;
-    align-items: center;
-    flex-shrink: 0;
-}
-
-.clickable-row {
-    cursor: pointer;
-    transition: background 0.1s;
-}
-.clickable-row:hover {
-    background: var(--color-bg-tertiary);
-}
 </style>

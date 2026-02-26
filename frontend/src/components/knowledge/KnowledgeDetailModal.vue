@@ -35,6 +35,35 @@ const editDesc = ref('')
 const savingDesc = ref(false)
 const descSaved = ref(false)
 
+// Title state
+const editingTitle = ref(false)
+const editTitle = ref('')
+const savingTitle = ref(false)
+const titleSaved = ref(false)
+
+const startEditTitle = () => {
+    editTitle.value = props.item.title || ''
+    editingTitle.value = true
+}
+const saveTitle = async () => {
+    if (savingTitle.value) return
+    const trimmed = editTitle.value.trim()
+    if (!trimmed) { cancelEditTitle(); return }
+    savingTitle.value = true
+    try {
+        await knowledgeStore.updateKnowledge(props.item._id, { title: trimmed })
+        emit('update', { title: trimmed })
+        editingTitle.value = false
+        titleSaved.value = true
+        setTimeout(() => titleSaved.value = false, 2000)
+    } catch (e) {
+        console.error('Save title failed', e)
+    } finally {
+        savingTitle.value = false
+    }
+}
+const cancelEditTitle = () => { editingTitle.value = false }
+
 // Tags state
 const editingTags = ref(false)
 const newTag = ref('')
@@ -300,8 +329,35 @@ const getQualityClass = (score) => {
           <template v-if="activeTab === 'details'">
           <!-- Title -->
           <div class="detail-group">
-            <label>{{ t('knowledgeDetailTitle') }}</label>
-            <div class="value title">
+            <div class="content-header">
+              <label>{{ t('knowledgeDetailTitle') }}</label>
+              <button v-if="canEdit && !editingTitle" class="btn-edit" @click="startEditTitle">
+                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                </svg>
+                Edit
+              </button>
+              <span v-if="titleSaved" class="save-indicator">✓ Saved</span>
+            </div>
+            <div v-if="editingTitle" class="edit-area">
+              <input
+                v-model="editTitle"
+                class="edit-textarea"
+                style="height: 38px;"
+                maxlength="200"
+                placeholder="Document title..."
+                @keyup.enter="saveTitle"
+                @keyup.esc="cancelEditTitle"
+              />
+              <div class="edit-actions">
+                <button class="btn-cancel-sm" @click="cancelEditTitle">Cancel</button>
+                <button class="btn-save-sm" @click="saveTitle" :disabled="savingTitle">
+                  {{ savingTitle ? 'Saving...' : 'Save' }}
+                </button>
+              </div>
+            </div>
+            <div v-else class="value title">
               {{ item.title }}
               <span v-if="item.version > 1" class="version-badge">v{{ item.version }}</span>
             </div>
