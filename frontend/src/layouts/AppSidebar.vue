@@ -413,6 +413,13 @@ onUnmounted(() => document.removeEventListener('keydown', handleDeleteKeydown, t
     background: rgba(239, 68, 68, 0.1);
 }
 
+/* On touch devices (no hover), always show delete button */
+@media (hover: none) {
+  .delete-btn {
+    opacity: 0.6;
+  }
+}
+
 .session-item.active {
   color: var(--color-accent);
   background-color: var(--color-accent-light);
