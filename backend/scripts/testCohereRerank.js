@@ -56,15 +56,16 @@ async function testRerank() {
     console.log(`Testing model: ${MODEL_ID}`);
     console.log('─'.repeat(50));
 
-    // Cohere Rerank API payload
+    // Cohere Rerank API payload (api_version is required by Bedrock)
     const payload = {
+        api_version: 2,
         query: "What is the university policy on data protection?",
         documents: [
-            "The university requires all personal data to be encrypted at rest and in transit.",
-            "The cafeteria serves lunch from 11:00 to 14:00 daily.",
-            "According to PDPA regulations, data subjects have the right to access their personal data.",
-            "The library is open Monday through Saturday from 8:00 to 20:00.",
-            "All staff must complete annual data protection training as required by university policy."
+            { text: "The university requires all personal data to be encrypted at rest and in transit." },
+            { text: "The cafeteria serves lunch from 11:00 to 14:00 daily." },
+            { text: "According to PDPA regulations, data subjects have the right to access their personal data." },
+            { text: "The library is open Monday through Saturday from 8:00 to 20:00." },
+            { text: "All staff must complete annual data protection training as required by university policy." }
         ],
         top_n: 3
     };
@@ -87,8 +88,9 @@ async function testRerank() {
 
         if (result.results) {
             result.results.forEach((r, i) => {
+                const docText = payload.documents[r.index].text;
                 console.log(`  #${i + 1} [index=${r.index}] score=${r.relevance_score.toFixed(4)}`);
-                console.log(`     "${payload.documents[r.index].substring(0, 80)}..."`);
+                console.log(`     "${docText.substring(0, 80)}..."`);
             });
         } else {
             console.log('Response body:', JSON.stringify(result, null, 2));
