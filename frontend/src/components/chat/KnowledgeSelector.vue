@@ -91,13 +91,13 @@ onUnmounted(() => {
 
 // ── Helpers ──
 const typeIcon = (type) => ({
-  personal: 'user', department: 'building', public: 'book', default: 'globe'
+  personal: 'user', department: 'building', public: 'book', policy: 'book', default: 'globe'
 }[type] || 'book')
 
 const typeColor = (type) => ({
   personal: 'icon-personal', department: 'icon-dept',
-  public: 'icon-public', default: 'icon-default'
-}[type] || 'icon-public')
+  public: 'icon-public', policy: 'icon-policy', default: 'icon-default'
+}[type] || 'icon-default')
 </script>
 
 <template>
@@ -300,10 +300,11 @@ const typeColor = (type) => ({
 }
 
 /* ── Icon color variants ── */
-.icon-default  { background: rgba(34,197,94,0.12);  color: #16a34a; }
-.icon-personal { background: rgba(99,102,241,0.12); color: #6366f1; }
-.icon-dept     { background: rgba(245,158,11,0.12); color: #d97706; }
-.icon-public   { background: rgba(100,116,139,0.1); color: var(--color-text-secondary); }
+.icon-default  { background: rgba(16,185,129,0.12);  color: #10b981; }
+.icon-personal { background: rgba(139,92,246,0.12);  color: #8b5cf6; }
+.icon-dept     { background: rgba(59,130,246,0.12);  color: #3b82f6; }
+.icon-public   { background: rgba(16,185,129,0.12);  color: #10b981; }
+.icon-policy   { background: rgba(245,158,11,0.12);  color: #f59e0b; }
 
 /* ── Overlay / Backdrop ── */
 .ks-overlay {
