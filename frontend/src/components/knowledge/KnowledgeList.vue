@@ -348,7 +348,7 @@ const cancelRename = () => { renamingId.value = null }
             >
               <button class="action-btn">
                 <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/><path d="M5 21h14"/></svg>
-                {{ isAdmin ? t('directPublishBtn') : t('publishBtn') }}
+                <span class="btn-label">{{ isAdmin ? t('directPublishBtn') : t('publishBtn') }}</span>
                 <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
               </button>
               <div class="dropdown-content">
@@ -572,7 +572,7 @@ const cancelRename = () => { renamingId.value = null }
 .kb-col--type    { grid-area: type;    display: flex; flex-direction: column; gap: 4px; }
 .kb-col--dept    { grid-area: dept; }
 .kb-col--status  { grid-area: status;  display: flex; align-items: center; gap: 4px; min-width: 0; }
-.kb-col--actions { grid-area: actions; display: flex; gap: 4px; align-items: center; justify-content: flex-end; flex-wrap: nowrap; overflow: hidden; width: 160px; }
+.kb-col--actions { grid-area: actions; display: flex; gap: 4px; align-items: center; justify-content: flex-end; flex-wrap: nowrap; min-width: 0; }
 
 /* Tablet ≤ 900px: hide dept */
 @media (max-width: 900px) {
@@ -632,8 +632,6 @@ const cancelRename = () => { renamingId.value = null }
 
   /* actions: full-width action bar */
   .kb-col--actions {
-    width: auto;
-    overflow: visible;
     justify-content: flex-start;
     flex-wrap: wrap;
     gap: 6px;
@@ -846,7 +844,7 @@ const cancelRename = () => { renamingId.value = null }
 /* ── Publish dropdown ── */
 .dropdown { position: relative; display: inline-block; }
 .action-btn {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 5px;
   background: var(--color-bg-tertiary);
@@ -857,10 +855,18 @@ const cancelRename = () => { renamingId.value = null }
   font-weight: 500;
   border-radius: 7px;
   cursor: pointer;
-  white-space: nowrap;
+  min-width: 0;
+  max-width: 130px;
   transition: all 0.15s;
 }
 .action-btn:hover { border-color: var(--color-accent); color: var(--color-accent); }
+.btn-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+}
 
 .dropdown-content {
   display: none;
