@@ -568,7 +568,7 @@ const cancelRename = () => { renamingId.value = null }
 .kb-row--header:hover { background: var(--color-bg-tertiary); }
 .kb-row--header::before { display: none !important; }
 
-.kb-col--name    { grid-area: name;    display: flex; align-items: flex-start; gap: 10px; min-width: 0; }
+.kb-col--name    { grid-area: name;    display: flex; align-items: center; gap: 10px; min-width: 0; }
 .kb-col--type    { grid-area: type;    display: flex; flex-direction: column; gap: 4px; }
 .kb-col--dept    { grid-area: dept; }
 .kb-col--status  { grid-area: status;  display: flex; align-items: center; gap: 4px; min-width: 0; }
