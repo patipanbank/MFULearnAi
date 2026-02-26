@@ -525,17 +525,16 @@ const cancelRename = () => { renamingId.value = null }
   in the SAME grid tracks → true column alignment regardless
   of content width differences per row.
   Column budget (desktop ≥901px):
-    name    → 1fr   (flexible)
-    name    → flexible (takes remaining space, min 0)
-    type    → min 80px,  grow 1fr
-    dept    → min 100px, grow 1fr
-    status  → min 90px,  grow 1fr
-    actions → min 130px, grow 1.5fr  (always enough for 3 icon btns + publish)
-    Using minmax ensures columns never collapse below content while remaining proportional.
+    name    → 1fr      (takes all remaining space)
+    type    → 88px     (fixed — fits "DEPARTMENT" badge)
+    dept    → 130px    (fixed — fits truncated dept name)
+    status  → 110px    (fixed — fits "approved/rejected")
+    actions → 160px    (fixed — publish+rename+delete never wraps)
+    Only name is flexible; all other columns are fixed px so they NEVER collapse.
 */
 .kb-list {
   display: grid;
-  grid-template-columns: minmax(0, 4fr) minmax(80px, 1fr) minmax(100px, 1fr) minmax(90px, 1fr) minmax(130px, 1.5fr);
+  grid-template-columns: minmax(0, 1fr) 88px 130px 110px 160px;
   border: 1px solid var(--color-border);
   border-radius: 14px;
   overflow: hidden;
@@ -598,12 +597,12 @@ const cancelRename = () => { renamingId.value = null }
 .kb-col--type    { display: flex; flex-direction: column; gap: 4px; }
 .kb-col--dept    { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .kb-col--status  { display: flex; align-items: center; gap: 4px; }
-.kb-col--actions { display: flex; gap: 3px; align-items: center; justify-content: flex-end; flex-wrap: nowrap; overflow: hidden; }
+.kb-col--actions { display: flex; gap: 3px; align-items: center; justify-content: flex-end; flex-wrap: nowrap; overflow: visible; }
 
-/* Container < 880px: 4 columns (hide dept) */
-@container (max-width: 879px) and (min-width: 501px) {
+/* Container < 600px: 4 columns (hide dept) */
+@container (max-width: 599px) and (min-width: 501px) {
   .kb-list {
-    grid-template-columns: minmax(0, 4fr) minmax(80px, 1fr) minmax(90px, 1fr) minmax(130px, 1.5fr);
+    grid-template-columns: minmax(0, 1fr) 88px 110px 160px;
   }
   .kb-col--dept { display: none; }
 }
