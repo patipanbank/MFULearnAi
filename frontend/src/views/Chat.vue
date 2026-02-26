@@ -164,38 +164,66 @@ watch(() => route.params.conversationId, (newId) => {
 
 // ═══ Auto-Scroll Logic ═══
 
-// 1. New message added → scroll
+// Scroll the last user message to the top of the visible area.
+// This gives a "question at top, response below" feel like ChatGPT.
+const scrollLastUserMessageToTop = async () => {
+  await nextTick()
+  await nextTick() // double nextTick for TransitionGroup render
+  const el = messagesRef.value
+  if (!el) return
+  const messageElements = el.querySelectorAll('.message-wrapper')
+  // Find the last user message element
+  let target = null
+  for (let i = messageElements.length - 1; i >= 0; i--) {
+    if (messageElements[i].classList.contains('user')) {
+      target = messageElements[i]
+      break
+    }
+  }
+  if (!target) return
+
+  isProgrammaticScroll.value = true
+  const containerRect = el.getBoundingClientRect()
+  const targetRect = target.getBoundingClientRect()
+  // Scroll so the user message sits at the top of the container (with 16px padding)
+  const scrollOffset = el.scrollTop + (targetRect.top - containerRect.top) - 16
+  el.scrollTo({ top: Math.max(0, scrollOffset), behavior: 'smooth' })
+  setTimeout(() => { isProgrammaticScroll.value = false }, 350)
+}
+
+// 1. New message added (session load, history, etc.) → scroll to bottom
+//    User-send case is handled explicitly in handleSendMessage.
 watch(() => chatStore.messages.length, () => {
     const lastMsg = chatStore.messages[chatStore.messages.length - 1]
     if (lastMsg?.role === 'user') {
-        // User just sent a message → always snap to bottom & reset
+        // Reset scroll lock — actual scrolling is done in handleSendMessage
         isUserScrolledUp.value = false
-        scrollToBottom(true)
     } else if (!isUserScrolledUp.value) {
         scrollToBottom(true)
     }
 })
 
-// 2. Streaming content updates → throttled scroll (avoids jank from rapid updates)
-watch(() => chatStore.messages[chatStore.messages.length - 1]?.content, () => {
+// 2. Streaming content (block_delta) → throttled scroll via streamTick counter
+//    This is the KEY fix: the old watcher on message.content never fired because
+//    streaming content goes into agentEvents[].content, not message.content.
+watch(() => chatStore.streamTick, () => {
     if (!isUserScrolledUp.value) {
         throttledStreamScroll()
     }
 })
 
-// 3. Agent events (tool badges) → throttled scroll
+// 3. Agent events (tool badges, block_start, etc.) → throttled scroll when new events are pushed
 watch(() => chatStore.messages[chatStore.messages.length - 1]?.agentEvents?.length, () => {
     if (!isUserScrolledUp.value) {
         throttledStreamScroll()
     }
-}, { deep: true })
+})
 
 // 4. Streaming lifecycle → reset on start, final snap on end
 watch(() => chatStore.isStreaming, (streaming, wasStreaming) => {
     if (streaming && !wasStreaming) {
-        // Streaming just started (user sent a message) → reset scroll lock
+        // Streaming just started — scroll lock is reset in handleSendMessage
         isUserScrolledUp.value = false
-        scrollToBottom(false)
     } else if (!streaming && wasStreaming) {
         // Streaming just ended → cancel pending throttle & do final scroll
         throttledStreamScroll.cancel()
@@ -245,6 +273,11 @@ const handleSendMessage = async (message) => {
   if (isNewConversation && chatStore.currentSessionId) {
     router.replace(`/chat/${chatStore.currentSessionId}`)
   }
+
+  // Scroll user question to the top of the visible area
+  // so the response builds below it naturally.
+  isUserScrolledUp.value = false
+  scrollLastUserMessageToTop()
 
   await sendPromise
   inputRef.value?.focus()

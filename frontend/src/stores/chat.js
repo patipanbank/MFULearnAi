@@ -24,6 +24,10 @@ export const useChatStore = defineStore('chat', () => {
     const isStreaming = ref(false)
     const availableModels = ref([])
 
+    // Incremented on every block_delta to signal streaming content change.
+    // Watchers in Chat.vue use this to trigger auto-scroll during streaming.
+    const streamTick = ref(0)
+
     // Pagination State
     const hasMoreHistory = ref(true)
     const isLoadingHistory = ref(false)
@@ -361,6 +365,9 @@ export const useChatStore = defineStore('chat', () => {
                 // Find the latest active block
                 const lastBlock = [...events].reverse().find(e => e.type === 'block' && !e.isFinished && e.isActive)
 
+                // Increment tick so Chat.vue watchers can detect streaming updates
+                streamTick.value++
+
                 if (lastBlock) {
                     lastBlock.content += data.delta
                 } else {
@@ -634,6 +641,7 @@ export const useChatStore = defineStore('chat', () => {
         currentSession,
         isLoading,
         isStreaming,
+        streamTick,
         newSession,
         resetSession,
         loadSession,
