@@ -659,7 +659,7 @@ onUnmounted(() => {
 .kb-col--type    { display: flex; flex-direction: column; gap: 4px; }
 .kb-col--dept    { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .kb-col--status  { display: flex; align-items: center; gap: 4px; }
-.kb-col--actions { display: flex; gap: 3px; align-items: center; justify-content: flex-end; flex-wrap: nowrap; overflow: visible; }
+.kb-col--actions { display: flex; gap: 3px; align-items: center; justify-content: flex-start; flex-wrap: nowrap; overflow: visible; }
 
 /* 4 columns: hide dept (ResizeObserver adds .list-medium) */
 .list-medium .kb-list {
