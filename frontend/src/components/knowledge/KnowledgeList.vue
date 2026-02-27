@@ -586,17 +586,17 @@ onUnmounted(() => {
   .kb-row uses display:contents so each cell participates
   in the SAME grid tracks → true column alignment regardless
   of content width differences per row.
-  Column budget (desktop ≥901px):
-    name    → 1fr      (takes all remaining space)
-    type    → 88px     (fixed — fits "DEPARTMENT" badge)
-    dept    → 130px    (fixed — fits truncated dept name)
-    status  → 110px    (fixed — fits "approved/rejected")
-    actions → 160px    (fixed — publish+rename+delete never wraps)
-    Only name is flexible; all other columns are fixed px so they NEVER collapse.
+  Column budget (desktop, wide):
+    name    → 1fr      (flexible — takes remaining space, ~55%+)
+    type    → 96px     (fits "DEPARTMENT" badge comfortably)
+    dept    → 120px    (truncated dept name, tooltip on hover)
+    status  → 120px    (fits "processing..." + spinner)
+    actions → 120px    (icon buttons: publish+rename+delete)
+    Total fixed = 456px → name gets majority of space.
 */
 .kb-list {
   display: grid;
-  grid-template-columns: minmax(0,1fr) 88px 130px 110px 160px;
+  grid-template-columns: minmax(0,1fr) 96px 120px 120px 120px;
   border: 1px solid var(--color-border);
   border-radius: 14px;
   overflow: hidden;
@@ -663,7 +663,7 @@ onUnmounted(() => {
 
 /* 4 columns: hide dept (ResizeObserver adds .list-medium) */
 .list-medium .kb-list {
-  grid-template-columns: minmax(0, 1fr) 88px 110px 160px;
+  grid-template-columns: minmax(0, 1fr) 96px 120px 120px;
 }
 .list-medium .kb-col--dept { display: none; }
 
