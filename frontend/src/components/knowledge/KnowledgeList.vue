@@ -586,17 +586,17 @@ onUnmounted(() => {
   .kb-row uses display:contents so each cell participates
   in the SAME grid tracks → true column alignment regardless
   of content width differences per row.
-  Column budget (desktop, wide):
-    name    → 1fr      (flexible — takes remaining space, ~55%+)
-    type    → 96px     (fits "DEPARTMENT" badge comfortably)
-    dept    → 120px    (truncated dept name, tooltip on hover)
-    status  → 120px    (fits "processing..." + spinner)
-    actions → 120px    (icon buttons: publish+rename+delete)
-    Total fixed = 456px → name gets majority of space.
+  Column proportions (all fr-based → scale proportionally):
+    name    → 3fr   (~39%)  title + icon + tags
+    type    → 1fr   (~13%)  badge: personal/dept/public/policy
+    dept    → 1.2fr (~16%)  department name (truncated)
+    status  → 1.2fr (~16%)  processing / publish status badge
+    actions → 1.2fr (~16%)  icon buttons: publish+rename+delete
+  minmax ensures minimum widths at narrow sizes.
 */
 .kb-list {
   display: grid;
-  grid-template-columns: minmax(0,1fr) 96px 120px 120px 120px;
+  grid-template-columns: minmax(180px, 3fr) minmax(80px, 1fr) minmax(90px, 1.2fr) minmax(90px, 1.2fr) minmax(90px, 1.2fr);
   border: 1px solid var(--color-border);
   border-radius: 14px;
   overflow: hidden;
@@ -663,7 +663,7 @@ onUnmounted(() => {
 
 /* 4 columns: hide dept (ResizeObserver adds .list-medium) */
 .list-medium .kb-list {
-  grid-template-columns: minmax(0, 1fr) 96px 120px 120px;
+  grid-template-columns: minmax(160px, 3fr) minmax(70px, 1fr) minmax(80px, 1.2fr) minmax(80px, 1.2fr);
 }
 .list-medium .kb-col--dept { display: none; }
 
