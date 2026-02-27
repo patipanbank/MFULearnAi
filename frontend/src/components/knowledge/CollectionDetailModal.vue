@@ -169,13 +169,13 @@ const handleDeleteCollection = async () => {
                 </div>
             </div>
             <div class="header-actions">
-              <button v-if="isOwner" class="header-btn" @click="handleEditCollection" :title="t('editCollection')">
+              <button v-if="isOwner" class="header-btn" @click="handleEditCollection" v-tooltip="{ content: t('editCollection'), placement: 'bottom' }">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
                   <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
                 </svg>
               </button>
-              <button v-if="isOwner" class="header-btn header-btn-danger" @click="handleDeleteCollection" :disabled="deleteLoading" :title="t('deleteBtn')">
+              <button v-if="isOwner" class="header-btn header-btn-danger" @click="handleDeleteCollection" :disabled="deleteLoading" v-tooltip="{ content: t('deleteBtn'), placement: 'bottom' }">
                 <svg v-if="deleteLoading" class="spinner" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/></svg>
                 <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <polyline points="3 6 5 6 21 6"/>
@@ -211,7 +211,7 @@ const handleDeleteCollection = async () => {
                               <div class="item-title">{{ item.title }}</div>
                               <div class="item-meta">{{ item.type }} • {{ new Date(item.createdAt).toLocaleDateString() }}</div>
                           </div>
-                          <button v-if="isOwner" class="btn-remove" :disabled="actionLoading === item._id" @click.stop="handleRemove(item._id)" :title="t('removeFromCollectionBtn')">
+                          <button v-if="isOwner" class="btn-remove" :disabled="actionLoading === item._id" @click.stop="handleRemove(item._id)" v-tooltip="{ content: t('removeFromCollectionBtn'), placement: 'left' }">
                             <svg v-if="actionLoading === item._id" class="spinner" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/></svg>
                             <svg v-else width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                           </button>

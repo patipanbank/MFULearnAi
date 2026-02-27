@@ -491,7 +491,7 @@ const closeEvidenceViewer = () => {
             v-if="showScrollBtn"
             class="scroll-to-bottom-btn"
             @click="handleScrollToBottomClick"
-            :title="t('scrollToBottom') || 'Scroll to bottom'"
+            v-tooltip="{ content: t('scrollToBottom') || 'Scroll to bottom', placement: 'left' }"
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
               fill="none" stroke="currentColor" stroke-width="2.5"

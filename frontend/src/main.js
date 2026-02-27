@@ -7,6 +7,7 @@ import '@coreui/coreui/dist/css/coreui.min.css'
 import './styles/main.css'
 import './styles/code-block.css'
 import 'highlight.js/styles/atom-one-dark.css'
+import { vTooltip } from '@/directives/vTooltip'
 
 // Click outside directive
 const clickOutside = {
@@ -30,6 +31,7 @@ app.use(pinia)
 app.use(router)
 app.use(CoreuiVue)
 app.directive('click-outside', clickOutside)
+app.directive('tooltip', vTooltip)
 
 // Initialize auth store
 import { useAuthStore } from './stores/auth'

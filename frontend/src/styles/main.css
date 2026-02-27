@@ -245,3 +245,49 @@ body {
   margin: 1rem 0;
   color: var(--color-text-secondary);
 }
+
+/* ── Tooltip ──────────────────────────────────────────────────── */
+:root {
+  --tooltip-bg: #1e293b;
+  --tooltip-text: #f8fafc;
+  --tooltip-max-width: 240px;
+}
+
+[data-theme="dark"] {
+  --tooltip-bg: #e2e8f0;
+  --tooltip-text: #0f172a;
+}
+
+.tooltip-popup {
+  position: fixed;
+  z-index: 9999;
+  padding: 6px 10px;
+  background: var(--tooltip-bg);
+  color: var(--tooltip-text);
+  font-size: 12px;
+  line-height: 1.4;
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-md);
+  pointer-events: none;
+  max-width: var(--tooltip-max-width);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.tooltip-arrow {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  background: var(--tooltip-bg);
+  transform: rotate(45deg);
+}
+
+.tooltip-popup--top    .tooltip-arrow { bottom: -3px; left: 50%; margin-left: -3px; }
+.tooltip-popup--bottom .tooltip-arrow { top:    -3px; left: 50%; margin-left: -3px; }
+.tooltip-popup--left   .tooltip-arrow { right:  -3px; top:  50%; margin-top:  -3px; }
+.tooltip-popup--right  .tooltip-arrow { left:   -3px; top:  50%; margin-top:  -3px; }
+
+.tooltip-fade-enter-active,
+.tooltip-fade-leave-active { transition: opacity 0.15s ease, transform 0.15s ease; }
+.tooltip-fade-enter-from,
+.tooltip-fade-leave-to    { opacity: 0; transform: scale(0.95); }

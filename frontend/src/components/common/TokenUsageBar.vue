@@ -90,7 +90,7 @@ const formatNumber = (num) => {
   <div 
     class="token-usage-container" 
     :class="{ 'is-warning': isWarning, 'is-exceeded': isExceeded }"
-    :title="`Used ${formatNumber(dailyWeightedTokens)} ${quotaConfig.unitLabel} today (Limit: ${formatNumber(dailyLimit)}) | Raw tokens: ${formatNumber(usage.today.tokens)}`"
+    v-tooltip="{ content: `Used ${formatNumber(dailyWeightedTokens)} ${quotaConfig.unitLabel} today (Limit: ${formatNumber(dailyLimit)}) | Raw tokens: ${formatNumber(usage.today.tokens)}`, placement: 'top' }"
   >
     <div class="token-text">
         <span class="token-label">USAGE </span>
