@@ -1,9 +1,10 @@
 <script setup>
-import { computed, ref, onMounted, onUnmounted } from 'vue'
+import { computed, ref, nextTick, onMounted, onUnmounted } from 'vue'
 import { useKnowledgeStore } from '@/stores/knowledge'
 import { useAuthStore } from '@/stores/auth'
 import { useLanguage } from '@/composables/useSettings'
 import { useConfirmDialog } from '@/composables/useConfirmDialog'
+import FileTypeIcon from '@/components/knowledge/FileTypeIcon.vue'
 
 // Detect file type from title/filename for richer icons
 const getFileIcon = (item) => {
@@ -131,7 +132,7 @@ const handleApprove = async (id) => {
         await knowledgeStore.approvePublish(id, 'approve')
     } catch (e) {
         await showAlert(
-            e.response?.data?.error || e.message || 'Approve failed',
+            e.response?.data?.error || e.message || t('approveFailed'),
             { variant: 'error' }
         )
     }
@@ -142,7 +143,7 @@ const handleReject = async (id) => {
         await knowledgeStore.approvePublish(id, 'reject')
     } catch (e) {
         await showAlert(
-            e.response?.data?.error || e.message || 'Reject failed',
+            e.response?.data?.error || e.message || t('rejectFailed'),
             { variant: 'error' }
         )
     }
@@ -150,12 +151,26 @@ const handleReject = async (id) => {
 
 const handleDelete = async (id) => {
     if (await showConfirm(t('confirmDeleteKnowledge'), { variant: 'danger' })) {
-        await knowledgeStore.deleteKnowledge(id)
+        try {
+            await knowledgeStore.deleteKnowledge(id)
+        } catch (e) {
+            await showAlert(
+                e.response?.data?.error || e.message || t('deleteFailed'),
+                { variant: 'error' }
+            )
+        }
     }
 }
 
 const handleRetry = async (id) => {
-    await knowledgeStore.retryKnowledge(id)
+    try {
+        await knowledgeStore.retryKnowledge(id)
+    } catch (e) {
+        await showAlert(
+            e.response?.data?.error || e.message || t('retryFailed'),
+            { variant: 'error' }
+        )
+    }
 }
 
 // ── Inline Rename ──
@@ -167,8 +182,11 @@ const startRename = (item, event) => {
     event.stopPropagation()
     renamingId.value = item._id
     renameValue.value = item.title
-    // focus after DOM update
-    setTimeout(() => renameInput.value?.focus(), 50)
+    // focus after DOM update — ref inside v-for returns array
+    nextTick(() => {
+        const el = Array.isArray(renameInput.value) ? renameInput.value[0] : renameInput.value
+        el?.focus()
+    })
 }
 
 const commitRename = async (id) => {
@@ -177,10 +195,15 @@ const commitRename = async (id) => {
     try {
         await knowledgeStore.updateKnowledge(id, { title: newTitle })
     } catch (e) {
-        await showAlert(e.response?.data?.error || e.message || 'Rename failed', { variant: 'error' })
+        await showAlert(e.response?.data?.error || e.message || t('renameFailed'), { variant: 'error' })
     } finally {
         renamingId.value = null
     }
+}
+
+// ── Expiry check helper (avoids new Date() in template) ──
+const isExpired = (item) => {
+    return item.expiresAt && new Date(item.expiresAt) < Date.now()
 }
 
 const cancelRename = () => { renamingId.value = null }
@@ -233,7 +256,12 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="knowledge-list" ref="listEl" :class="listSizeClass">
+  <div class="knowledge-list" ref="listEl" :class="listSizeClass" role="region" :aria-label="t('colName')">
+    <!-- Loading overlay -->
+    <div v-if="knowledgeStore.loading" class="loading-state">
+      <div class="loading-spinner"></div>
+      <span class="loading-text">{{ t('loadingKnowledge') }}</span>
+    </div>
     <!-- Search + Filters -->
     <div class="search-filters">
       <div class="search-bar" :class="{ focused: searchFocused }">
@@ -297,18 +325,7 @@ onUnmounted(() => {
           <div class="kb-col kb-col--name">
             <!-- File type icon -->
             <div class="file-icon-wrap" :class="'icon-' + getFileIcon(item)">
-              <!-- PDF -->
-              <svg v-if="getFileIcon(item) === 'pdf'" class="ftype-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="9" y2="17"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="15" y1="14" x2="15" y2="17"/></svg>
-              <!-- Word -->
-              <svg v-else-if="getFileIcon(item) === 'word'" class="ftype-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
-              <!-- Excel -->
-              <svg v-else-if="getFileIcon(item) === 'excel'" class="ftype-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="16" x2="16" y2="16"/><line x1="12" y1="10" x2="12" y2="18"/></svg>
-              <!-- Image -->
-              <svg v-else-if="getFileIcon(item) === 'image'" class="ftype-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-              <!-- Code -->
-              <svg v-else-if="getFileIcon(item) === 'code'" class="ftype-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
-              <!-- Default doc -->
-              <svg v-else class="ftype-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+              <FileTypeIcon :type="getFileIcon(item)" />
             </div>
 
             <div class="name-stack">
@@ -326,10 +343,10 @@ onUnmounted(() => {
                     @keyup.enter="commitRename(item._id)"
                     @keyup.esc="cancelRename"
                   />
-                  <button class="rename-save" @click.stop="commitRename(item._id)" v-tooltip="'Save'">
+                  <button class="rename-save" @click.stop="commitRename(item._id)" v-tooltip="t('saveTooltip')" :aria-label="t('saveTooltip')">
                     <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
                   </button>
-                  <button class="rename-cancel" @click.stop="cancelRename" v-tooltip="'Cancel'">
+                  <button class="rename-cancel" @click.stop="cancelRename" v-tooltip="t('cancelTooltip')" :aria-label="t('cancelTooltip')">
                     <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                   </button>
                 </div>
@@ -350,7 +367,7 @@ onUnmounted(() => {
           <!-- Type + expiry -->
           <div class="kb-col kb-col--type">
             <span class="badge" :class="getBadgeClass(item.type)">{{ item.type }}</span>
-            <span v-if="item.expiresAt && new Date(item.expiresAt) < new Date()" class="status-badge status-expired">Expired</span>
+            <span v-if="isExpired(item)" class="status-badge status-expired">{{ t('expired') }}</span>
           </div>
 
           <!-- Department -->
@@ -408,26 +425,26 @@ onUnmounted(() => {
 
             <!-- Admin Approve/Reject -->
             <div v-if="(authStore.role === 'admin' || authStore.role === 'superadmin') && item.requestStatus === 'pending'" class="admin-actions">
-              <button class="btn-approve" @click.stop="handleApprove(item._id)" v-tooltip="'Approve'">
+              <button class="btn-approve" @click.stop="handleApprove(item._id)" v-tooltip="t('approveTooltip')" :aria-label="t('approveTooltip')">
                 <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
               </button>
-              <button class="btn-reject"  @click.stop="handleReject(item._id)"  v-tooltip="{ content: 'Reject', placement: 'top' }">
+              <button class="btn-reject"  @click.stop="handleReject(item._id)"  v-tooltip="{ content: t('rejectTooltip'), placement: 'top' }" :aria-label="t('rejectTooltip')">
                 <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
               </button>
             </div>
 
             <!-- Retry (failed only) -->
-            <button v-if="item.processingStatus === 'failed'" class="btn-icon retry" @click.stop="handleRetry(item._id)" v-tooltip="{ content: t('retryProcessing'), placement: 'top' }">
+            <button v-if="item.processingStatus === 'failed'" class="btn-icon retry" @click.stop="handleRetry(item._id)" v-tooltip="{ content: t('retryProcessing'), placement: 'top' }" :aria-label="t('retryProcessing')">
               <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
             </button>
 
             <!-- Rename -->
-            <button v-if="canManage(item)" class="btn-icon rename" @click.stop="startRename(item, $event)" v-tooltip="{ content: t('renameKnowledge'), placement: 'top' }">
+            <button v-if="canManage(item)" class="btn-icon rename" @click.stop="startRename(item, $event)" v-tooltip="{ content: t('renameKnowledge'), placement: 'top' }" :aria-label="t('renameKnowledge')">
               <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
             </button>
 
             <!-- Delete -->
-            <button v-if="canManage(item)" class="btn-icon delete" @click.stop="handleDelete(item._id)" v-tooltip="{ content: t('delete'), placement: 'top' }">
+            <button v-if="canManage(item)" class="btn-icon delete" @click.stop="handleDelete(item._id)" v-tooltip="{ content: t('delete'), placement: 'top' }" :aria-label="t('delete')">
               <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
             </button>
           </div>
@@ -445,8 +462,8 @@ onUnmounted(() => {
             <line x1="31" y1="46" x2="42" y2="46" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
           </svg>
         </div>
-        <p class="empty-title">{{ searchQuery ? t('noKnowledgeFound') : t('noKnowledgeFound') }}</p>
-        <p v-if="searchQuery" class="empty-sub">Try a different search term or filter</p>
+        <p class="empty-title">{{ searchQuery ? t('noKnowledgeFound') : t('noKnowledgeYet') }}</p>
+        <p v-if="searchQuery" class="empty-sub">{{ t('noSearchResults') }}</p>
       </div>
     </div>
   </div>
@@ -709,8 +726,6 @@ onUnmounted(() => {
 .file-icon-wrap.icon-text    { background: rgba(107, 114, 128, 0.08); color: #6b7280; }
 .file-icon-wrap.icon-code    { background: rgba(20, 184, 166, 0.08);  color: #14b8a6; }
 
-.ftype-svg { width: 16px; height: 16px; }
-
 /* ── Name stack ── */
 .name-stack {
   display: flex; flex-direction: column; gap: 3px;
@@ -915,7 +930,6 @@ onUnmounted(() => {
   animation: dropdownIn 0.15s ease;
 }
 .dropdown-content.open { display: block; }
-.dropdown:hover .dropdown-content { display: none; } /* disable old hover */
 @keyframes dropdownIn {
   from { opacity: 0; transform: translateY(-6px); }
   to   { opacity: 1; transform: translateY(0); }
@@ -933,7 +947,6 @@ onUnmounted(() => {
   transition: background 0.12s;
 }
 .dropdown-content a:hover { background: var(--color-bg-hover); }
-.dropdown:hover .dropdown-content { display: block; }
 
 /* ── Inline Rename ── */
 .rename-inline {
@@ -967,4 +980,26 @@ onUnmounted(() => {
 .rename-save:hover { background: #16a34a; }
 .rename-cancel { background: var(--color-bg-tertiary); color: var(--color-text-muted); }
 .rename-cancel:hover { background: var(--color-bg-hover); color: var(--color-text-primary); }
+
+/* ── Loading state ── */
+.loading-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 32px 16px;
+  color: var(--color-text-muted);
+}
+.loading-spinner {
+  width: 20px; height: 20px;
+  border: 2.5px solid rgba(99, 102, 241, 0.2);
+  border-top-color: var(--color-accent, #6366f1);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+.loading-text {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+}
 </style>
