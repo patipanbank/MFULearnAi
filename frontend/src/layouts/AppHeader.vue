@@ -1,10 +1,11 @@
 <script setup>
-import { onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useKnowledgeStore } from '@/stores/knowledge'
 import { useAuthStore } from '@/stores/auth'
 import KnowledgeSelector from '@/components/chat/KnowledgeSelector.vue'
 import TokenUsageBar from '@/components/common/TokenUsageBar.vue'
+import HelpModal from '@/components/common/HelpModal.vue'
 import { useLanguage } from '@/composables/useSettings'
 
 const { t } = useLanguage()
@@ -25,6 +26,8 @@ const authStore = useAuthStore()
 
 onMounted(() => knowledgeStore.fetchCollections())
 const isChat = () => route.path.includes('/chat')
+
+const showHelp = ref(false)
 </script>
 
 <template>
@@ -52,9 +55,25 @@ const isChat = () => route.path.includes('/chat')
       </div>
     </div>
 
-    <!-- Right: Token + User -->
+    <!-- Right: Token + Help + User -->
     <div class="header-right">
       <TokenUsageBar v-if="authStore.user && isChat()" />
+
+      <!-- Help Button -->
+      <button
+        class="btn-help"
+        @click="showHelp = !showHelp"
+        :title="t('help') || 'Help'"
+        :aria-label="t('help') || 'Help'"
+        :class="{ active: showHelp }"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+          stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"/>
+          <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
+          <line x1="12" y1="17" x2="12.01" y2="17"/>
+        </svg>
+      </button>
 
       <div class="user-pill">
         <img v-if="userAvatarUrl" :src="userAvatarUrl" class="avatar-img" referrerpolicy="no-referrer" />
@@ -64,6 +83,10 @@ const isChat = () => route.path.includes('/chat')
     </div>
 
   </header>
+
+  <!-- Help Modal -->
+  <HelpModal :show="showHelp" @close="showHelp = false" />
+
 </template>
 
 <style scoped>
@@ -124,6 +147,31 @@ const isChat = () => route.path.includes('/chat')
   align-items: center;
   gap: 12px;
   flex-shrink: 0;
+}
+
+/* ── Help Button ── */
+.btn-help {
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1px solid var(--color-border);
+  border-radius: 50%;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.btn-help:hover {
+  background: var(--color-bg-tertiary);
+  color: var(--color-text-primary);
+}
+.btn-help.active {
+  background: var(--color-accent, #6366f1);
+  border-color: var(--color-accent, #6366f1);
+  color: #fff;
 }
 
 .user-pill {
