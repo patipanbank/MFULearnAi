@@ -10,7 +10,9 @@ export class KnowledgeController {
         let userContext = (req as any).userContext;
         if (!userContext && req.query.token) {
             try {
-                const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret';
+                const _ENV = process.env.ENV_TYPE || 'TEST';
+                const JWT_SECRET = process.env.JWT_SECRET || (_ENV === 'PROD' ? '' : 'dev-secret');
+                if (!JWT_SECRET) return res.status(500).json({ error: 'Server configuration error' });
                 const jwt = require('jsonwebtoken');
                 userContext = jwt.verify(req.query.token, JWT_SECRET);
             } catch (e) {

@@ -13,7 +13,13 @@ app.use(cors());
 const PORT = process.env.PORT || 4003;
 const IDENTITY_SERVICE_URL = process.env.IDENTITY_SERVICE_URL || 'http://identity-service:4001';
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000'; // Fallback
-const INTERNAL_API_KEY = process.env.INTERNAL_API_KEY || 'internal-secret-key';
+const ENV_TYPE = process.env.ENV_TYPE || 'TEST';
+const INTERNAL_API_KEY = process.env.INTERNAL_API_KEY || (ENV_TYPE === 'PROD' ? '' : 'internal-secret-key');
+
+if (ENV_TYPE === 'PROD' && !INTERNAL_API_KEY) {
+    console.error('[FATAL] INTERNAL_API_KEY is required in PROD environment');
+    process.exit(1);
+}
 
 // --- MFU SSO Configuration ---
 const MFU_CLIENT_ID = process.env.MFU_SSO_CLIENT_ID || '382dab5a-4844-407d-8f91-a0ae6d26e5d0';

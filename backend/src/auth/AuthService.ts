@@ -6,9 +6,19 @@ import Department from '../models/Department';
 import ApiKey from '../models/ApiKey';
 import crypto from 'crypto';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret';
-const JWT_EXPIRY = process.env.ENV_TYPE === 'PROD' ? '12h' : '24h';
-const INTERNAL_API_KEY = process.env.INTERNAL_API_KEY || 'internal-secret-key';
+const ENV_TYPE = process.env.ENV_TYPE || 'TEST';
+const JWT_SECRET = process.env.JWT_SECRET || (ENV_TYPE === 'PROD' ? '' : 'dev-secret');
+const JWT_EXPIRY = ENV_TYPE === 'PROD' ? '12h' : '24h';
+const INTERNAL_API_KEY = process.env.INTERNAL_API_KEY || (ENV_TYPE === 'PROD' ? '' : 'internal-secret-key');
+
+if (ENV_TYPE === 'PROD' && !JWT_SECRET) {
+    console.error('[FATAL] JWT_SECRET is required in PROD environment');
+    process.exit(1);
+}
+if (ENV_TYPE === 'PROD' && !INTERNAL_API_KEY) {
+    console.error('[FATAL] INTERNAL_API_KEY is required in PROD environment');
+    process.exit(1);
+}
 
 /**
  * Helper: Attach API key context to request and call next().

@@ -115,10 +115,20 @@ export class AuthController {
         if (!token) return res.status(401).json({ error: 'No token' });
 
         const jwt = require('jsonwebtoken'); // Lazy load
-        const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret';
+        const ENV_TYPE = process.env.ENV_TYPE || 'TEST';
+        const JWT_SECRET = process.env.JWT_SECRET || (ENV_TYPE === 'PROD' ? '' : 'dev-secret');
+        if (!JWT_SECRET) return res.status(500).json({ error: 'Server configuration error' });
+
+        const REFRESH_MAX_AGE_SECONDS = 7 * 24 * 60 * 60; // 7 days
 
         jwt.verify(token, JWT_SECRET, { ignoreExpiration: true }, async (err: any, decoded: any) => {
             if (err) return res.status(403).json({ error: 'Invalid token' });
+
+            // Enforce max staleness — reject tokens issued more than 7 days ago
+            const now = Math.floor(Date.now() / 1000);
+            if (decoded.iat && (now - decoded.iat) > REFRESH_MAX_AGE_SECONDS) {
+                return res.status(401).json({ error: 'Token too old for refresh. Please login again.' });
+            }
 
             const user = await User.findById(decoded.userId);
             if (!user || !user.isActive) return res.status(401).json({ error: 'Invalid user' });

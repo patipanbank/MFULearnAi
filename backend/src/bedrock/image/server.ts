@@ -25,9 +25,16 @@ const client = new BedrockRuntimeClient({
 const TITAN_IMAGE_MODEL = "amazon.titan-image-generator-v1";
 
 // --- Middleware ---
+const ENV_TYPE_IMG = process.env.ENV_TYPE || 'TEST';
+const INTERNAL_API_KEY = process.env.INTERNAL_API_KEY || (ENV_TYPE_IMG === 'PROD' ? '' : 'internal-secret-key');
+
+if (ENV_TYPE_IMG === 'PROD' && !INTERNAL_API_KEY) {
+    console.error('[FATAL] INTERNAL_API_KEY is required in PROD environment');
+    process.exit(1);
+}
+
 const authenticateInternal = (req: Request, res: Response, next: any) => {
     const key = req.headers['x-internal-key'];
-    const INTERNAL_API_KEY = process.env.INTERNAL_API_KEY || 'internal-secret-key';
 
     if (key !== INTERNAL_API_KEY) {
         console.warn(`[Bedrock Image] Unauthorized access attempt from ${req.ip}`);

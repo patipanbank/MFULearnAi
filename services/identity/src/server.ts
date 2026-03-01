@@ -16,9 +16,20 @@ app.use(cors());
 // Configuration
 const PORT = process.env.PORT || 4001; // Internal Default
 const MONGO_URI = process.env.MONGO_URI || 'mongodb://mongo:27017/mful-auth'; // Same DB as before
-const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret';
-const JWT_EXPIRY = process.env.ENV_TYPE === 'PROD' ? '12h' : '24h';
-const INTERNAL_API_KEY = process.env.INTERNAL_API_KEY || 'internal-secret-key'; // For Service-to-Service auth
+const ENV_TYPE = process.env.ENV_TYPE || 'TEST';
+const JWT_SECRET = process.env.JWT_SECRET || (ENV_TYPE === 'PROD' ? '' : 'dev-secret');
+const JWT_EXPIRY = ENV_TYPE === 'PROD' ? '12h' : '24h';
+const INTERNAL_API_KEY = process.env.INTERNAL_API_KEY || (ENV_TYPE === 'PROD' ? '' : 'internal-secret-key');
+const REFRESH_MAX_AGE_SECONDS = 7 * 24 * 60 * 60; // 7 days max staleness for refresh
+
+if (ENV_TYPE === 'PROD' && !JWT_SECRET) {
+    console.error('[FATAL] JWT_SECRET is required in PROD environment');
+    process.exit(1);
+}
+if (ENV_TYPE === 'PROD' && !INTERNAL_API_KEY) {
+    console.error('[FATAL] INTERNAL_API_KEY is required in PROD environment');
+    process.exit(1);
+}
 
 // DB Connection
 mongoose.connect(MONGO_URI)
@@ -214,12 +225,15 @@ app.post('/api/auth/refresh', async (req: any, res: Response) => {
         jwt.verify(token, JWT_SECRET, { ignoreExpiration: true }, async (err: any, decoded: any) => {
             if (err) return res.status(403).json({ error: 'Invalid token signature' });
 
+            // Enforce max staleness — reject tokens issued more than 7 days ago
+            const now = Math.floor(Date.now() / 1000);
+            if (decoded.iat && (now - decoded.iat) > REFRESH_MAX_AGE_SECONDS) {
+                return res.status(401).json({ error: 'Token too old for refresh. Please login again.' });
+            }
+
             // Check if user still exists and is active
             const user = await User.findById(decoded.userId);
             if (!user || !user.isActive) return res.status(401).json({ error: 'Invalid user or account disabled' });
-
-            // Optionally: Check if token is TOO old (e.g. > 7 days) if you stored "iat"
-            // But for now, if signature is valid, we issue a fresh one.
 
             const newToken = generateToken(user);
             res.json({ token: newToken });

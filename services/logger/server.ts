@@ -13,7 +13,12 @@ app.use(cors());
 
 const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/mful-logs';
 const ENV_TYPE = (process.env.ENV_TYPE || 'TEST') as 'TEST' | 'PROD';
-const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret';
+const JWT_SECRET = process.env.JWT_SECRET || (ENV_TYPE === 'PROD' ? '' : 'dev-secret');
+
+if (ENV_TYPE === 'PROD' && !JWT_SECRET) {
+    console.error('[FATAL] JWT_SECRET is required in PROD environment');
+    process.exit(1);
+}
 
 // Retention policy (days)
 const RETENTION_POLICY = {
