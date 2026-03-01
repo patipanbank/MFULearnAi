@@ -3,6 +3,7 @@ import { PromptService, PromptVariableValues } from '../../services/PromptServic
 import { SYSTEM_MODELS } from '../../config/models';
 import { AGENT_CONSTANTS } from '../types/AgentConstants';
 import { LoggerService } from '../../services/LoggerService';
+import { AgentTool } from '../../tools/AgentTool';
 
 /**
  * Determines the environment type from runtime context.
@@ -18,7 +19,7 @@ export class PromptBuilder {
      * Build the initial message stack for the agent.
      * Now async — pulls the system prompt dynamically from DB via PromptService.
      */
-    static async buildInitialMessages(ctx: AgentContext, state: WorkflowState, allowedTools: any[] = []): Promise<BedrockMessage[]> {
+    static async buildInitialMessages(ctx: AgentContext, state: WorkflowState, allowedTools: AgentTool[] = []): Promise<BedrockMessage[]> {
         const { message, images } = ctx;
         const { smartContext, nativeDocBlocks, extractedTextBlocks, history } = state;
 

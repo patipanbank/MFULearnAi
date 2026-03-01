@@ -45,10 +45,7 @@ export class AgentWorkflow {
             extractedTextBlocks: [],
             uploadPromises: [],
             clientDisconnected: false,
-            messages: [],
-            toolOutputs: [],
-            scratchpad: [],
-            tokenUsage: { input: 0, output: 0, total: 0 }
+            messages: []
         };
 
         // Initialize Event Store
@@ -58,19 +55,21 @@ export class AgentWorkflow {
     /**
      * Public Entry Point
      */
-    static async execute(
-        userId: string,
-        sessionId: string,
-        message: string,
-        userRole: string,
-        userDepartment: string,
-        collectionId: string | undefined,
-        images: any[] = [],
-        files: any[] = [],
-        traceId?: string
-    ): Promise<{ traceId: string }> {
+    static async execute(request: {
+        userId: string;
+        sessionId: string;
+        message: string;
+        userRole: string;
+        userDepartment: string;
+        collectionId?: string;
+        images?: any[];
+        files?: any[];
+        traceId?: string;
+    }): Promise<{ traceId: string }> {
         const workflow = new AgentWorkflow({
-            userId, sessionId, message, userRole, userDepartment, collectionId, images, files, traceId
+            ...request,
+            images: request.images || [],
+            files: request.files || [],
         });
         return workflow.run();
     }

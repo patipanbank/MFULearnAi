@@ -66,19 +66,19 @@ export class ChatController {
                     }
 
                     // Start workflow in background (fire-and-forget)
-                    AgentWorkflow.execute(
+                    AgentWorkflow.execute({
                         userId,
-                        actualSessionId,
+                        sessionId: actualSessionId,
                         message,
-                        req.user.role,
-                        req.user.department,
+                        userRole: req.user.role,
+                        userDepartment: req.user.department,
                         collectionId,
                         images,
                         files,
-                        traceId, // Pass the traceId we just sent to client
-                        modelId || undefined, // Pass modelId for cost weighting
+                        traceId,
+                        modelId: modelId || undefined,
                         apiKeyContext
-                    ).catch((err: any) => {
+                    }).catch((err: any) => {
                         LoggerService.error('agent_workflow_error', { error: err.message, stack: err.stack });
                     });
                 } catch (err: any) {

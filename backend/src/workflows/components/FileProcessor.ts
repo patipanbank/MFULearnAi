@@ -1,7 +1,6 @@
-import { KnowledgeService } from '../../services/KnowledgeService';
 import { ChatAttachmentService } from '../../services/ChatAttachmentService';
 import { LoggerService } from '../../services/LoggerService';
-import { AGENT_EVENTS, FileJobResult, NativeDocBlock, ExtractedTextBlock } from '../types/AgentTypes';
+import { AGENT_EVENTS, FileJobResult, UploadedFile } from '../types/AgentTypes';
 import { queueService, ocrQueueEvents } from '../../services/QueueService';
 import * as crypto from 'crypto';
 
@@ -12,11 +11,17 @@ const MAX_NATIVE_DOC_SIZE = 4.5 * 1024 * 1024;
 const IMAGE_EXTENSIONS = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'bmp', 'tiff']);
 const OCR_REQUIRED_EXTENSIONS = new Set(['pdf', ...IMAGE_EXTENSIONS]);
 
+/** Type for BullMQ progress event */
+interface QueueProgressEvent {
+    jobId: string;
+    data: number | Record<string, unknown>;
+}
+
 export class FileProcessor {
     static async processFiles(
-        files: any[],
+        files: UploadedFile[],
         userId: string,
-        emit: (type: string, payload: any) => void
+        emit: (type: string, payload: Record<string, unknown>) => void
     ): Promise<FileJobResult> {
         const result: FileJobResult = {
             status: 'done',
@@ -30,7 +35,7 @@ export class FileProcessor {
 
         LoggerService.info('agent_files_received', {
             filesCount: files.length,
-            fileDetails: files.map((f: any) => ({
+            fileDetails: files.map((f) => ({
                 name: f.originalname || f.name,
                 size: f.size,
                 hasBuffer: !!f.buffer
@@ -38,7 +43,7 @@ export class FileProcessor {
         }, userId);
 
         const totalFiles = files.length;
-        const uploadPromises: Promise<any>[] = [];
+        const uploadPromises: Promise<{ s3Key?: string; fileType?: string; [key: string]: unknown } | null>[] = [];
         let needsAsyncProcessing = false;
 
         for (let fi = 0; fi < files.length; fi++) {
@@ -69,7 +74,7 @@ export class FileProcessor {
                 )
                     .then(meta => {
                         emit(AGENT_EVENTS.FILE_UPLOADED, { fileName, metadata: meta });
-                        return { ...meta, fileType: ext };
+                        return { ...meta, fileType: ext } as { s3Key?: string; fileType?: string; [key: string]: unknown };
                     })
                     .catch(e => {
                         LoggerService.error('file_upload_error', { fileName, error: e.message }, userId);
@@ -105,7 +110,7 @@ export class FileProcessor {
                 });
                 LoggerService.info('ocr_queue_add_complete', { jobId, fileName }, userId);
 
-                // Track last job ID for waitForJob — batched multi-file OCR is a future enhancement
+                // Track last job ID for waitForJob
                 result.jobId = jobId;
             }
         }
@@ -114,13 +119,14 @@ export class FileProcessor {
         try {
             LoggerService.info('upload_batch_wait_start', { count: uploadPromises.length }, userId);
             const uploaded = await Promise.all(uploadPromises);
-            result.attachments = uploaded.filter(u => u !== null);
+            result.attachments = uploaded.filter((u): u is NonNullable<typeof u> => u !== null);
             LoggerService.info('upload_batch_wait_complete', {
                 total: uploadPromises.length,
                 successful: result.attachments.length
             }, userId);
-        } catch (e: any) {
-            LoggerService.warn('upload_batch_partial_failure', { error: e.message }, userId);
+        } catch (e: unknown) {
+            const message = e instanceof Error ? e.message : String(e);
+            LoggerService.warn('upload_batch_partial_failure', { error: message }, userId);
         }
 
         if (needsAsyncProcessing) {
@@ -132,29 +138,27 @@ export class FileProcessor {
 
     static async waitForJob(
         jobId: string,
-        emit: (type: string, payload: any) => void,
+        emit: (type: string, payload: Record<string, unknown>) => void,
         timeoutMs: number = 60000
     ): Promise<FileJobResult> {
-        // Poll Queue or Redis for result
-        // For BullMQ, getting the job result:
         const job = await queueService.ocrQueue.getJob(jobId);
         if (!job) throw new Error(`Job ${jobId} not found`);
 
-        const progressListener = ({ jobId: id, data }: { jobId: string; data: any }) => {
+        const progressListener = ({ jobId: id, data }: QueueProgressEvent) => {
             if (id === jobId) {
                 const percent = typeof data === 'number' ? data : 0;
                 emit(AGENT_EVENTS.FILE_PROGRESS, {
-                    fileName: 'Processing...', // We might not have filename here easily without passing it or querying job
+                    fileName: 'Processing...',
                     fileIndex: 0,
                     totalFiles: 1,
                     stage: 'processing',
-                    percent: 20 + (percent * 0.8), // Scale 0-100 to 20-100 range
+                    percent: 20 + (percent * 0.8),
                     detail: `OCR Processing: ${percent}%`
                 });
             }
         };
-        // @ts-ignore - JobProgress type mismatch with simplified listener
-        ocrQueueEvents.on('progress', progressListener);
+
+        ocrQueueEvents.on('progress', progressListener as (...args: unknown[]) => void);
 
         try {
             const output = await job.waitUntilFinished(ocrQueueEvents, timeoutMs);
@@ -162,7 +166,7 @@ export class FileProcessor {
             if (!output || !output.blocks) {
                 LoggerService.warn('OCR Job Returned No Blocks', { jobId, output });
                 return {
-                    status: 'done', // Or partial?
+                    status: 'done',
                     jobId,
                     nativeDocBlocks: [],
                     extractedTextBlocks: [],
@@ -174,9 +178,8 @@ export class FileProcessor {
                 status: 'done',
                 jobId,
                 nativeDocBlocks: [],
-                // The worker should return ExtractedTextBlock[]
                 extractedTextBlocks: output.blocks || [],
-                attachments: [] // attachments are already handled in processFiles
+                attachments: []
             };
         } catch (e) {
             LoggerService.error('OCR Job Failed', e);
@@ -188,8 +191,7 @@ export class FileProcessor {
                 attachments: []
             };
         } finally {
-            // @ts-ignore
-            ocrQueueEvents.off('progress', progressListener);
+            ocrQueueEvents.off('progress', progressListener as (...args: unknown[]) => void);
         }
     }
 

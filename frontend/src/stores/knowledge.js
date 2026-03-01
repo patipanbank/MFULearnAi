@@ -1,9 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import axios from 'axios'
-import { useAuthStore } from './auth'
-
-const API_URL = import.meta.env.VITE_API_URL || '/api'
+import api from '../utils/api'
 
 export const useKnowledgeStore = defineStore('knowledge', () => {
     const knowledge = ref([])
@@ -12,16 +9,6 @@ export const useKnowledgeStore = defineStore('knowledge', () => {
     const loading = ref(false)
     const error = ref(null)
     let pollInterval = null
-
-    // Helper to get auth headers
-    const getHeaders = () => {
-        const authStore = useAuthStore()
-        return {
-            headers: {
-                Authorization: `Bearer ${authStore.token}`
-            }
-        }
-    }
 
 
     const startPolling = () => {
@@ -36,7 +23,7 @@ export const useKnowledgeStore = defineStore('knowledge', () => {
             }
             // Silent refresh
             try {
-                const res = await axios.get(`${API_URL}/knowledge`, getHeaders())
+                const res = await api.get('/knowledge')
                 knowledge.value = res.data.knowledge
             } catch (e) { console.error('Poll failed', e) }
         }, 5000)
@@ -61,9 +48,8 @@ export const useKnowledgeStore = defineStore('knowledge', () => {
             // Clean up 'all' type
             if (queryParams.type === 'all') delete queryParams.type
 
-            const res = await axios.get(`${API_URL}/knowledge`, {
+            const res = await api.get('/knowledge', {
                 params: queryParams,
-                ...getHeaders()
             })
 
             // Handle both paginated and non-paginated response formats
@@ -91,9 +77,8 @@ export const useKnowledgeStore = defineStore('knowledge', () => {
     async function fetchPendingRequests() {
         // Separate API call — does NOT overwrite the main knowledge list
         try {
-            const res = await axios.get(`${API_URL}/knowledge`, {
+            const res = await api.get('/knowledge', {
                 params: { requestStatus: 'pending' },
-                ...getHeaders()
             })
             return res.data.knowledge || []
         } catch (e) {
@@ -111,11 +96,8 @@ export const useKnowledgeStore = defineStore('knowledge', () => {
             if (folder) formData.append('folder', folder)
             if (expiresAt) formData.append('expiresAt', expiresAt)
 
-            await axios.post(`${API_URL}/knowledge`, formData, {
-                headers: {
-                    ...getHeaders().headers,
-                    'Content-Type': 'multipart/form-data'
-                },
+            await api.post('/knowledge', formData, {
+                headers: { 'Content-Type': 'multipart/form-data' },
                 onUploadProgress: (progressEvent) => {
                     if (onProgress && progressEvent.total) {
                         const percent = Math.round((progressEvent.loaded * 100) / progressEvent.total)
@@ -137,7 +119,7 @@ export const useKnowledgeStore = defineStore('knowledge', () => {
     async function deleteKnowledge(id) {
         loading.value = true
         try {
-            await axios.delete(`${API_URL}/knowledge/${id}`, getHeaders())
+            await api.delete(`/knowledge/${id}`)
             knowledge.value = knowledge.value.filter(k => k._id !== id)
         } catch (e) {
             error.value = e.response?.data?.error || e.message
@@ -150,7 +132,7 @@ export const useKnowledgeStore = defineStore('knowledge', () => {
     async function retryKnowledge(id) {
         loading.value = true
         try {
-            await axios.post(`${API_URL}/knowledge/${id}/retry`, {}, getHeaders())
+            await api.post(`/knowledge/${id}/retry`)
             await fetchKnowledge() // Refresh list
             startPolling() // Start polling for the retried job
         } catch (e) {
@@ -164,11 +146,7 @@ export const useKnowledgeStore = defineStore('knowledge', () => {
     async function requestPublish(id, targetType) {
         loading.value = true
         try {
-            await axios.post(
-                `${API_URL}/knowledge/${id}/request-publish`,
-                { targetType },
-                getHeaders()
-            )
+            await api.post(`/knowledge/${id}/request-publish`, { targetType })
             await fetchKnowledge()
         } catch (e) {
             error.value = e.response?.data?.error || e.message
@@ -181,11 +159,7 @@ export const useKnowledgeStore = defineStore('knowledge', () => {
     async function approvePublish(id, action) {
         loading.value = true
         try {
-            await axios.post(
-                `${API_URL}/knowledge/${id}/approve-publish`,
-                { action },
-                getHeaders()
-            )
+            await api.post(`/knowledge/${id}/approve-publish`, { action })
             await fetchKnowledge()
         } catch (e) {
             error.value = e.response?.data?.error || e.message
@@ -200,11 +174,8 @@ export const useKnowledgeStore = defineStore('knowledge', () => {
         try {
             const formData = new FormData()
             formData.append('file', file)
-            const res = await axios.post(`${API_URL}/knowledge/extract`, formData, {
-                headers: {
-                    ...getHeaders().headers,
-                    'Content-Type': 'multipart/form-data'
-                }
+            const res = await api.post('/knowledge/extract', formData, {
+                headers: { 'Content-Type': 'multipart/form-data' }
             })
             return res.data.text
         } catch (e) {
@@ -217,7 +188,7 @@ export const useKnowledgeStore = defineStore('knowledge', () => {
 
     async function updateKnowledge(id, updates) {
         try {
-            const res = await axios.patch(`${API_URL}/knowledge/${id}`, updates, getHeaders())
+            const res = await api.patch(`/knowledge/${id}`, updates)
             // Update local state reactively
             const idx = knowledge.value.findIndex(k => k._id === id)
             if (idx !== -1 && res.data.knowledge) {
@@ -235,7 +206,7 @@ export const useKnowledgeStore = defineStore('knowledge', () => {
     async function fetchCollections() {
         loading.value = true
         try {
-            const res = await axios.get(`${API_URL}/knowledge/collections`, getHeaders())
+            const res = await api.get('/knowledge/collections')
             // Handle both paginated and non-paginated response formats
             collections.value = res.data.collections
         } catch (e) {
@@ -248,7 +219,7 @@ export const useKnowledgeStore = defineStore('knowledge', () => {
     async function createCollection(payload) {
         loading.value = true
         try {
-            await axios.post(`${API_URL}/knowledge/collections`, payload, getHeaders())
+            await api.post('/knowledge/collections', payload)
             await fetchCollections()
             return true
         } catch (e) {
@@ -262,7 +233,7 @@ export const useKnowledgeStore = defineStore('knowledge', () => {
     async function updateCollection(id, payload) {
         loading.value = true
         try {
-            await axios.put(`${API_URL}/knowledge/collections/${id}`, payload, getHeaders())
+            await api.put(`/knowledge/collections/${id}`, payload)
             await fetchCollections()
             return true
         } catch (e) {
@@ -276,7 +247,7 @@ export const useKnowledgeStore = defineStore('knowledge', () => {
     async function deleteCollection(id) {
         loading.value = true
         try {
-            await axios.delete(`${API_URL}/knowledge/collections/${id}`, getHeaders())
+            await api.delete(`/knowledge/collections/${id}`)
             await fetchCollections()
             return true
         } catch (e) {
@@ -291,7 +262,7 @@ export const useKnowledgeStore = defineStore('knowledge', () => {
         loading.value = true
         currentCollection.value = null
         try {
-            const res = await axios.get(`${API_URL}/knowledge/collections/${id}`, getHeaders())
+            const res = await api.get(`/knowledge/collections/${id}`)
             currentCollection.value = res.data.collection
         } catch (e) {
             error.value = e.response?.data?.error || e.message
@@ -303,11 +274,7 @@ export const useKnowledgeStore = defineStore('knowledge', () => {
     async function mapKnowledge(collectionId, knowledgeId, action) {
         // action: 'add' or 'remove'
         try {
-            await axios.post(
-                `${API_URL}/knowledge/collections/${collectionId}/map`,
-                { knowledgeId, action },
-                getHeaders()
-            )
+            await api.post(`/knowledge/collections/${collectionId}/map`, { knowledgeId, action })
             // Refresh details if currently viewing this collection
             if (currentCollection.value?._id === collectionId) {
                 await fetchCollectionDetails(collectionId)
@@ -325,7 +292,7 @@ export const useKnowledgeStore = defineStore('knowledge', () => {
             if (folder) payload.folder = folder
             if (expiresAt) payload.expiresAt = expiresAt
 
-            const res = await axios.post(`${API_URL}/knowledge/url`, payload, getHeaders())
+            const res = await api.post('/knowledge/url', payload)
             await fetchKnowledge() // Refresh list
             startPolling() // Start polling for background job
             return res.data
@@ -342,7 +309,7 @@ export const useKnowledgeStore = defineStore('knowledge', () => {
             if (folder) payload.folder = folder
             if (expiresAt) payload.expiresAt = expiresAt
 
-            const res = await axios.post(`${API_URL}/knowledge/text`, payload, getHeaders())
+            const res = await api.post('/knowledge/text', payload)
             await fetchKnowledge() // Refresh list
             startPolling() // Start polling for background job
             return res.data
@@ -359,7 +326,7 @@ export const useKnowledgeStore = defineStore('knowledge', () => {
     async function fetchStats() {
         statsLoading.value = true
         try {
-            const res = await axios.get(`${API_URL}/knowledge/stats`, getHeaders())
+            const res = await api.get('/knowledge/stats')
             stats.value = res.data
             return res.data
         } catch (e) {
@@ -372,7 +339,7 @@ export const useKnowledgeStore = defineStore('knowledge', () => {
 
     async function fetchDocumentAnalytics(id) {
         try {
-            const res = await axios.get(`${API_URL}/knowledge/${id}/analytics`, getHeaders())
+            const res = await api.get(`/knowledge/${id}/analytics`)
             return res.data
         } catch (e) {
             error.value = e.response?.data?.error || e.message

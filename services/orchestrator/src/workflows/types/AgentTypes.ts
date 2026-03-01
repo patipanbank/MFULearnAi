@@ -15,7 +15,7 @@ export interface WorkflowState {
     phase: AgentPhase;
     traceId: string;
     steps: number;
-    totalUsage: { input: 0, output: 0, total: 0 };
+    totalUsage: { input: number; output: number; total: number };
     usedTools: Set<string>;
     answerMode: string;
     answerState: string;
@@ -28,13 +28,6 @@ export interface WorkflowState {
     uploadPromises: Promise<any>[];
     clientDisconnected: boolean;
     messages: any[];
-    toolOutputs: any[];
-    scratchpad: string[];
-    tokenUsage: {
-        input: number;
-        output: number;
-        total: number;
-    };
 }
 
 export enum AgentPhase {

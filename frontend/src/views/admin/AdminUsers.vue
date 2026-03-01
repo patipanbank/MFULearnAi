@@ -2,15 +2,15 @@
   <div class="page-container">
     <div class="page-header">
       <div class="header-left">
-        <h1>Users</h1>
-        <p class="subtitle">Manage all user accounts and roles.</p>
+        <h1>{{ t('usersTitle') }}</h1>
+        <p class="subtitle">{{ t('usersSubtitle') }}</p>
       </div>
       <button v-if="isSuperAdmin" class="btn-primary" @click="openCreateModal">
         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <line x1="12" y1="5" x2="12" y2="19"></line>
           <line x1="5" y1="12" x2="19" y2="12"></line>
         </svg>
-        Create User
+        {{ t('createUser') }}
       </button>
     </div>
 
@@ -32,19 +32,19 @@
       <table class="data-table">
         <thead>
           <tr>
-            <th>User</th>
-            <th>Role</th>
-            <th>Department</th>
-            <th>Status</th>
-            <th>Registered</th>
+            <th>{{ t('user') }}</th>
+            <th>{{ t('role') }}</th>
+            <th>{{ t('department') }}</th>
+            <th>{{ t('status') }}</th>
+            <th>{{ t('registered') }}</th>
           </tr>
         </thead>
         <tbody>
            <tr v-if="loading && filteredUsers.length === 0">
-               <td colspan="5" class="empty-row">Loading...</td>
+               <td colspan="5" class="empty-row">{{ t('toolLoading') }}</td>
            </tr>
            <tr v-else-if="filteredUsers.length === 0">
-               <td colspan="5" class="empty-row">No users found.</td>
+               <td colspan="5" class="empty-row">{{ t('noUsersFound') }}</td>
            </tr>
            <tr v-for="user in filteredUsers" :key="user._id" class="clickable-row" @click="openEditModal(user)">
              <td class="font-medium">
@@ -61,7 +61,7 @@
              <td class="text-secondary">{{ user.department || '-' }}</td>
              <td>
                 <span class="status-indicator" :class="{ 'active': user.isActive, 'inactive': !user.isActive }">
-                    {{ user.isActive ? 'Active' : 'Inactive' }}
+                    {{ user.isActive ? t('active') : t('inactive') }}
                 </span>
              </td>
              <td class="text-date">{{ formatDate(user.createdAt) }}</td>
@@ -74,7 +74,7 @@
     <Teleport to="body">
        <div v-if="showModal" class="modal-overlay" @click.self="closeModal" @keydown.escape="closeModal" tabindex="-1">
           <div class="knowledge-modal">
-             <h2>{{ isEditing ? 'Edit User' : 'Create User' }}</h2>
+             <h2>{{ isEditing ? t('editUser') : t('createUser') }}</h2>
              
              <div v-if="isEditing" class="user-summary mb-4 p-3 rounded" style="background: var(--color-bg-tertiary);">
                  <div class="font-bold">{{ form.firstName }} {{ form.lastName }}</div>
@@ -83,30 +83,30 @@
 
              <div v-if="!isEditing" class="form-group-row">
                  <div class="form-group flex-1">
-                     <label>Username</label>
+                     <label>{{ t('username') }}</label>
                      <input v-model="form.username" type="text" placeholder="username" :disabled="!isSuperAdmin">
                  </div>
                  <div class="form-group flex-1">
-                     <label>Password</label>
+                     <label>{{ t('password') }}</label>
                      <input v-model="form.password" type="password" placeholder="••••••" :disabled="!isSuperAdmin">
                  </div>
              </div>
 
              <div v-if="!isEditing" class="form-group-row">
                  <div class="form-group flex-1">
-                     <label>First Name</label>
+                     <label>{{ t('firstName') }}</label>
                      <input v-model="form.firstName" type="text" :disabled="!isSuperAdmin">
                  </div>
                  <div class="form-group flex-1">
-                     <label>Last Name</label>
+                     <label>{{ t('lastName') }}</label>
                      <input v-model="form.lastName" type="text" :disabled="!isSuperAdmin">
                  </div>
              </div>
 
              <div class="form-group">
-                 <label>Role</label>
+                 <label>{{ t('role') }}</label>
                  <select v-model="form.role" :disabled="!isSuperAdmin">
-                     <option value="" disabled>Select Role</option>
+                     <option value="" disabled>{{ t('selectRole') }}</option>
                      <option value="student">Student</option>
                      <option value="teacher">Teacher</option>
                      <option value="admin">Admin</option>
@@ -115,9 +115,9 @@
              </div>
 
              <div class="form-group">
-                 <label>Department</label>
+                 <label>{{ t('department') }}</label>
                  <select v-model="form.department" :disabled="!isSuperAdmin">
-                     <option value="" disabled>Select Department</option>
+                     <option value="" disabled>{{ t('selectDept') }}</option>
                      <option v-for="dept in departments" :key="dept._id" :value="dept.name">
                          {{ dept.name }}
                      </option>
@@ -127,16 +127,16 @@
              <div class="form-group checkbox-group">
                  <label>
                      <input type="checkbox" v-model="form.isActive" :disabled="!isSuperAdmin">
-                     Account Active
+                     {{ t('accountActive') }}
                  </label>
              </div>
              
              <div v-if="error" class="error">{{ error }}</div>
 
              <div class="actions">
-                 <button v-if="isEditing && isSuperAdmin" class="btn-delete" @click="handleDelete(form._id)">Delete User</button>
+                 <button v-if="isEditing && isSuperAdmin" class="btn-delete" @click="handleDelete(form._id)">{{ t('deleteUser') }}</button>
                  <div class="spacer"></div>
-                 <button class="btn-cancel" @click="closeModal">{{ isSuperAdmin ? 'Cancel' : 'Close' }}</button>
+                 <button class="btn-cancel" @click="closeModal">{{ isSuperAdmin ? t('cancel') : t('deptClose') }}</button>
                  <button v-if="isSuperAdmin" class="btn-primary" @click="handleSubmit" :disabled="submitting || (!isEditing && !form.username)">
                      {{ submitting ? 'Saving...' : 'Save' }}
                  </button>
@@ -153,8 +153,10 @@ import { ref, computed, onMounted } from 'vue';
 import api from '../../utils/api';
 import { useAuthStore } from '../../stores/auth';
 import { useConfirmDialog } from '@/composables/useConfirmDialog';
+import { useLanguage } from '@/composables/useSettings';
 
 const { confirm: showConfirm, alert: showAlert } = useConfirmDialog();
+const { t } = useLanguage();
 
 const authStore = useAuthStore();
 const isSuperAdmin = computed(() => authStore.role === 'superadmin');

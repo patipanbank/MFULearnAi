@@ -1,5 +1,7 @@
 import { LoggerService } from '../../services/LoggerService';
-import { AGENT_EVENTS, AgentContext } from '../types/AgentTypes';
+import { AGENT_EVENTS, AgentContext, BedrockContentBlock, ToolResultEntry } from '../types/AgentTypes';
+import { AGENT_CONSTANTS, AGENT_MESSAGES } from '../types/AgentConstants';
+import { AgentTool, ToolExecutionContext } from '../../tools/AgentTool';
 
 // ---------------------------------------------------------------------------
 // Tool-result compaction helpers
@@ -8,8 +10,8 @@ import { AGENT_EVENTS, AgentContext } from '../types/AgentTypes';
 /**
  * Remove null, undefined, and empty-string values from an object (shallow).
  */
-function stripEmpty(obj: Record<string, any>): Record<string, any> {
-    const out: Record<string, any> = {};
+function stripEmpty(obj: Record<string, unknown>): Record<string, unknown> {
+    const out: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(obj)) {
         if (v === null || v === undefined || v === '') continue;
         out[k] = v;
@@ -18,18 +20,13 @@ function stripEmpty(obj: Record<string, any>): Record<string, any> {
 }
 
 /**
- * Convert an array-of-objects into a compact Markdown table.
- * Much more token-efficient than JSON for tabular data.
- *
- * Example:
-/**
  * Convert an array-of-objects into ultra-compact delimited format.
  * Header row uses field names, `/` separates fields, `|` separates rows.
  *
  * Example:
  *   id/location/status|CAM-01/หน้าประตู/online|CAM-02/ลานจอดรถ/offline
  */
-function arrayToCompact(arr: Record<string, any>[]): string {
+function arrayToCompact(arr: Record<string, unknown>[]): string {
     if (arr.length === 0) return '(empty)';
 
     const keys = Array.from(new Set(arr.flatMap(Object.keys)));
@@ -55,7 +52,7 @@ function arrayToCompact(arr: Record<string, any>[]): string {
  *  3. String that is JSON → parse then compact
  *  4. Otherwise → return as-is
  */
-function compactResult(raw: any): string {
+function compactResult(raw: unknown): string {
     // Already a string — try to parse it for better formatting
     if (typeof raw === 'string') {
         try {
@@ -70,8 +67,8 @@ function compactResult(raw: any): string {
     if (Array.isArray(raw)) {
         if (raw.length === 0) return '(empty)';
         if (typeof raw[0] === 'object' && raw[0] !== null) {
-            const cleaned = raw.map(item => (typeof item === 'object' ? stripEmpty(item) : item));
-            return `${raw.length} results:` + arrayToCompact(cleaned as Record<string, any>[]);
+            const cleaned = raw.map(item => (typeof item === 'object' ? stripEmpty(item as Record<string, unknown>) : item));
+            return `${raw.length} results:` + arrayToCompact(cleaned as Record<string, unknown>[]);
         }
         // Primitive array
         return JSON.stringify(raw);
@@ -79,71 +76,118 @@ function compactResult(raw: any): string {
 
     // Single object → compact JSON
     if (typeof raw === 'object' && raw !== null) {
-        return JSON.stringify(stripEmpty(raw));
+        return JSON.stringify(stripEmpty(raw as Record<string, unknown>));
     }
 
     return String(raw);
 }
 
+/**
+ * Wraps a promise with a timeout. Rejects with a descriptive error if the
+ * promise does not resolve within `ms` milliseconds.
+ */
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+    return new Promise<T>((resolve, reject) => {
+        const timer = setTimeout(
+            () => reject(new Error(`Tool "${label}" timed out after ${ms}ms`)),
+            ms
+        );
+        promise
+            .then(val => { clearTimeout(timer); resolve(val); })
+            .catch(err => { clearTimeout(timer); reject(err); });
+    });
+}
+
+/** Result of a single tool invocation (internal) */
+interface SingleToolResult {
+    toolName: string;
+    toolUseId: string;
+    result: unknown;
+    success: boolean;
+    durationMs: number;
+}
+
 export class ToolExecutor {
+    /**
+     * Execute all tool_use blocks requested by the model.
+     * Independent tools run in parallel; each call is guarded by a timeout.
+     */
     static async executeTools(
         fullResponse: string,
-        contentBlocks: any[],
-        allowedTools: any[],
+        contentBlocks: BedrockContentBlock[],
+        allowedTools: AgentTool[],
         ctx: AgentContext,
         step: number,
-        emit: (type: string, payload: any) => void
-    ): Promise<{ usedTools: Set<string>, toolResults: any[] }> {
+        emit: (type: string, payload: Record<string, unknown>) => void
+    ): Promise<{ usedTools: Set<string>; toolResults: ToolResultEntry[] }> {
         const toolUseBlocks = contentBlocks && contentBlocks.length > 0
             ? contentBlocks
-            : [{ type: 'text', text: fullResponse }];
+            : [{ type: 'text', text: fullResponse } as BedrockContentBlock];
+
+        const pendingBlocks = toolUseBlocks.filter(
+            (b): b is Extract<BedrockContentBlock, { type: 'tool_use' }> => 'type' in b && b.type === 'tool_use'
+        );
+
+        if (pendingBlocks.length === 0) {
+            return { usedTools: new Set<string>(), toolResults: [] };
+        }
 
         const usedTools = new Set<string>();
-        const toolResults: any[] = [];
+        const timeout = AGENT_CONSTANTS.TOOL_TIMEOUT_MS;
 
-        for (const block of toolUseBlocks) {
-            if (block.type !== 'tool_use') continue;
+        // Build execution context once
+        const execCtx: ToolExecutionContext = {
+            userId: ctx.userId,
+            role: ctx.userRole,
+            department: ctx.userDepartment,
+            collectionId: ctx.collectionId,
+            isApiKey: ctx.isApiKey,
+            allowedDepartments: ctx.allowedDepartments,
+            allowedKnowledgeIds: ctx.allowedKnowledgeIds,
+        };
 
-            const { name: toolName, input: toolInput, toolUseId } = block;
-            usedTools.add(toolName);
+        // Emit status for each tool, then run ALL in parallel
+        for (const block of pendingBlocks) {
+            usedTools.add(block.name);
+            emit(AGENT_EVENTS.TOOL_START, { toolName: block.name, input: block.input, step });
+            emit(AGENT_EVENTS.STATUS, { message: AGENT_MESSAGES.STATUS_USING_TOOL(block.name) });
+        }
 
-            LoggerService.info('tool_execution', { tool: toolName, input: toolInput }, ctx.userId);
+        const settled = await Promise.allSettled(
+            pendingBlocks.map(block => this.executeSingle(block, allowedTools, execCtx, timeout, ctx.userId))
+        );
 
-            emit(AGENT_EVENTS.TOOL_START, { toolName, input: toolInput, step });
-            emit(AGENT_EVENTS.STATUS, { message: `🔧 Using ${toolName}...` });
+        // Map results back in order
+        const toolResults: ToolResultEntry[] = [];
 
-            // Execute Tool
-            const start = Date.now();
-            const tool = allowedTools.find(t => t.schemaJSON.name === toolName);
-            let result: any;
-            let success = false;
+        for (let i = 0; i < pendingBlocks.length; i++) {
+            const block = pendingBlocks[i];
+            const outcome = settled[i];
 
-            if (tool) {
-                const exec = await tool.execute(toolInput, {
-                    userId: ctx.userId,
-                    role: ctx.userRole,
-                    department: ctx.userDepartment,
-                    collectionId: ctx.collectionId,
-                    isApiKey: ctx.isApiKey,
-                    allowedDepartments: ctx.allowedDepartments,
-                    allowedKnowledgeIds: ctx.allowedKnowledgeIds,
-                });
-                result = exec.success ? exec.result : `Error: ${exec.error}`;
-                success = exec.success;
-                if (toolName === 'search' && success) usedTools.add('search');
+            let singleResult: SingleToolResult;
+
+            if (outcome.status === 'fulfilled') {
+                singleResult = outcome.value;
             } else {
-                result = `Error: Tool ${toolName} not found.`;
+                // Should not happen (executeSingle catches internally), but safety net
+                singleResult = {
+                    toolName: block.name,
+                    toolUseId: block.toolUseId,
+                    result: `Error: ${outcome.reason?.message || 'Unknown error'}`,
+                    success: false,
+                    durationMs: 0
+                };
             }
 
-            const duration = Date.now() - start;
-
-            // Compact the result → table / minimal JSON (no data lost, just formatted efficiently)
-            const compacted = compactResult(result);
-            const originalLen = typeof result === 'string' ? result.length : JSON.stringify(result).length;
+            // Compact the result
+            const compacted = compactResult(singleResult.result);
+            const originalLen = typeof singleResult.result === 'string'
+                ? singleResult.result.length
+                : JSON.stringify(singleResult.result).length;
 
             if (originalLen !== compacted.length) {
                 LoggerService.info('tool_result_compacted', {
-                    tool: toolName,
+                    tool: singleResult.toolName,
                     originalChars: originalLen,
                     compactedChars: compacted.length,
                     savings: `${Math.round((1 - compacted.length / originalLen) * 100)}%`
@@ -151,19 +195,76 @@ export class ToolExecutor {
             }
 
             emit(AGENT_EVENTS.TOOL_COMPLETE, {
-                toolName,
-                success,
-                resultPreview: compacted.substring(0, 300),
-                durationMs: duration,
+                toolName: singleResult.toolName,
+                success: singleResult.success,
+                resultPreview: compacted.substring(0, AGENT_CONSTANTS.RESULT_PREVIEW_CHARS),
+                durationMs: singleResult.durationMs,
                 step
             });
 
             toolResults.push({
-                toolUseId,
+                toolUseId: singleResult.toolUseId,
                 content: [{ json: { result: compacted } }]
             });
         }
 
         return { usedTools, toolResults };
+    }
+
+    /**
+     * Execute a single tool with timeout guard.
+     * Never throws — returns an error result on failure.
+     */
+    private static async executeSingle(
+        block: { toolUseId: string; name: string; input: Record<string, unknown> },
+        allowedTools: AgentTool[],
+        execCtx: ToolExecutionContext,
+        timeoutMs: number,
+        userId: string
+    ): Promise<SingleToolResult> {
+        const start = Date.now();
+        const tool = allowedTools.find(t => t.schemaJSON.name === block.name);
+
+        if (!tool) {
+            return {
+                toolName: block.name,
+                toolUseId: block.toolUseId,
+                result: `Error: Tool "${block.name}" not found.`,
+                success: false,
+                durationMs: Date.now() - start
+            };
+        }
+
+        try {
+            LoggerService.info('tool_execution', { tool: block.name, input: block.input }, userId);
+
+            const exec = await withTimeout(
+                tool.execute(block.input, execCtx),
+                timeoutMs,
+                block.name
+            );
+
+            return {
+                toolName: block.name,
+                toolUseId: block.toolUseId,
+                result: exec.success ? exec.result : `Error: ${exec.error}`,
+                success: exec.success,
+                durationMs: Date.now() - start
+            };
+        } catch (err: unknown) {
+            const message = err instanceof Error ? err.message : String(err);
+            LoggerService.error('tool_execution_error', {
+                tool: block.name,
+                error: message
+            }, userId);
+
+            return {
+                toolName: block.name,
+                toolUseId: block.toolUseId,
+                result: `Error: ${message}`,
+                success: false,
+                durationMs: Date.now() - start
+            };
+        }
     }
 }

@@ -3,14 +3,15 @@ import { SummarizationService } from '../../services/SummarizationService';
 import { LoggerService } from '../../services/LoggerService';
 import { AGENT_EVENTS, AgentContext, WorkflowState } from '../types/AgentTypes';
 import { MODELS, computeWeightedTokens } from '../../config/models';
+import { AgentEventStore } from '../../services/AgentEventStore';
 
 export class ResultPersister {
     static async finalize(
         ctx: AgentContext,
         state: WorkflowState,
-        emit: (type: string, payload: any) => void,
-        store: any // AgentEventStore
-    ) {
+        emit: (type: string, payload: Record<string, unknown>) => void,
+        store: AgentEventStore
+    ): Promise<void> {
         if (!state.finalAnswer) return;
 
         const { finalAnswer, answerMode, answerState, steps, totalUsage, startTime, history } = state;

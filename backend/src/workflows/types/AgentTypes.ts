@@ -1,6 +1,49 @@
 import { ChatMessage, SmartContext } from '../../../../shared/types';
 
-/** Context passed into the AgentWorkflow from the ChatController. */
+// ── Inline Image in Bedrock format ──
+export interface BedrockImage {
+    format: string;
+    source: { bytes: string };
+    [key: string]: unknown;
+}
+
+// ── Raw file from multipart upload ──
+export interface UploadedFile {
+    name?: string;
+    originalname?: string;
+    mediaType?: string;
+    size?: number;
+    buffer?: Buffer;
+    [key: string]: unknown;
+}
+
+// ── API Key access scope ──
+export interface ApiKeyContext {
+    isApiKey: boolean;
+    allowedDepartments?: string[];
+    allowedKnowledgeIds?: string[];
+    allowedTools?: string[];
+}
+
+/**
+ * Public request object for AgentWorkflow.execute().
+ * Single-object parameter replaces the previous 11 positional args.
+ */
+export interface AgentExecuteRequest {
+    userId: string;
+    sessionId: string;
+    message: string;
+    userRole: string;
+    userDepartment: string;
+    collectionId?: string;
+    modelId?: string;
+    images?: BedrockImage[];
+    files?: UploadedFile[];
+    traceId?: string;
+    apiKeyContext?: ApiKeyContext;
+}
+
+/** Internal context passed through the workflow pipeline. */
 export interface AgentContext {
     userId: string;
     sessionId: string;
@@ -11,9 +54,9 @@ export interface AgentContext {
     /** Model ID used for this agent session (for cost weighting). */
     modelId?: string;
     /** Inline images in Bedrock format (format + source.bytes). */
-    images: Array<{ format: string; source: { bytes: string };[key: string]: unknown }>;
+    images: BedrockImage[];
     /** Raw file buffers from multipart upload. */
-    files: Array<{ name?: string; originalname?: string; mediaType?: string; size?: number; buffer?: Buffer;[key: string]: unknown }>;
+    files: UploadedFile[];
     traceId?: string;
 
     // ── API Key Context (Optional — only set when request is via API Key) ──
@@ -27,14 +70,27 @@ export interface AgentContext {
     allowedTools?: string[];
 }
 
+/** Token usage counter */
+export interface TokenUsage {
+    input: number;
+    output: number;
+    total: number;
+}
+
+/** Possible answer modes for the agent response */
+export type AnswerMode = 'internal' | 'rag' | 'file_grounded' | 'policy_grounded' | 'policy_rag';
+
+/** Possible answer verification states */
+export type AnswerState = 'UNVERIFIED' | 'VERIFIED' | 'TIMEOUT' | 'ERROR';
+
 export interface WorkflowState {
     phase: AgentPhase;
     traceId: string;
     steps: number;
-    totalUsage: { input: number; output: number; total: number };
+    totalUsage: TokenUsage;
     usedTools: Set<string>;
-    answerMode: string;
-    answerState: string;
+    answerMode: AnswerMode;
+    answerState: AnswerState;
     startTime: number;
     finalAnswer: string;
     history: ChatMessage[];
@@ -44,13 +100,6 @@ export interface WorkflowState {
     uploadPromises: Promise<unknown>[];
     clientDisconnected: boolean;
     messages: BedrockMessage[];
-    toolOutputs: ToolResultEntry[];
-    scratchpad: string[];
-    tokenUsage: {
-        input: number;
-        output: number;
-        total: number;
-    };
     hasEmittedAnswerStart: boolean;
 }
 

@@ -7,9 +7,12 @@ import { PolicyCheckerTool } from '../tools/PolicyCheckerTool';
 import { SYSTEM_MODELS } from '../config/models';
 import * as crypto from 'crypto';
 
-// New Components & Types
-import { AgentContext, WorkflowState, AGENT_EVENTS, AgentPhase } from './types/AgentTypes';
-import { AGENT_CONSTANTS } from './types/AgentConstants';
+// Components & Types
+import {
+    AgentContext, AgentExecuteRequest, WorkflowState, BedrockMessage,
+    AGENT_EVENTS, AgentPhase, TokenUsage, BedrockContentBlock
+} from './types/AgentTypes';
+import { AGENT_CONSTANTS, AGENT_MESSAGES } from './types/AgentConstants';
 import { FileProcessor } from './components/FileProcessor';
 import { PromptBuilder } from './components/PromptBuilder';
 import { ToolExecutor } from './components/ToolExecutor';
@@ -19,7 +22,7 @@ import { ResultPersister } from './components/ResultPersister';
 import { AgentTool } from '../tools/AgentTool';
 import { ToolAccessService } from '../services/ToolAccessService';
 
-// Whitelist of tools for the Agent
+// Whitelist of built-in tools for the Agent
 const AVAILABLE_TOOLS: AgentTool[] = [
     new CalculatorTool(),
     new SearchTool(),
@@ -27,7 +30,6 @@ const AVAILABLE_TOOLS: AgentTool[] = [
 ];
 
 import { mcpManager } from '../mcp/McpManager';
-import path from 'path';
 
 export class AgentWorkflow {
     private ctx: AgentContext;
@@ -54,46 +56,42 @@ export class AgentWorkflow {
             uploadPromises: [],
             clientDisconnected: false,
             messages: [],
-            toolOutputs: [],
-            scratchpad: [],
-            tokenUsage: { input: 0, output: 0, total: 0 },
             hasEmittedAnswerStart: false
         };
 
-        // Initialize Event Store
+        // Initialize Event Store with disconnect detection
         this.store = new AgentEventStore(ctx.userId, traceId);
+        this.store.onDisconnect = () => {
+            this.state.clientDisconnected = true;
+            LoggerService.info('agent_client_disconnected', {
+                traceId,
+                step: this.state.steps
+            }, ctx.userId);
+        };
     }
 
-
     /**
-     * Public Entry Point
+     * Public Entry Point — accepts a single request object.
      */
-    static async execute(
-        userId: string,
-        sessionId: string,
-        message: string,
-        userRole: string,
-        userDepartment: string,
-        collectionId: string | undefined,
-        images: any[] = [],
-        files: any[] = [],
-        traceId?: string,
-        modelId?: string,
-        apiKeyContext?: {
-            isApiKey: boolean;
-            allowedDepartments?: string[];
-            allowedKnowledgeIds?: string[];
-            allowedTools?: string[];
-        }
-    ): Promise<{ traceId: string }> {
-        const workflow = new AgentWorkflow({
-            userId, sessionId, message, userRole, userDepartment, collectionId, modelId, images, files, traceId,
-            ...(apiKeyContext || {})
-        });
+    static async execute(request: AgentExecuteRequest): Promise<{ traceId: string }> {
+        const ctx: AgentContext = {
+            userId: request.userId,
+            sessionId: request.sessionId,
+            message: request.message,
+            userRole: request.userRole,
+            userDepartment: request.userDepartment,
+            collectionId: request.collectionId,
+            modelId: request.modelId,
+            images: request.images || [],
+            files: request.files || [],
+            traceId: request.traceId,
+            ...(request.apiKeyContext || {})
+        };
+        const workflow = new AgentWorkflow(ctx);
         return workflow.run();
     }
 
-    private emit(type: string, payload: Record<string, any> = {}) {
+    private emit(type: string, payload: Record<string, unknown> = {}): void {
         this.store.emit(type, payload);
     }
 
@@ -126,9 +124,9 @@ export class AgentWorkflow {
             this.state.phase = AgentPhase.UPLOADING;
 
             // 2.1 Process Inline Images (Persist them)
-            const imageUploadPromises: Promise<any>[] = [];
+            const imageUploadPromises: Promise<unknown>[] = [];
             if (this.ctx.images && this.ctx.images.length > 0) {
-                this.ctx.images.forEach((img: any, idx: number) => {
+                this.ctx.images.forEach((img, idx: number) => {
                     if (img.source && img.source.bytes) {
                         const p = (async () => {
                             try {
@@ -142,8 +140,9 @@ export class AgentWorkflow {
                                     `image/${format}`,
                                     this.ctx.userId
                                 );
-                            } catch (e: any) {
-                                LoggerService.error('image_persist_error', { error: e.message });
+                            } catch (e: unknown) {
+                                const message = e instanceof Error ? e.message : String(e);
+                                LoggerService.error('image_persist_error', { error: message });
                                 return null;
                             }
                         })();
@@ -162,7 +161,7 @@ export class AgentWorkflow {
             // Wait for OCR
             if (fileJob.status === 'pending') {
                 this.state.phase = AgentPhase.OCR_WAIT;
-                this.emit(AGENT_EVENTS.STATUS, { message: 'Waiting for OCR processing...' });
+                this.emit(AGENT_EVENTS.STATUS, { message: AGENT_MESSAGES.STATUS_WAITING_OCR });
                 const completedJob = await FileProcessor.waitForJob(
                     fileJob.jobId,
                     this.emit.bind(this),
@@ -186,11 +185,10 @@ export class AgentWorkflow {
             // 3. Initialize Tools (General + MCP)
             this.state.phase = AgentPhase.INIT;
             const mcpTools = mcpManager.getTools();
-            const allTools = [...AVAILABLE_TOOLS, ...mcpTools];
+            const allTools: AgentTool[] = [...AVAILABLE_TOOLS, ...mcpTools];
 
             // 3.1 Filter tools by user role (DB override > code defaults)
-            const userRole = this.ctx.userRole;
-            let allowedTools = await ToolAccessService.filterAllowed(allTools, userRole);
+            let allowedTools = await ToolAccessService.filterAllowed(allTools, this.ctx.userRole);
 
             // 3.2 Filter tools by API Key allowedTools (if API key request)
             if (this.ctx.isApiKey && this.ctx.allowedTools) {
@@ -201,7 +199,6 @@ export class AgentWorkflow {
                         return apiToolScope.includes(toolName);
                     });
                 }
-                // If allowedTools is empty array → no tools allowed
                 if (apiToolScope.length === 0) {
                     allowedTools = [];
                 }
@@ -216,15 +213,17 @@ export class AgentWorkflow {
 
             this.state.phase = AgentPhase.COMPLETED;
 
-        } catch (error: any) {
+        } catch (error: unknown) {
             this.state.phase = AgentPhase.FAILED;
+            const errMessage = error instanceof Error ? error.message : String(error);
+            const errStack = error instanceof Error ? error.stack : undefined;
             LoggerService.error('Agent Workflow Error', {
-                error: error.message,
-                stack: error.stack,
+                error: errMessage,
+                stack: errStack,
                 traceId: this.state.traceId
             });
             // Final Answer fallback for errors
-            this.state.finalAnswer = 'เกิดข้อผิดพลาดในการประมวลผล กรุณาลองใหม่อีกครั้ง';
+            this.state.finalAnswer = AGENT_MESSAGES.ERROR_GENERIC;
             this.state.answerMode = 'internal';
             this.state.answerState = 'ERROR';
 
@@ -234,7 +233,7 @@ export class AgentWorkflow {
             this.emit(AGENT_EVENTS.BLOCK_END, { step: this.state.steps });
             this.emit(AGENT_EVENTS.ERROR, { error: 'Agent workflow failed', traceId: this.state.traceId });
         } finally {
-            // 5. Finalize & Persist
+            // 6. Finalize & Persist
             await ResultPersister.finalize(
                 this.ctx,
                 this.state,
@@ -246,10 +245,75 @@ export class AgentWorkflow {
         return { traceId: this.state.traceId };
     }
 
+    // ── LLM Call with Exponential Backoff Retry ──────────────────────────────
+
     /**
-     * Main Agent Loop
+     * Calls BedrockService.streamWithCallback with retry logic.
+     * Retries on transient errors (throttling, 5xx, network) with exponential backoff.
      */
-    private async agentLoop(allowedTools: AgentTool[]) {
+    private async streamWithRetry(
+        messages: BedrockMessage[],
+        onDelta: (delta: string) => void,
+        toolConfig?: { tools: Array<{ toolSpec: unknown }> },
+        guardrailConfig?: { guardrailIdentifier: string; guardrailVersion: string }
+    ): Promise<{ text: string; content: BedrockContentBlock[]; usage: TokenUsage; stopReason?: string }> {
+        const maxRetries = AGENT_CONSTANTS.LLM_MAX_RETRIES;
+        const baseDelay = AGENT_CONSTANTS.LLM_RETRY_BASE_DELAY_MS;
+        const retryableErrors = AGENT_CONSTANTS.LLM_RETRYABLE_ERRORS;
+
+        let lastError: Error | undefined;
+
+        for (let attempt = 0; attempt <= maxRetries; attempt++) {
+            try {
+                const result = await BedrockService.streamWithCallback(
+                    SYSTEM_MODELS.AGENT,
+                    messages as any,
+                    onDelta,
+                    0.5,
+                    toolConfig,
+                    guardrailConfig
+                );
+                return result as { text: string; content: BedrockContentBlock[]; usage: TokenUsage; stopReason?: string };
+            } catch (error: unknown) {
+                lastError = error instanceof Error ? error : new Error(String(error));
+                const errorName = (error as Record<string, unknown>)?.name as string || '';
+                const errorCode = (error as Record<string, unknown>)?.code as string || '';
+                const errorMessage = lastError.message;
+
+                const isRetryable = retryableErrors.some(
+                    re => errorName.includes(re) || errorCode.includes(re) || errorMessage.includes(re)
+                );
+
+                if (!isRetryable || attempt === maxRetries) {
+                    LoggerService.error('agent_llm_call_failed', {
+                        attempt: attempt + 1,
+                        maxRetries,
+                        error: errorMessage,
+                        retryable: isRetryable,
+                        traceId: this.state.traceId
+                    }, this.ctx.userId);
+                    throw lastError;
+                }
+
+                const delay = baseDelay * Math.pow(2, attempt);
+                LoggerService.warn('agent_llm_retry', {
+                    attempt: attempt + 1,
+                    maxRetries,
+                    delayMs: delay,
+                    error: errorMessage,
+                    traceId: this.state.traceId
+                }, this.ctx.userId);
+
+                await new Promise(resolve => setTimeout(resolve, delay));
+            }
+        }
+
+        throw lastError || new Error('LLM call failed after retries');
+    }
+
+    // ── Main Agent Loop ─────────────────────────────────────────────────────
+
+    private async agentLoop(allowedTools: AgentTool[]): Promise<void> {
         const toolConfig = allowedTools.length > 0 ? {
             tools: allowedTools.map(t => ({ toolSpec: t.schemaJSON }))
         } : undefined;
@@ -265,7 +329,15 @@ export class AgentWorkflow {
                 this.handleTimeout();
                 break;
             }
-            if (this.state.clientDisconnected) return;
+
+            // Check client disconnect (wired up via AgentEventStore)
+            if (this.state.clientDisconnected) {
+                LoggerService.info('agent_loop_abort_disconnect', {
+                    step: this.state.steps,
+                    traceId: this.state.traceId
+                }, this.ctx.userId);
+                return;
+            }
 
             this.state.steps++;
             this.emit(AGENT_EVENTS.AGENT_STEP, { step: this.state.steps, maxSteps: AGENT_CONSTANTS.MAX_AGENT_STEPS });
@@ -279,24 +351,23 @@ export class AgentWorkflow {
 
             this.state.phase = AgentPhase.GENERATING_RESPONSE;
 
-            // --- STREAMING CALL ---
-            const { text: fullResponse, content: contentBlocks, usage: stepUsage, stopReason } = await BedrockService.streamWithCallback(
-                SYSTEM_MODELS.AGENT,
-                this.state.messages as any,
+            // Determine answer mode BEFORE streaming (based on tools used so far)
+            this.determineAnswerMode();
+
+            // --- STREAMING CALL WITH RETRY ---
+            const { text: fullResponse, content: contentBlocks, usage: stepUsage, stopReason } = await this.streamWithRetry(
+                this.state.messages,
                 (delta) => {
                     if (!firstTokenTime) firstTokenTime = Date.now();
-
                     currentBlockText += delta;
 
                     if (!hasEmittedBlockStart) {
-                        this.determineAnswerMode(delta); // Quick peek, though better to do it earlier or post-hoc
                         this.emit(AGENT_EVENTS.BLOCK_START, { answerMode: this.state.answerMode, step: this.state.steps });
                         hasEmittedBlockStart = true;
                     }
 
                     this.emit(AGENT_EVENTS.BLOCK_DELTA, { delta });
                 },
-                0.5,
                 toolConfig,
                 guardrailConfig
             );
@@ -334,15 +405,19 @@ export class AgentWorkflow {
                 );
 
                 usedTools.forEach(t => this.state.usedTools.add(t));
+
                 // Add Assistant Response (Tool Use request)
-                this.state.messages.push({ role: 'assistant', content: contentBlocks || [{ type: 'text', text: fullResponse }] });
+                this.state.messages.push({
+                    role: 'assistant',
+                    content: contentBlocks.length > 0 ? contentBlocks : [{ type: 'text', text: fullResponse }]
+                });
 
                 // Add Tool Results
                 if (toolResults.length > 0) {
                     this.state.messages.push({
                         role: 'user',
                         content: toolResults.map(tr => ({
-                            type: 'tool_result',
+                            type: 'tool_result' as const,
                             toolUseId: tr.toolUseId,
                             content: tr.content
                         }))
@@ -350,19 +425,25 @@ export class AgentWorkflow {
                 }
 
             } else {
+                // Final Answer — break loop
                 this.state.phase = AgentPhase.COMPLETED;
-                // Final Answer Logic (Claude Native Block Streaming handles this naturally)
-
-                // 3. Update State & Emit DONE
                 this.state.finalAnswer = fullResponse;
                 this.state.messages.push({ role: 'assistant', content: fullResponse });
 
+                // Re-determine answer mode after all tools have been used
+                this.determineAnswerMode();
                 break;
             }
         }
     }
 
-    private determineAnswerMode(response: string) {
+    // ── Answer Mode Classification ──────────────────────────────────────────
+
+    /**
+     * Determines the answer mode based on tools used and attached files.
+     * Called ONCE before streaming (not per-token) and once after final answer.
+     */
+    private determineAnswerMode(): void {
         const usedSearch = this.state.usedTools.has('search');
         const usedPolicy = this.state.usedTools.has('check_policy');
 
@@ -370,7 +451,6 @@ export class AgentWorkflow {
             this.state.answerMode = 'file_grounded';
             this.state.answerState = 'VERIFIED';
         } else if (usedPolicy && usedSearch) {
-            // Both tools used — policy + general search combined
             this.state.answerMode = 'policy_rag';
             this.state.answerState = 'VERIFIED';
         } else if (usedPolicy) {
@@ -385,20 +465,23 @@ export class AgentWorkflow {
         }
     }
 
-    private handleTimeout() {
+    // ── Timeout Handling ────────────────────────────────────────────────────
+
+    private handleTimeout(): void {
         LoggerService.warn('agent_timeout', { steps: this.state.steps, traceId: this.state.traceId }, this.ctx.userId);
-        this.state.finalAnswer = 'ขออภัยครับ คำขอใช้เวลาเกินกำหนด กรุณาลองถามใหม่อีกครั้ง';
+        this.state.finalAnswer = AGENT_MESSAGES.ERROR_TIMEOUT;
         this.state.answerMode = 'internal';
         this.state.answerState = 'TIMEOUT';
 
-        // Emit answer events so frontend bubble shows the timeout message
         this.emit(AGENT_EVENTS.BLOCK_START, { answerMode: 'internal', step: this.state.steps });
         this.emit(AGENT_EVENTS.BLOCK_DELTA, { delta: this.state.finalAnswer });
         this.emit(AGENT_EVENTS.BLOCK_END, { step: this.state.steps, content: this.state.finalAnswer });
-        this.emit(AGENT_EVENTS.STATUS, { message: 'หมดเวลาดำเนินการ' });
+        this.emit(AGENT_EVENTS.STATUS, { message: AGENT_MESSAGES.STATUS_TIMEOUT });
     }
 
-    private updateUsage(stepUsage: any, durationMs: number) {
+    // ── Usage Tracking ──────────────────────────────────────────────────────
+
+    private updateUsage(stepUsage: TokenUsage, durationMs: number): void {
         this.state.totalUsage.input += stepUsage.input;
         this.state.totalUsage.output += stepUsage.output;
         this.state.totalUsage.total += stepUsage.total;

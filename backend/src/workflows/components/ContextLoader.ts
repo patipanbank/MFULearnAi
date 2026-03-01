@@ -1,17 +1,19 @@
+import { ChatMessage, SmartContext } from '../../../../shared/types';
 import { HistoryService } from '../../services/HistoryService';
 import { AGENT_EVENTS, AgentContext } from '../types/AgentTypes';
+import { AGENT_MESSAGES } from '../types/AgentConstants';
 
 export interface ContextLoadResult {
-    history: any[];
-    smartContext: any;
+    history: ChatMessage[];
+    smartContext: SmartContext | null;
 }
 
 export class ContextLoader {
     static async loadContext(
         ctx: AgentContext,
-        emit: (type: string, payload: any) => void
+        emit: (type: string, payload: Record<string, unknown>) => void
     ): Promise<ContextLoadResult> {
-        emit(AGENT_EVENTS.STATUS, { message: 'กำลังโหลดบริบทการสนทนา...' });
+        emit(AGENT_EVENTS.STATUS, { message: AGENT_MESSAGES.STATUS_LOADING_CONTEXT });
 
         const { messages: history, smartContext } = await HistoryService.getContext(
             ctx.userId,

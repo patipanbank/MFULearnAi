@@ -7,17 +7,17 @@
           <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
         </div>
         <div>
-          <h1 class="page-title">Tool Access Control</h1>
-          <p class="page-desc">จัดการสิทธิ์การเข้าถึง AI Agent Tools ตาม Role</p>
+          <h1 class="page-title">{{ t('toolAccessTitle') }}</h1>
+          <p class="page-desc">{{ t('toolAccessSubtitle') }}</p>
         </div>
       </div>
       <div class="header-right">
         <span class="count-badge">
-          {{ enabledCount }}/{{ tools.length }} enabled
+          {{ enabledCount }}/{{ tools.length }} {{ t('toolEnabled') }}
         </span>
         <button @click="fetchTools" class="btn btn-ghost btn-sm" :disabled="loading">
           <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
-          Refresh
+          {{ t('refresh') }}
         </button>
       </div>
     </header>
@@ -29,21 +29,21 @@
         <!-- Loading -->
         <div v-if="loading" class="state-empty">
           <div class="spinner"></div>
-          <p>กำลังโหลด...</p>
+          <p>{{ t('toolLoading') }}</p>
         </div>
 
         <!-- Error -->
         <div v-else-if="error" class="state-empty state-error">
           <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
           <p class="empty-title">{{ error }}</p>
-          <button @click="fetchTools" class="btn btn-accent">ลองใหม่</button>
+          <button @click="fetchTools" class="btn btn-accent">{{ t('toolRetry') }}</button>
         </div>
 
         <!-- Empty -->
         <div v-else-if="tools.length === 0" class="state-empty">
           <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
-          <p class="empty-title">ไม่พบ Tools</p>
-          <p class="empty-desc">ยังไม่มี tools ที่โหลดในระบบ กรุณาตรวจสอบ backend</p>
+          <p class="empty-title">{{ t('toolNoTools') }}</p>
+          <p class="empty-desc">{{ t('toolNoToolsDesc') }}</p>
         </div>
 
         <!-- Tool List -->
@@ -138,15 +138,6 @@
 
       </div>
     </main>
-
-    <!-- Toast -->
-    <Transition name="toast">
-      <div v-if="toast.show" class="toast" :class="`toast-${toast.type}`">
-        <svg v-if="toast.type === 'error'" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
-        <svg v-else xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-        {{ toast.message }}
-      </div>
-    </Transition>
   </div>
 </template>
 
@@ -154,8 +145,12 @@
 import { ref, computed, onMounted } from 'vue'
 import api from '@/utils/api'
 import { useConfirmDialog } from '@/composables/useConfirmDialog'
+import { useToast } from '@/composables/useToast'
+import { useLanguage } from '@/composables/useSettings'
 
 const { confirm: showConfirm } = useConfirmDialog()
+const { showToast } = useToast()
+const { t } = useLanguage()
 
 // ── State ───────────────────────────────────────────────────────
 const loading = ref(true)
@@ -163,16 +158,9 @@ const saving = ref(null)
 const tools = ref([])
 const availableRoles = ref(['*', 'student', 'staff', 'admin', 'superadmin'])
 const error = ref(null)
-const toast = ref({ show: false, message: '', type: 'success' })
 
 // ── Computed ────────────────────────────────────────────────────
 const enabledCount = computed(() => tools.value.filter(t => !t.isDisabled).length)
-
-// ── Toast ────────────────────────────────────────────────────────
-const showToast = (message, type = 'success') => {
-  toast.value = { show: true, message, type }
-  setTimeout(() => { toast.value.show = false }, 3000)
-}
 
 // ── API ──────────────────────────────────────────────────────────
 const fetchTools = async () => {
@@ -183,7 +171,7 @@ const fetchTools = async () => {
     tools.value = response.data.tools || []
     availableRoles.value = response.data.availableRoles || availableRoles.value
   } catch (err) {
-    error.value = 'ไม่สามารถโหลดข้อมูล tools ได้ — ตรวจสอบ Nginx proxy rule'
+    error.value = t('toolFetchError')
     console.error('[AdminToolAccess] fetch failed:', err)
   } finally {
     loading.value = false
@@ -198,9 +186,9 @@ const saveAccess = async (tool) => {
       isDisabled: tool.isDisabled,
       description: tool.description
     })
-    showToast(`บันทึก ${tool.toolName} สำเร็จ`)
+    showToast(t('toolSaveSuccess').replace('{name}', tool.toolName))
   } catch (err) {
-    showToast(`บันทึก ${tool.toolName} ไม่สำเร็จ`, 'error')
+    showToast(t('toolSaveFailed').replace('{name}', tool.toolName), 'error')
     console.error(`[AdminToolAccess] save failed for ${tool.toolName}:`, err)
   } finally {
     saving.value = null
@@ -208,14 +196,14 @@ const saveAccess = async (tool) => {
 }
 
 const resetToDefault = async (tool) => {
-  if (!await showConfirm(`รีเซ็ต "${tool.toolName}" เป็นค่าเริ่มต้นจาก code?`, { variant: 'warning' })) return
+  if (!await showConfirm(t('toolResetConfirm').replace('{name}', tool.toolName), { variant: 'warning' })) return
   saving.value = tool.toolName
   try {
     await api.delete(`/tools/access/${tool.toolName}`)
-    showToast(`รีเซ็ต ${tool.toolName} สำเร็จ`)
+    showToast(t('toolResetSuccess').replace('{name}', tool.toolName))
     await fetchTools()
   } catch (err) {
-    showToast(`รีเซ็ต ${tool.toolName} ไม่สำเร็จ`, 'error')
+    showToast(t('toolResetFailed').replace('{name}', tool.toolName), 'error')
   } finally {
     saving.value = null
   }
@@ -236,13 +224,16 @@ const toggleRole = (tool, role) => {
 }
 
 const ROLE_LABELS = {
-  '*': 'ทุกคน (All)',
+  '*': () => t('roleAll'),
   student: 'Student',
   staff: 'Staff',
   admin: 'Admin',
   superadmin: 'Superadmin'
 }
-const roleDisplay = (role) => ROLE_LABELS[role] || role
+const roleDisplay = (role) => {
+  const label = ROLE_LABELS[role]
+  return typeof label === 'function' ? label() : (label || role)
+}
 
 onMounted(fetchTools)
 </script>

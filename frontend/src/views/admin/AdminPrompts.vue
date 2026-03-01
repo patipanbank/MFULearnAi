@@ -2,8 +2,8 @@
   <div class="page-container">
     <div class="page-header">
       <div class="header-left">
-        <h1>System Prompts</h1>
-        <p class="subtitle">Manage AI personality and behavior instructions.</p>
+        <h1>{{ t('promptsTitle') }}</h1>
+        <p class="subtitle">{{ t('promptsSubtitle') }}</p>
       </div>
       <button 
         @click="refreshPrompts" 
@@ -19,11 +19,11 @@
       <!-- Sidebar List -->
       <div class="sidebar">
         <div class="sidebar-header">
-           <h2>Available Prompts</h2>
+           <h2>{{ t('promptAvailable') }}</h2>
         </div>
         <div class="prompt-list">
-            <div v-if="loading && prompts.length === 0" class="p-4 text-center text-muted">Loading...</div>
-            <div v-else-if="prompts.length === 0" class="p-4 text-center text-muted">No prompts found.</div>
+            <div v-if="loading && prompts.length === 0" class="p-4 text-center text-muted">{{ t('toolLoading') }}</div>
+            <div v-else-if="prompts.length === 0" class="p-4 text-center text-muted">{{ t('promptNoPrompts') }}</div>
             
             <div 
               v-for="prompt in prompts" 
@@ -37,7 +37,7 @@
                 <span v-if="prompt.key.includes('PROD')" class="badge badge-prod">PROD</span>
                 <span v-else class="badge badge-test">TEST</span>
               </div>
-              <p class="prompt-desc">{{ prompt.description || 'No description' }}</p>
+              <p class="prompt-desc">{{ prompt.description || t('promptNoDesc') }}</p>
               <div class="prompt-meta">
                  <span>v{{ prompt.version || 1 }}</span>
                  <span>{{ formatDate(prompt.updatedAt) }}</span>
@@ -56,14 +56,14 @@
                     <span class="toolbar-key">{{ selectedPrompt.key }}</span>
                 </div>
                 <div class="toolbar-actions">
-                    <span v-if="!isSuperAdmin" class="read-only-badge">Read Only</span>
+                    <span v-if="!isSuperAdmin" class="read-only-badge">{{ t('promptReadOnly') }}</span>
                     <button 
                         v-if="isSuperAdmin"
                         @click="resetChanges"
                         :disabled="!hasChanges"
                         class="btn-secondary"
                     >
-                        Reset
+                        {{ t('promptReset') }}
                     </button>
                     <button 
                         v-if="isSuperAdmin"
@@ -71,7 +71,7 @@
                         :disabled="!hasChanges || saving"
                         class="btn-primary"
                     >
-                        {{ saving ? 'Saving...' : 'Save Changes' }}
+                        {{ saving ? t('promptSaving') : t('promptSaveChanges') }}
                     </button>
                 </div>
             </div>
@@ -84,17 +84,17 @@
                     spellcheck="false"
                     :disabled="!isSuperAdmin"
                 ></textarea>
-                <div v-if="hasChanges" class="unsaved-badge">Unsaved Changes</div>
+                <div v-if="hasChanges" class="unsaved-badge">{{ t('promptUnsaved') }}</div>
             </div>
         </div>
 
             <!-- Empty State -->
         <div v-else class="empty-state">
             <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="text-muted"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="9" y1="3" x2="9" y2="21"></line></svg>
-            <p>Select a system prompt to view or edit</p>
+            <p>{{ t('promptSelect') }}</p>
             <div v-if="isSuperAdmin" class="mt-4">
                  <button @click="openCreateModal" class="btn-primary">
-                    <i class="fas fa-plus mr-2"></i>Create New Prompt
+                    <i class="fas fa-plus mr-2"></i>{{ t('promptCreateNew') }}
                  </button>
             </div>
         </div>
@@ -105,7 +105,7 @@
     <div v-if="showCreateModal" class="modal-overlay" @click.self="closeCreateModal" @keydown.escape="closeCreateModal" tabindex="-1">
         <div class="modal-content">
             <div class="modal-header">
-                <h3>Create New System Prompt</h3>
+                <h3>{{ t('promptCreateNew') }}</h3>
                 <button @click="closeCreateModal" class="close-btn">&times;</button>
             </div>
             <div class="modal-body">
@@ -143,8 +143,10 @@ import { ref, computed, onMounted } from 'vue';
 import api from '../../utils/api'; 
 import { useAuthStore } from '../../stores/auth';
 import { useConfirmDialog } from '@/composables/useConfirmDialog';
+import { useLanguage } from '@/composables/useSettings';
 
 const { confirm: showConfirm, alert: showAlert } = useConfirmDialog();
+const { t } = useLanguage();
 
 const authStore = useAuthStore();
 const isSuperAdmin = computed(() => authStore.role === 'superadmin');
