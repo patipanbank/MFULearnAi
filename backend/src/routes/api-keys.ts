@@ -1,22 +1,27 @@
 import { Router } from 'express';
-import { ApiKeyController } from '../controllers/ApiKeyController';
+import { EnhancedApiKeyController } from '../controllers/EnhancedApiKeyController';
 import { AuthService } from '../auth/AuthService';
 
 const router = Router();
 
-// Middleware to ensure user is logged in
 const checkAuth = AuthService.authenticateUser;
 
-// List all keys
-router.get('/', checkAuth, ApiKeyController.listApiKeys);
+// CRUD
+router.get('/', checkAuth, EnhancedApiKeyController.listApiKeys);
+router.post('/', checkAuth, EnhancedApiKeyController.createApiKey);
+router.put('/:id', checkAuth, EnhancedApiKeyController.updateApiKey);
+router.delete('/:id', checkAuth, EnhancedApiKeyController.revokeApiKey);
 
-// Available models (for key creation UI)
-router.get('/models', checkAuth, ApiKeyController.listModels);
+// Key Rotation
+router.post('/:id/rotate', checkAuth, EnhancedApiKeyController.rotateApiKey);
 
-// Create a new key
-router.post('/', checkAuth, ApiKeyController.createApiKey);
+// Usage & Analytics (per key)
+router.get('/:id/usage', checkAuth, EnhancedApiKeyController.getKeyUsage);
 
-// Revoke a key
-router.delete('/:id', checkAuth, ApiKeyController.revokeApiKey);
+// Available resources for key creation UI
+router.get('/models', checkAuth, EnhancedApiKeyController.listModels);
+router.get('/tools', checkAuth, EnhancedApiKeyController.listTools);
+router.get('/knowledge', checkAuth, EnhancedApiKeyController.listKnowledge);
+router.get('/departments', checkAuth, EnhancedApiKeyController.listDepartments);
 
 export default router;

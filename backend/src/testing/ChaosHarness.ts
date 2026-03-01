@@ -1,5 +1,5 @@
-import { HistoryService } from './services/HistoryService';
-import { LoggerService } from './services/LoggerService';
+import { HistoryService } from '../services/HistoryService';
+import { LoggerService } from '../services/LoggerService';
 
 export class ChaosHarness {
     /**

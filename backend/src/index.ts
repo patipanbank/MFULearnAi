@@ -1,49 +1,70 @@
+/**
+ * MFULearnAI Backend — Main Entry Point
+ *
+ * Express + Socket.IO monolith serving:
+ *   /auth/*  — Authentication (login, SSO, SAML, refresh)
+ *   /api/*   — Main REST API (chat, knowledge, users, prompts, logs, tools, keys)
+ *   /v1/*    — OpenAI-compatible API surface
+ *   /health  — Health check
+ *   /admin/queues — Bull Board dashboard
+ */
+
 import express from 'express';
 import { createServer } from 'http';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import { connectDB } from './config/db';
-import routes from './routes';
-import { setupSocketIO } from './socket';
 import passport from 'passport';
-import { configureSaml } from './auth/SamlStrategy';
+import { v4 as uuidv4 } from 'uuid';
+import { createBullBoard } from '@bull-board/api';
+import { BullMQAdapter } from '@bull-board/api/bullMQAdapter';
+import { ExpressAdapter } from '@bull-board/express';
 
+// Internal modules
+import { connectDB } from './config/db';
+import { configureSaml } from './auth/SamlStrategy';
+import { setupSocketIO } from './socket';
+import { ContextService } from './services/ContextService';
+import { queueService } from './services/QueueService';
+import { initKnowledgeConfig } from './knowledge/init';
+import { knowledgeQueue } from './knowledge/queue';
+import { mcpManager } from './mcp/McpManager';
+import { globalErrorHandler, notFoundHandler } from './middleware/errorHandler';
+
+// Routes
+import authRoutes from './routes/auth';
+import apiRoutes from './routes';
+import v1Routes from './routes/v1';
+
+// ─── Bootstrap ──────────────────────────────────────────────
 dotenv.config();
 
 const app = express();
 const httpServer = createServer(app);
 const PORT = process.env.PORT || 8080;
 const ENV_TYPE = process.env.ENV_TYPE || 'TEST';
-const RATE_LIMIT = ENV_TYPE === 'PROD' ? 30 : 100;
 
-// Trust reverse proxy (nginx) so req.protocol returns 'https' correctly
+// Trust reverse proxy (nginx)
 app.set('trust proxy', 1);
 
-// Connect to Database
+// ─── Database ───────────────────────────────────────────────
 connectDB();
 
-import { v4 as uuidv4 } from 'uuid';
-import { ContextService } from './services/ContextService';
-
-// Middleware
+// ─── Middleware ─────────────────────────────────────────────
 app.use(express.json({ limit: '50mb' }));
 app.use(cors({
     origin: ENV_TYPE === 'PROD'
         ? (process.env.CORS_ORIGIN || 'https://mfulearnai.mfu.ac.th')
-        : true, // Allow all in TEST/DEV
+        : true,
     credentials: true
 }));
 
 app.use(passport.initialize());
 configureSaml();
 
-
-// Observability Middleware
+// Correlation ID propagation
 app.use((req, res, next) => {
     const correlationId = (req.headers['x-correlation-id'] as string) || uuidv4();
-    // Propagate back to response
     res.setHeader('x-correlation-id', correlationId);
-    // Ensure downstream controllers can see it
     req.headers['x-correlation-id'] = correlationId;
 
     ContextService.run({ correlationId }, () => {
@@ -51,62 +72,58 @@ app.use((req, res, next) => {
     });
 });
 
-// Routes
-import authRoutes from './routes/auth';
+// ─── Routes ─────────────────────────────────────────────────
 app.use('/auth', authRoutes);
-
-app.use('/api', routes);
-
-// OpenAI-Compatible API (v1)
-import v1Routes from './routes/v1';
+app.use('/api', apiRoutes);
 app.use('/v1', v1Routes);
 
 // Health Check
-app.get('/health', (req, res) => res.json({
+app.get('/health', (_req, res) => res.json({
     status: 'ok',
     service: 'orchestrator',
     environment: ENV_TYPE,
-    rateLimit: RATE_LIMIT
 }));
 
-// Bull Board
-import { createBullBoard } from '@bull-board/api';
-import { BullMQAdapter } from '@bull-board/api/bullMQAdapter';
-import { ExpressAdapter } from '@bull-board/express';
-import { queueService } from './services/QueueService';
-
-const serverAdapter = new ExpressAdapter();
-serverAdapter.setBasePath('/admin/queues');
-
-import { initKnowledgeConfig } from './knowledge/init';
-import { knowledgeQueue } from './knowledge/queue';
-
-// ... (after connectDB)
+// ─── Bull Board (Queue Dashboard) ──────────────────────────
+const bullBoardAdapter = new ExpressAdapter();
+bullBoardAdapter.setBasePath('/admin/queues');
 
 createBullBoard({
     queues: [
         new BullMQAdapter(queueService.ocrQueue),
-        new BullMQAdapter(knowledgeQueue)
+        new BullMQAdapter(knowledgeQueue),
     ],
-    serverAdapter: serverAdapter,
+    serverAdapter: bullBoardAdapter,
 });
 
-// Initialize Knowledge Service
+app.use('/admin/queues', bullBoardAdapter.getRouter());
+
+// ─── Knowledge Service Init ────────────────────────────────
 initKnowledgeConfig();
 
-app.use('/admin/queues', serverAdapter.getRouter());
+// ─── Error Handling (must be after all routes) ─────────────
+app.use(notFoundHandler);
+app.use(globalErrorHandler);
 
-// Initialize Socket.IO (must be after app setup, before listen)
+// ─── Socket.IO ─────────────────────────────────────────────
 const io = setupSocketIO(httpServer);
 
-import { mcpManager } from './mcp/McpManager';
+// ─── Process-Level Error Handlers ──────────────────────────
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('[FATAL] Unhandled Rejection:', reason);
+});
 
-// Start Server — use httpServer instead of app.listen for Socket.IO
+process.on('uncaughtException', (error) => {
+    console.error('[FATAL] Uncaught Exception:', error);
+    // Give time for logging, then exit
+    setTimeout(() => process.exit(1), 1000);
+});
+
+// ─── Start Server ──────────────────────────────────────────
 httpServer.listen(PORT, async () => {
     console.log(`[Orchestrator] Server running on port ${PORT} (${ENV_TYPE})`);
-    console.log(`[Orchestrator] Bull Board available at http://localhost:${PORT}/admin/queues`);
+    console.log(`[Orchestrator] Bull Board: http://localhost:${PORT}/admin/queues`);
 
     // Initialize MCP persistent connections
     await mcpManager.init();
 });
-

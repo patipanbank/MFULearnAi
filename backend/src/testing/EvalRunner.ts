@@ -1,8 +1,8 @@
 import fs from 'fs';
 import path from 'path';
-import { KnowledgeService } from './services/KnowledgeService';
-import { SummarizationService } from './services/SummarizationService';
-import { LoggerService } from './services/LoggerService';
+import { KnowledgeService } from '../services/KnowledgeService';
+import { SummarizationService } from '../services/SummarizationService';
+import { LoggerService } from '../services/LoggerService';
 
 export class EvalRunner {
     static async runRAG(datasetPath: string) {

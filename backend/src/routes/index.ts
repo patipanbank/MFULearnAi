@@ -2,29 +2,33 @@ import { Router } from 'express';
 import { ChatController } from '../controllers/ChatController';
 import { PromptController } from '../controllers/PromptController';
 import { KnowledgeController } from '../controllers/KnowledgeController';
-import { AuthController } from '../controllers/AuthController';
+import { UserController } from '../controllers/UserController';
+import { DepartmentController } from '../controllers/DepartmentController';
 import { AuthService } from '../auth/AuthService';
 import { RateLimiter } from '../middleware/rateLimiter';
 import { rateLimitByKey } from '../middleware/ApiKeyLimiter';
 import { quotaEnforcer } from '../middleware/quotaEnforcer';
 import { CompletionsController } from '../controllers/CompletionsController';
 import apiKeyRoutes from './api-keys';
+import knowledgeRoutes from './knowledge';
+import logRoutes from './logs';
+import toolRoutes from './tools';
 
 const router = Router();
 const checkAuth = AuthService.authenticateUser;
 
-// --- User Management (Moved from /auth to /api for Nginx alignment) ---
-router.get('/users', checkAuth, AuthService.requireRole(['admin', 'superadmin']), AuthController.listUsers);
-router.post('/users', checkAuth, AuthService.requireRole(['superadmin']), AuthController.createUser);
-router.put('/users/:id', checkAuth, AuthService.requireRole(['superadmin']), AuthController.updateUser);
-router.delete('/users/:id', checkAuth, AuthService.requireRole(['superadmin']), AuthController.deleteUser);
-router.get('/users/me', checkAuth, AuthController.me); // Alias for /auth/me
+// --- User Management ---
+router.get('/users', checkAuth, AuthService.requireRole(['admin', 'superadmin']), UserController.listUsers);
+router.post('/users', checkAuth, AuthService.requireRole(['superadmin']), UserController.createUser);
+router.put('/users/:id', checkAuth, AuthService.requireRole(['superadmin']), UserController.updateUser);
+router.delete('/users/:id', checkAuth, AuthService.requireRole(['superadmin']), UserController.deleteUser);
+router.get('/users/me', checkAuth, UserController.me);
 
 // --- Departments ---
-router.get('/departments', checkAuth, AuthController.listDepartments);
-router.post('/departments', checkAuth, AuthService.requireRole(['superadmin']), AuthController.createDepartment);
-router.put('/departments/:id', checkAuth, AuthService.requireRole(['superadmin']), AuthController.updateDepartment);
-router.delete('/departments/:id', checkAuth, AuthService.requireRole(['superadmin']), AuthController.deleteDepartment);
+router.get('/departments', checkAuth, DepartmentController.listDepartments);
+router.post('/departments', checkAuth, AuthService.requireRole(['superadmin']), DepartmentController.createDepartment);
+router.put('/departments/:id', checkAuth, AuthService.requireRole(['superadmin']), DepartmentController.updateDepartment);
+router.delete('/departments/:id', checkAuth, AuthService.requireRole(['superadmin']), DepartmentController.deleteDepartment);
 
 
 
@@ -53,16 +57,13 @@ router.post('/prompts/:key/toggle-active', checkAuth, PromptController.toggleAct
 router.post('/prompts/:key/preview', checkAuth, PromptController.previewPrompt);
 router.post('/prompts/:key/rollback', checkAuth, PromptController.rollbackVersion);
 
-import knowledgeRoutes from './knowledge';
+// --- Knowledge ---
 router.use('/knowledge', checkAuth, rateLimitByKey, knowledgeRoutes);
 
-import logRoutes from './logs';
+// --- Logs ---
 router.use('/logs', checkAuth, logRoutes);
 
-// Tool Access Management (superadmin only)
-import toolRoutes from './tools';
+// --- Tool Access (superadmin only) ---
 router.use('/tools', checkAuth, AuthService.requireRole(['superadmin']), toolRoutes);
-
-
 
 export default router;

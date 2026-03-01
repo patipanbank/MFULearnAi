@@ -1,13 +1,22 @@
+/**
+ * Auth Controller
+ *
+ * Handles authentication flows only: login, SSO, SAML, refresh, logout.
+ * User CRUD → UserController, Department CRUD → DepartmentController.
+ */
 
 import { Request, Response, NextFunction } from 'express';
 import passport from 'passport';
+import jwt from 'jsonwebtoken';
+import bcrypt from 'bcryptjs';
 import { AuthService } from '../auth/AuthService';
 import { OAuthService } from '../auth/OAuthService';
 import User from '../models/User';
-import Department from '../models/Department';
-import bcrypt from 'bcryptjs';
 
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
+const ENV_TYPE = process.env.ENV_TYPE || 'TEST';
+const JWT_SECRET = process.env.JWT_SECRET || (ENV_TYPE === 'PROD' ? '' : 'dev-secret');
+const REFRESH_MAX_AGE_SECONDS = 7 * 24 * 60 * 60; // 7 days
 
 export class AuthController {
 
@@ -100,26 +109,15 @@ export class AuthController {
     }
 
     static logout(req: Request, res: Response, next: NextFunction) {
-        // Stateless JWT - Just redirect back to login
-        // If we needed to logout from ADFS, we would redirect to ADFS logout URL here
         res.redirect(`${FRONTEND_URL}/login`);
     }
 
     static async refresh(req: any, res: Response) {
-        // Logic handled in middleware or here with ignoreExpiration
-        // Currently relying on client to call this endpoint with expired token
-        // Need custom logic since authentication middleware rejects expired tokens usually?
-        // For refresh, we usually parse without verification or with ignoreExpiration
         const authHeader = req.headers['authorization'];
         const token = authHeader && authHeader.split(' ')[1];
         if (!token) return res.status(401).json({ error: 'No token' });
 
-        const jwt = require('jsonwebtoken'); // Lazy load
-        const ENV_TYPE = process.env.ENV_TYPE || 'TEST';
-        const JWT_SECRET = process.env.JWT_SECRET || (ENV_TYPE === 'PROD' ? '' : 'dev-secret');
         if (!JWT_SECRET) return res.status(500).json({ error: 'Server configuration error' });
-
-        const REFRESH_MAX_AGE_SECONDS = 7 * 24 * 60 * 60; // 7 days
 
         jwt.verify(token, JWT_SECRET, { ignoreExpiration: true }, async (err: any, decoded: any) => {
             if (err) return res.status(403).json({ error: 'Invalid token' });
@@ -136,165 +134,5 @@ export class AuthController {
             const newToken = AuthService.generateToken(user);
             res.json({ token: newToken });
         });
-    }
-
-    // --- User Management (Admin) ---
-    static async listUsers(req: any, res: Response) {
-        try {
-            const users = await User.find().select('-password').sort({ createdAt: -1 });
-            res.json({ users });
-        } catch (e) {
-            res.status(500).json({ error: 'Failed' });
-        }
-    }
-
-    static async createUser(req: any, res: Response) {
-        try {
-            const { username, password, role, department, firstName, lastName, isActive } = req.body;
-            if (!username || !password) return res.status(400).json({ error: 'Required fields missing' });
-
-            if (await User.findOne({ username })) return res.status(400).json({ error: 'Username exists' });
-
-            const hashedPassword = await bcrypt.hash(password, 10);
-
-            // Dept ID logic
-            let departmentId = '';
-            if (department) {
-                const existingDept = await Department.findOne({ name: department });
-                departmentId = existingDept ? existingDept.code : department.trim().toUpperCase().replace(/\s+/g, '_');
-
-                await Department.findOneAndUpdate(
-                    { code: departmentId }, { code: departmentId, name: department },
-                    { upsert: true, setDefaultsOnInsert: true }
-                );
-            }
-
-            const newUser = await User.create({
-                username, password: hashedPassword, role: role || 'student',
-                department, departmentId, firstName, lastName, isActive: isActive ?? true,
-                email: req.body.email || `${username}@local.domain`
-            });
-
-            res.json({ user: newUser });
-        } catch (e: any) {
-            res.status(500).json({ error: e.message });
-        }
-    }
-
-    static async updateUser(req: any, res: Response) {
-        try {
-            const { role, department, isActive, firstName, lastName } = req.body;
-            const updateData: any = {};
-            if (role) updateData.role = role;
-            if (typeof isActive === 'boolean') updateData.isActive = isActive;
-            if (firstName) updateData.firstName = firstName;
-            if (lastName) updateData.lastName = lastName;
-
-            if (department) {
-                updateData.department = department;
-                const existingDept = await Department.findOne({ name: department });
-                updateData.departmentId = existingDept ? existingDept.code : department.trim().toUpperCase().replace(/\s+/g, '_');
-
-                await Department.findOneAndUpdate(
-                    { code: updateData.departmentId }, { code: updateData.departmentId, name: department },
-                    { upsert: true, setDefaultsOnInsert: true }
-                );
-            }
-
-            const user = await User.findByIdAndUpdate(req.params.id, updateData, { new: true }).select('-password');
-            res.json({ user });
-        } catch (e: any) {
-            res.status(500).json({ error: e.message });
-        }
-    }
-
-    static async deleteUser(req: any, res: Response) {
-        try {
-            await User.findByIdAndDelete(req.params.id);
-            res.json({ success: true });
-        } catch (e: any) {
-            res.status(500).json({ error: e.message });
-        }
-    }
-
-    // --- Departments ---
-    static async listDepartments(req: any, res: Response) {
-        try {
-            const departments = await Department.find().sort({ name: 1 });
-            res.json({ departments });
-        } catch (e: any) {
-            console.error('[AuthController] listDepartments error:', e.message);
-            res.status(500).json({ error: 'Failed to fetch departments' });
-        }
-    }
-
-    static async createDepartment(req: any, res: Response) {
-        try {
-            const { code, name } = req.body;
-
-            // Input validation
-            const trimmedName = name?.trim();
-            if (!trimmedName) return res.status(400).json({ error: 'Department name is required' });
-            if (trimmedName.length < 2) return res.status(400).json({ error: 'Department name must be at least 2 characters' });
-            if (trimmedName.length > 100) return res.status(400).json({ error: 'Department name must not exceed 100 characters' });
-
-            const deptCode = code?.trim() || trimmedName.toUpperCase().replace(/\s+/g, '_');
-
-            // Check for duplicate code before creating
-            const existing = await Department.findOne({ code: deptCode });
-            if (existing) {
-                return res.status(409).json({ error: `Department with code "${deptCode}" already exists` });
-            }
-
-            const newDept = await Department.create({ code: deptCode, name: trimmedName });
-            res.status(201).json({ department: newDept });
-        } catch (e: any) {
-            // Handle MongoDB unique constraint violation
-            if (e.code === 11000) {
-                return res.status(409).json({ error: 'A department with this name or code already exists' });
-            }
-            console.error('[AuthController] createDepartment error:', e.message);
-            res.status(500).json({ error: 'Failed to create department' });
-        }
-    }
-
-    static async updateDepartment(req: any, res: Response) {
-        try {
-            const { name } = req.body;
-
-            // Input validation
-            const trimmedName = name?.trim();
-            if (!trimmedName) return res.status(400).json({ error: 'Department name is required' });
-            if (trimmedName.length < 2) return res.status(400).json({ error: 'Department name must be at least 2 characters' });
-            if (trimmedName.length > 100) return res.status(400).json({ error: 'Department name must not exceed 100 characters' });
-
-            const dept = await Department.findByIdAndUpdate(
-                req.params.id,
-                { name: trimmedName },
-                { new: true }
-            );
-
-            if (!dept) {
-                return res.status(404).json({ error: 'Department not found' });
-            }
-
-            res.json({ department: dept });
-        } catch (e: any) {
-            console.error('[AuthController] updateDepartment error:', e.message);
-            res.status(500).json({ error: 'Failed to update department' });
-        }
-    }
-
-    static async deleteDepartment(req: any, res: Response) {
-        try {
-            const dept = await Department.findByIdAndDelete(req.params.id);
-            if (!dept) {
-                return res.status(404).json({ error: 'Department not found' });
-            }
-            res.json({ success: true });
-        } catch (e: any) {
-            console.error('[AuthController] deleteDepartment error:', e.message);
-            res.status(500).json({ error: 'Failed to delete department' });
-        }
     }
 }

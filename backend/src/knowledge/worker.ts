@@ -8,6 +8,9 @@ import { getEmbedding, chunkText } from './processingUtils';
 import crypto from 'crypto';
 import dotenv from 'dotenv';
 import axios from 'axios';
+import * as cheerio from 'cheerio';
+import TurndownService from 'turndown';
+import chardet from 'chardet';
 import { LoggerService } from '../services/LoggerService';
 import { CHROMA_URL, GLOBAL_CHROMA_COLLECTION, OCR_SERVICE_URL } from './constants';
 
@@ -95,7 +98,6 @@ export const processKnowledgeJob = async (job: Job) => {
                             timeout: 10000,
                             maxRedirects: 5
                         });
-                        const cheerio = require('cheerio');
                         const $ = cheerio.load(pubRes.data as string);
                         const sheetNames: string[] = [];
                         // Sheet tabs appear as <li id="..."> with data-sheet-id
@@ -167,7 +169,6 @@ export const processKnowledgeJob = async (job: Job) => {
                 const html = response.data;
 
                 // 2. Parse and Clean with Cheerio
-                const cheerio = require('cheerio');
                 const $ = cheerio.load(html);
                 // Remove noise
                 $('script, style, nav, footer, header, aside, .sidebar, .menu, iframe').remove();
@@ -184,7 +185,6 @@ export const processKnowledgeJob = async (job: Job) => {
                 const cleanHtml = $('body').html() || '';
 
                 // 3. Convert to Markdown
-                const TurndownService = require('turndown');
                 const turndownService = new TurndownService({ headingStyle: 'atx' });
                 markdown = turndownService.turndown(cleanHtml);
 
@@ -370,7 +370,6 @@ export const processKnowledgeJob = async (job: Job) => {
             mimetype.startsWith('text/') ||
             ['txt', 'md', 'html', 'css', 'js', 'ts', 'json', 'xml', 'yaml', 'yml', 'py', 'c', 'cpp', 'h', 'java', 'go', 'rs', 'php', 'rb', 'sh'].some(ext => originalName.toLowerCase().endsWith(`.${ext}`))
         ) {
-            const chardet = require('chardet');
             const encoding = chardet.detect(buffer) || 'utf-8';
             const decoder = new TextDecoder(encoding as string);
             fullText = decoder.decode(buffer);
@@ -397,7 +396,6 @@ export const processKnowledgeJob = async (job: Job) => {
         else {
             // Fallback: If it's a known document type but unsupported by the specific parser (e.g. .doc instead of .docx), try raw text extraction
             if (originalName.endsWith('.doc') || originalName.endsWith('.rtf')) {
-                const chardet = require('chardet');
                 const encoding = chardet.detect(buffer) || 'utf-8';
                 const decoder = new TextDecoder(encoding as string);
                 fullText = decoder.decode(buffer);
