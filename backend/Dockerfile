@@ -41,9 +41,12 @@ COPY --from=builder /app/backend/dist ./dist
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 USER appuser
 
-# Healthcheck
-HEALTHCHECK --interval=30s --timeout=5s --start-period=10s \
-    CMD wget -qO- http://localhost:8080/health || exit 1
+# Healthcheck — uses readiness probe (checks Redis connectivity)
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
+    CMD wget -qO- http://localhost:8080/health/ready || exit 1
+
+# Support graceful shutdown
+STOPSIGNAL SIGTERM
 
 EXPOSE 8080
 

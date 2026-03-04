@@ -6,6 +6,7 @@ import { SearchTool } from '../tools/SearchTool';
 import { PolicyCheckerTool } from '../tools/PolicyCheckerTool';
 import { SYSTEM_MODELS } from '../config/models';
 import * as crypto from 'crypto';
+import { traceAsync, getMetrics } from '../infra/telemetry';
 
 // Components & Types
 import {
@@ -96,6 +97,7 @@ export class AgentWorkflow {
     }
 
     private async run(): Promise<{ traceId: string }> {
+        return traceAsync('agent.workflow.run', async () => {
         LoggerService.info('agent_workflow_start', {
             traceId: this.state.traceId,
             userId: this.ctx.userId,
@@ -243,6 +245,7 @@ export class AgentWorkflow {
         }
 
         return { traceId: this.state.traceId };
+        }, { traceId: this.state.traceId, userId: this.ctx.userId }); // end traceAsync
     }
 
     // ── LLM Call with Exponential Backoff Retry ──────────────────────────────
@@ -485,6 +488,10 @@ export class AgentWorkflow {
         this.state.totalUsage.input += stepUsage.input;
         this.state.totalUsage.output += stepUsage.output;
         this.state.totalUsage.total += stepUsage.total;
+
+        // Record telemetry metrics
+        getMetrics().tokenCounter(SYSTEM_MODELS.AGENT, stepUsage.input, stepUsage.output);
+        getMetrics().workflowCounter(this.state.phase, true, durationMs);
 
         this.emit(AGENT_EVENTS.STEP_USAGE, {
             step: this.state.steps,
