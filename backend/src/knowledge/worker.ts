@@ -12,7 +12,8 @@ import * as cheerio from 'cheerio';
 import TurndownService from 'turndown';
 import chardet from 'chardet';
 import { LoggerService } from '../services/LoggerService';
-import { CHROMA_URL, GLOBAL_CHROMA_COLLECTION, OCR_SERVICE_URL } from './constants';
+import { CHROMA_URL, GLOBAL_CHROMA_COLLECTION, OCR_SERVICE_URL, GOOGLE_API_KEY } from './constants';
+import { detectAndParseStructured, determineQueryStrategy, formatForContextInjection } from './structuredDetector';
 import { validateUrlSafety, MAX_URL_RESPONSE_BYTES, MAX_URL_REDIRECTS, URL_FETCH_TIMEOUT_MS } from '../utils/ssrfGuard';
 
 dotenv.config();
@@ -127,66 +128,104 @@ export const processKnowledgeJob = async (job: Job) => {
                 // ── Attempt 2: gviz/tq CSV (works for "Anyone with link can view") ──
                 if (!xlsxOk) {
                     const gvizBase = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv`;
-
-                    // Strategy: enumerate sheet GIDs from the edit page HTML,
-                    // then fetch each sheet by gid. This works for normal
-                    // "Anyone with the link" shares (no need for "Published to web").
                     let sheetGids: { gid: string; name: string }[] = [];
-                    try {
-                        const editPageRes = await axios.get(url, {
-                            ...safeAxiosDefaults,
-                            timeout: 15000,
-                            // Google returns full HTML with embedded sheet metadata
-                        });
-                        const htmlBody: string = editPageRes.data as string;
 
-                        // Google embeds sheet info in a JS blob like:
-                        //   {"sheets":[{"properties":{"sheetId":0,"title":"Sheet1",...}}, ...]}
-                        // or in older format: gid=0, tab names in <li> or <a> elements
-                        const sheetIdRegex = /\"sheetId\":(\d+),\"title\":\"([^\"]+)\"/g;
-                        let m: RegExpExecArray | null;
-                        while ((m = sheetIdRegex.exec(htmlBody)) !== null) {
-                            sheetGids.push({ gid: m[1], name: m[2] });
-                        }
-
-                        // Fallback: parse tab elements (older/alternative HTML format)
-                        if (sheetGids.length === 0) {
-                            const $ = cheerio.load(htmlBody);
-                            $('ul.sheet-tab-container li, [id^="sheet-button-"]').each((_: any, el: any) => {
-                                const gid = $(el).attr('id')?.replace(/\D/g, '') || '';
-                                const name = $(el).text().trim();
-                                if (gid && name) sheetGids.push({ gid, name });
+                    // ── Strategy A: Google Sheets API v4 (reliable, free API key) ──
+                    // GET https://sheets.googleapis.com/v4/spreadsheets/{id}?key=KEY&fields=sheets.properties
+                    // Returns {sheets:[{properties:{sheetId:0,title:"Tab1"}}, ...]}
+                    if (GOOGLE_API_KEY) {
+                        try {
+                            const apiUrl = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}?key=${GOOGLE_API_KEY}&fields=sheets.properties(sheetId%2Ctitle)%2Cproperties.title`;
+                            const apiRes = await axios.get(apiUrl, { timeout: 10000 });
+                            const data = apiRes.data as {
+                                properties?: { title?: string };
+                                sheets?: Array<{ properties: { sheetId: number; title: string } }>;
+                            };
+                            if (data.properties?.title) parsedTitle = data.properties.title;
+                            if (data.sheets) {
+                                sheetGids = data.sheets.map(s => ({
+                                    gid: String(s.properties.sheetId),
+                                    name: s.properties.title
+                                }));
+                            }
+                            LoggerService.info('worker_google_sheets_api_ok', {
+                                jobId: job.id, sheetId, sheetCount: sheetGids.length,
+                                sheets: sheetGids.map(s => s.name)
+                            });
+                        } catch (apiErr: any) {
+                            LoggerService.warn('worker_google_sheets_api_failed', {
+                                jobId: job.id, reason: apiErr.message,
+                                hint: 'Check GOOGLE_API_KEY env var and ensure Google Sheets API is enabled'
                             });
                         }
-
-                        // Second fallback: try pubhtml page
-                        if (sheetGids.length === 0) {
-                            const pubUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/pubhtml`;
-                            const pubRes = await axios.get(pubUrl, { ...safeAxiosDefaults, timeout: 10000 });
-                            const $pub = cheerio.load(pubRes.data as string);
-                            $pub('[data-sheet-id]').each((_: any, el: any) => {
-                                const gid = $pub(el).attr('data-sheet-id') || '';
-                                const name = $pub(el).text().trim();
-                                if (gid && name) sheetGids.push({ gid, name });
-                            });
-                            const pageTitle = $pub('title').text().trim();
-                            if (pageTitle) parsedTitle = pageTitle.replace(/\s*-\s*Google Sheets.*$/i, '').trim();
-                        }
-
-                        // Deduplicate by gid
-                        const seen = new Set<string>();
-                        sheetGids = sheetGids.filter(s => {
-                            if (seen.has(s.gid)) return false;
-                            seen.add(s.gid);
-                            return true;
-                        });
-                    } catch (enumErr: any) {
-                        LoggerService.warn('worker_google_sheets_enum_failed', { jobId: job.id, reason: enumErr.message });
                     }
 
+                    // ── Strategy B: Parse edit page HTML (works if Google returns HTML) ──
+                    if (sheetGids.length === 0) {
+                        try {
+                            const editPageRes = await axios.get(url, {
+                                ...safeAxiosDefaults,
+                                timeout: 15000,
+                                validateStatus: (s) => s < 500 // Accept 4xx to inspect body
+                            });
+                            if (editPageRes.status === 200) {
+                                const htmlBody: string = editPageRes.data as string;
+                                const sheetIdRegex = /"sheetId":(\d+),"title":"([^"]+)"/g;
+                                let m: RegExpExecArray | null;
+                                while ((m = sheetIdRegex.exec(htmlBody)) !== null) {
+                                    sheetGids.push({ gid: m[1], name: m[2] });
+                                }
+                                if (sheetGids.length === 0) {
+                                    const $ = cheerio.load(htmlBody);
+                                    $('ul.sheet-tab-container li, [id^="sheet-button-"]').each((_: any, el: any) => {
+                                        const gid = $(el).attr('id')?.replace(/\D/g, '') || '';
+                                        const name = $(el).text().trim();
+                                        if (gid && name) sheetGids.push({ gid, name });
+                                    });
+                                }
+                            }
+                        } catch (_) { /* edit page not accessible — expected for server-side */ }
+                    }
+
+                    // ── Strategy C: pubhtml page (works if sheet is "Published to web") ──
+                    if (sheetGids.length === 0) {
+                        try {
+                            const pubUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/pubhtml`;
+                            const pubRes = await axios.get(pubUrl, { ...safeAxiosDefaults, timeout: 10000 });
+                            if (pubRes.status === 200) {
+                                const $pub = cheerio.load(pubRes.data as string);
+                                $pub('[data-sheet-id]').each((_: any, el: any) => {
+                                    const gid = $pub(el).attr('data-sheet-id') || '';
+                                    const name = $pub(el).text().trim();
+                                    if (gid && name) sheetGids.push({ gid, name });
+                                });
+                                const pageTitle = $pub('title').text().trim();
+                                if (pageTitle) parsedTitle = pageTitle.replace(/\s*-\s*Google Sheets.*$/i, '').trim();
+                            }
+                        } catch (_) { /* pubhtml not available */ }
+                    }
+
+                    // Deduplicate by gid
+                    const seen = new Set<string>();
+                    sheetGids = sheetGids.filter(s => {
+                        if (seen.has(s.gid)) return false;
+                        seen.add(s.gid);
+                        return true;
+                    });
+
+                    if (sheetGids.length === 0) {
+                        LoggerService.warn('worker_google_sheets_enum_failed', {
+                            jobId: job.id,
+                            reason: GOOGLE_API_KEY ? 'API + HTML fallbacks all failed' : 'No GOOGLE_API_KEY configured — set env var for multi-sheet support'
+                        });
+                    }
+
+                    // ── Fetch each sheet's data via gviz/tq ──
                     if (sheetGids.length > 1) {
-                        // Fetch each sheet by gid
-                        LoggerService.info('worker_google_sheets_multi', { jobId: job.id, sheetCount: sheetGids.length, sheets: sheetGids.map(s => s.name) });
+                        LoggerService.info('worker_google_sheets_multi', {
+                            jobId: job.id, sheetCount: sheetGids.length,
+                            sheets: sheetGids.map(s => s.name)
+                        });
                         for (const sheet of sheetGids) {
                             try {
                                 const sheetCsvRes = await axios.get(`${gvizBase}&gid=${sheet.gid}`, {
@@ -196,7 +235,9 @@ export const processKnowledgeJob = async (job: Job) => {
                                 const sheetCsv: string = sheetCsvRes.data as string;
                                 if (sheetCsv.trim()) markdown += `\n--- Sheet: ${sheet.name} ---\n${sheetCsv.trim()}\n`;
                             } catch (sheetErr: any) {
-                                LoggerService.warn('worker_google_sheets_gviz_sheet_fail', { jobId: job.id, sheet: sheet.name, gid: sheet.gid, reason: sheetErr.message });
+                                LoggerService.warn('worker_google_sheets_gviz_sheet_fail', {
+                                    jobId: job.id, sheet: sheet.name, gid: sheet.gid, reason: sheetErr.message
+                                });
                             }
                         }
                         markdown = markdown.trim();
@@ -208,7 +249,11 @@ export const processKnowledgeJob = async (job: Job) => {
                         markdown = `--- Sheet: ${sheetGids[0]?.name || 'Sheet1'} ---\n${csvText.trim()}`;
                     }
 
-                    LoggerService.info('worker_google_sheets_gviz_ok', { jobId: job.id, sheetId, sheetCount: sheetGids.length || 1 });
+                    LoggerService.info('worker_google_sheets_gviz_ok', {
+                        jobId: job.id, sheetId,
+                        sheetCount: sheetGids.length || 1,
+                        enumMethod: GOOGLE_API_KEY ? 'sheets-api-v4' : 'html-fallback'
+                    });
                 }
 
                 const docTitle = parsedTitle || `Google Sheets: ${sheetId}`;
@@ -278,6 +323,13 @@ export const processKnowledgeJob = async (job: Job) => {
             // Calculate Hash
             const hash = crypto.createHash('sha256').update(markdown).digest('hex');
 
+            // ── Freshness Gate: skip re-vectorization if content unchanged ──
+            const existingKb = await Knowledge.findById(knowledgeId).select('textHash processingStatus').lean();
+            if (existingKb?.textHash === hash && existingKb?.processingStatus === 'completed') {
+                LoggerService.info('worker_freshness_skip', { jobId: job.id, knowledgeId, reason: 'hash_unchanged' });
+                return; // Content unchanged — vectors are already correct
+            }
+
             // --- Duplicate Detection (per-owner: different users may upload same content) ---
             const duplicateDoc = await Knowledge.findOne({
                 _id: { $ne: knowledgeId },
@@ -299,13 +351,36 @@ export const processKnowledgeJob = async (job: Job) => {
                 return;
             }
 
-            // Update Content
-            const knowledgeDoc = await Knowledge.findByIdAndUpdate(knowledgeId, {
+            // ── Structured Data Detection (dual-path) ──
+            const structuredResult = detectAndParseStructured(markdown);
+            const queryStrategy = structuredResult.isStructured
+                ? determineQueryStrategy(structuredResult.meta)
+                : null;
+
+            LoggerService.info('worker_structure_detection', {
+                jobId: job.id, knowledgeId,
+                format: structuredResult.format,
+                confidence: structuredResult.confidence,
+                rowCount: structuredResult.meta.rowCount,
+                colCount: structuredResult.meta.colCount,
+                queryStrategy: queryStrategy || 'vector_only'
+            });
+
+            // Update Content + structured data
+            const updateData: any = {
                 content: markdown,
                 textHash: hash,
                 processingStage: 'chunking',
-                s3Size: buffer.length
-            });
+                s3Size: buffer.length,
+                dataFormat: structuredResult.format
+            };
+
+            if (structuredResult.isStructured && structuredResult.rows.length > 0) {
+                updateData.structuredData = structuredResult.rows;
+                updateData.structuredMeta = structuredResult.meta;
+            }
+
+            const knowledgeDoc = await Knowledge.findByIdAndUpdate(knowledgeId, updateData);
 
             const docType = knowledgeDoc?.type || 'personal';
 
@@ -519,6 +594,13 @@ export const processKnowledgeJob = async (job: Job) => {
         // Calculate Hash
         const hash = crypto.createHash('sha256').update(fullText).digest('hex');
 
+        // ── Freshness Gate: skip re-vectorization if content unchanged ──
+        const existingFileKb = await Knowledge.findById(knowledgeId).select('textHash processingStatus').lean();
+        if (existingFileKb?.textHash === hash && existingFileKb?.processingStatus === 'completed') {
+            LoggerService.info('worker_freshness_skip', { jobId: job.id, knowledgeId, reason: 'hash_unchanged' });
+            return; // Content unchanged — vectors are already correct
+        }
+
         // --- Duplicate Detection (per-owner: different users may upload same content) ---
         const fileOwnerId = knowledgeDoc?.ownerId;
         const duplicateDoc = await Knowledge.findOne({
@@ -540,12 +622,35 @@ export const processKnowledgeJob = async (job: Job) => {
             return;
         }
 
-        // 4. Update Content & Hash
-        await Knowledge.findByIdAndUpdate(knowledgeId, {
+        // ── Structured Data Detection (dual-path) ── for file uploads
+        const structuredResultFile = detectAndParseStructured(fullText);
+        const fileQueryStrategy = structuredResultFile.isStructured
+            ? determineQueryStrategy(structuredResultFile.meta)
+            : null;
+
+        LoggerService.info('worker_file_structure_detection', {
+            jobId: job.id, knowledgeId,
+            format: structuredResultFile.format,
+            confidence: structuredResultFile.confidence,
+            rowCount: structuredResultFile.meta.rowCount,
+            colCount: structuredResultFile.meta.colCount,
+            queryStrategy: fileQueryStrategy || 'vector_only'
+        });
+
+        // 4. Update Content, Hash & Structured Data
+        const fileUpdateData: any = {
             content: fullText,
             textHash: hash,
-            processingStage: 'chunking'
-        });
+            processingStage: 'chunking',
+            dataFormat: structuredResultFile.format
+        };
+
+        if (structuredResultFile.isStructured && structuredResultFile.rows.length > 0) {
+            fileUpdateData.structuredData = structuredResultFile.rows;
+            fileUpdateData.structuredMeta = structuredResultFile.meta;
+        }
+
+        await Knowledge.findByIdAndUpdate(knowledgeId, fileUpdateData);
 
         // 5. Vectorize with Page Metadata
         const ids: string[] = [], embeddings: number[][] = [], metadatas: Record<string, string | number>[] = [], documents: string[] = [];

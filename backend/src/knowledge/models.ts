@@ -37,6 +37,17 @@ export interface IKnowledge extends Document {
     // Enterprise: File integrity
     originalFileHash?: string; // SHA256 of the original uploaded file
     detectedMimeType?: string; // Magic-bytes detected MIME (vs client-declared)
+    // Structured data support (dual-path: JSON lookup vs vector search)
+    dataFormat?: 'structured' | 'unstructured' | 'hybrid';
+    structuredData?: Array<Record<string, unknown>>; // Parsed rows as JSON
+    structuredMeta?: {
+        headers: string[];           // Column names
+        rowCount: number;
+        colCount: number;
+        totalChars: number;          // Total character count across all cells
+        sheetNames?: string[];       // Source sheet tab names
+        keyColumns?: string[];       // Auto-detected key columns (low-cardinality/unique)
+    };
 }
 
 const KnowledgeSchema = new Schema({
@@ -71,7 +82,18 @@ const KnowledgeSchema = new Schema({
     chunkCount: Number,
     // Enterprise: File integrity
     originalFileHash: String,
-    detectedMimeType: String
+    detectedMimeType: String,
+    // Structured data (dual-path knowledge)
+    dataFormat: { type: String, enum: ['structured', 'unstructured', 'hybrid'], default: 'unstructured' },
+    structuredData: { type: Schema.Types.Mixed }, // JSON array of row objects
+    structuredMeta: {
+        headers: [String],
+        rowCount: Number,
+        colCount: Number,
+        totalChars: Number,
+        sheetNames: [String],
+        keyColumns: [String]
+    }
 }, { timestamps: true });
 
 // ── Enterprise Indexes ──
@@ -85,6 +107,8 @@ KnowledgeSchema.index({ requestStatus: 1, department: 1 });
 KnowledgeSchema.index({ title: 1, type: 1, ownerId: 1, department: 1, visibility: 1 });
 // Expiry management
 KnowledgeSchema.index({ expiresAt: 1 }, { sparse: true });
+// Structured data lookup
+KnowledgeSchema.index({ dataFormat: 1, ownerId: 1, visibility: 1 });
 // Full-text search fallback
 KnowledgeSchema.index({ title: 'text', description: 'text', folder: 'text' });
 

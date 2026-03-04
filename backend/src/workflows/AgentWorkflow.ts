@@ -4,6 +4,8 @@ import { LoggerService } from '../services/LoggerService';
 import { CalculatorTool } from '../tools/CalculatorTool';
 import { SearchTool } from '../tools/SearchTool';
 import { PolicyCheckerTool } from '../tools/PolicyCheckerTool';
+import { TableLookupTool } from '../tools/TableLookupTool';
+import { StructuredQueryService } from '../services/StructuredQueryService';
 import { SYSTEM_MODELS } from '../config/models';
 import * as crypto from 'crypto';
 import { traceAsync, getMetrics } from '../infra/telemetry';
@@ -189,6 +191,22 @@ export class AgentWorkflow {
             const mcpTools = mcpManager.getTools();
             const allTools: AgentTool[] = [...AVAILABLE_TOOLS, ...mcpTools];
 
+            // 3.0.1 Conditionally inject TableLookupTool if collection has structured data
+            if (this.ctx.collectionId) {
+                try {
+                    const hasLookup = await StructuredQueryService.collectionHasLookupStructuredData(this.ctx.collectionId);
+                    if (hasLookup) {
+                        allTools.push(new TableLookupTool());
+                        LoggerService.info('agent_structured_tool_injected', {
+                            collectionId: this.ctx.collectionId,
+                            traceId: this.state.traceId
+                        });
+                    }
+                } catch (err: any) {
+                    LoggerService.warn('agent_structured_tool_check_failed', { error: err.message });
+                }
+            }
+
             // 3.1 Filter tools by user role (DB override > code defaults)
             let allowedTools = await ToolAccessService.filterAllowed(allTools, this.ctx.userRole);
 
@@ -209,6 +227,33 @@ export class AgentWorkflow {
             // 4. Build Prompt & Initial Messages
             this.state.phase = AgentPhase.PLANNING;
             this.state.messages = await PromptBuilder.buildInitialMessages(this.ctx, this.state, allowedTools);
+
+            // 4.1 Inject small structured tables directly into system prompt (inject strategy)
+            if (this.ctx.collectionId) {
+                try {
+                    const injectableMarkdown = await StructuredQueryService.getInjectableContext(
+                        this.ctx.collectionId,
+                        this.ctx.userId,
+                        this.ctx.userRole,
+                        this.ctx.userDepartment
+                    );
+                    if (injectableMarkdown && this.state.messages.length > 0 && this.state.messages[0].role === 'system') {
+                        const systemMsg = this.state.messages[0];
+                        if (Array.isArray(systemMsg.content)) {
+                            (systemMsg.content as Array<{ text: string }>).push({
+                                text: `=== STRUCTURED DATA (Reference Tables) ===\nThe following tables are from the knowledge base. Use them to answer data lookup questions directly without needing to call tools.\n\n${injectableMarkdown}`
+                            });
+                            LoggerService.info('agent_structured_context_injected', {
+                                collectionId: this.ctx.collectionId,
+                                chars: injectableMarkdown.length,
+                                traceId: this.state.traceId
+                            });
+                        }
+                    }
+                } catch (err: any) {
+                    LoggerService.warn('agent_structured_inject_failed', { error: err.message });
+                }
+            }
 
             // 5. Main Agent Loop
             await this.agentLoop(allowedTools);

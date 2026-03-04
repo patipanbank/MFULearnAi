@@ -12,6 +12,11 @@ export const GLOBAL_CHROMA_COLLECTION = 'mfulearnai-global-kb';
 export const OCR_SERVICE_URL = process.env.OCR_SERVICE_URL || 'http://ocr-service:5000';
 export const KNOWLEDGE_QUEUE_NAME = 'knowledge-processing';
 
+// ── Google Sheets API (optional — enables multi-sheet tab reading) ──
+// Free API key from Google Cloud Console → APIs & Services → Credentials
+// Enable "Google Sheets API" in the project. No OAuth needed for shared sheets.
+export const GOOGLE_API_KEY = process.env.GOOGLE_API_KEY || '';
+
 // ── Upload Limits ──
 export const MAX_FILE_SIZE_BYTES = parseInt(process.env.KB_MAX_FILE_SIZE_MB || '100', 10) * 1024 * 1024;
 export const MAX_FILES_PER_UPLOAD = parseInt(process.env.KB_MAX_FILES_PER_UPLOAD || '10', 10);

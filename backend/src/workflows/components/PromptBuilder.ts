@@ -72,6 +72,9 @@ export class PromptBuilder {
         if (toolNames.includes('calculator')) {
             toolInstructions += '- Use the \'calculator\' tool for any math.\n';
         }
+        if (toolNames.includes('lookup_knowledge_table')) {
+            toolInstructions += `- Use the 'lookup_knowledge_table' tool to search structured data tables (spreadsheets, CSV) for specific rows, values, or entries. Use it when the user asks about data that comes from tabular sources (e.g. student lists, product catalogs, schedules). Pass the search value as 'query' and optionally specify a 'column' name to narrow the search.\n`;
+        }
 
         // Generic instruction for other tools if they exist
         const knownTools = ['search', 'check_policy', 'calculator'];
