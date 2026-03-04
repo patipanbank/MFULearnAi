@@ -73,11 +73,12 @@ export const processKnowledgeJob = async (job: Job) => {
                 return; // Don't throw — this should not be retried
             }
 
-            await Knowledge.findByIdAndUpdate(knowledgeId, {
+            const currentDoc = await Knowledge.findByIdAndUpdate(knowledgeId, {
                 processingStatus: 'processing',
                 processingStage: 'extracting',
                 errorReason: ''
             }, { new: true });
+            const currentOwnerId = currentDoc?.ownerId;
 
             LoggerService.debug('worker_fetching_url', { url });
 
@@ -234,16 +235,17 @@ export const processKnowledgeJob = async (job: Job) => {
             // Calculate Hash
             const hash = crypto.createHash('sha256').update(markdown).digest('hex');
 
-            // --- Duplicate Detection ---
+            // --- Duplicate Detection (per-owner: different users may upload same content) ---
             const duplicateDoc = await Knowledge.findOne({
                 _id: { $ne: knowledgeId },
+                ownerId: currentOwnerId,
                 textHash: hash,
                 visibility: 'active',
                 processingStatus: 'completed'
             });
 
             if (duplicateDoc) {
-                LoggerService.info('worker_duplicate_detected', { jobId: job.id, matchedDoc: duplicateDoc._id });
+                LoggerService.info('worker_duplicate_detected', { jobId: job.id, matchedDoc: duplicateDoc._id, ownerId: currentOwnerId });
                 await Knowledge.findByIdAndUpdate(knowledgeId, {
                     processingStatus: 'failed',
                     processingStage: 'failed',
@@ -474,16 +476,18 @@ export const processKnowledgeJob = async (job: Job) => {
         // Calculate Hash
         const hash = crypto.createHash('sha256').update(fullText).digest('hex');
 
-        // --- Duplicate Detection ---
+        // --- Duplicate Detection (per-owner: different users may upload same content) ---
+        const fileOwnerId = knowledgeDoc?.ownerId;
         const duplicateDoc = await Knowledge.findOne({
             _id: { $ne: knowledgeId },
+            ownerId: fileOwnerId,
             textHash: hash,
             visibility: 'active',
             processingStatus: 'completed'
         });
 
         if (duplicateDoc) {
-            LoggerService.info('worker_duplicate_detected', { jobId: job.id, matchedDoc: duplicateDoc._id });
+            LoggerService.info('worker_duplicate_detected', { jobId: job.id, matchedDoc: duplicateDoc._id, ownerId: fileOwnerId });
             await Knowledge.findByIdAndUpdate(knowledgeId, {
                 processingStatus: 'failed',
                 processingStage: 'failed',
