@@ -75,33 +75,36 @@ export class TableLookupTool extends AgentTool {
                 };
             }
 
-            // Format results for LLM consumption
-            const formatted = results.map(r => {
-                if (r.matchedRows.length === 0) {
-                    return `[${r.source}] No matching rows found (searched ${r.totalCandidates} rows).`;
+            // Return JSON array-of-objects — ToolExecutor.compactResult() will
+            // automatically compress this into ultra-compact delimited format:
+            //   header1/header2/header3|val1/val2/val3|val4/val5/val6
+            // This saves ~50-60% tokens vs Markdown tables.
+            const allRows: Record<string, unknown>[] = [];
+
+            for (const r of results) {
+                if (r.matchedRows.length === 0) continue;
+
+                for (const row of r.matchedRows) {
+                    // Include source metadata so LLM knows where data came from
+                    const obj: Record<string, unknown> = { _source: r.source };
+                    for (const h of r.headers) {
+                        obj[h] = (row as any)[h] ?? '';
+                    }
+                    allRows.push(obj);
                 }
+            }
 
-                const headerLine = r.headers.join(' | ');
-                const separator = r.headers.map(() => '---').join(' | ');
-                const dataLines = r.matchedRows.map(row =>
-                    r.headers.map(h => String((row as any)[h] || '')).join(' | ')
+            if (allRows.length === 0) {
+                const summaries = results.map(r =>
+                    `[${r.source}] No matching rows (searched ${r.totalCandidates} rows)`
                 );
+                return { success: true, result: summaries.join('; ') };
+            }
 
-                const parts = [
-                    `**Source: ${r.source}** (${r.matchedRows.length} of ${r.totalCandidates} rows)`,
-                    r.matchedOn ? `Matched on: ${r.matchedOn}` : '',
-                    '',
-                    `| ${headerLine} |`,
-                    `| ${separator} |`,
-                    ...dataLines.map(line => `| ${line} |`),
-                ].filter(Boolean);
-
-                return parts.join('\n');
-            });
-
+            // Return as native array — compactResult() handles the formatting
             return {
                 success: true,
-                result: formatted.join('\n\n---\n\n')
+                result: allRows
             };
         } catch (error: any) {
             return {
