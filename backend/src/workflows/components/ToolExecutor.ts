@@ -2,6 +2,9 @@ import { LoggerService } from '../../services/LoggerService';
 import { AGENT_EVENTS, AgentContext, BedrockContentBlock, ToolResultEntry, WorkflowState } from '../types/AgentTypes';
 import { AGENT_CONSTANTS, AGENT_MESSAGES } from '../types/AgentConstants';
 import { AgentTool, ToolExecutionContext } from '../../tools/AgentTool';
+import { CircuitBreaker, CircuitState } from '../../infra/circuit-breaker';
+import { ToolRateLimiter } from '../../infra/rate-limiter';
+import { ToolInputValidator } from '../../infra/validation/ToolInputValidator';
 
 // ---------------------------------------------------------------------------
 // Tool-result compaction helpers
@@ -259,7 +262,14 @@ export class ToolExecutor {
     }
 
     /**
-     * Execute a single tool with timeout guard.
+     * Execute a single tool with enterprise-grade guards:
+     *   1. Circuit Breaker check (fail-fast if tool is broken)
+     *   2. Rate Limit check (prevent LLM-driven tool spam)
+     *   3. Input Validation (validate against JSON schema)
+     *   4. Timeout guard
+     *   5. Graceful Degradation on failure
+     *   6. Circuit Breaker state update (success/failure)
+     *
      * Never throws — returns an error result on failure.
      */
     private static async executeSingle(
@@ -282,14 +292,60 @@ export class ToolExecutor {
             };
         }
 
+        // ── Guard 1: Circuit Breaker ─────────────────────────
+        const circuitCheck = CircuitBreaker.canExecute(block.name);
+        if (!circuitCheck.allowed) {
+            LoggerService.warn('tool_circuit_breaker_blocked', {
+                tool: block.name,
+                state: circuitCheck.state,
+                reason: circuitCheck.reason
+            }, userId);
+
+            // Apply graceful degradation policy
+            return this.applyDegradation(tool, block, circuitCheck.reason || 'Circuit breaker open', start);
+        }
+
+        // ── Guard 2: Rate Limiter ─────────────────────────────
+        const rateCheck = await ToolRateLimiter.checkLimit(block.name, userId, execCtx.userId);
+        if (!rateCheck.allowed) {
+            LoggerService.warn('tool_rate_limit_blocked', {
+                tool: block.name,
+                reason: rateCheck.reason
+            }, userId);
+
+            return this.applyDegradation(tool, block, rateCheck.reason || 'Rate limit exceeded', start);
+        }
+
+        // ── Guard 3: Input Validation ─────────────────────────
+        const validation = ToolInputValidator.validate(block.name, block.input, tool.schemaJSON);
+        const sanitizedInput = validation.sanitized;
+
+        if (!validation.valid) {
+            LoggerService.warn('tool_input_validation_failed', {
+                tool: block.name,
+                errors: validation.errors.slice(0, 3).map(e => e.message),
+                input: JSON.stringify(block.input).substring(0, 200)
+            }, userId);
+            // Continue with sanitized input — don't block (LLMs are imperfect)
+        }
+
         try {
-            LoggerService.info('tool_execution', { tool: block.name, input: block.input }, userId);
+            LoggerService.info('tool_execution', {
+                tool: block.name,
+                version: tool.version,
+                input: sanitizedInput,
+                circuitState: circuitCheck.state,
+                inputValid: validation.valid
+            }, userId);
 
             const exec = await withTimeout(
-                tool.execute(block.input, execCtx),
+                tool.execute(sanitizedInput, execCtx),
                 timeoutMs,
                 block.name
             );
+
+            // ── Record Success in Circuit Breaker ─────────────
+            CircuitBreaker.recordSuccess(block.name);
 
             return {
                 toolName: block.name,
@@ -300,18 +356,69 @@ export class ToolExecutor {
             };
         } catch (err: unknown) {
             const message = err instanceof Error ? err.message : String(err);
+
+            // ── Record Failure in Circuit Breaker ─────────────
+            CircuitBreaker.recordFailure(block.name, message);
+
             LoggerService.error('tool_execution_error', {
                 tool: block.name,
-                error: message
+                version: tool.version,
+                error: message,
+                circuitState: CircuitBreaker.canExecute(block.name).state
             }, userId);
 
-            return {
-                toolName: block.name,
-                toolUseId: block.toolUseId,
-                result: `Error: ${message}`,
-                success: false,
-                durationMs: Date.now() - start
-            };
+            // ── Graceful Degradation ──────────────────────────
+            return this.applyDegradation(tool, block, message, start);
+        }
+    }
+
+    /**
+     * Apply graceful degradation policy when a tool fails.
+     *
+     * Policies:
+     *   - 'error': Return error string to LLM (default — let LLM decide next step).
+     *   - 'skip': Return a "tool unavailable" message (LLM continues without data).
+     *   - 'retry_with_default': One retry with simplified default args.
+     *   - 'fallback': Return cached result hint (LLM uses session context).
+     */
+    private static applyDegradation(
+        tool: AgentTool,
+        block: { toolUseId: string; name: string; input: Record<string, unknown> },
+        error: string,
+        startTime: number
+    ): SingleToolResult {
+        const policy = tool.degradationPolicy || 'error';
+
+        switch (policy) {
+            case 'skip':
+                LoggerService.info('tool_degradation_skip', { tool: block.name });
+                return {
+                    toolName: block.name,
+                    toolUseId: block.toolUseId,
+                    result: `Tool "${block.name}" is temporarily unavailable. Please answer based on your existing knowledge and session context.`,
+                    success: true, // Mark as success so LLM doesn't retry
+                    durationMs: Date.now() - startTime
+                };
+
+            case 'fallback':
+                LoggerService.info('tool_degradation_fallback', { tool: block.name });
+                return {
+                    toolName: block.name,
+                    toolUseId: block.toolUseId,
+                    result: `Tool "${block.name}" failed (${error}). Use the session context and canonical memory to provide the best answer possible.`,
+                    success: true,
+                    durationMs: Date.now() - startTime
+                };
+
+            case 'error':
+            default:
+                return {
+                    toolName: block.name,
+                    toolUseId: block.toolUseId,
+                    result: `Error: ${error}`,
+                    success: false,
+                    durationMs: Date.now() - startTime
+                };
         }
     }
 }

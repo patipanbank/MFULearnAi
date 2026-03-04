@@ -5,6 +5,8 @@ import { AGENT_EVENTS, AgentContext, WorkflowState } from '../types/AgentTypes';
 import { MODELS, computeWeightedTokens } from '../../config/models';
 import { AgentEventStore } from '../../services/AgentEventStore';
 import { redis } from '../../config/redis';
+import { PromptExperimentService } from '../../services/PromptExperimentService';
+import { UserMemoryService } from '../../services/UserMemoryService';
 
 // ── Saga Constants ──────────────────────────────────────────
 const SAGA_MAX_RETRIES = 3;
@@ -137,6 +139,43 @@ export class ResultPersister {
                 .then(title => title && emit(AGENT_EVENTS.TITLE, { title }))
                 .catch(e => LoggerService.error('Title Gen Failed', e));
         }
+
+        // ── Background: Cross-Session User Memory Extraction ──
+        UserMemoryService.extractAndStore(
+            userId, sessionId, ctx.message, finalAnswer
+        ).catch((e: any) => LoggerService.debug('user_memory_extraction_bg_failed', { error: e.message }));
+
+        // ── Background: Prompt A/B Experiment Metrics ──
+        const experimentContext = (state as any)._experimentContext;
+        if (experimentContext) {
+            PromptExperimentService.recordOutcome(
+                experimentContext.experimentId,
+                experimentContext.variantId,
+                {
+                    responseTokens: totalUsage.total,
+                    latencyMs: totalDurationMs,
+                    isError: state.answerState === 'ERROR',
+                    toolsUsed: Array.from(state.usedTools),
+                    answerMode: answerMode
+                }
+            ).catch((e: any) => LoggerService.debug('experiment_record_bg_failed', { error: e.message }));
+        }
+
+        // ── Background: Prompt Analytics (always, independent of A/B) ──
+        PromptExperimentService.recordPromptAnalytics(
+            'active', // Prompt ID — resolved at recording time
+            1,        // Version
+            (process.env.APP_ENV === 'production' ? 'PROD' : 'TEST') as 'TEST' | 'PROD',
+            {
+                inputTokens: totalUsage.input,
+                outputTokens: totalUsage.output,
+                latencyMs: totalDurationMs,
+                steps,
+                answerMode,
+                toolsUsed: Array.from(state.usedTools),
+                isError: state.answerState === 'ERROR'
+            }
+        ).catch((e: any) => LoggerService.debug('prompt_analytics_bg_failed', { error: e.message }));
     }
 
     // ── Saga Orchestrator ───────────────────────────────────

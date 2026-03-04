@@ -9,6 +9,10 @@ import { PolicyCheckerTool } from '../tools/PolicyCheckerTool';
 import { mcpManager } from '../mcp/McpManager';
 import { AgentTool } from '../tools/AgentTool';
 
+// Enterprise infrastructure imports
+import { CircuitBreaker } from '../infra/circuit-breaker';
+import { ToolRateLimiter } from '../infra/rate-limiter';
+
 /** All known built-in tools. Must stay in sync with AgentWorkflow's AVAILABLE_TOOLS. */
 const BUILTIN_TOOLS: AgentTool[] = [
     new CalculatorTool(),
@@ -123,6 +127,108 @@ export class ToolAccessController {
         } catch (error: any) {
             LoggerService.error('tool_access_reset_error', { error: error.message });
             res.status(500).json({ error: 'Failed to reset tool access config' });
+        }
+    }
+
+    /* =====================================================================
+     * TOOL DISCOVERY — public API for clients to enumerate available tools
+     * ===================================================================== */
+
+    /**
+     * GET /api/tools/discovery
+     * Returns all available tools with their schemas, versions, and health status.
+     * Suitable for API consumers and developer documentation.
+     */
+    static async discovery(_req: any, res: Response) {
+        try {
+            const allTools = [...BUILTIN_TOOLS, ...mcpManager.getTools()];
+            const cbStatus = CircuitBreaker.getAllStatus();
+
+            const catalog = allTools.map(tool => {
+                const cb = cbStatus.find(s => s.toolName === tool.name);
+                return {
+                    name: tool.name,
+                    description: tool.description,
+                    version: tool.version ?? '1.0.0',
+                    source: BUILTIN_TOOLS.some(b => b.name === tool.name) ? 'builtin' : 'mcp',
+                    inputSchema: tool.schemaJSON?.inputSchema ?? null,
+                    degradationPolicy: tool.degradationPolicy ?? 'error',
+                    health: {
+                        circuitState: cb?.state ?? 'CLOSED',
+                        failureCount: cb?.failureCount ?? 0,
+                    },
+                };
+            });
+
+            res.json({
+                version: '1.0.0',
+                generatedAt: new Date().toISOString(),
+                totalTools: catalog.length,
+                tools: catalog,
+            });
+        } catch (error: any) {
+            LoggerService.error('tool_discovery_error', { error: error.message });
+            res.status(500).json({ error: 'Failed to generate tool catalog' });
+        }
+    }
+
+    /* =====================================================================
+     * CIRCUIT BREAKER — admin endpoints to inspect & manage circuit state
+     * ===================================================================== */
+
+    /**
+     * GET /api/tools/circuit-breaker
+     * Returns circuit breaker status for every tool.
+     */
+    static async circuitBreakerStatus(_req: any, res: Response) {
+        try {
+            const statuses = CircuitBreaker.getAllStatus();
+            res.json({ statuses });
+        } catch (error: any) {
+            LoggerService.error('circuit_breaker_status_error', { error: error.message });
+            res.status(500).json({ error: 'Failed to fetch circuit breaker status' });
+        }
+    }
+
+    /**
+     * POST /api/tools/circuit-breaker/:toolName/reset
+     * Manually reset a tripped circuit breaker (admin override).
+     */
+    static async circuitBreakerReset(req: any, res: Response) {
+        try {
+            const { toolName } = req.params;
+            if (!toolName) {
+                return res.status(400).json({ error: 'toolName is required' });
+            }
+
+            CircuitBreaker.reset(toolName);
+            LoggerService.info('circuit_breaker_manual_reset', {
+                toolName,
+                resetBy: req.user?.userId || 'unknown',
+            });
+
+            res.json({ success: true, message: `Circuit breaker for ${toolName} reset to CLOSED` });
+        } catch (error: any) {
+            LoggerService.error('circuit_breaker_reset_error', { error: error.message });
+            res.status(500).json({ error: 'Failed to reset circuit breaker' });
+        }
+    }
+
+    /* =====================================================================
+     * RATE LIMITER — admin endpoint to inspect current usage windows
+     * ===================================================================== */
+
+    /**
+     * GET /api/tools/rate-limit/stats
+     * Returns rate limiter configuration (does not expose per-user windows).
+     */
+    static async rateLimitStats(_req: any, res: Response) {
+        try {
+            const config = ToolRateLimiter.getConfig();
+            res.json({ config });
+        } catch (error: any) {
+            LoggerService.error('rate_limit_stats_error', { error: error.message });
+            res.status(500).json({ error: 'Failed to fetch rate limit stats' });
         }
     }
 }

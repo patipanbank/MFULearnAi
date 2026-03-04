@@ -4,6 +4,9 @@ import { SYSTEM_MODELS } from '../../config/models';
 import { AGENT_CONSTANTS } from '../types/AgentConstants';
 import { LoggerService } from '../../services/LoggerService';
 import { AgentTool } from '../../tools/AgentTool';
+import { TokenCounter } from '../../infra/tokens/TokenCounter';
+import { PromptExperimentService } from '../../services/PromptExperimentService';
+import { UserMemoryService } from '../../services/UserMemoryService';
 
 /**
  * Determines the environment type from runtime context.
@@ -18,6 +21,7 @@ export class PromptBuilder {
     /**
      * Build the initial message stack for the agent.
      * Now async — pulls the system prompt dynamically from DB via PromptService.
+     * Supports A/B testing via PromptExperimentService and cross-session user memory.
      */
     static async buildInitialMessages(ctx: AgentContext, state: WorkflowState, allowedTools: AgentTool[] = []): Promise<BedrockMessage[]> {
         const { message, images } = ctx;
@@ -44,10 +48,27 @@ export class PromptBuilder {
             toolList: toolListStr,
         };
 
-        // --- Fetch dynamic persona prompt from DB ---
+        // --- A/B Testing: Check for active experiment ---
         let personaPrompt: string;
+        let experimentContext: { experimentId: string; variantId: string } | null = null;
+
         try {
-            personaPrompt = await PromptService.getResolvedAgentPrompt(envType, variableValues);
+            // Try experiment first
+            const experimentResult = await PromptExperimentService.resolvePromptForUser(ctx.userId, envType);
+            if (experimentResult) {
+                personaPrompt = PromptService.substituteVariables(experimentResult.content, variableValues);
+                experimentContext = {
+                    experimentId: experimentResult.experimentId,
+                    variantId: experimentResult.variantId
+                };
+                LoggerService.info('prompt_experiment_assigned', {
+                    userId: ctx.userId,
+                    experimentId: experimentResult.experimentId,
+                    variantId: experimentResult.variantId
+                });
+            } else {
+                personaPrompt = await PromptService.getResolvedAgentPrompt(envType, variableValues);
+            }
         } catch (err: any) {
             LoggerService.warn('prompt_fetch_fallback', {
                 error: err.message,
@@ -56,6 +77,9 @@ export class PromptBuilder {
             // Fallback to hardcoded prompt in case of DB/Redis failure
             personaPrompt = this.getHardcodedFallback();
         }
+
+        // Store experiment context in WorkflowState for ResultPersister
+        (state as any)._experimentContext = experimentContext;
 
         // --- Block 1: Persona & Rules ---
         const systemBlocks: Array<{ text: string }> = [];
@@ -108,6 +132,16 @@ ${toolInstructions}- Always start by planning your next step when using tools or
 ${smartContext?.canonical || 'First session.'}
 ${rollingCompact}`
         });
+
+        // --- Block 2.5: Cross-Session User Memory ---
+        try {
+            const userMemory = await UserMemoryService.getMemoryForPrompt(ctx.userId);
+            if (userMemory) {
+                systemBlocks.push({ text: userMemory });
+            }
+        } catch {
+            // Non-critical — skip user memory on error
+        }
 
         // --- Block 3: File Hints ---
         if (nativeDocBlocks.length > 0) {
@@ -170,28 +204,11 @@ ${rollingCompact}`
 
     /**
      * Estimate token count for a message array.
-     * Uses chars/4 heuristic (standard approximation for multilingual text).
-     * Thai text averages ~1.5-2 tokens/char, English ~0.25, so chars/3 is conservative.
+     * Uses enterprise TokenCounter with character-class-aware analysis.
+     * Handles Thai, CJK, and Latin text with calibrated per-class weights.
      */
     static estimateTokens(messages: BedrockMessage[]): number {
-        let totalChars = 0;
-        for (const msg of messages) {
-            if (typeof msg.content === 'string') {
-                totalChars += msg.content.length;
-            } else if (Array.isArray(msg.content)) {
-                for (const block of msg.content) {
-                    if ('text' in block && typeof (block as any).text === 'string') {
-                        totalChars += (block as any).text.length;
-                    } else {
-                        // tool_use, tool_result, image, document — rough estimate
-                        totalChars += JSON.stringify(block).length;
-                    }
-                }
-            }
-        }
-        // Thai/CJK text tokenizes at roughly 1 token per 1.5-2 chars.
-        // English at ~4 chars/token. For mixed content, chars/3 is safe.
-        return Math.ceil(totalChars / 3);
+        return TokenCounter.countMessages(messages);
     }
 
     /**
