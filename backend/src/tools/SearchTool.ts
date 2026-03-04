@@ -1,5 +1,7 @@
 import { AgentTool, ToolExecutionContext, ToolResult } from './AgentTool';
 import { KnowledgeService } from '../services/KnowledgeService';
+import { QueryRewriterService } from '../services/QueryRewriterService';
+import { LoggerService } from '../services/LoggerService';
 
 export class SearchTool extends AgentTool {
     name = 'search';
@@ -32,8 +34,16 @@ export class SearchTool extends AgentTool {
         try {
             const { query, context: queryContext } = args;
 
-            // Query Expansion
-            const expandedQuery = queryContext ? `${query} ${queryContext}` : query;
+            // Step 1: LLM Query Rewriting (Qwen) — expand, clarify, normalize
+            const rewriteResult = await QueryRewriterService.rewrite(query, queryContext);
+
+            LoggerService.info('search_tool_query_rewrite', {
+                originalQuery: query,
+                rewrittenQuery: rewriteResult.rewrittenQuery,
+                subQueries: rewriteResult.subQueries,
+                wasRewritten: rewriteResult.wasRewritten,
+                latencyMs: rewriteResult.latencyMs,
+            });
 
             const userContext = {
                 userId: context.userId,
@@ -43,23 +53,53 @@ export class SearchTool extends AgentTool {
                 allowedKnowledgeIds: context.allowedKnowledgeIds,
             };
 
+            const searchOpts = {
+                collectionId: context.collectionId,
+                metadataFilter: { type: { $ne: 'policy' } } // Exclude policies
+            };
+
+            // Step 2: Primary search with rewritten query
             const { text, sources, blocks } = await KnowledgeService.search(
-                expandedQuery,
+                rewriteResult.rewrittenQuery,
                 userContext,
-                {
-                    collectionId: context.collectionId,
-                    metadataFilter: { type: { $ne: 'policy' } } // Exclude policies
-                }
+                searchOpts
             );
 
-            if (!text && (!blocks || blocks.length === 0)) {
+            // Step 3: Multi-query retrieval — run sub-queries if primary results are thin
+            let allBlocks = blocks || [];
+            let allSources = sources || [];
+            if (allBlocks.length < 3 && rewriteResult.subQueries.length > 0) {
+                const seenIds = new Set(allBlocks.map((b: any) => b.id));
+
+                for (const subQuery of rewriteResult.subQueries) {
+                    try {
+                        const sub = await KnowledgeService.search(subQuery, userContext, searchOpts);
+                        for (const block of (sub.blocks || [])) {
+                            const blockId = block.id;
+                            if (!seenIds.has(blockId)) {
+                                seenIds.add(blockId);
+                                allBlocks.push(block);
+                            }
+                        }
+                        for (const src of (sub.sources || [])) {
+                            if (!allSources.find((s: any) => s.id === src.id)) {
+                                allSources.push(src);
+                            }
+                        }
+                    } catch {
+                        // Sub-query failure is non-critical
+                    }
+                }
+            }
+
+            if (!text && allBlocks.length === 0) {
                 return { success: true, result: "No relevant information found in the knowledge base." };
             }
 
             // Return formatted text + sources for citation
             let result = text;
-            if (sources && sources.length > 0) {
-                const sourceList = sources.map((s: any) => `- [${s.id}] ${s.name}`).join('\n');
+            if (allSources.length > 0) {
+                const sourceList = allSources.map((s: any) => `- [${s.id}] ${s.name}`).join('\n');
                 result += `\n\n=== SOURCES ===\n${sourceList}`;
             }
 
