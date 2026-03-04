@@ -189,7 +189,7 @@ export class HistoryService {
 
         if (conv?.messages?.length) {
             const allMsgs = (conv.messages as any[]);
-            // Filter messages before the cursor and take the last N
+            // Filter messages before the cursor
             const olderMsgs = allMsgs
                 .filter(m => new Date(m.timestamp) < beforeDate)
                 .slice(-limit)

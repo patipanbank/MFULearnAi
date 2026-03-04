@@ -23,6 +23,7 @@ const ConversationSchema = new mongoose.Schema({
         agentEvents: [{
             type: { type: String },             // event type (agent_start, thinking, tool_start, etc.)
             step: Number,                        // agent loop step number
+            content: String,                     // block text content (for block/block_end events)
             toolName: String,                    // tool name (for tool_start/tool_complete)
             input: mongoose.Schema.Types.Mixed,  // tool input
             resultPreview: String,               // truncated tool result

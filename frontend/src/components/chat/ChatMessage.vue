@@ -291,9 +291,30 @@ const getFileIcon = (file) => {
           <!-- Linear Stream / Standard Message -->
           <div class="message-body">
             
-            <!-- Standard Message Fallback (No Timeline Events) -->
-            <template v-if="timelineEvents.length === 0 && message.content">
+            <!-- Standard Message Fallback (No Timeline Events OR blocks have no content from old MongoDB data) -->
+            <template v-if="(timelineEvents.length === 0 || !timelineEvents.some(e => e.type === 'block' && e.content?.trim())) && message.content">
               <div ref="messageRef" class="prose markdown-body" v-html="render(message.content)" />
+              <!-- Show tool badges from old data below the content -->
+              <div v-if="timelineEvents.length > 0" class="linear-stream" style="margin-top: 0.5rem;">
+                <template v-for="(evt, idx) in timelineEvents.filter(e => e.type !== 'block')" :key="evt.id || idx">
+                  <div v-if="evt.type === 'tool_start'" 
+                       class="tool-badge" 
+                       :class="{ 'tool-active': !evt.isToolComplete, 'tool-done': evt.isToolComplete && evt.success, 'tool-error': evt.isToolComplete && !evt.success }">
+                    <div class="tool-badge-header">
+                      <span class="tool-icon-wrap">
+                        <span class="tool-icon">{{ toolIcon(evt.toolName) }}</span>
+                      </span>
+                      <span class="tool-name">{{ toolLabel(evt.toolName) }}</span>
+                      <span v-if="evt.isToolComplete" class="tool-status" :class="evt.success ? 'ok' : 'err'">
+                        <span class="status-icon">{{ evt.success ? '✓' : '✗' }}</span>
+                        <span class="status-text">{{ toolStatusLabel(evt) }}</span>
+                      </span>
+                      <span v-if="evt.durationMs" class="tool-meta">{{ evt.durationMs }}ms</span>
+                    </div>
+                    <div v-if="evt.input?.query" class="tool-query">"{{ evt.input.query }}"</div>
+                  </div>
+                </template>
+              </div>
             </template>
             
             <!-- Linear Block Stream -->
