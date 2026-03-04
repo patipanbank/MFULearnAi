@@ -51,6 +51,52 @@ const urlLoading = ref(false)
 
 const isGoogleDriveUrl = computed(() => /docs\.google\.com\/(spreadsheets|document|presentation)/.test(urlInput.value))
 
+// URL validation state
+const urlValidation = computed(() => {
+    const url = urlInput.value.trim()
+    if (!url) return { valid: false, message: '' }
+    if (url.length > 2048) return { valid: false, message: 'URL is too long (max 2048 characters)' }
+    try {
+        const parsed = new URL(url)
+        if (!['http:', 'https:'].includes(parsed.protocol)) {
+            return { valid: false, message: `Protocol "${parsed.protocol}" not supported. Use http:// or https://` }
+        }
+        // Warn about internal URLs (the server will block these anyway)
+        const hostname = parsed.hostname.toLowerCase()
+        if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname.startsWith('192.168.') || hostname.startsWith('10.')) {
+            return { valid: false, message: 'Internal/private URLs are not allowed' }
+        }
+        return { valid: true, message: '' }
+    } catch {
+        return { valid: false, message: 'Invalid URL format' }
+    }
+})
+
+// Enterprise: Structured error parser for upload responses
+const parseUploadError = (e) => {
+    const status = e.response?.status
+    const data = e.response?.data
+
+    if (status === 429) {
+        const retryAfter = e.response?.headers?.['retry-after']
+        const retryMsg = retryAfter ? ` (wait ${retryAfter}s)` : ''
+        return `Rate limit exceeded — too many uploads${retryMsg}. Please try again later.`
+    }
+    if (status === 413) {
+        return 'File too large — exceeds server limit.'
+    }
+    if (status === 422 || status === 400) {
+        return data?.error || 'Invalid file or input. Check file type and size.'
+    }
+    if (status === 403) {
+        return 'Permission denied — you do not have access to upload this type.'
+    }
+    if (status >= 500) {
+        return 'Server error — please try again later or contact support.'
+    }
+    return data?.error || e.message || 'Upload failed'
+}
+
 // Text state
 const textTitle = ref('')
 const textContent = ref('')
@@ -63,7 +109,7 @@ const isAdmin = computed(() => {
 })
 
 const canUpload = computed(() => {
-    if (uploadMode.value === 'url') return urlInput.value.trim().length > 0 && !urlLoading.value
+    if (uploadMode.value === 'url') return urlInput.value.trim().length > 0 && urlValidation.value.valid && !urlLoading.value
     if (uploadMode.value === 'text') return textTitle.value.trim().length > 0 && textContent.value.trim().length > 0 && !textLoading.value
     return files.value.length > 0 && !uploading.value
 })
@@ -164,8 +210,13 @@ const handleUpload = async () => {
             item.progress = 100
         } catch (e) {
             item.status = 'error'
-            item.error = e.response?.data?.error || e.message || 'Upload failed'
+            item.error = parseUploadError(e)
             allSuccess = false
+            // Stop batch on rate limit — don't burn remaining attempts
+            if (e.response?.status === 429) {
+                error.value = item.error
+                break
+            }
         }
     }
 
@@ -181,8 +232,11 @@ const handleUrlScrape = async () => {
     const url = urlInput.value.trim()
     if (!url) return
 
-    // Basic URL validation
-    try { new URL(url) } catch { error.value = 'Invalid URL format'; return }
+    // Use the computed validation
+    if (!urlValidation.value.valid) {
+        error.value = urlValidation.value.message || 'Invalid URL'
+        return
+    }
 
     urlLoading.value = true
     error.value = null
@@ -191,7 +245,7 @@ const handleUrlScrape = async () => {
         await knowledgeStore.createFromUrl(urlInput.value.trim(), type.value, folder.value.trim(), expiresAt.value)
         emit('success')
     } catch (e) {
-        error.value = e.response?.data?.error || e.message || 'URL scraping failed'
+        error.value = parseUploadError(e)
     } finally {
         urlLoading.value = false
     }
@@ -210,7 +264,7 @@ const handleTextUpload = async () => {
         await knowledgeStore.createFromText(title, content, type.value, folder.value.trim(), expiresAt.value)
         emit('success')
     } catch (e) {
-        error.value = e.response?.data?.error || e.message || 'Text upload failed'
+        error.value = parseUploadError(e)
     } finally {
         textLoading.value = false
     }
@@ -302,11 +356,21 @@ const handleTextUpload = async () => {
              type="url"
              :placeholder="t('urlInputPlaceholder')"
              class="url-input"
+             :class="{ 'url-input--invalid': urlInput.trim() && !urlValidation.valid }"
+             maxlength="2048"
            />
+           <p v-if="urlInput.trim() && !urlValidation.valid" class="hint hint--error">{{ urlValidation.message }}</p>
            <p class="hint">{{ t('urlExtractionHint') }}</p>
            <p v-if="isGoogleDriveUrl" class="hint hint--warning">
              ⚠️ Google Drive: ตรวจสอบให้แน่ใจว่าไฟล์ถูกแชร์เป็น <strong>"ทุกคนที่มีลิงก์สามารถดู"</strong> ก่อนอัปโหลด
            </p>
+           <div class="url-supported-types">
+             <span class="url-type-label">Supported:</span>
+             <span class="url-type-badge">Websites</span>
+             <span class="url-type-badge badge--google">Google Sheets</span>
+             <span class="url-type-badge badge--google">Google Docs</span>
+             <span class="url-type-badge badge--google">Google Slides</span>
+           </div>
          </div>
        </template>
 
@@ -391,7 +455,10 @@ const handleTextUpload = async () => {
            </div>
        </div>
 
-       <div v-if="error" class="error">{{ error }}</div>
+       <div v-if="error" class="error" :class="{ 'error--warning': error.includes('Rate limit') || error.includes('wait') }">
+         <span class="error-icon">{{ error.includes('Rate limit') ? '⏱' : '⚠' }}</span>
+         {{ error }}
+       </div>
 
        <div class="actions">
            <button class="btn-cancel" @click="emit('close')">{{ t('cancelBtn') }}</button>
@@ -604,6 +671,35 @@ const handleTextUpload = async () => {
   transition: border-color 0.15s;
 }
 .url-input:focus { border-color: var(--color-accent, #6366f1); }
+.url-input--invalid { border-color: #ef4444 !important; }
+.url-input--invalid:focus { border-color: #ef4444 !important; box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.15); }
+
+/* URL Supported Types badges */
+.url-supported-types {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+}
+.url-type-label {
+  font-size: 11px;
+  color: var(--color-text-muted);
+  font-weight: 500;
+}
+.url-type-badge {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: var(--color-bg-tertiary);
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border);
+}
+.badge--google {
+  background: rgba(66, 133, 244, 0.08);
+  border-color: rgba(66, 133, 244, 0.2);
+  color: #4285f4;
+}
 
 /* Form */
 .form-group { margin-bottom: 16px; }
@@ -665,6 +761,11 @@ input[type="date"].form-control {
     margin-top: 6px;
 }
 
+.hint--error {
+    color: #ef4444;
+    font-weight: 500;
+}
+
 /* Upload Progress */
 .upload-progress-container {
     margin-bottom: 16px;
@@ -723,5 +824,25 @@ button {
 .btn-primary { background: var(--color-accent); color: white; }
 .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
 
-.error { color: #ef4444; font-size: 13px; margin-bottom: 12px; }
+.error {
+  color: #ef4444;
+  font-size: 13px;
+  margin-bottom: 12px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+.error--warning {
+  color: #d97706;
+  background: rgba(217, 119, 6, 0.08);
+  border-color: rgba(217, 119, 6, 0.2);
+}
+.error-icon {
+  flex-shrink: 0;
+  font-size: 14px;
+}
 </style>

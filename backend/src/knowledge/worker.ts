@@ -13,10 +13,23 @@ import TurndownService from 'turndown';
 import chardet from 'chardet';
 import { LoggerService } from '../services/LoggerService';
 import { CHROMA_URL, GLOBAL_CHROMA_COLLECTION, OCR_SERVICE_URL } from './constants';
+import { validateUrlSafety, MAX_URL_RESPONSE_BYTES, MAX_URL_REDIRECTS, URL_FETCH_TIMEOUT_MS } from '../utils/ssrfGuard';
 
 dotenv.config();
 
 const chroma = new ChromaClient({ path: CHROMA_URL });
+
+/** Shared User-Agent for all outbound HTTP requests */
+const FETCH_USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) MFULearnAI/1.0';
+
+/** Safe axios defaults for URL fetching — prevents OOM and redirect exploits */
+const safeAxiosDefaults = {
+    headers: { 'User-Agent': FETCH_USER_AGENT },
+    timeout: URL_FETCH_TIMEOUT_MS,
+    maxRedirects: MAX_URL_REDIRECTS,
+    maxContentLength: MAX_URL_RESPONSE_BYTES,
+    maxBodyLength: MAX_URL_RESPONSE_BYTES,
+};
 
 export const processKnowledgeJob = async (job: Job) => {
     if (job.name === 'process-url') {
@@ -24,6 +37,19 @@ export const processKnowledgeJob = async (job: Job) => {
         LoggerService.info('worker_url_job_start', { jobId: job.id, url, knowledgeId });
 
         try {
+            // Defense-in-depth: Re-validate URL safety in worker (controller already checked,
+            // but this prevents exploitation via direct queue injection or DB tampering)
+            const urlCheck = validateUrlSafety(url);
+            if (!urlCheck.safe) {
+                LoggerService.error('worker_url_ssrf_blocked', { jobId: job.id, url, reason: urlCheck.reason });
+                await Knowledge.findByIdAndUpdate(knowledgeId, {
+                    processingStatus: 'failed',
+                    processingStage: 'failed',
+                    errorReason: `URL blocked: ${urlCheck.reason}`
+                });
+                return; // Don't throw — this should not be retried
+            }
+
             await Knowledge.findByIdAndUpdate(knowledgeId, {
                 processingStatus: 'processing',
                 processingStage: 'extracting',
@@ -53,10 +79,8 @@ export const processKnowledgeJob = async (job: Job) => {
                 try {
                     const xlsxUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=xlsx`;
                     const xlsxRes = await axios.get(xlsxUrl, {
+                        ...safeAxiosDefaults,
                         responseType: 'arraybuffer',
-                        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
-                        timeout: 30000,
-                        maxRedirects: 5,
                         validateStatus: (s) => s < 400
                     });
                     const ct: string = xlsxRes.headers['content-type'] || '';
@@ -81,11 +105,7 @@ export const processKnowledgeJob = async (job: Job) => {
                     // First fetch default sheet to get at least one sheet worth of data.
                     // Then attempt to enumerate additional sheets via the HTML index page.
                     const gvizBase = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv`;
-                    const csvRes = await axios.get(gvizBase, {
-                        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
-                        timeout: 30000,
-                        maxRedirects: 5
-                    });
+                    const csvRes = await axios.get(gvizBase, safeAxiosDefaults);
                     const csvText: string = csvRes.data as string;
                     if (!csvText.trim()) throw new Error('Google Sheets returned empty content — check the sheet has data and sharing is set to "Anyone with the link".');
                     markdown = `--- Sheet: Sheet1 ---\n${csvText.trim()}`;
@@ -94,9 +114,8 @@ export const processKnowledgeJob = async (job: Job) => {
                     try {
                         const pubUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/pubhtml`;
                         const pubRes = await axios.get(pubUrl, {
-                            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
-                            timeout: 10000,
-                            maxRedirects: 5
+                            ...safeAxiosDefaults,
+                            timeout: 10000
                         });
                         const $ = cheerio.load(pubRes.data as string);
                         const sheetNames: string[] = [];
@@ -110,9 +129,8 @@ export const processKnowledgeJob = async (job: Job) => {
                             markdown = '';
                             for (const name of sheetNames) {
                                 const sheetCsvRes = await axios.get(`${gvizBase}&sheet=${encodeURIComponent(name)}`, {
-                                    headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
-                                    timeout: 20000,
-                                    maxRedirects: 5
+                                    ...safeAxiosDefaults,
+                                    timeout: 20000
                                 });
                                 const sheetCsv: string = sheetCsvRes.data as string;
                                 if (sheetCsv.trim()) markdown += `\n--- Sheet: ${name} ---\n${sheetCsv.trim()}\n`;
@@ -136,11 +154,7 @@ export const processKnowledgeJob = async (job: Job) => {
                 LoggerService.info('worker_google_docs_detected', { jobId: job.id, docId });
 
                 const exportUrl = `https://docs.google.com/document/d/${docId}/export?format=txt`;
-                const docResponse = await axios.get(exportUrl, {
-                    headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
-                    timeout: 30000,
-                    maxRedirects: 5
-                });
+                const docResponse = await axios.get(exportUrl, safeAxiosDefaults);
                 markdown = (docResponse.data as string).trim();
 
                 // Try to grab the doc title from the export URL redirect or fall back
@@ -152,20 +166,13 @@ export const processKnowledgeJob = async (job: Job) => {
                 LoggerService.info('worker_google_slides_detected', { jobId: job.id, presId });
 
                 const exportUrl = `https://docs.google.com/presentation/d/${presId}/export/txt`;
-                const slidesResponse = await axios.get(exportUrl, {
-                    headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
-                    timeout: 30000,
-                    maxRedirects: 5
-                });
+                const slidesResponse = await axios.get(exportUrl, safeAxiosDefaults);
                 markdown = (slidesResponse.data as string).trim();
                 await Knowledge.findByIdAndUpdate(knowledgeId, { title: `Google Slides: ${presId}`.substring(0, 100) });
 
             } else {
                 // 1d. Regular webpage → scrape HTML and convert to Markdown
-                const response = await axios.get(url, {
-                    headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
-                    timeout: 15000
-                });
+                const response = await axios.get(url, safeAxiosDefaults);
                 const html = response.data;
 
                 // 2. Parse and Clean with Cheerio
@@ -266,17 +273,20 @@ export const processKnowledgeJob = async (job: Job) => {
             // 6. Complete
             await Knowledge.findByIdAndUpdate(knowledgeId, {
                 processingStatus: 'completed',
-                processingStage: 'completed'
+                processingStage: 'completed',
+                chunkCount: chunkGlobalIndex
             });
-            LoggerService.info('worker_url_job_success', { jobId: job.id });
+            LoggerService.info('worker_url_job_success', { jobId: job.id, chunkCount: chunkGlobalIndex });
             return;
 
         } catch (err: any) {
-            LoggerService.error('worker_url_job_failed', { jobId: job.id, error: err.message });
+            LoggerService.error('worker_url_job_failed', { jobId: job.id, error: err.message, stack: err.stack });
+            // Sanitize error message — avoid leaking internal IPs/paths to end users
+            const safeError = sanitizeErrorMessage(err.message);
             await Knowledge.findByIdAndUpdate(knowledgeId, {
                 processingStatus: 'failed',
                 processingStage: 'failed',
-                errorReason: err.message
+                errorReason: safeError
             });
             throw err;
         }
@@ -478,9 +488,10 @@ export const processKnowledgeJob = async (job: Job) => {
         // 6. Complete
         await Knowledge.findByIdAndUpdate(knowledgeId, {
             processingStatus: 'completed',
-            processingStage: 'completed'
+            processingStage: 'completed',
+            chunkCount: chunkGlobalIndex
         });
-        LoggerService.info('worker_file_job_success', { jobId: job.id });
+        LoggerService.info('worker_file_job_success', { jobId: job.id, chunkCount: chunkGlobalIndex });
 
     } catch (err: any) {
         LoggerService.error('worker_file_job_failed', { jobId: job.id, error: err.message });
@@ -505,3 +516,21 @@ const streamToBuffer = (stream: NodeJS.ReadableStream): Promise<Buffer> => {
         stream.on('error', (err: Error) => reject(err));
     });
 };
+
+/**
+ * Sanitize error messages before storing them in the database (visible to users).
+ * Strips internal IPs, file system paths, and stack traces.
+ */
+function sanitizeErrorMessage(msg: string): string {
+    if (!msg) return 'Unknown processing error';
+    // Truncate long messages
+    let clean = msg.substring(0, 500);
+    // Remove file system paths (Windows and Unix)
+    clean = clean.replace(/[A-Z]:\\[\w\\.-]+/gi, '[path]');
+    clean = clean.replace(/\/(?:home|usr|var|tmp|etc|opt)\/[\w/.-]+/gi, '[path]');
+    // Remove internal IPs
+    clean = clean.replace(/\b(127\.\d+\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+|192\.168\.\d+\.\d+|169\.254\.\d+\.\d+)\b/g, '[internal-ip]');
+    // Remove port numbers after internal references
+    clean = clean.replace(/localhost:\d+/gi, '[internal-service]');
+    return clean;
+}
