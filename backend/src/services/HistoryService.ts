@@ -102,7 +102,7 @@ export class HistoryService {
                 ).select('messages').lean();
 
                 if (conv?.messages && conv.messages.length > 0) {
-                    const coldMessages = (conv.messages as ChatMessage[])
+                    const coldMessages = (conv.messages as unknown as ChatMessage[])
                         .slice(-50)
                         .map(m => decryptMessage(m));
 
