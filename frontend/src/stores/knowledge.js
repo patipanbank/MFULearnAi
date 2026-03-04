@@ -129,7 +129,13 @@ export const useKnowledgeStore = defineStore('knowledge', () => {
         }
     }
 
+    // Per-item retry lock to prevent double-click duplicates
+    const retryingIds = ref(new Set())
+
     async function retryKnowledge(id) {
+        // Guard: skip if this specific item is already being retried
+        if (retryingIds.value.has(id)) return
+        retryingIds.value.add(id)
         loading.value = true
         try {
             await api.post(`/knowledge/${id}/retry`)
@@ -139,6 +145,7 @@ export const useKnowledgeStore = defineStore('knowledge', () => {
             error.value = e.response?.data?.error || e.message
             throw e
         } finally {
+            retryingIds.value.delete(id)
             loading.value = false
         }
     }
@@ -374,6 +381,7 @@ export const useKnowledgeStore = defineStore('knowledge', () => {
         createFromText,
         fetchStats,
         fetchDocumentAnalytics,
+        retryingIds,
         stopPolling
     }
 })

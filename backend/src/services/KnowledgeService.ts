@@ -528,6 +528,8 @@ export class KnowledgeService {
             s3Key: fileInfo.s3Key,
             mimetype: fileInfo.mimeType,
             originalName: fileInfo.originalName
+        }, {
+            jobId: `file-${kb._id.toString()}`, // Dedup: BullMQ rejects duplicate jobId while job exists
         });
 
         return kb;
@@ -583,6 +585,8 @@ export class KnowledgeService {
         await knowledgeQueue.add('process-url', {
             knowledgeId: kbId,
             url
+        }, {
+            jobId: `url-${kbId}`, // Dedup: BullMQ rejects duplicate jobId while job exists
         });
 
         return kb;
@@ -593,16 +597,29 @@ export class KnowledgeService {
         if (!kb) throw new Error('Not found');
         if (!this.canManageKnowledge(user, kb)) throw new Error('Permission denied');
 
+        // Idempotency: Only allow retry from terminal states
+        if (kb.processingStatus === 'pending' || kb.processingStatus === 'processing') {
+            LoggerService.warn('knowledge_retry_skipped_already_active', {
+                knowledgeId: id,
+                currentStatus: kb.processingStatus,
+                userId: user.userId
+            });
+            return kb; // Already queued/processing — no-op
+        }
+
         kb.processingStatus = 'pending';
         kb.processingStage = 'queued';
         kb.errorReason = '';
         await kb.save();
 
-        // URL-sourced knowledge has no s3Key — re-queue as process-url
+        // Stable jobId: BullMQ dedup rejects if a retry job already exists in queue
+        // (no Date.now() — prevents double-click duplicate)
         if (kb.contentSource && !kb.s3Key) {
             await knowledgeQueue.add('process-url', {
                 knowledgeId: kb._id.toString(),
                 url: kb.contentSource
+            }, {
+                jobId: `url-${kb._id.toString()}-retry`,
             });
         } else {
             await knowledgeQueue.add('process-file', {
@@ -610,6 +627,8 @@ export class KnowledgeService {
                 s3Key: kb.s3Key,
                 mimetype: kb.contentType || 'application/pdf',
                 originalName: kb.title
+            }, {
+                jobId: `file-${kb._id.toString()}-retry`,
             });
         }
 

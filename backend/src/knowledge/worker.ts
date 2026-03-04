@@ -36,6 +36,29 @@ export const processKnowledgeJob = async (job: Job) => {
         const { knowledgeId, url } = job.data;
         LoggerService.info('worker_url_job_start', { jobId: job.id, url, knowledgeId });
 
+        // Idempotency guard: skip if doc already completed or being processed by another job
+        try {
+            const current = await Knowledge.findById(knowledgeId).select('processingStatus processingStage').lean();
+            if (current?.processingStatus === 'completed') {
+                LoggerService.warn('worker_skip_already_completed', { jobId: job.id, knowledgeId });
+                return; // Already done — no-op
+            }
+            if (current?.processingStatus === 'processing' && job.attemptsMade === 0) {
+                // Another job is actively processing this doc (stalled recovery race)
+                // Only skip on first attempt — retries should proceed
+                const existingStage = current?.processingStage;
+                if (existingStage && existingStage !== 'queued' && existingStage !== 'failed') {
+                    LoggerService.warn('worker_skip_concurrent_processing', {
+                        jobId: job.id, knowledgeId, existingStage
+                    });
+                    return;
+                }
+            }
+        } catch (guardErr: any) {
+            LoggerService.warn('worker_idempotency_check_failed', { error: guardErr.message });
+            // Fail open — proceed with processing
+        }
+
         try {
             // Defense-in-depth: Re-validate URL safety in worker (controller already checked,
             // but this prevents exploitation via direct queue injection or DB tampering)
@@ -295,6 +318,26 @@ export const processKnowledgeJob = async (job: Job) => {
 
     const { knowledgeId, s3Key, mimetype, originalName } = job.data;
     LoggerService.info('worker_file_job_start', { jobId: job.id, originalName, knowledgeId });
+
+    // Idempotency guard: skip if doc already completed or being processed by another job
+    try {
+        const current = await Knowledge.findById(knowledgeId).select('processingStatus processingStage').lean();
+        if (current?.processingStatus === 'completed') {
+            LoggerService.warn('worker_skip_already_completed', { jobId: job.id, knowledgeId });
+            return;
+        }
+        if (current?.processingStatus === 'processing' && job.attemptsMade === 0) {
+            const existingStage = current?.processingStage;
+            if (existingStage && existingStage !== 'queued' && existingStage !== 'failed') {
+                LoggerService.warn('worker_skip_concurrent_processing', {
+                    jobId: job.id, knowledgeId, existingStage
+                });
+                return;
+            }
+        }
+    } catch (guardErr: any) {
+        LoggerService.warn('worker_idempotency_check_failed', { error: guardErr.message });
+    }
 
     try {
         // 1. Update Status to Processing & get document type

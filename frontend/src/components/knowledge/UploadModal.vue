@@ -229,6 +229,9 @@ const handleUpload = async () => {
 
 // URL scraper
 const handleUrlScrape = async () => {
+    // Guard against double-submit (Vue reactivity updates :disabled async)
+    if (urlLoading.value) return
+
     const url = urlInput.value.trim()
     if (!url) return
 
