@@ -33,6 +33,7 @@ import { globalErrorHandler, notFoundHandler } from './middleware/errorHandler';
 // Enterprise Infrastructure
 import { initTelemetry, shutdownTelemetry } from './infra/telemetry';
 import { installGracefulShutdown, registerShutdownHook, shutdownGuard } from './infra/shutdown';
+import { initEncryption } from './infra/encryption';
 import { ResultPersister } from './workflows/components/ResultPersister';
 import { redis } from './config/redis';
 
@@ -172,6 +173,9 @@ httpServer.listen(PORT, async () => {
 
     // Initialize OpenTelemetry (no-op if OTEL_ENABLED !== 'true')
     await initTelemetry();
+
+    // Initialize field-level encryption (no-op if CHAT_ENCRYPTION_KEY not set)
+    initEncryption();
 
     // Initialize MCP persistent connections
     await mcpManager.init();

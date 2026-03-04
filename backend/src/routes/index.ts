@@ -8,6 +8,7 @@ import { AuthService } from '../auth/AuthService';
 import { RateLimiter } from '../middleware/rateLimiter';
 import { rateLimitByKey } from '../middleware/ApiKeyLimiter';
 import { quotaEnforcer } from '../middleware/quotaEnforcer';
+import { validateChatContent } from '../middleware/contentValidator';
 import { CompletionsController } from '../controllers/CompletionsController';
 import apiKeyRoutes from './api-keys';
 import knowledgeRoutes from './knowledge';
@@ -36,9 +37,12 @@ router.delete('/departments/:id', checkAuth, AuthService.requireRole(['superadmi
 router.use('/keys', apiKeyRoutes);
 
 // Chat Routes
-router.post('/chat', checkAuth, RateLimiter.limit, rateLimitByKey, quotaEnforcer, ChatController.chat);
+router.post('/chat', checkAuth, RateLimiter.limit, rateLimitByKey, quotaEnforcer, validateChatContent, ChatController.chat);
 router.post('/chat/completions', checkAuth, RateLimiter.limit, rateLimitByKey, quotaEnforcer, CompletionsController.complete);
 router.get('/chat/models', checkAuth, ChatController.getModels);
+router.get('/chat/search', checkAuth, ChatController.searchHistory);
+router.get('/chat/export', checkAuth, ChatController.exportData);
+router.delete('/chat/purge', checkAuth, ChatController.purgeData);
 router.get('/chat/attachment/*', checkAuth, ChatController.downloadAttachment);
 router.post('/chat/feedback', checkAuth, ChatController.submitFeedback);
 router.get('/chat/:sessionId', checkAuth, ChatController.getHistory); // order matters

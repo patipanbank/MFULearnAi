@@ -3,7 +3,7 @@ import { Conversation } from '../models/Conversation';
 import { ChatMessage } from '../../../../shared/types';
 
 export class HistoryService {
-    private static TTL = 86400; // 24 hours
+    private static TTL = parseInt(process.env.CHAT_CACHE_TTL || '86400', 10); // 24 hours
 
     static async getContext(userId: string, sessionId: string): Promise<{ messages: ChatMessage[], smartContext: any }> {
         const historyKey = `chat:${userId}:${sessionId}`;
@@ -19,6 +19,7 @@ export class HistoryService {
                 canonical: '',
                 rolling: {
                     facts: [],
+                    tentative_facts: [],
                     intent: {
                         primary: conversation.summary || 'General Inquiry',
                         secondary: [],
@@ -26,25 +27,74 @@ export class HistoryService {
                     },
                     constraints: [],
                     decisions: [],
-                    open_questions: []
+                    open_questions: [],
+                    confidence_score: 1.0
                 },
                 version: 1,
                 hashes: {},
                 lastCanonizedAt: new Date()
             };
+
+            // Migrate back to DB (fire-and-forget)
+            this.updateSmartContext(userId, sessionId, smartContext).catch(e => {
+                console.error('[HistoryService] Migration persistence failed:', e);
+            });
         }
 
         // 2. Get Recent Messages from Redis (Hot Cache — last 50 only)
         const rawHistory = await redis.lrange(historyKey, -50, -1);
         let messages: ChatMessage[] = [];
 
-        if (rawHistory.length > 0) {
-            messages = rawHistory
-                .map(item => JSON.parse(item))
-                .filter(msg => msg.content || msg.images?.length || msg.files?.length);
+        for (const item of rawHistory) {
+            try {
+                const msg = JSON.parse(item) as ChatMessage;
+                if (msg.content || msg.images?.length || msg.files?.length) {
+                    messages.push(msg);
+                }
+            } catch (parseError) {
+                // Skip corrupt Redis entries instead of crashing
+                console.warn('[HistoryService] Redis parse failed, skipping entry');
+            }
+        }
+
+        // 3. MongoDB Fallback — if Redis cache expired/empty, pull from cold storage
+        if (messages.length === 0) {
+            try {
+                const conv = await Conversation.findOne(
+                    { userId, sessionId, isDeleted: { $ne: true } }
+                ).select('messages');
+                if (conv?.messages?.length) {
+                    const allMsgs = conv.messages as ChatMessage[];
+                    messages = allMsgs
+                        .filter(msg => msg.content || (msg as any).images?.length || (msg as any).files?.length)
+                        .slice(-50);
+
+                    // Rehydrate Redis cache so subsequent reads are fast
+                    await this.rehydrateRedisCache(historyKey, messages);
+                    console.log(`[HistoryService] Rehydrated ${messages.length} messages from MongoDB for session ${sessionId}`);
+                }
+            } catch (err) {
+                console.error('[HistoryService] MongoDB fallback failed:', err);
+                // Return empty — better than crashing
+            }
         }
 
         return { messages, smartContext };
+    }
+
+    /**
+     * Rehydrate Redis cache from MongoDB cold storage.
+     * Uses pipeline for atomic batch write.
+     */
+    private static async rehydrateRedisCache(key: string, messages: ChatMessage[]) {
+        if (messages.length === 0) return;
+        const pipeline = redis.pipeline();
+        pipeline.del(key);
+        for (const msg of messages) {
+            pipeline.rpush(key, JSON.stringify(msg));
+        }
+        pipeline.expire(key, this.TTL);
+        await pipeline.exec();
     }
 
     // Deprecated: pure getHistory
@@ -54,15 +104,49 @@ export class HistoryService {
     }
 
     static async addMessage(userId: string, sessionId: string, message: ChatMessage) {
-        const historyKey = `chat:${userId}:${sessionId}`;
-        await redis.rpush(historyKey, JSON.stringify(message));
-        await redis.expire(historyKey, this.TTL);
-        // We assume MongoDB sync happens at the end of the turn or asynchronously
+        try {
+            const historyKey = `chat:${userId}:${sessionId}`;
+            await redis.rpush(historyKey, JSON.stringify(message));
+            await redis.expire(historyKey, this.TTL);
+        } catch (e) {
+            console.warn('[HistoryService] redis addMessage failed:', e);
+        }
     }
 
     static async trimHistory(userId: string, sessionId: string, limit: number = 50) {
-        const historyKey = `chat:${userId}:${sessionId}`;
-        await redis.ltrim(historyKey, -limit, -1);
+        try {
+            const historyKey = `chat:${userId}:${sessionId}`;
+            await redis.ltrim(historyKey, -limit, -1);
+        } catch (e) {
+            console.warn('[HistoryService] redis trim failed:', e);
+        }
+    }
+
+    /**
+     * Ensures a conversation record exists in MongoDB.
+     * Prevents lost sessions if the workflow is interrupted.
+     */
+    static async ensureSessionExists(userId: string, sessionId: string, initialTitle: string, modelId?: string) {
+        try {
+            await Conversation.findOneAndUpdate(
+                { userId, sessionId },
+                {
+                    $setOnInsert: {
+                        userId,
+                        sessionId,
+                        'metadata.title': initialTitle,
+                        modelId: modelId || 'default',
+                        messages: [],
+                        isDeleted: false,
+                        createdAt: new Date(),
+                        updatedAt: new Date()
+                    }
+                },
+                { upsert: true, new: true }
+            );
+        } catch (error: any) {
+            console.error('[HistoryService] ensureSessionExists failed:', error.message);
+        }
     }
 
     static async saveToPersistentStorage(
@@ -92,8 +176,7 @@ export class HistoryService {
             { userId, sessionId },
             {
                 smartContext,
-                // Also update legacy summary for backward compatibility if needed?
-                // summary: smartContext.rolling.intent 
+                updatedAt: new Date()
             }
         );
     }
@@ -103,8 +186,15 @@ export class HistoryService {
         await Conversation.updateOne({ userId, sessionId }, { summary });
     }
 
+    /**
+     * Soft-delete: clears Redis and marks MongoDB document as deleted.
+     * Matches backend behavior (previously was hard delete).
+     */
     static async clearSession(userId: string, sessionId: string) {
         await redis.del(`chat:${userId}:${sessionId}`);
-        await Conversation.findOneAndDelete({ userId, sessionId });
+        await Conversation.updateOne(
+            { userId, sessionId },
+            { $set: { deletedAt: new Date(), isDeleted: true, updatedAt: new Date() } }
+        );
     }
 }

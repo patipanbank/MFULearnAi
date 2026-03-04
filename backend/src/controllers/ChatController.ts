@@ -290,4 +290,74 @@ export class ChatController {
             res.status(500).json({ error: 'Failed to save feedback' });
         }
     }
+
+    // ── GDPR Compliance Endpoints ────────────────────────────
+
+    /**
+     * GET /api/chat/export — Export all user's chat data (GDPR Article 20).
+     */
+    static async exportData(req: any, res: Response) {
+        const userId = req.user.userId;
+        try {
+            const data = await HistoryService.exportUserData(userId);
+            res.setHeader('Content-Disposition', `attachment; filename="chat-export-${userId}-${Date.now()}.json"`);
+            res.setHeader('Content-Type', 'application/json');
+            res.json({
+                exportedAt: new Date().toISOString(),
+                userId,
+                conversationCount: data.length,
+                conversations: data
+            });
+        } catch (error: any) {
+            LoggerService.error('gdpr_export_failed', { error: error.message }, userId);
+            res.status(500).json({ error: 'Failed to export data' });
+        }
+    }
+
+    /**
+     * DELETE /api/chat/purge — Hard-delete ALL user data (GDPR Article 17).
+     * Requires confirmation header: X-Confirm-Purge: DELETE-ALL-MY-DATA
+     */
+    static async purgeData(req: any, res: Response) {
+        const userId = req.user.userId;
+        const confirmation = req.headers['x-confirm-purge'];
+
+        if (confirmation !== 'DELETE-ALL-MY-DATA') {
+            return res.status(400).json({
+                error: 'Purge requires confirmation header: X-Confirm-Purge: DELETE-ALL-MY-DATA'
+            });
+        }
+
+        try {
+            const result = await HistoryService.purgeUserData(userId);
+            LoggerService.log('info', 'gdpr_data_purged', { ...result }, userId);
+            res.json({ success: true, ...result });
+        } catch (error: any) {
+            LoggerService.error('gdpr_purge_failed', { error: error.message }, userId);
+            res.status(500).json({ error: 'Failed to purge data' });
+        }
+    }
+
+    // ── Search ─────────────────────────────────────────────
+
+    /**
+     * GET /api/chat/search?q=keyword&limit=20 — Search chat history.
+     */
+    static async searchHistory(req: any, res: Response) {
+        const userId = req.user.userId;
+        const query = req.query.q as string;
+        const limit = parseInt(req.query.limit as string) || 20;
+
+        if (!query || query.trim().length < 2) {
+            return res.status(400).json({ error: 'Search query must be at least 2 characters' });
+        }
+
+        try {
+            const results = await HistoryService.searchHistory(userId, query.trim(), Math.min(limit, 50));
+            res.json({ query, resultCount: results.length, results });
+        } catch (error: any) {
+            LoggerService.error('search_history_failed', { error: error.message }, userId);
+            res.status(500).json({ error: 'Search failed' });
+        }
+    }
 }

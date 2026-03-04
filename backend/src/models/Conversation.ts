@@ -78,5 +78,7 @@ const ConversationSchema = new mongoose.Schema({
 // Index for fast retrieval / cleanup
 ConversationSchema.index({ userId: 1, sessionId: 1 });
 ConversationSchema.index({ updatedAt: -1 });
+// Text index for full-text search on message content and title
+ConversationSchema.index({ 'messages.content': 'text', 'metadata.title': 'text' });
 
 export const Conversation = mongoose.model('Conversation', ConversationSchema);
