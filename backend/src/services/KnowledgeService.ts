@@ -612,23 +612,34 @@ export class KnowledgeService {
         kb.errorReason = '';
         await kb.save();
 
-        // Stable jobId: BullMQ dedup rejects if a retry job already exists in queue
-        // (no Date.now() — prevents double-click duplicate)
+        // Stable jobId prevents double-click duplicates, but BullMQ keeps completed/failed
+        // jobs for days (removeOnComplete.age). We must evict the old retry job first,
+        // otherwise queue.add() silently no-ops and the doc stays stuck at "pending".
         if (kb.contentSource && !kb.s3Key) {
+            const retryJobId = `url-${kb._id.toString()}-retry`;
+            const oldJob = await knowledgeQueue.getJob(retryJobId);
+            if (oldJob) {
+                try { await oldJob.remove(); } catch (_) { /* may already be active */ }
+            }
             await knowledgeQueue.add('process-url', {
                 knowledgeId: kb._id.toString(),
                 url: kb.contentSource
             }, {
-                jobId: `url-${kb._id.toString()}-retry`,
+                jobId: retryJobId,
             });
         } else {
+            const retryJobId = `file-${kb._id.toString()}-retry`;
+            const oldJob = await knowledgeQueue.getJob(retryJobId);
+            if (oldJob) {
+                try { await oldJob.remove(); } catch (_) { /* may already be active */ }
+            }
             await knowledgeQueue.add('process-file', {
                 knowledgeId: kb._id.toString(),
                 s3Key: kb.s3Key,
                 mimetype: kb.contentType || 'application/pdf',
                 originalName: kb.title
             }, {
-                jobId: `file-${kb._id.toString()}-retry`,
+                jobId: retryJobId,
             });
         }
 
