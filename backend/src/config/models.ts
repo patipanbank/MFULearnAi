@@ -18,7 +18,7 @@ export interface ModelConfig {
 // 1. RAW MODEL DEFINITIONS (The "Database" of known models)
 export const RAW_MODELS = {
     // Anthropic
-    CLAUDE_3_5_SONNET: 'anthropic.claude-3-5-sonnet-20241022-v2:0',
+    CLAUDE_3_5_SONNET: 'anthropic.claude-3-7-sonnet-20250219-v1:0',
     // Qwen (Aliyun)
     QWEN_2_5_VL_72B: 'qwen.qwen3-vl-235b-a22b',
     QWEN_80B_A3B: 'qwen.qwen3-next-80b-a3b',
