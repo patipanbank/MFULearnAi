@@ -126,46 +126,89 @@ export const processKnowledgeJob = async (job: Job) => {
 
                 // ── Attempt 2: gviz/tq CSV (works for "Anyone with link can view") ──
                 if (!xlsxOk) {
-                    // First fetch default sheet to get at least one sheet worth of data.
-                    // Then attempt to enumerate additional sheets via the HTML index page.
                     const gvizBase = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv`;
-                    const csvRes = await axios.get(gvizBase, safeAxiosDefaults);
-                    const csvText: string = csvRes.data as string;
-                    if (!csvText.trim()) throw new Error('Google Sheets returned empty content — check the sheet has data and sharing is set to "Anyone with the link".');
-                    markdown = `--- Sheet: Sheet1 ---\n${csvText.trim()}`;
 
-                    // Try to get more sheet names from the sheet's pub page
+                    // Strategy: enumerate sheet GIDs from the edit page HTML,
+                    // then fetch each sheet by gid. This works for normal
+                    // "Anyone with the link" shares (no need for "Published to web").
+                    let sheetGids: { gid: string; name: string }[] = [];
                     try {
-                        const pubUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/pubhtml`;
-                        const pubRes = await axios.get(pubUrl, {
+                        const editPageRes = await axios.get(url, {
                             ...safeAxiosDefaults,
-                            timeout: 10000
+                            timeout: 15000,
+                            // Google returns full HTML with embedded sheet metadata
                         });
-                        const $ = cheerio.load(pubRes.data as string);
-                        const sheetNames: string[] = [];
-                        // Sheet tabs appear as <li id="..."> with data-sheet-id
-                        $('[data-sheet-id]').each((_: any, el: any) => {
-                            const name = $(el).text().trim();
-                            if (name) sheetNames.push(name);
+                        const htmlBody: string = editPageRes.data as string;
+
+                        // Google embeds sheet info in a JS blob like:
+                        //   {"sheets":[{"properties":{"sheetId":0,"title":"Sheet1",...}}, ...]}
+                        // or in older format: gid=0, tab names in <li> or <a> elements
+                        const sheetIdRegex = /\"sheetId\":(\d+),\"title\":\"([^\"]+)\"/g;
+                        let m: RegExpExecArray | null;
+                        while ((m = sheetIdRegex.exec(htmlBody)) !== null) {
+                            sheetGids.push({ gid: m[1], name: m[2] });
+                        }
+
+                        // Fallback: parse tab elements (older/alternative HTML format)
+                        if (sheetGids.length === 0) {
+                            const $ = cheerio.load(htmlBody);
+                            $('ul.sheet-tab-container li, [id^="sheet-button-"]').each((_: any, el: any) => {
+                                const gid = $(el).attr('id')?.replace(/\D/g, '') || '';
+                                const name = $(el).text().trim();
+                                if (gid && name) sheetGids.push({ gid, name });
+                            });
+                        }
+
+                        // Second fallback: try pubhtml page
+                        if (sheetGids.length === 0) {
+                            const pubUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/pubhtml`;
+                            const pubRes = await axios.get(pubUrl, { ...safeAxiosDefaults, timeout: 10000 });
+                            const $pub = cheerio.load(pubRes.data as string);
+                            $pub('[data-sheet-id]').each((_: any, el: any) => {
+                                const gid = $pub(el).attr('data-sheet-id') || '';
+                                const name = $pub(el).text().trim();
+                                if (gid && name) sheetGids.push({ gid, name });
+                            });
+                            const pageTitle = $pub('title').text().trim();
+                            if (pageTitle) parsedTitle = pageTitle.replace(/\s*-\s*Google Sheets.*$/i, '').trim();
+                        }
+
+                        // Deduplicate by gid
+                        const seen = new Set<string>();
+                        sheetGids = sheetGids.filter(s => {
+                            if (seen.has(s.gid)) return false;
+                            seen.add(s.gid);
+                            return true;
                         });
-                        if (sheetNames.length > 1) {
-                            // Re-fetch each sheet individually via gviz
-                            markdown = '';
-                            for (const name of sheetNames) {
-                                const sheetCsvRes = await axios.get(`${gvizBase}&sheet=${encodeURIComponent(name)}`, {
+                    } catch (enumErr: any) {
+                        LoggerService.warn('worker_google_sheets_enum_failed', { jobId: job.id, reason: enumErr.message });
+                    }
+
+                    if (sheetGids.length > 1) {
+                        // Fetch each sheet by gid
+                        LoggerService.info('worker_google_sheets_multi', { jobId: job.id, sheetCount: sheetGids.length, sheets: sheetGids.map(s => s.name) });
+                        for (const sheet of sheetGids) {
+                            try {
+                                const sheetCsvRes = await axios.get(`${gvizBase}&gid=${sheet.gid}`, {
                                     ...safeAxiosDefaults,
                                     timeout: 20000
                                 });
                                 const sheetCsv: string = sheetCsvRes.data as string;
-                                if (sheetCsv.trim()) markdown += `\n--- Sheet: ${name} ---\n${sheetCsv.trim()}\n`;
+                                if (sheetCsv.trim()) markdown += `\n--- Sheet: ${sheet.name} ---\n${sheetCsv.trim()}\n`;
+                            } catch (sheetErr: any) {
+                                LoggerService.warn('worker_google_sheets_gviz_sheet_fail', { jobId: job.id, sheet: sheet.name, gid: sheet.gid, reason: sheetErr.message });
                             }
-                            markdown = markdown.trim();
-                            // Try to grab doc title from page title
-                            const pageTitle = $('title').text().trim();
-                            if (pageTitle) parsedTitle = pageTitle.replace(/\s*-\s*Google Sheets.*$/i, '').trim();
                         }
-                    } catch (_) { /* sheet enumeration failed — keep default single sheet */ }
-                    LoggerService.info('worker_google_sheets_gviz_ok', { jobId: job.id, sheetId });
+                        markdown = markdown.trim();
+                    } else {
+                        // Single sheet or enumeration failed — fetch default
+                        const csvRes = await axios.get(gvizBase, safeAxiosDefaults);
+                        const csvText: string = csvRes.data as string;
+                        if (!csvText.trim()) throw new Error('Google Sheets returned empty content — check the sheet has data and sharing is set to "Anyone with the link".');
+                        markdown = `--- Sheet: ${sheetGids[0]?.name || 'Sheet1'} ---\n${csvText.trim()}`;
+                    }
+
+                    LoggerService.info('worker_google_sheets_gviz_ok', { jobId: job.id, sheetId, sheetCount: sheetGids.length || 1 });
                 }
 
                 const docTitle = parsedTitle || `Google Sheets: ${sheetId}`;
