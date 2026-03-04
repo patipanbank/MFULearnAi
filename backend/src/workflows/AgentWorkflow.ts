@@ -59,7 +59,8 @@ export class AgentWorkflow {
             uploadPromises: [],
             clientDisconnected: false,
             messages: [],
-            hasEmittedAnswerStart: false
+            hasEmittedAnswerStart: false,
+            toolResultCache: new Map()
         };
 
         // Initialize Event Store with disconnect detection
@@ -191,14 +192,19 @@ export class AgentWorkflow {
             const mcpTools = mcpManager.getTools();
             const allTools: AgentTool[] = [...AVAILABLE_TOOLS, ...mcpTools];
 
-            // 3.0.1 Conditionally inject TableLookupTool if collection has structured data
+            // 3.0.1 Conditionally inject TableLookupTool if collection has ANY structured data
+            //       (including small "inject" tables — we no longer inject tables into the system prompt)
             if (this.ctx.collectionId) {
                 try {
-                    const hasLookup = await StructuredQueryService.collectionHasLookupStructuredData(this.ctx.collectionId);
-                    if (hasLookup) {
+                    const [hasLookup, hasInjectable] = await Promise.all([
+                        StructuredQueryService.collectionHasLookupStructuredData(this.ctx.collectionId),
+                        StructuredQueryService.collectionHasInjectableData(this.ctx.collectionId)
+                    ]);
+                    if (hasLookup || hasInjectable) {
                         allTools.push(new TableLookupTool());
                         LoggerService.info('agent_structured_tool_injected', {
                             collectionId: this.ctx.collectionId,
+                            mode: hasLookup ? 'lookup' : 'inject_via_tool',
                             traceId: this.state.traceId
                         });
                     }
@@ -228,32 +234,8 @@ export class AgentWorkflow {
             this.state.phase = AgentPhase.PLANNING;
             this.state.messages = await PromptBuilder.buildInitialMessages(this.ctx, this.state, allowedTools);
 
-            // 4.1 Inject small structured tables directly into system prompt (inject strategy)
-            if (this.ctx.collectionId) {
-                try {
-                    const injectableMarkdown = await StructuredQueryService.getInjectableContext(
-                        this.ctx.collectionId,
-                        this.ctx.userId,
-                        this.ctx.userRole,
-                        this.ctx.userDepartment
-                    );
-                    if (injectableMarkdown && this.state.messages.length > 0 && this.state.messages[0].role === 'system') {
-                        const systemMsg = this.state.messages[0];
-                        if (Array.isArray(systemMsg.content)) {
-                            (systemMsg.content as Array<{ text: string }>).push({
-                                text: `=== STRUCTURED DATA (Reference Tables) ===\nThe following tables are from the knowledge base. Use them to answer data lookup questions directly without needing to call tools.\n\n${injectableMarkdown}`
-                            });
-                            LoggerService.info('agent_structured_context_injected', {
-                                collectionId: this.ctx.collectionId,
-                                chars: injectableMarkdown.length,
-                                traceId: this.state.traceId
-                            });
-                        }
-                    }
-                } catch (err: any) {
-                    LoggerService.warn('agent_structured_inject_failed', { error: err.message });
-                }
-            }
+            // 4.1 Structured data is now always accessed via lookup_knowledge_table tool
+            //     (no longer injected into system prompt to save tokens)
 
             // 5. Main Agent Loop
             await this.agentLoop(allowedTools);
@@ -449,7 +431,8 @@ export class AgentWorkflow {
                     allowedTools,
                     this.ctx,
                     this.state.steps,
-                    this.emit.bind(this)
+                    this.emit.bind(this),
+                    this.state.toolResultCache
                 );
 
                 usedTools.forEach(t => this.state.usedTools.add(t));
@@ -472,6 +455,10 @@ export class AgentWorkflow {
                     });
                 }
 
+                // Compress older tool results to save tokens on the next LLM call.
+                // Only the latest tool exchange is kept in full — older ones are summarized.
+                this.compressOlderToolResults();
+
             } else {
                 // Final Answer — break loop
                 this.state.phase = AgentPhase.COMPLETED;
@@ -486,6 +473,77 @@ export class AgentWorkflow {
     }
 
     // ── Answer Mode Classification ──────────────────────────────────────────
+
+    /**
+     * Compress tool results from older agent steps to save tokens.
+     *
+     * Strategy:
+     *  - The LAST tool_result message (most recent) is kept in full —
+     *    the LLM needs it to formulate its answer.
+     *  - All OLDER tool_result messages are truncated to a short summary,
+     *    since the LLM already processed them in the previous step.
+     *  - assistant tool_use messages are kept as-is (they're small — just the call spec).
+     *
+     * This prevents token explosion in multi-step agent loops where each
+     * step re-sends the entire conversation including all previous tool results.
+     */
+    private compressOlderToolResults(): void {
+        const MAX_OLD_RESULT_CHARS = 200;
+        const msgs = this.state.messages;
+
+        // Find the index of the LAST tool_result message
+        let lastToolResultIdx = -1;
+        for (let i = msgs.length - 1; i >= 0; i--) {
+            const content = msgs[i].content;
+            if (Array.isArray(content) && content.some((b: any) => b.type === 'tool_result')) {
+                lastToolResultIdx = i;
+                break;
+            }
+        }
+
+        if (lastToolResultIdx < 0) return;
+
+        // Compress all tool_result messages EXCEPT the last one
+        for (let i = 0; i < lastToolResultIdx; i++) {
+            const msg = msgs[i];
+            if (!Array.isArray(msg.content)) continue;
+
+            const content = msg.content as any[];
+            const hasToolResult = content.some((b: any) => b.type === 'tool_result');
+            if (!hasToolResult) continue;
+
+            msgs[i] = {
+                ...msg,
+                content: content.map((block: any) => {
+                    if (block.type !== 'tool_result') return block;
+
+                    // Extract text from the result JSON
+                    const resultJson = block.content?.[0]?.json?.result
+                        || block.content?.[0]?.json
+                        || block.content;
+                    const resultStr = typeof resultJson === 'string'
+                        ? resultJson
+                        : JSON.stringify(resultJson);
+
+                    const truncated = resultStr.length > MAX_OLD_RESULT_CHARS
+                        ? resultStr.substring(0, MAX_OLD_RESULT_CHARS) + '… (see session context for full details)'
+                        : resultStr;
+
+                    return {
+                        type: 'tool_result' as const,
+                        toolUseId: block.toolUseId,
+                        content: [{ json: { result: truncated } }]
+                    };
+                })
+            };
+        }
+
+        LoggerService.debug('agent_tool_results_compressed', {
+            totalMessages: msgs.length,
+            lastToolResultIdx,
+            traceId: this.state.traceId
+        });
+    }
 
     /**
      * Determines the answer mode based on tools used and attached files.

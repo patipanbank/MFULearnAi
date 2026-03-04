@@ -290,9 +290,13 @@ export class KnowledgeService {
                     }
                 }));
 
+                const MAX_BLOCK_CHARS = 800; // Cap per-block content to save tokens
                 const text = finalHits.map((hit: any, index: number) => {
                     const blockId = blocks[index].id;
-                    return `<block id="${blockId}" score="${hit.rerankScore.toFixed(4)}">\n${hit.content}\n</block>`;
+                    const content = hit.content.length > MAX_BLOCK_CHARS
+                        ? hit.content.substring(0, MAX_BLOCK_CHARS) + '…'
+                        : hit.content;
+                    return `<block id="${blockId}" score="${hit.rerankScore.toFixed(4)}">\n${content}\n</block>`;
                 }).join('\n\n');
 
                 const result = {

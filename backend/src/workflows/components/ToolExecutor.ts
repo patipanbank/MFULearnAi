@@ -1,5 +1,5 @@
 import { LoggerService } from '../../services/LoggerService';
-import { AGENT_EVENTS, AgentContext, BedrockContentBlock, ToolResultEntry } from '../types/AgentTypes';
+import { AGENT_EVENTS, AgentContext, BedrockContentBlock, ToolResultEntry, WorkflowState } from '../types/AgentTypes';
 import { AGENT_CONSTANTS, AGENT_MESSAGES } from '../types/AgentConstants';
 import { AgentTool, ToolExecutionContext } from '../../tools/AgentTool';
 
@@ -109,8 +109,19 @@ interface SingleToolResult {
 
 export class ToolExecutor {
     /**
+     * Generate a cache key for a tool invocation.
+     * Tools with the same name + input within a session get the same key.
+     */
+    private static getCacheKey(toolName: string, input: Record<string, unknown>): string {
+        // Sort keys for deterministic output
+        const sortedInput = JSON.stringify(input, Object.keys(input).sort());
+        return `${toolName}:${sortedInput}`;
+    }
+
+    /**
      * Execute all tool_use blocks requested by the model.
      * Independent tools run in parallel; each call is guarded by a timeout.
+     * Supports in-session caching — identical tool calls return cached results instantly.
      */
     static async executeTools(
         fullResponse: string,
@@ -118,7 +129,8 @@ export class ToolExecutor {
         allowedTools: AgentTool[],
         ctx: AgentContext,
         step: number,
-        emit: (type: string, payload: Record<string, unknown>) => void
+        emit: (type: string, payload: Record<string, unknown>) => void,
+        toolResultCache?: Map<string, { result: unknown; timestamp: number }>
     ): Promise<{ usedTools: Set<string>; toolResults: ToolResultEntry[] }> {
         const toolUseBlocks = contentBlocks && contentBlocks.length > 0
             ? contentBlocks
@@ -153,8 +165,30 @@ export class ToolExecutor {
             emit(AGENT_EVENTS.STATUS, { message: AGENT_MESSAGES.STATUS_USING_TOOL(block.name) });
         }
 
+        // Check cache first, execute only uncached tools
         const settled = await Promise.allSettled(
-            pendingBlocks.map(block => this.executeSingle(block, allowedTools, execCtx, timeout, ctx.userId))
+            pendingBlocks.map(block => {
+                // Cache lookup — skip expensive RAG/search calls if same query was already made
+                if (toolResultCache) {
+                    const cacheKey = this.getCacheKey(block.name, block.input);
+                    const cached = toolResultCache.get(cacheKey);
+                    if (cached) {
+                        LoggerService.info('tool_result_cache_hit', {
+                            tool: block.name,
+                            cacheKey: cacheKey.substring(0, 80),
+                            ageMs: Date.now() - cached.timestamp
+                        }, ctx.userId);
+                        return Promise.resolve<SingleToolResult>({
+                            toolName: block.name,
+                            toolUseId: block.toolUseId,
+                            result: cached.result,
+                            success: true,
+                            durationMs: 0
+                        });
+                    }
+                }
+                return this.executeSingle(block, allowedTools, execCtx, timeout, ctx.userId);
+            })
         );
 
         // Map results back in order
@@ -179,8 +213,12 @@ export class ToolExecutor {
                 };
             }
 
-            // Compact the result
-            const compacted = compactResult(singleResult.result);
+            // Compact the result & enforce hard cap
+            const MAX_TOOL_RESULT_CHARS = 4_000;
+            let compacted = compactResult(singleResult.result);
+            if (compacted.length > MAX_TOOL_RESULT_CHARS) {
+                compacted = compacted.substring(0, MAX_TOOL_RESULT_CHARS) + '\n... (truncated)';
+            }
             const originalLen = typeof singleResult.result === 'string'
                 ? singleResult.result.length
                 : JSON.stringify(singleResult.result).length;
@@ -206,6 +244,15 @@ export class ToolExecutor {
                 toolUseId: singleResult.toolUseId,
                 content: [{ json: { result: compacted } }]
             });
+
+            // Store successful results in session cache for deduplication
+            if (singleResult.success && toolResultCache) {
+                const cacheKey = this.getCacheKey(block.name, block.input);
+                toolResultCache.set(cacheKey, {
+                    result: singleResult.result,
+                    timestamp: Date.now()
+                });
+            }
         }
 
         return { usedTools, toolResults };

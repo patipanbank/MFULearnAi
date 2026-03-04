@@ -17,10 +17,12 @@ export const GUARDRAIL_ID = process.env.BEDROCK_GUARDRAIL_ID || '';
 export const GUARDRAIL_VERSION = process.env.BEDROCK_GUARDRAIL_VERSION || 'DRAFT';
 
 // --- Enhancement 1: Prompt Caching (OPT-IN) ---
-export const ENABLE_PROMPT_CACHE = process.env.BEDROCK_ENABLE_CACHE === 'true';
+// Enabled by default for Claude models — reduces cost by ~90% on cache hits.
+export const ENABLE_PROMPT_CACHE = process.env.BEDROCK_ENABLE_CACHE !== 'false';
 export const CACHE_SUPPORTED_MODELS = [
-    BEDROCK_MODELS.CLAUDE_3_5_SONNET,
-    BEDROCK_MODELS.CLAUDE_3_HAIKU
+    'anthropic.claude-3-5-sonnet-20240620-v1:0',
+    'anthropic.claude-3-haiku-20240307-v1:0',
+    'anthropic.claude-sonnet-4-20250514-v1:0',
 ];
 
 export const validateModel = (modelId: string): string => {

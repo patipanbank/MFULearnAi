@@ -133,7 +133,7 @@ export class BedrockService {
         // Normalize Messages
         const formattedMessages = normalizeMessages(messages.filter(msg => msg.role !== 'system'));
 
-        // Prepare System Prompt
+        // Prepare System Prompt (with optional prompt caching)
         const systemMsg = messages.find(msg => msg.role === 'system');
         let system: any[] | undefined;
         if (systemMsg) {
@@ -144,6 +144,13 @@ export class BedrockService {
             } else if (typeof systemMsg.content === 'string') {
                 system = [{ text: systemMsg.content }];
             }
+        }
+
+        // Inject cachePoint at the end of the system prompt for supported models.
+        // This tells Bedrock to cache the persona + rules prefix across agent loop steps,
+        // reducing input token cost by ~90% on cache hits.
+        if (system && system.length > 0 && ENABLE_PROMPT_CACHE && CACHE_SUPPORTED_MODELS.includes(finalModelId)) {
+            system.push({ cachePoint: { type: 'default' } });
         }
 
         // Guardrails

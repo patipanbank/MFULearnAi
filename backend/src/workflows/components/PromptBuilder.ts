@@ -99,11 +99,14 @@ ${toolInstructions}- Always start by planning your next step when using tools or
 - For any question about policies, rules, regulations, or compliance: you MUST use check_policy. Never answer from internal knowledge alone.`
         });
 
-        // --- Block 2: Session Context ---
+        // --- Block 2: Session Context (compact format to save tokens) ---
+        const rollingCompact = smartContext?.rolling
+            ? JSON.stringify(smartContext.rolling)
+            : '{}';
         systemBlocks.push({
             text: `=== SESSION CONTEXT ===
 ${smartContext?.canonical || 'First session.'}
-${JSON.stringify(smartContext?.rolling || {}, null, 2)}`
+${rollingCompact}`
         });
 
         // --- Block 3: File Hints ---
@@ -147,11 +150,162 @@ ${JSON.stringify(smartContext?.rolling || {}, null, 2)}`
         }
 
         // --- Final Message Stack ---
-        return [
+        // Smart history compression: only send last RECENT_RAW messages in full,
+        // older messages are summarized. SmartContext canonical already captures older context.
+        const RECENT_RAW = 4; // Last 2 user + 2 assistant messages sent in full
+        const windowedHistory = history.slice(-AGENT_CONSTANTS.HISTORY_WINDOW_SIZE);
+        const compressedMessages = PromptBuilder.compressHistory(windowedHistory, RECENT_RAW);
+
+        const candidate = [
             { role: 'system' as const, content: systemBlocks },
-            ...history.slice(-AGENT_CONSTANTS.HISTORY_WINDOW_SIZE).map((m: any) => ({ role: m.role as BedrockMessage['role'], content: m.content, images: m.images })),
+            ...compressedMessages,
             { role: 'user' as const, content: userContent }
         ];
+
+        // Token budget enforcement — progressively trim if over budget
+        return PromptBuilder.enforceTokenBudget(candidate, AGENT_CONSTANTS.MAX_INPUT_TOKEN_BUDGET);
+    }
+
+    // ── Token Budget Enforcement ──────────────────────────────────────────
+
+    /**
+     * Estimate token count for a message array.
+     * Uses chars/4 heuristic (standard approximation for multilingual text).
+     * Thai text averages ~1.5-2 tokens/char, English ~0.25, so chars/3 is conservative.
+     */
+    static estimateTokens(messages: BedrockMessage[]): number {
+        let totalChars = 0;
+        for (const msg of messages) {
+            if (typeof msg.content === 'string') {
+                totalChars += msg.content.length;
+            } else if (Array.isArray(msg.content)) {
+                for (const block of msg.content) {
+                    if ('text' in block && typeof (block as any).text === 'string') {
+                        totalChars += (block as any).text.length;
+                    } else {
+                        // tool_use, tool_result, image, document — rough estimate
+                        totalChars += JSON.stringify(block).length;
+                    }
+                }
+            }
+        }
+        // Thai/CJK text tokenizes at roughly 1 token per 1.5-2 chars.
+        // English at ~4 chars/token. For mixed content, chars/3 is safe.
+        return Math.ceil(totalChars / 3);
+    }
+
+    /**
+     * Enforce a token budget by progressively trimming messages.
+     *
+     * Trimming order (least valuable first):
+     *  1. Compress older history messages more aggressively (50 chars)
+     *  2. Drop oldest history messages entirely
+     *  3. Truncate session context (canonical memory)
+     *
+     * System prompt (persona/rules) and current user message are never trimmed.
+     */
+    private static enforceTokenBudget(messages: BedrockMessage[], budget: number): BedrockMessage[] {
+        let estimated = this.estimateTokens(messages);
+        if (estimated <= budget) return messages;
+
+        // Deep clone to avoid mutating original
+        const trimmed = messages.map(m => ({ ...m }));
+
+        // Identify system message and history messages (between system and last user)
+        const systemIdx = 0;
+        const lastUserIdx = trimmed.length - 1;
+        const historyRange = { start: 1, end: lastUserIdx - 1 };
+
+        // Pass 1: Compress all history messages to 50 chars
+        for (let i = historyRange.start; i <= historyRange.end && i < trimmed.length; i++) {
+            const msg = trimmed[i];
+            const text = typeof msg.content === 'string' ? msg.content : '';
+            if (text.length > 50) {
+                trimmed[i] = { ...msg, content: text.substring(0, 50) + '…' };
+            }
+        }
+        estimated = this.estimateTokens(trimmed);
+        if (estimated <= budget) {
+            LoggerService.info('token_budget_trimmed', { strategy: 'compress_history', estimated, budget });
+            return trimmed;
+        }
+
+        // Pass 2: Drop oldest history messages one by one
+        while (estimated > budget && historyRange.start <= historyRange.end) {
+            trimmed.splice(historyRange.start, 1);
+            historyRange.end--;
+            estimated = this.estimateTokens(trimmed);
+        }
+        if (estimated <= budget) {
+            LoggerService.info('token_budget_trimmed', { strategy: 'drop_history', estimated, budget });
+            return trimmed;
+        }
+
+        // Pass 3: Truncate canonical memory in system prompt
+        const sysMsg = trimmed[systemIdx];
+        if (Array.isArray(sysMsg.content)) {
+            const blocks = sysMsg.content as Array<{ text: string }>;
+            for (let i = blocks.length - 1; i >= 1; i--) {
+                const block = blocks[i];
+                if (block.text && block.text.includes('SESSION CONTEXT') && block.text.length > 200) {
+                    blocks[i] = { text: block.text.substring(0, 200) + '… (trimmed for budget)' };
+                    break;
+                }
+            }
+        }
+
+        estimated = this.estimateTokens(trimmed);
+        LoggerService.warn('token_budget_enforced', { estimated, budget, strategy: 'truncate_context' });
+        return trimmed;
+    }
+
+    /**
+     * Compress history messages to save tokens.
+     * - Last `recentRaw` messages: sent in full (preserves immediate context)
+     * - Older messages: truncated to a short summary line to preserve topic flow
+     *   without wasting tokens on full content (SmartContext canonical already captures this)
+     */
+    private static compressHistory(messages: any[], recentRaw: number): BedrockMessage[] {
+        if (messages.length <= recentRaw) {
+            return messages.map((m: any) => ({
+                role: m.role as BedrockMessage['role'],
+                content: m.content,
+                ...(m.images ? { images: m.images } : {})
+            } as BedrockMessage));
+        }
+
+        const MAX_COMPRESSED_CHARS = 150; // Short summary per old message
+        const olderMessages = messages.slice(0, messages.length - recentRaw);
+        const recentMessages = messages.slice(messages.length - recentRaw);
+
+        const compressed: BedrockMessage[] = [];
+
+        for (const m of olderMessages) {
+            const rawText = typeof m.content === 'string'
+                ? m.content
+                : Array.isArray(m.content)
+                    ? m.content.map((b: any) => b.text || '').join(' ')
+                    : '';
+
+            const truncated = rawText.length > MAX_COMPRESSED_CHARS
+                ? rawText.substring(0, MAX_COMPRESSED_CHARS) + '…'
+                : rawText;
+
+            compressed.push({
+                role: m.role as BedrockMessage['role'],
+                content: truncated || '(context captured in session memory)'
+            });
+        }
+
+        for (const m of recentMessages) {
+            compressed.push({
+                role: m.role as BedrockMessage['role'],
+                content: m.content,
+                ...(m.images ? { images: m.images } : {})
+            } as BedrockMessage);
+        }
+
+        return compressed;
     }
 
     /**

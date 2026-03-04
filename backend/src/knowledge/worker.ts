@@ -4,7 +4,7 @@ import { ChromaClient } from 'chromadb';
 import mammoth from 'mammoth';
 import * as XLSX from 'xlsx';
 import { minioClient, MINIO_BUCKET } from './minioClient';
-import { getEmbedding, chunkText } from './processingUtils';
+import { getEmbedding, getEmbeddingsBatch, chunkText } from './processingUtils';
 import crypto from 'crypto';
 import dotenv from 'dotenv';
 import axios from 'axios';
@@ -384,29 +384,43 @@ export const processKnowledgeJob = async (job: Job) => {
 
             const docType = knowledgeDoc?.type || 'personal';
 
-            // 5. Vectorize directly
+            // 5. Vectorize directly (concurrent batch embedding)
             const pages = [{ text: markdown, pageNumber: 1 }];
-            const ids: string[] = [], embeddings: number[][] = [], metadatas: Record<string, string | number>[] = [], documents: string[] = [];
-            let chunkGlobalIndex = 0;
-
+            const allChunks: { text: string; pageNumber: number }[] = [];
             for (const p of pages) {
                 const pageChunks = await chunkText(p.text);
-                for (const chunk of pageChunks) {
-                    const vec = await getEmbedding(chunk);
-                    ids.push(`${knowledgeId}-${chunkGlobalIndex}`);
-                    embeddings.push(vec);
-                    documents.push(chunk);
-                    metadatas.push({
-                        knowledgeId: knowledgeId.toString(),
-                        source: url,
-                        type: docType,
-                        fileName: url,
-                        pageNumber: p.pageNumber,
-                        chunkIndex: chunkGlobalIndex
-                    });
-                    chunkGlobalIndex++;
-                }
+                pageChunks.forEach(chunk => allChunks.push({ text: chunk, pageNumber: p.pageNumber }));
             }
+
+            LoggerService.info('worker_url_embedding_start', {
+                jobId: job.id, knowledgeId, chunkCount: allChunks.length
+            });
+            await Knowledge.findByIdAndUpdate(knowledgeId, { processingStage: 'embedding' });
+
+            const chunkTexts = allChunks.map(c => c.text);
+            const allEmbeddings = await getEmbeddingsBatch(chunkTexts, (done, total) => {
+                if (done % 10 === 0 || done === total) {
+                    LoggerService.info('worker_url_embedding_progress', {
+                        jobId: job.id, knowledgeId, done, total,
+                        pct: Math.round((done / total) * 100)
+                    });
+                }
+            });
+
+            const ids: string[] = [], embeddings: number[][] = [], metadatas: Record<string, string | number>[] = [], documents: string[] = [];
+            allChunks.forEach((chunk, idx) => {
+                ids.push(`${knowledgeId}-${idx}`);
+                embeddings.push(allEmbeddings[idx]);
+                documents.push(chunk.text);
+                metadatas.push({
+                    knowledgeId: knowledgeId.toString(),
+                    source: url,
+                    type: docType,
+                    fileName: url,
+                    pageNumber: chunk.pageNumber,
+                    chunkIndex: idx
+                });
+            });
 
             await Knowledge.findByIdAndUpdate(knowledgeId, { processingStage: 'indexing' });
 
@@ -417,9 +431,9 @@ export const processKnowledgeJob = async (job: Job) => {
             await Knowledge.findByIdAndUpdate(knowledgeId, {
                 processingStatus: 'completed',
                 processingStage: 'completed',
-                chunkCount: chunkGlobalIndex
+                chunkCount: allChunks.length
             });
-            LoggerService.info('worker_url_job_success', { jobId: job.id, chunkCount: chunkGlobalIndex });
+            LoggerService.info('worker_url_job_success', { jobId: job.id, chunkCount: allChunks.length });
             return;
 
         } catch (err: any) {
@@ -652,28 +666,42 @@ export const processKnowledgeJob = async (job: Job) => {
 
         await Knowledge.findByIdAndUpdate(knowledgeId, fileUpdateData);
 
-        // 5. Vectorize with Page Metadata
-        const ids: string[] = [], embeddings: number[][] = [], metadatas: Record<string, string | number>[] = [], documents: string[] = [];
-        let chunkGlobalIndex = 0;
-
+        // 5. Vectorize with Page Metadata (concurrent batch embedding)
+        const allChunks: { text: string; pageNumber: number }[] = [];
         for (const p of pages) {
             const pageChunks = await chunkText(p.text);
-            for (const chunk of pageChunks) {
-                const vec = await getEmbedding(chunk);
-                ids.push(`${knowledgeId}-${chunkGlobalIndex}`);
-                embeddings.push(vec);
-                documents.push(chunk);
-                metadatas.push({
-                    knowledgeId: knowledgeId.toString(),
-                    source: originalName,
-                    type: docType,           // Critical: enables PolicyCheckerTool { type: 'policy' } filter
-                    fileName: originalName,   // Alias for consistent metadata access
-                    pageNumber: p.pageNumber,
-                    chunkIndex: chunkGlobalIndex
-                });
-                chunkGlobalIndex++;
-            }
+            pageChunks.forEach(chunk => allChunks.push({ text: chunk, pageNumber: p.pageNumber }));
         }
+
+        LoggerService.info('worker_file_embedding_start', {
+            jobId: job.id, knowledgeId, chunkCount: allChunks.length
+        });
+        await Knowledge.findByIdAndUpdate(knowledgeId, { processingStage: 'embedding' });
+
+        const chunkTexts = allChunks.map(c => c.text);
+        const allEmbeddings = await getEmbeddingsBatch(chunkTexts, (done, total) => {
+            if (done % 10 === 0 || done === total) {
+                LoggerService.info('worker_file_embedding_progress', {
+                    jobId: job.id, knowledgeId, done, total,
+                    pct: Math.round((done / total) * 100)
+                });
+            }
+        });
+
+        const ids: string[] = [], embeddings: number[][] = [], metadatas: Record<string, string | number>[] = [], documents: string[] = [];
+        allChunks.forEach((chunk, idx) => {
+            ids.push(`${knowledgeId}-${idx}`);
+            embeddings.push(allEmbeddings[idx]);
+            documents.push(chunk.text);
+            metadatas.push({
+                knowledgeId: knowledgeId.toString(),
+                source: originalName,
+                type: docType,           // Critical: enables PolicyCheckerTool { type: 'policy' } filter
+                fileName: originalName,   // Alias for consistent metadata access
+                pageNumber: chunk.pageNumber,
+                chunkIndex: idx
+            });
+        });
 
         await Knowledge.findByIdAndUpdate(knowledgeId, { processingStage: 'indexing' });
 
@@ -684,9 +712,9 @@ export const processKnowledgeJob = async (job: Job) => {
         await Knowledge.findByIdAndUpdate(knowledgeId, {
             processingStatus: 'completed',
             processingStage: 'completed',
-            chunkCount: chunkGlobalIndex
+            chunkCount: allChunks.length
         });
-        LoggerService.info('worker_file_job_success', { jobId: job.id, chunkCount: chunkGlobalIndex });
+        LoggerService.info('worker_file_job_success', { jobId: job.id, chunkCount: allChunks.length });
 
     } catch (err: any) {
         LoggerService.error('worker_file_job_failed', { jobId: job.id, error: err.message });

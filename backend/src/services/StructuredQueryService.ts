@@ -21,7 +21,7 @@ import { LoggerService } from './LoggerService';
 
 // ── Constants ──
 const MAX_RETURN_ROWS = 30;               // Max rows returned from tool_lookup
-const INJECT_MAX_CHARS = 80_000;           // Max chars for context injection markdown
+const INJECT_MAX_CHARS = 15_000;           // Max chars for context injection markdown (≈4k tokens)
 const FUZZY_THRESHOLD = 0.6;              // Minimum fuzzy match score (0-1)
 
 export interface StructuredQueryOptions {

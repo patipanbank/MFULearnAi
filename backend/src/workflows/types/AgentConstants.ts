@@ -20,7 +20,12 @@ export const AGENT_CONSTANTS = {
     OCR_JOB_TIMEOUT: 60_000,
 
     // History
-    HISTORY_WINDOW_SIZE: 10,
+    HISTORY_WINDOW_SIZE: 6,
+
+    // Token Budget — hard cap on estimated input tokens per LLM call.
+    // If exceeded, history is progressively trimmed to fit.
+    // Claude 3.5 Sonnet context = 200k, but we cap at 24k for cost control.
+    MAX_INPUT_TOKEN_BUDGET: parseInt(process.env.MAX_INPUT_TOKEN_BUDGET || '24000', 10),
 
     // UI
     RESULT_PREVIEW_CHARS: 300,
