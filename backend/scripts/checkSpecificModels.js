@@ -44,7 +44,22 @@ if (process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY) {
 const client = new BedrockRuntimeClient(clientConfig);
 
 const MODELS_TO_CHECK = [
-    { name: 'qwen', id: 'qwen.qwen3-vl-235b-a22b' },
+    // Amazon Nova 2 (check if available)
+    { name: 'Nova 2 Pro',   id: 'amazon.nova-pro-v2:0' },
+    { name: 'Nova 2 Lite',  id: 'amazon.nova-lite-v2:0' },
+    { name: 'Nova 2 Micro', id: 'amazon.nova-micro-v2:0' },
+    // Amazon Nova 1 (currently used)
+    { name: 'Nova Pro v1',  id: 'amazon.nova-pro-v1:0' },
+    { name: 'Nova Lite v1', id: 'amazon.nova-lite-v1:0' },
+    { name: 'Nova Micro v1',id: 'amazon.nova-micro-v1:0' },
+    // Third-party (should work on channel account)
+    { name: 'Mistral Large 3', id: 'mistral.mistral-large-3-675b-instruct' },
+    { name: 'Qwen 3 VL 235B',  id: 'qwen.qwen3-vl-235b-a22b' },
+    { name: 'Qwen 3 80B-A3B',  id: 'qwen.qwen3-next-80b-a3b' },
+    { name: 'Gemma 3 4B IT',   id: 'google.gemma-3-4b-it' },
+    { name: 'Kimi K2',         id: 'moonshot.kimi-k2-thinking' },
+    // Anthropic (expected to FAIL on channel account)
+    { name: 'Claude Sonnet 4', id: 'anthropic.claude-sonnet-4-6' },
 ];
 
 async function checkModel(model) {

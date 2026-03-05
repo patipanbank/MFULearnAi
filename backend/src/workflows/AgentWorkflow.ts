@@ -7,6 +7,7 @@ import { PolicyCheckerTool } from '../tools/PolicyCheckerTool';
 import { TableLookupTool } from '../tools/TableLookupTool';
 import { StructuredQueryService } from '../services/StructuredQueryService';
 import { SYSTEM_MODELS } from '../config/models';
+import { getRecommendedTemperature } from '../config/ModelAdapter';
 import * as crypto from 'crypto';
 import { traceAsync, getMetrics } from '../infra/telemetry';
 
@@ -299,7 +300,7 @@ export class AgentWorkflow {
                     SYSTEM_MODELS.AGENT,
                     messages as any,
                     onDelta,
-                    0.5,
+                    getRecommendedTemperature(SYSTEM_MODELS.AGENT) ?? 0.5,
                     toolConfig,
                     guardrailConfig
                 );

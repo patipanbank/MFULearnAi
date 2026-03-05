@@ -7,6 +7,8 @@ import { AgentTool } from '../../tools/AgentTool';
 import { TokenCounter } from '../../infra/tokens/TokenCounter';
 import { PromptExperimentService } from '../../services/PromptExperimentService';
 import { UserMemoryService } from '../../services/UserMemoryService';
+import { buildModelDirectives, getModelAdapter } from '../../config/ModelAdapter';
+import { ToolSelectionHintService } from '../../services/ToolSelectionHintService';
 
 /**
  * Determines the environment type from runtime context.
@@ -81,8 +83,18 @@ export class PromptBuilder {
         // Store experiment context in WorkflowState for ResultPersister
         (state as any)._experimentContext = experimentContext;
 
-        // --- Block 1: Persona & Rules ---
+        // --- Block 0: Model-Specific Directives (Thai thinking, tool decision tree) ---
         const systemBlocks: Array<{ text: string }> = [];
+        const modelDirectives = buildModelDirectives(SYSTEM_MODELS.AGENT);
+        if (modelDirectives) {
+            systemBlocks.push({ text: modelDirectives });
+            LoggerService.debug('prompt_model_directives_injected', {
+                family: getModelAdapter(SYSTEM_MODELS.AGENT).family,
+                length: modelDirectives.length
+            });
+        }
+
+        // --- Block 1: Persona & Rules ---
 
         // Dynamically build tool instructions
         let toolInstructions = '';
@@ -164,7 +176,22 @@ ${rollingCompact}`
             });
         }
 
-        userContent.push({ type: 'text', text: message });
+        // --- Tool Selection Hint (pre-LLM routing for weaker models) ---
+        const adapter = getModelAdapter(SYSTEM_MODELS.AGENT);
+        let messageWithHint = message;
+        if (adapter.injectReasoningScaffold) {
+            const hint = ToolSelectionHintService.analyze(message, toolNames);
+            if (hint) {
+                messageWithHint = message + ToolSelectionHintService.formatHintForPrompt(hint);
+                LoggerService.info('tool_hint_injected', {
+                    tool: hint.tool,
+                    confidence: hint.confidence,
+                    reason: hint.reason
+                });
+            }
+        }
+
+        userContent.push({ type: 'text', text: messageWithHint });
 
         if (images && images.length > 0) {
             LoggerService.debug('prompt_builder_images', {
