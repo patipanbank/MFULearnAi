@@ -19,13 +19,16 @@ export const GUARDRAIL_VERSION = process.env.BEDROCK_GUARDRAIL_VERSION || 'DRAFT
 // --- Enhancement 1: Prompt Caching (OPT-IN) ---
 // Enabled by default — reduces cost by ~90% on cache hits.
 // Only models that support Bedrock Converse cachePoint are listed here.
-// Claude 3.5 Sonnet v1 (20240620) and Claude 3 Haiku do NOT support caching.
+// ⚠ Anthropic models are BLOCKED on this channel account, so caching is
+//   effectively unused until account restriction is lifted.
 export const ENABLE_PROMPT_CACHE = process.env.BEDROCK_ENABLE_CACHE !== 'false';
 export const CACHE_SUPPORTED_MODELS = [
-    'anthropic.claude-3-5-haiku-20241022-v1:0',   // CHAT model
+    // Anthropic (blocked on channel account — kept for future)
+    'anthropic.claude-3-5-haiku-20241022-v1:0',
     'anthropic.claude-3-7-sonnet-20250219-v1:0',
-    'anthropic.claude-sonnet-4-6',     // AGENT model ← primary beneficiary
+    'anthropic.claude-sonnet-4-6',
     'anthropic.claude-opus-4-20250514-v1:0',
+    // Nova models don't support cachePoint (Amazon handles caching internally)
 ];
 
 export const validateModel = (modelId: string): string => {

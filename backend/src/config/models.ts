@@ -17,14 +17,15 @@ export interface ModelConfig {
 
 // ═══════════════════════════════════════════════════════════════════
 // 1. RAW MODEL DEFINITIONS — The "Database" of known Bedrock model IDs
-//    Region: us-east-1 | Access: BedrockFullAccess IAM
+//    Region: us-east-1
+//    ⚠ Channel program account — Anthropic models are BLOCKED.
+//       All other providers (Amazon, Qwen, Mistral, Cohere, etc.) work fine.
 // ═══════════════════════════════════════════════════════════════════
 export const RAW_MODELS = {
-    // ── Anthropic ─────────────────────────────────────────────────
-    CLAUDE_SONNET_4: 'anthropic.claude-sonnet-4-6',
-    CLAUDE_3_5_HAIKU: 'anthropic.claude-3-5-haiku-20241022-v1:0',
-    /** @deprecated Use CLAUDE_SONNET_4 — kept for migration/fallback */
-    CLAUDE_3_5_SONNET_V1: 'anthropic.claude-3-5-sonnet-20240620-v1:0',
+    // ── Amazon Nova (native AWS) ──────────────────────────────────
+    NOVA_PRO: 'amazon.nova-pro-v1:0',
+    NOVA_LITE: 'amazon.nova-lite-v1:0',
+    NOVA_MICRO: 'amazon.nova-micro-v1:0',
 
     // ── Qwen (Aliyun) ────────────────────────────────────────────
     QWEN_3_VL_235B: 'qwen.qwen3-vl-235b-a22b',
@@ -42,29 +43,31 @@ export const RAW_MODELS = {
     // ── Nvidia AI ─────────────────────────────────────────────────
     NEMOTRON_NANO_12B_V2: 'nvidia.nemotron-nano-12b-v2',
 
-    // ── Amazon Nova (native AWS — lowest latency) ─────────────────
-    NOVA_PRO: 'amazon.nova-pro-v1:0',
-    NOVA_LITE: 'amazon.nova-lite-v1:0',
-    NOVA_MICRO: 'amazon.nova-micro-v1:0',
-
     // ── Cohere (Reranker — cross-encoder, not generative) ─────────
     COHERE_RERANK_V3_5: 'cohere.rerank-v3-5:0',
+
+    // ── Anthropic — BLOCKED on channel program account ────────────
+    /** @blocked Channel account — Anthropic not available */
+    CLAUDE_SONNET_4: 'anthropic.claude-sonnet-4-6',
+    /** @blocked */ CLAUDE_3_5_HAIKU: 'anthropic.claude-3-5-haiku-20241022-v1:0',
+    /** @blocked @deprecated */ CLAUDE_3_5_SONNET_V1: 'anthropic.claude-3-5-sonnet-20240620-v1:0',
 } as const;
 
 // ═══════════════════════════════════════════════════════════════════
 // 2. ACTIVE SYSTEM CONFIGURATION — Maps functional roles → model IDs
-//    Change these to switch models without touching any other code.
+//    ⚠ Anthropic (Claude) is blocked — AGENT uses Nova Pro instead.
+//       All other roles use non-Anthropic models as before.
 // ═══════════════════════════════════════════════════════════════════
 export const SYSTEM_MODELS = {
-    /** Primary agent (tool calling, reasoning). Prompt caching enabled. */
-    AGENT: RAW_MODELS.CLAUDE_SONNET_4,
-    /** General chat / conversation. Fast, cheap, caching-capable. */
-    CHAT: RAW_MODELS.CLAUDE_3_5_HAIKU,
-    /** Lightweight LLM for policy compliance analysis (NOT a cross-encoder reranker) */
+    /** Primary agent (tool calling, reasoning). Nova Pro replaces Claude (blocked). */
+    AGENT: RAW_MODELS.NOVA_PRO,
+    /** General chat / conversation. Mistral Large 3 — fast & capable. */
+    CHAT: RAW_MODELS.MISTRAL_LARGE_3,
+    /** Lightweight LLM for policy compliance analysis. */
     RERANK: RAW_MODELS.GEMMA_3_4B_IT,
-    /** Summarization, query rewriting. Great MoE cost/performance. */
+    /** Summarization, query rewriting. Qwen MoE — great cost/quality. */
     SUMMARIZE: RAW_MODELS.QWEN_3_80B_A3B,
-    /** Cheapest tasks: memory extraction, title generation. Native AWS. */
+    /** Cheapest tasks: memory extraction, title generation. */
     UTILITY: RAW_MODELS.NOVA_MICRO,
     /** Cohere cross-encoder reranker for RAG pipeline (two-stage retrieval) */
     COHERE_RERANK: RAW_MODELS.COHERE_RERANK_V3_5,
@@ -75,21 +78,21 @@ export const SYSTEM_MODELS = {
 // ═══════════════════════════════════════════════════════════════════
 export const AVAILABLE_MODELS: ModelConfig[] = [
     {
-        id: RAW_MODELS.CLAUDE_SONNET_4,
-        name: 'Claude Sonnet 4',
-        provider: 'anthropic',
-        contextWindow: 200000,
+        id: RAW_MODELS.NOVA_PRO,
+        name: 'Amazon Nova Pro',
+        provider: 'amazon',
+        contextWindow: 300000,
         type: 'smart',
-        costWeight: 1.0,
+        costWeight: 0.20,
         isDefault: true
     },
     {
-        id: RAW_MODELS.CLAUDE_3_5_HAIKU,
-        name: 'Claude 3.5 Haiku',
-        provider: 'anthropic',
-        contextWindow: 200000,
-        type: 'fast',
-        costWeight: 0.25
+        id: RAW_MODELS.MISTRAL_LARGE_3,
+        name: 'Mistral Large 3',
+        provider: 'mistral',
+        contextWindow: 131000,
+        type: 'smart',
+        costWeight: 0.50
     },
     {
         id: RAW_MODELS.QWEN_3_VL_235B,
@@ -100,12 +103,12 @@ export const AVAILABLE_MODELS: ModelConfig[] = [
         costWeight: 0.15
     },
     {
-        id: RAW_MODELS.MISTRAL_LARGE_3,
-        name: 'Mistral Large 3',
-        provider: 'mistral',
-        contextWindow: 131000,
-        type: 'smart',
-        costWeight: 0.50
+        id: RAW_MODELS.NOVA_LITE,
+        name: 'Amazon Nova Lite',
+        provider: 'amazon',
+        contextWindow: 300000,
+        type: 'fast',
+        costWeight: 0.02
     },
 ];
 

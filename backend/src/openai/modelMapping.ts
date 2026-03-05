@@ -114,7 +114,7 @@ export function getAvailableModelsOpenAI(): Array<{
         owned_by: m.provider,
         capabilities: {
             vision: m.type === 'vision' || m.id === RAW_MODELS.QWEN_3_VL_235B,
-            tools: m.id === RAW_MODELS.CLAUDE_SONNET_4 || m.id === RAW_MODELS.CLAUDE_3_5_HAIKU,
+            tools: m.id === RAW_MODELS.NOVA_PRO || m.id === RAW_MODELS.MISTRAL_LARGE_3,
             streaming: true,
         },
         pricing: {
