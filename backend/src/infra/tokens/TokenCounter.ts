@@ -136,13 +136,20 @@ export class TokenCounter {
         outputTokens: number,
         model: string = 'claude-3-5-sonnet'
     ): { inputCost: number; outputCost: number; totalCost: number } {
-        // Price table (USD per 1M tokens)  
+        // Price table (USD per 1M tokens)
         const prices: Record<string, { input: number; output: number }> = {
-            'claude-3-5-sonnet': { input: 3.0, output: 15.0 },
+            'claude-sonnet-4': { input: 3.0, output: 15.0 },
             'claude-3-5-haiku': { input: 0.8, output: 4.0 },
+            'claude-3-5-sonnet': { input: 3.0, output: 15.0 },  // legacy
             'claude-3-haiku': { input: 0.25, output: 1.25 },
             'claude-3-sonnet': { input: 3.0, output: 15.0 },
             'claude-3-opus': { input: 15.0, output: 75.0 },
+            'nova-micro': { input: 0.035, output: 0.14 },
+            'nova-lite': { input: 0.06, output: 0.24 },
+            'nova-pro': { input: 0.80, output: 3.20 },
+            'mistral-large': { input: 2.0, output: 6.0 },
+            'qwen': { input: 0.50, output: 1.50 },
+            'gemma': { input: 0.10, output: 0.30 },
             '_default': { input: 3.0, output: 15.0 },
         };
 

@@ -17,14 +17,14 @@ export const GUARDRAIL_ID = process.env.BEDROCK_GUARDRAIL_ID || '';
 export const GUARDRAIL_VERSION = process.env.BEDROCK_GUARDRAIL_VERSION || 'DRAFT';
 
 // --- Enhancement 1: Prompt Caching (OPT-IN) ---
-// Enabled by default for Claude models — reduces cost by ~90% on cache hits.
-// NOTE: Only Claude 3.5 Haiku, 3.7 Sonnet, Sonnet 4+, Opus 4+ support caching.
-//       Claude 3.5 Sonnet v1 (20240620) and Claude 3 Haiku do NOT support it.
+// Enabled by default — reduces cost by ~90% on cache hits.
+// Only models that support Bedrock Converse cachePoint are listed here.
+// Claude 3.5 Sonnet v1 (20240620) and Claude 3 Haiku do NOT support caching.
 export const ENABLE_PROMPT_CACHE = process.env.BEDROCK_ENABLE_CACHE !== 'false';
 export const CACHE_SUPPORTED_MODELS = [
-    'anthropic.claude-3-5-haiku-20241022-v1:0',
+    'anthropic.claude-3-5-haiku-20241022-v1:0',   // CHAT model
     'anthropic.claude-3-7-sonnet-20250219-v1:0',
-    'anthropic.claude-sonnet-4-20250514-v1:0',
+    'anthropic.claude-sonnet-4-20250514-v1:0',     // AGENT model ← primary beneficiary
     'anthropic.claude-opus-4-20250514-v1:0',
 ];
 

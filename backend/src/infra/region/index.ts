@@ -46,7 +46,7 @@ export interface FailoverState {
 
 // ── Configuration ────────────────────────────────────────────
 
-const PRIMARY_REGION = process.env.PRIMARY_REGION || 'ap-southeast-1';
+const PRIMARY_REGION = process.env.PRIMARY_REGION || 'us-east-1';
 const FAILOVER_REGIONS = (process.env.FAILOVER_REGIONS || '').split(',').filter(Boolean);
 const HEALTH_CHECK_INTERVAL_MS = parseInt(process.env.REGION_HEALTH_CHECK_MS || '30000');
 const ENABLE_CROSS_REGION = process.env.ENABLE_CROSS_REGION === 'true';

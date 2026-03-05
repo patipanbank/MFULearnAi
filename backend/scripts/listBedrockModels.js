@@ -55,7 +55,7 @@ if (fs.existsSync(envPath)) {
 }
 
 
-const region = process.env.AWS_REGION || 'ap-southeast-1';
+const region = process.env.AWS_REGION || 'us-east-1';
 console.log(`Using AWS Region: ${region}`);
 
 const clientConfig = { region };
