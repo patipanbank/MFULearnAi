@@ -109,7 +109,13 @@ async function main() {
     try {
         col = await chroma.getCollection({ name: COLLECTION_NAME, embeddingFunction: null });
     } catch (e) {
-        console.log(`❌ Collection "${COLLECTION_NAME}" not found. Nothing to re-embed.`);
+        console.log(`⚠ Collection "${COLLECTION_NAME}" not found. Creating fresh collection for Titan Embed v2...`);
+        await chroma.createCollection({
+            name: COLLECTION_NAME,
+            metadata: { 'hnsw:space': 'cosine' },
+        });
+        console.log(`✅ Created new collection "${COLLECTION_NAME}" (cosine, ready for ${TITAN_V2_DIMENSIONS}-dim vectors).`);
+        console.log(`   New documents will be embedded with Titan Embed v2 automatically.`);
         return;
     }
 
