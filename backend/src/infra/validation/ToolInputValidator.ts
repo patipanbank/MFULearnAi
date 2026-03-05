@@ -17,12 +17,14 @@ import { ToolSchemaJSON } from '../../tools/AgentTool';
  *   - enum values
  *   - minLength/maxLength for strings
  *   - minimum/maximum for numbers
+ *   - pattern (regex) for strings
+ *   - additionalProperties: false (strip unknown fields)
  *   - nested object validation
  *   - default value injection
  *
  * Does NOT implement (not needed for tool schemas):
  *   - $ref, allOf, anyOf, oneOf, not
- *   - patternProperties, additionalProperties
+ *   - patternProperties
  *   - format validators
  */
 
@@ -104,15 +106,27 @@ export class ToolInputValidator {
             }
         }
 
-        // Copy any extra fields not in schema (warning but non-blocking)
+        // Copy any extra fields not in schema
+        // If additionalProperties is explicitly false, strip them with a warning.
+        // Otherwise pass through (backward compatible).
+        const additionalProps = (jsonSchema as any).additionalProperties;
         for (const key of Object.keys(input)) {
             if (!properties[key] && input[key] !== undefined) {
-                LoggerService.debug('tool_input_extra_field', {
-                    tool: toolName,
-                    field: key,
-                    note: 'field not in schema — passed through'
-                });
-                sanitized[key] = input[key];
+                if (additionalProps === false) {
+                    LoggerService.warn('tool_input_extra_field_stripped', {
+                        tool: toolName,
+                        field: key,
+                        note: 'additionalProperties=false — field removed'
+                    });
+                    // Do NOT copy into sanitized
+                } else {
+                    LoggerService.debug('tool_input_extra_field', {
+                        tool: toolName,
+                        field: key,
+                        note: 'field not in schema — passed through'
+                    });
+                    sanitized[key] = input[key];
+                }
             }
         }
 
@@ -187,6 +201,23 @@ export class ToolInputValidator {
                     expected: `<= ${schema.maxLength} chars`,
                     received: `${value.length} chars`
                 });
+            }
+            // Regex pattern validation
+            if (schema.pattern) {
+                try {
+                    const regex = new RegExp(schema.pattern);
+                    if (!regex.test(value)) {
+                        errors.push({
+                            path,
+                            message: `Value does not match pattern: ${schema.pattern}`,
+                            expected: `match /${schema.pattern}/`,
+                            received: value.substring(0, 50)
+                        });
+                    }
+                } catch {
+                    // Invalid regex in schema — skip validation, don't crash
+                    LoggerService.warn('tool_schema_invalid_pattern', { path, pattern: schema.pattern });
+                }
             }
         }
 

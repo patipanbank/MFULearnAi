@@ -25,7 +25,8 @@ export class SearchTool extends AgentTool {
                         description: 'Additional context to refine the search (e.g., specific terms, policy names).'
                     }
                 },
-                required: ['query']
+                required: ['query'],
+                additionalProperties: false,
             }
         }
     };

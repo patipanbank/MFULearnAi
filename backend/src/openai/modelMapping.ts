@@ -127,8 +127,8 @@ export function getAvailableModelsOpenAI(): Array<{
  * Get the embedding model info.
  */
 export const EMBEDDING_MODEL = {
-    id: 'text-embedding-titan-v1',
-    bedrockId: 'amazon.titan-embed-text-v1',
-    dimensions: 1536,
+    id: 'text-embedding-titan-v2',
+    bedrockId: 'amazon.titan-embed-text-v2:0',
+    dimensions: 1024,
     maxInput: 8192,
 };

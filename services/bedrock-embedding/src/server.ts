@@ -24,7 +24,9 @@ const client = new BedrockRuntimeClient({
     }
 });
 
-const TITAN_EMBED_MODEL = "amazon.titan-embed-text-v1";
+const TITAN_EMBED_MODEL = "amazon.titan-embed-text-v2:0";
+const TITAN_EMBED_DIMENSIONS = 1024;
+const TITAN_EMBED_NORMALIZE = true;
 
 // --- Middleware ---
 const authenticateInternal = (req: Request, res: Response, next: any) => {
@@ -74,7 +76,9 @@ app.post('/api/bedrock/embeddings', async (req: Request, res: Response) => {
             contentType: "application/json",
             accept: "application/json",
             body: JSON.stringify({
-                inputText: text
+                inputText: text,
+                dimensions: TITAN_EMBED_DIMENSIONS,
+                normalize: TITAN_EMBED_NORMALIZE,
             })
         });
 

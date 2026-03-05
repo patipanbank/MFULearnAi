@@ -5,6 +5,7 @@ import { CalculatorTool } from '../tools/CalculatorTool';
 import { SearchTool } from '../tools/SearchTool';
 import { PolicyCheckerTool } from '../tools/PolicyCheckerTool';
 import { TableLookupTool } from '../tools/TableLookupTool';
+import { AskUserTool } from '../tools/AskUserTool';
 import { StructuredQueryService } from '../services/StructuredQueryService';
 import { SYSTEM_MODELS } from '../config/models';
 import { getRecommendedTemperature } from '../config/ModelAdapter';
@@ -30,7 +31,8 @@ import { ToolAccessService } from '../services/ToolAccessService';
 const AVAILABLE_TOOLS: AgentTool[] = [
     new CalculatorTool(),
     new SearchTool(),
-    new PolicyCheckerTool()
+    new PolicyCheckerTool(),
+    new AskUserTool(),
 ];
 
 import { mcpManager } from '../mcp/McpManager';

@@ -40,7 +40,8 @@ export class TableLookupTool extends AgentTool {
                         description: 'Optional: target a specific knowledge item by ID. Omit to search all structured tables in the collection.'
                     }
                 },
-                required: ['query']
+                required: ['query'],
+                additionalProperties: false,
             }
         }
     };

@@ -27,7 +27,8 @@ export class CalculatorTool extends AgentTool {
                         description: 'Second number.'
                     }
                 },
-                required: ['operation', 'a', 'b']
+                required: ['operation', 'a', 'b'],
+                additionalProperties: false,
             }
         }
     };

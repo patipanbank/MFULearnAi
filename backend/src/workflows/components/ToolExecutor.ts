@@ -321,12 +321,37 @@ export class ToolExecutor {
         const sanitizedInput = validation.sanitized;
 
         if (!validation.valid) {
+            // Separate critical errors (missing required, wrong type) from warnings
+            const criticalErrors = validation.errors.filter(e =>
+                e.message.includes('is missing') ||
+                e.message.includes('Expected type') ||
+                e.message.includes('must be one of')
+            );
+
             LoggerService.warn('tool_input_validation_failed', {
                 tool: block.name,
-                errors: validation.errors.slice(0, 3).map(e => e.message),
+                errors: validation.errors.slice(0, 5).map(e => e.message),
+                criticalCount: criticalErrors.length,
                 input: JSON.stringify(block.input).substring(0, 200)
             }, userId);
-            // Continue with sanitized input — don't block (LLMs are imperfect)
+
+            // If there are critical validation errors, return detailed feedback
+            // to the LLM so it can fix & retry (instead of running with bad args)
+            if (criticalErrors.length > 0) {
+                const errorFeedback = criticalErrors
+                    .slice(0, 5)
+                    .map(e => `• ${e.path}: ${e.message}${e.expected ? ` (expected: ${e.expected})` : ''}`)
+                    .join('\n');
+
+                return {
+                    toolName: block.name,
+                    toolUseId: block.toolUseId,
+                    result: `Validation Error — please fix and retry:\n${errorFeedback}\n\nProvide corrected arguments for "${block.name}".`,
+                    success: false,
+                    durationMs: Date.now() - start
+                };
+            }
+            // Non-critical errors (e.g. extra fields, minor pattern mismatch) → continue with sanitized input
         }
 
         try {

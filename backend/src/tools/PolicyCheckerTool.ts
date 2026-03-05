@@ -83,7 +83,8 @@ export class PolicyCheckerTool extends AgentTool {
                         description: 'Optional additional context about the situation.'
                     }
                 },
-                required: ['query']
+                required: ['query'],
+                additionalProperties: false,
             }
         }
     };
