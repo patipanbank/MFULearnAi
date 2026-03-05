@@ -21,7 +21,7 @@ export interface ModelConfig {
 // ═══════════════════════════════════════════════════════════════════
 export const RAW_MODELS = {
     // ── Anthropic ─────────────────────────────────────────────────
-    CLAUDE_SONNET_4: 'anthropic.claude-sonnet-4-20250514-v1:0',
+    CLAUDE_SONNET_4: 'anthropic.claude-sonnet-4-6',
     CLAUDE_3_5_HAIKU: 'anthropic.claude-3-5-haiku-20241022-v1:0',
     /** @deprecated Use CLAUDE_SONNET_4 — kept for migration/fallback */
     CLAUDE_3_5_SONNET_V1: 'anthropic.claude-3-5-sonnet-20240620-v1:0',

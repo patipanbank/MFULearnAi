@@ -24,7 +24,7 @@ export const ENABLE_PROMPT_CACHE = process.env.BEDROCK_ENABLE_CACHE !== 'false';
 export const CACHE_SUPPORTED_MODELS = [
     'anthropic.claude-3-5-haiku-20241022-v1:0',   // CHAT model
     'anthropic.claude-3-7-sonnet-20250219-v1:0',
-    'anthropic.claude-sonnet-4-20250514-v1:0',     // AGENT model ← primary beneficiary
+    'anthropic.claude-sonnet-4-6',     // AGENT model ← primary beneficiary
     'anthropic.claude-opus-4-20250514-v1:0',
 ];
 
