@@ -6,6 +6,8 @@ import { LoggerService } from '../services/LoggerService';
 import { CalculatorTool } from '../tools/CalculatorTool';
 import { SearchTool } from '../tools/SearchTool';
 import { PolicyCheckerTool } from '../tools/PolicyCheckerTool';
+import { AskUserTool } from '../tools/AskUserTool';
+import { TableLookupTool } from '../tools/TableLookupTool';
 import { mcpManager } from '../mcp/McpManager';
 import { AgentTool } from '../tools/AgentTool';
 
@@ -17,7 +19,9 @@ import { ToolRateLimiter } from '../infra/rate-limiter';
 const BUILTIN_TOOLS: AgentTool[] = [
     new CalculatorTool(),
     new SearchTool(),
-    new PolicyCheckerTool()
+    new PolicyCheckerTool(),
+    new AskUserTool(),
+    new TableLookupTool(),
 ];
 
 /** Valid roles for tool access assignment */

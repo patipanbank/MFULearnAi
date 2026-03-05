@@ -181,15 +181,15 @@ export class ToolSelectionHintService {
     }
 
     /**
-     * Format a hint as a Thai-language injection for the user message.
+     * Format a hint as an injection for the user message.
      * This is appended to the user's message so the LLM sees it naturally.
      * 
      * Format: subtle hint, not a command — the LLM can override.
      */
     static formatHintForPrompt(hint: ToolHint): string {
         if (hint.confidence === 'high') {
-            return `\n[ระบบแนะนำ: ใช้ tool "${hint.tool}" สำหรับคำถามนี้]`;
+            return `\n[System hint: use tool "${hint.tool}" for this question]`;
         }
-        return `\n[ระบบแนะนำ: ลองใช้ "${hint.tool}" เพื่อค้นหาข้อมูล]`;
+        return `\n[System hint: try "${hint.tool}" to search for information]`;
     }
 }

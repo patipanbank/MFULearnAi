@@ -79,61 +79,66 @@ const NOVA_ADAPTER: ModelAdapterConfig = {
     family: 'nova',
 
     thinkingDirective: `=== LANGUAGE & REASONING DIRECTIVE ===
-คุณต้องคิด วางแผน และให้เหตุผลเป็นภาษาไทยเสมอ
-- Internal planning: ภาษาไทย
-- Tool argument (query/context): ภาษาไทย ยกเว้นชื่อเฉพาะ (PDPA, MFU, IT ฯลฯ)
-- Final answer: ภาษาไทย (ใช้ภาษาอังกฤษเฉพาะคำศัพท์เทคนิค)
-- ห้ามแปลคำถามของผู้ใช้เป็นภาษาอังกฤษก่อนประมวลผล
-- ห้ามใช้ภาษาอังกฤษในขั้นตอนการวางแผนหรือคิด`,
+Auto-detect the user's language and respond in the SAME language.
+- If the user writes in Thai → think, plan, and answer in Thai
+- If the user writes in English → think, plan, and answer in English
+- If the user mixes languages → respond in the primary language of their message
+- Tool arguments (query/context): use the same language as the user's question
+- Technical terms can remain in English regardless of language`,
 
     toolCallingDirective: `=== TOOL SELECTION DECISION TREE ===
-เมื่อได้รับคำถาม ให้ตัดสินใจตามลำดับนี้:
+When you receive a question, decide in this order:
 
-ขั้นที่ 1: จำแนกประเภทคำถาม
-  → เกี่ยวกับกฎ ระเบียบ ข้อบังคับ นโยบาย PDPA สิทธิ์ โทษ → check_policy
-  → เกี่ยวกับข้อมูล ข้อเท็จจริง ข่าว ระบบ บุคคล สถานที่ → search
-  → เกี่ยวกับตัวเลข คำนวณ สถิติ → calculator
-  → เกี่ยวกับรายชื่อ ตาราง ข้อมูลเชิงโครงสร้าง → lookup_knowledge_table
-  → ข้อมูลไม่พอที่จะเรียก tool / คำถามกำกวม → ask_user (ถามกลับก่อน)
-  → สนทนาทั่วไป ทักทาย ไม่ต้องการข้อมูล → ตอบเลย ไม่ต้องใช้ tool
+Step 1: Classify the question
+  → Rules, regulations, policies, PDPA, rights, penalties → check_policy
+  → Facts, news, systems, people, places → search
+  → Numbers, calculations, statistics → calculator
+  → Lists, tables, structured data → lookup_knowledge_table
+  → Not enough info / ambiguous → ask_user (ask for clarification first)
+  → General chat, greetings, no data needed → answer directly, no tool needed
 
-ขั้นที่ 2: เขียน query ที่ดี
-  → ใช้ภาษาไทย ตรงประเด็น ไม่ใส่คำฟุ่มเฟือย
-  → ไม่ต้องเพิ่ม "ในมหาวิทยาลัย" หรือ "ของ MFU" ลงใน query
+Step 2: Write a good query
+  → Use the SAME language as the user's question, concise and to the point
+  → Do NOT add "ในมหาวิทยาลัย" or "at MFU" to the query
 
-ขั้นที่ 3: ใช้ tool เดียวที่ตรงที่สุด
-  → อย่าเรียก search + check_policy พร้อมกันสำหรับคำถามเดียวกัน
-  → ถ้าไม่แน่ใจว่าเป็น policy หรือข้อมูลทั่วไป → ใช้ check_policy ก่อน
+Step 3: Use exactly ONE tool — the most relevant one
+  → Do NOT call search + check_policy simultaneously for the same question
+  → If unsure whether it's policy or general info → use check_policy first
 
-=== TOOL CALL EXAMPLES (ทำตามรูปแบบนี้เท่านั้น) ===
+=== TOOL CALL EXAMPLES ===
 
-ตัวอย่าง 1 — ค้นหาข้อมูลทั่วไป:
-  ผู้ใช้: "คณะวิทย์มีสาขาอะไรบ้าง"
+Example 1 — Thai question, general search:
+  User: "คณะวิทย์มีสาขาอะไรบ้าง"
   → tool: search, args: {"query": "สาขาวิชาในคณะวิทยาศาสตร์"}
 
-ตัวอย่าง 2 — ตรวจสอบระเบียบ:
-  ผู้ใช้: "ลาป่วยได้กี่วัน"
-  → tool: check_policy, args: {"query": "จำนวนวันลาป่วยที่อนุญาต"}
+Example 2 — English question, policy check:
+  User: "How many sick days am I allowed?"
+  → tool: check_policy, args: {"query": "number of allowed sick leave days"}
 
-ตัวอย่าง 3 — คำนวณ:
-  ผู้ใช้: "3000 บวก 1500 เท่าไหร่"
+Example 3 — Thai question, calculation:
+  User: "3000 บวก 1500 เท่าไหร่"
   → tool: calculator, args: {"operation": "add", "a": 3000, "b": 1500}
 
-ตัวอย่าง 4 — ข้อมูลไม่พอ ต้องถามกลับ:
-  ผู้ใช้: "ช่วยค้นหาให้หน่อย"
+Example 4 — Not enough info, ask back:
+  User: "ช่วยค้นหาให้หน่อย"
   → tool: ask_user, args: {"question": "ต้องการค้นหาข้อมูลเกี่ยวกับเรื่องอะไรครับ?", "reason": "ผู้ใช้ไม่ได้ระบุหัวข้อที่ต้องการค้นหา"}
 
+Example 5 — English question, ask back:
+  User: "Can you look something up?"
+  → tool: ask_user, args: {"question": "What topic would you like me to search for?", "reason": "User did not specify a search topic"}
+
 === CRITICAL RULES ===
-- ห้ามเดาค่า argument ที่ไม่ปรากฏในคำถามผู้ใช้
-- ถ้าไม่แน่ใจค่าของ argument → ใช้ ask_user ถามกลับก่อน
-- ห้ามเพิ่ม field ที่ไม่มีใน schema ของ tool
-- query ต้องเป็นภาษาไทย สั้น ตรงประเด็น`,
+- Do NOT guess argument values not present in the user's question
+- If unsure about an argument value → use ask_user to ask first
+- Do NOT add fields not in the tool's schema
+- Query must be in the SAME language as the user's question, short and precise`,
 
     outputDirective: `=== OUTPUT FORMAT ===
-- ตอบตรงคำถามก่อน แล้วค่อยให้รายละเอียด
-- ใช้หัวข้อย่อย (bullet) เมื่อมีข้อมูลหลายข้อ
-- อ้างอิงแหล่งที่มาจาก tool results เสมอ
-- ไม่ต้องอธิบายว่า "ฉันจะค้นหาให้" — ทำเลย`,
+- Answer the question directly first, then provide details
+- Use bullet points when there are multiple items
+- Always cite sources from tool results
+- Do NOT say "I will search for you" — just do it
+- Respond in the SAME language the user used`,
 
     recommendedTemperature: 0.3,  // Lower temp = more deterministic tool selection
     supportsCaching: true,   // Nova supports system prompt caching (GA April 2025)
@@ -145,12 +150,13 @@ const CLAUDE_ADAPTER: ModelAdapterConfig = {
     family: 'claude',
 
     thinkingDirective: `=== LANGUAGE DIRECTIVE ===
-ให้ตอบเป็นภาษาไทย ใช้ภาษาอังกฤษเฉพาะศัพท์เทคนิค`,
+Auto-detect the user's language. Respond in the same language the user writes in.
+Use English for technical terms regardless of language.`,
 
     toolCallingDirective: '', // Claude is naturally good at tool selection — minimal hints needed
 
     outputDirective: `=== OUTPUT ===
-ตอบกระชับ ตรงประเด็น อ้างอิงแหล่งข้อมูล`,
+Be concise and to the point. Cite sources. Respond in the user's language.`,
 
     recommendedTemperature: null, // Use default
     supportsCaching: true,
@@ -162,14 +168,14 @@ const MISTRAL_ADAPTER: ModelAdapterConfig = {
     family: 'mistral',
 
     thinkingDirective: `=== LANGUAGE & REASONING DIRECTIVE ===
-Think and plan in Thai. Answer in Thai.
+Auto-detect the user's language. Think, plan, and answer in the same language.
 Use English only for technical terms.`,
 
     toolCallingDirective: `=== TOOL USAGE ===
-เลือก tool ที่เหมาะสมที่สุดเพียงตัวเดียวต่อคำถาม ใช้ภาษาไทยใน query`,
+Choose the single most appropriate tool per question. Use the same language as the user in queries.`,
 
     outputDirective: `=== OUTPUT ===
-ตอบเป็นภาษาไทย กระชับ ตรงประเด็น`,
+Respond in the user's language. Be concise and to the point.`,
 
     recommendedTemperature: 0.4,
     supportsCaching: false,
@@ -179,7 +185,7 @@ Use English only for technical terms.`,
 
 const DEFAULT_ADAPTER: ModelAdapterConfig = {
     family: 'unknown',
-    thinkingDirective: 'Think and respond in Thai.',
+    thinkingDirective: 'Auto-detect the user\'s language and respond in the same language.',
     toolCallingDirective: '',
     outputDirective: '',
     recommendedTemperature: null,
@@ -222,11 +228,11 @@ export function buildModelDirectives(modelId: string): string {
     // Reasoning scaffold for weaker models
     if (adapter.injectReasoningScaffold) {
         parts.push(`=== STEP-BY-STEP REASONING ===
-ก่อนทำอะไร ให้วางแผนสั้นๆ ก่อนเสมอ:
-1. ทำความเข้าใจคำถาม (ผู้ใช้ต้องการอะไร?)
-2. เลือก tool ที่เหมาะสม (หรือตอบเลยถ้าไม่ต้องใช้ tool)
-3. เขียน query ที่ตรงประเด็น
-4. วิเคราะห์ผลลัพธ์จาก tool แล้วตอบ`);
+Always plan briefly before acting:
+1. Understand the question (What does the user need?)
+2. Choose the right tool (or answer directly if no tool is needed)
+3. Write a precise query in the user's language
+4. Analyze tool results and answer in the user's language`);
     }
 
     return parts.join('\n\n');

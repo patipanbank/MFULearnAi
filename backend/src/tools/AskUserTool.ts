@@ -34,7 +34,7 @@ export class AskUserTool extends AgentTool {
                 properties: {
                     question: {
                         type: 'string',
-                        description: 'The clarifying question to ask the user, in Thai.',
+                        description: 'The clarifying question to ask the user, in the same language as their message.',
                         minLength: 5,
                         maxLength: 500,
                     },
