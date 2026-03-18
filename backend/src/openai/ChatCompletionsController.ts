@@ -187,10 +187,11 @@ export class OpenAIChatController {
             }
 
             // ── Synchronous Completion ──
+            // Pass system prompt via dedicated param so BedrockService forwards it (normalizes and keeps it).
             const result = await BedrockService.sendChat(
                 finalModelId,
-                system ? [{ role: 'system', content: system }, ...chatMessages] : chatMessages,
-                undefined, // system already in messages
+                chatMessages,
+                system,
                 temperature,
                 toolConfig,
             );

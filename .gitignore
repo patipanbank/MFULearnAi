@@ -11,3 +11,4 @@ jwt-*.pem
 *.pem
 infrastructure/compose/secrets/nd/.env
 **/dist/
+test.py
