@@ -5,7 +5,7 @@
  *   /auth/*  — Authentication (login, SSO, SAML, refresh)
  *   /api/*   — Main REST API (chat, knowledge, users, prompts, logs, tools, keys)
  *   /v1/*    — OpenAI-compatible API surface
- *   /health  — Health check
+ *   /health  — Health check (with readiness/liveness)
  *   /admin/queues — Bull Board dashboard
  */
 
@@ -30,6 +30,13 @@ import { knowledgeQueue } from './knowledge/queue';
 import { mcpManager } from './mcp/McpManager';
 import { globalErrorHandler, notFoundHandler } from './middleware/errorHandler';
 
+// Enterprise Infrastructure
+import { initTelemetry, shutdownTelemetry } from './infra/telemetry';
+import { installGracefulShutdown, registerShutdownHook, shutdownGuard } from './infra/shutdown';
+import { initEncryption } from './infra/encryption';
+import { ResultPersister } from './workflows/components/ResultPersister';
+import { redis } from './config/redis';
+
 // Routes
 import authRoutes from './routes/auth';
 import apiRoutes from './routes';
@@ -50,6 +57,9 @@ app.set('trust proxy', 1);
 connectDB();
 
 // ─── Middleware ─────────────────────────────────────────────
+// Shutdown guard — reject new requests during graceful shutdown
+app.use(shutdownGuard);
+
 app.use(express.json({ limit: '50mb' }));
 app.use(cors({
     origin: ENV_TYPE === 'PROD'
@@ -77,12 +87,26 @@ app.use('/auth', authRoutes);
 app.use('/api', apiRoutes);
 app.use('/v1', v1Routes);
 
-// Health Check
+// Health Check — Enhanced with readiness/liveness
 app.get('/health', (_req, res) => res.json({
     status: 'ok',
     service: 'orchestrator',
     environment: ENV_TYPE,
 }));
+
+app.get('/health/ready', async (_req, res) => {
+    try {
+        // Check Redis
+        await redis.ping();
+        res.json({ status: 'ready', checks: { redis: 'ok', uptime: process.uptime() } });
+    } catch {
+        res.status(503).json({ status: 'not-ready', checks: { redis: 'error' } });
+    }
+});
+
+app.get('/health/live', (_req, res) => {
+    res.json({ status: 'alive', uptime: process.uptime(), memoryMB: Math.round(process.memoryUsage().heapUsed / 1024 / 1024) });
+});
 
 // ─── Bull Board (Queue Dashboard) ──────────────────────────
 const bullBoardAdapter = new ExpressAdapter();
@@ -91,6 +115,7 @@ bullBoardAdapter.setBasePath('/admin/queues');
 createBullBoard({
     queues: [
         new BullMQAdapter(queueService.ocrQueue),
+        new BullMQAdapter(queueService.dlqQueue),
         new BullMQAdapter(knowledgeQueue),
     ],
     serverAdapter: bullBoardAdapter,
@@ -108,6 +133,28 @@ app.use(globalErrorHandler);
 // ─── Socket.IO ─────────────────────────────────────────────
 const io = setupSocketIO(httpServer);
 
+// ─── Register Shutdown Hooks (priority: lower = earlier) ───
+registerShutdownHook('Socket.IO', async () => {
+    io.disconnectSockets(true);
+    io.close();
+}, 10);
+
+registerShutdownHook('MCP Manager', async () => {
+    await mcpManager.disconnect();
+}, 20);
+
+registerShutdownHook('Queue Service', async () => {
+    await queueService.close();
+}, 30);
+
+registerShutdownHook('OpenTelemetry', async () => {
+    await shutdownTelemetry();
+}, 40);
+
+registerShutdownHook('Redis', async () => {
+    redis.disconnect();
+}, 90);
+
 // ─── Process-Level Error Handlers ──────────────────────────
 process.on('unhandledRejection', (reason, promise) => {
     console.error('[FATAL] Unhandled Rejection:', reason);
@@ -124,6 +171,23 @@ httpServer.listen(PORT, async () => {
     console.log(`[Orchestrator] Server running on port ${PORT} (${ENV_TYPE})`);
     console.log(`[Orchestrator] Bull Board: http://localhost:${PORT}/admin/queues`);
 
+    // Initialize OpenTelemetry (no-op if OTEL_ENABLED !== 'true')
+    await initTelemetry();
+
+    // Initialize field-level encryption (no-op if CHAT_ENCRYPTION_KEY not set)
+    initEncryption();
+
     // Initialize MCP persistent connections
     await mcpManager.init();
+
+    // Recover any pending persistence sagas from previous crash
+    const sagaRecovery = await ResultPersister.recoverPendingSagas();
+    if (sagaRecovery.recovered > 0 || sagaRecovery.failed > 0) {
+        console.log(`[Orchestrator] Saga recovery: ${sagaRecovery.recovered} recovered, ${sagaRecovery.failed} failed`);
+    }
+
+    // Install graceful shutdown (must be after all hooks registered)
+    installGracefulShutdown(httpServer);
+
+    console.log('[Orchestrator] All systems initialized ✓');
 });

@@ -110,10 +110,23 @@ Output: Updated Canonical Memory (Text only).
                 LoggerService.warn(`[SmartContext] Canonization skipped for ${sessionId}: ${reason}`);
             }
 
-            // Guard: Canonical Length (Soft Warning + Rate limit)
-            if (newCanonical.length > 5000 && targetVersion % 10 === 0) {
-                LoggerService.warn(`[SmartContext] Canonical memory for ${sessionId} is getting large (${newCanonical.length} chars). Consider auto-summarization.`);
-                // TODO: Trigger actual auto-summarization logic here in the future
+            // Guard: Canonical Length (Soft Warning + Auto-Summarization)
+            if (newCanonical.length > 5000) {
+                if (targetVersion % 5 === 0) {
+                    // Auto-summarize: compress canonical to keep it under control
+                    try {
+                        newCanonical = await this.autoSummarizeCanonical(newCanonical, userId);
+                        LoggerService.info('canonical_auto_summarized', {
+                            sessionId,
+                            originalLength: currentContext.canonical.length,
+                            newLength: newCanonical.length
+                        });
+                    } catch (e) {
+                        LoggerService.warn(`[SmartContext] Canonical auto-summarization failed for ${sessionId}`, {
+                            error: e instanceof Error ? e.message : String(e)
+                        });
+                    }
+                }
             }
 
             // 3. Generate Hashes for Integrity Tracking
@@ -377,6 +390,52 @@ ${JSON.stringify(rollingContext, null, 2)}
         } catch (e) {
             LoggerService.error('Canonization LLM call failed', e);
             return currentCanonical;
+        }
+    }
+
+    /**
+     * Auto-summarize canonical memory when it exceeds the size threshold.
+     * Compresses the canonical text while preserving all critical information.
+     * Target: reduce to ~60% of original size.
+     */
+    private static async autoSummarizeCanonical(canonical: string, userId?: string): Promise<string> {
+        const AUTO_SUMMARIZE_PROMPT = `You are a Memory Compressor AI. Compress this canonical memory to approximately 60% of its current size while preserving ALL critical facts, decisions, and timeline entries.
+
+Rules:
+1. Merge redundant entries.
+2. Remove verbose descriptions — keep only key facts.
+3. Maintain chronological order.
+4. Never drop technical details, decisions, or constraints.
+5. Output ONLY the compressed text.
+
+Current canonical (${canonical.length} chars — target: ~${Math.floor(canonical.length * 0.6)} chars):
+${canonical}`;
+
+        try {
+            const { text: compressed, usage } = await BedrockService.sendChat(
+                SYSTEM_MODELS.SUMMARIZE,
+                [{ role: 'user', content: AUTO_SUMMARIZE_PROMPT }],
+                'You compress text while preserving all critical information.',
+                0.1
+            );
+
+            if (usage) {
+                await LoggerService.info('chat_completion', {
+                    tokens: usage,
+                    weightedTokens: computeWeightedTokens(usage.total || 0, SYSTEM_MODELS.SUMMARIZE),
+                    model: SYSTEM_MODELS.SUMMARIZE,
+                    action: 'canonical_auto_summarize',
+                    isBackground: true
+                }, userId);
+            }
+
+            // Safety: only accept if it actually compressed (not expanded)
+            if (compressed.length < canonical.length) {
+                return compressed.trim();
+            }
+            return canonical;
+        } catch {
+            return canonical;
         }
     }
 

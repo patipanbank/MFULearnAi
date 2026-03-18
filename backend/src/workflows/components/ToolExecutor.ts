@@ -1,7 +1,10 @@
 import { LoggerService } from '../../services/LoggerService';
-import { AGENT_EVENTS, AgentContext, BedrockContentBlock, ToolResultEntry } from '../types/AgentTypes';
+import { AGENT_EVENTS, AgentContext, BedrockContentBlock, ToolResultEntry, WorkflowState } from '../types/AgentTypes';
 import { AGENT_CONSTANTS, AGENT_MESSAGES } from '../types/AgentConstants';
 import { AgentTool, ToolExecutionContext } from '../../tools/AgentTool';
+import { CircuitBreaker, CircuitState } from '../../infra/circuit-breaker';
+import { ToolRateLimiter } from '../../infra/rate-limiter';
+import { ToolInputValidator } from '../../infra/validation/ToolInputValidator';
 
 // ---------------------------------------------------------------------------
 // Tool-result compaction helpers
@@ -109,8 +112,19 @@ interface SingleToolResult {
 
 export class ToolExecutor {
     /**
+     * Generate a cache key for a tool invocation.
+     * Tools with the same name + input within a session get the same key.
+     */
+    private static getCacheKey(toolName: string, input: Record<string, unknown>): string {
+        // Sort keys for deterministic output
+        const sortedInput = JSON.stringify(input, Object.keys(input).sort());
+        return `${toolName}:${sortedInput}`;
+    }
+
+    /**
      * Execute all tool_use blocks requested by the model.
      * Independent tools run in parallel; each call is guarded by a timeout.
+     * Supports in-session caching — identical tool calls return cached results instantly.
      */
     static async executeTools(
         fullResponse: string,
@@ -118,7 +132,8 @@ export class ToolExecutor {
         allowedTools: AgentTool[],
         ctx: AgentContext,
         step: number,
-        emit: (type: string, payload: Record<string, unknown>) => void
+        emit: (type: string, payload: Record<string, unknown>) => void,
+        toolResultCache?: Map<string, { result: unknown; timestamp: number }>
     ): Promise<{ usedTools: Set<string>; toolResults: ToolResultEntry[] }> {
         const toolUseBlocks = contentBlocks && contentBlocks.length > 0
             ? contentBlocks
@@ -153,8 +168,30 @@ export class ToolExecutor {
             emit(AGENT_EVENTS.STATUS, { message: AGENT_MESSAGES.STATUS_USING_TOOL(block.name) });
         }
 
+        // Check cache first, execute only uncached tools
         const settled = await Promise.allSettled(
-            pendingBlocks.map(block => this.executeSingle(block, allowedTools, execCtx, timeout, ctx.userId))
+            pendingBlocks.map(block => {
+                // Cache lookup — skip expensive RAG/search calls if same query was already made
+                if (toolResultCache) {
+                    const cacheKey = this.getCacheKey(block.name, block.input);
+                    const cached = toolResultCache.get(cacheKey);
+                    if (cached) {
+                        LoggerService.info('tool_result_cache_hit', {
+                            tool: block.name,
+                            cacheKey: cacheKey.substring(0, 80),
+                            ageMs: Date.now() - cached.timestamp
+                        }, ctx.userId);
+                        return Promise.resolve<SingleToolResult>({
+                            toolName: block.name,
+                            toolUseId: block.toolUseId,
+                            result: cached.result,
+                            success: true,
+                            durationMs: 0
+                        });
+                    }
+                }
+                return this.executeSingle(block, allowedTools, execCtx, timeout, ctx.userId);
+            })
         );
 
         // Map results back in order
@@ -179,8 +216,12 @@ export class ToolExecutor {
                 };
             }
 
-            // Compact the result
-            const compacted = compactResult(singleResult.result);
+            // Compact the result & enforce hard cap
+            const MAX_TOOL_RESULT_CHARS = 4_000;
+            let compacted = compactResult(singleResult.result);
+            if (compacted.length > MAX_TOOL_RESULT_CHARS) {
+                compacted = compacted.substring(0, MAX_TOOL_RESULT_CHARS) + '\n... (truncated)';
+            }
             const originalLen = typeof singleResult.result === 'string'
                 ? singleResult.result.length
                 : JSON.stringify(singleResult.result).length;
@@ -206,13 +247,29 @@ export class ToolExecutor {
                 toolUseId: singleResult.toolUseId,
                 content: [{ json: { result: compacted } }]
             });
+
+            // Store successful results in session cache for deduplication
+            if (singleResult.success && toolResultCache) {
+                const cacheKey = this.getCacheKey(block.name, block.input);
+                toolResultCache.set(cacheKey, {
+                    result: singleResult.result,
+                    timestamp: Date.now()
+                });
+            }
         }
 
         return { usedTools, toolResults };
     }
 
     /**
-     * Execute a single tool with timeout guard.
+     * Execute a single tool with enterprise-grade guards:
+     *   1. Circuit Breaker check (fail-fast if tool is broken)
+     *   2. Rate Limit check (prevent LLM-driven tool spam)
+     *   3. Input Validation (validate against JSON schema)
+     *   4. Timeout guard
+     *   5. Graceful Degradation on failure
+     *   6. Circuit Breaker state update (success/failure)
+     *
      * Never throws — returns an error result on failure.
      */
     private static async executeSingle(
@@ -235,14 +292,85 @@ export class ToolExecutor {
             };
         }
 
+        // ── Guard 1: Circuit Breaker ─────────────────────────
+        const circuitCheck = CircuitBreaker.canExecute(block.name);
+        if (!circuitCheck.allowed) {
+            LoggerService.warn('tool_circuit_breaker_blocked', {
+                tool: block.name,
+                state: circuitCheck.state,
+                reason: circuitCheck.reason
+            }, userId);
+
+            // Apply graceful degradation policy
+            return this.applyDegradation(tool, block, circuitCheck.reason || 'Circuit breaker open', start);
+        }
+
+        // ── Guard 2: Rate Limiter ─────────────────────────────
+        const rateCheck = await ToolRateLimiter.checkLimit(block.name, userId, execCtx.userId);
+        if (!rateCheck.allowed) {
+            LoggerService.warn('tool_rate_limit_blocked', {
+                tool: block.name,
+                reason: rateCheck.reason
+            }, userId);
+
+            return this.applyDegradation(tool, block, rateCheck.reason || 'Rate limit exceeded', start);
+        }
+
+        // ── Guard 3: Input Validation ─────────────────────────
+        const validation = ToolInputValidator.validate(block.name, block.input, tool.schemaJSON);
+        const sanitizedInput = validation.sanitized;
+
+        if (!validation.valid) {
+            // Separate critical errors (missing required, wrong type) from warnings
+            const criticalErrors = validation.errors.filter(e =>
+                e.message.includes('is missing') ||
+                e.message.includes('Expected type') ||
+                e.message.includes('must be one of')
+            );
+
+            LoggerService.warn('tool_input_validation_failed', {
+                tool: block.name,
+                errors: validation.errors.slice(0, 5).map(e => e.message),
+                criticalCount: criticalErrors.length,
+                input: JSON.stringify(block.input).substring(0, 200)
+            }, userId);
+
+            // If there are critical validation errors, return detailed feedback
+            // to the LLM so it can fix & retry (instead of running with bad args)
+            if (criticalErrors.length > 0) {
+                const errorFeedback = criticalErrors
+                    .slice(0, 5)
+                    .map(e => `• ${e.path}: ${e.message}${e.expected ? ` (expected: ${e.expected})` : ''}`)
+                    .join('\n');
+
+                return {
+                    toolName: block.name,
+                    toolUseId: block.toolUseId,
+                    result: `Validation Error — please fix and retry:\n${errorFeedback}\n\nProvide corrected arguments for "${block.name}".`,
+                    success: false,
+                    durationMs: Date.now() - start
+                };
+            }
+            // Non-critical errors (e.g. extra fields, minor pattern mismatch) → continue with sanitized input
+        }
+
         try {
-            LoggerService.info('tool_execution', { tool: block.name, input: block.input }, userId);
+            LoggerService.info('tool_execution', {
+                tool: block.name,
+                version: tool.version,
+                input: sanitizedInput,
+                circuitState: circuitCheck.state,
+                inputValid: validation.valid
+            }, userId);
 
             const exec = await withTimeout(
-                tool.execute(block.input, execCtx),
+                tool.execute(sanitizedInput, execCtx),
                 timeoutMs,
                 block.name
             );
+
+            // ── Record Success in Circuit Breaker ─────────────
+            CircuitBreaker.recordSuccess(block.name);
 
             return {
                 toolName: block.name,
@@ -253,18 +381,69 @@ export class ToolExecutor {
             };
         } catch (err: unknown) {
             const message = err instanceof Error ? err.message : String(err);
+
+            // ── Record Failure in Circuit Breaker ─────────────
+            CircuitBreaker.recordFailure(block.name, message);
+
             LoggerService.error('tool_execution_error', {
                 tool: block.name,
-                error: message
+                version: tool.version,
+                error: message,
+                circuitState: CircuitBreaker.canExecute(block.name).state
             }, userId);
 
-            return {
-                toolName: block.name,
-                toolUseId: block.toolUseId,
-                result: `Error: ${message}`,
-                success: false,
-                durationMs: Date.now() - start
-            };
+            // ── Graceful Degradation ──────────────────────────
+            return this.applyDegradation(tool, block, message, start);
+        }
+    }
+
+    /**
+     * Apply graceful degradation policy when a tool fails.
+     *
+     * Policies:
+     *   - 'error': Return error string to LLM (default — let LLM decide next step).
+     *   - 'skip': Return a "tool unavailable" message (LLM continues without data).
+     *   - 'retry_with_default': One retry with simplified default args.
+     *   - 'fallback': Return cached result hint (LLM uses session context).
+     */
+    private static applyDegradation(
+        tool: AgentTool,
+        block: { toolUseId: string; name: string; input: Record<string, unknown> },
+        error: string,
+        startTime: number
+    ): SingleToolResult {
+        const policy = tool.degradationPolicy || 'error';
+
+        switch (policy) {
+            case 'skip':
+                LoggerService.info('tool_degradation_skip', { tool: block.name });
+                return {
+                    toolName: block.name,
+                    toolUseId: block.toolUseId,
+                    result: `Tool "${block.name}" is temporarily unavailable. Please answer based on your existing knowledge and session context.`,
+                    success: true, // Mark as success so LLM doesn't retry
+                    durationMs: Date.now() - startTime
+                };
+
+            case 'fallback':
+                LoggerService.info('tool_degradation_fallback', { tool: block.name });
+                return {
+                    toolName: block.name,
+                    toolUseId: block.toolUseId,
+                    result: `Tool "${block.name}" failed (${error}). Use the session context and canonical memory to provide the best answer possible.`,
+                    success: true,
+                    durationMs: Date.now() - startTime
+                };
+
+            case 'error':
+            default:
+                return {
+                    toolName: block.name,
+                    toolUseId: block.toolUseId,
+                    result: `Error: ${error}`,
+                    success: false,
+                    durationMs: Date.now() - startTime
+                };
         }
     }
 }

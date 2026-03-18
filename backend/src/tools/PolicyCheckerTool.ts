@@ -3,6 +3,7 @@ import { KnowledgeService } from '../services/KnowledgeService';
 import { BedrockService } from '../services/BedrockService';
 import { LoggerService } from '../services/LoggerService';
 import { SYSTEM_MODELS } from '../config/models';
+import { QueryRewriterService } from '../services/QueryRewriterService';
 
 /**
  * PolicyCheckerTool — Agent tool for checking policy compliance.
@@ -82,7 +83,8 @@ export class PolicyCheckerTool extends AgentTool {
                         description: 'Optional additional context about the situation.'
                     }
                 },
-                required: ['query']
+                required: ['query'],
+                additionalProperties: false,
             }
         }
     };
@@ -100,18 +102,26 @@ export class PolicyCheckerTool extends AgentTool {
                 allowedKnowledgeIds: context.allowedKnowledgeIds,
             };
 
-            const expandedQuery = additionalContext
-                ? `${query} ${additionalContext}`
-                : query;
+            // LLM Query Rewriting (Qwen) — optimize for policy retrieval
+            const rewriteResult = await QueryRewriterService.rewrite(query, additionalContext);
+
+            LoggerService.info('policy_checker_query_rewrite', {
+                originalQuery: query,
+                rewrittenQuery: rewriteResult.rewrittenQuery,
+                wasRewritten: rewriteResult.wasRewritten,
+                latencyMs: rewriteResult.latencyMs,
+            });
+
+            const searchOpts = {
+                minScore: MIN_POLICY_SCORE,
+                intent: 'POLICY_CHECK' as const,
+                metadataFilter: { type: 'policy' }
+            };
 
             const { text: ragText, blocks, sources, maxScore } = await KnowledgeService.search(
-                expandedQuery,
+                rewriteResult.rewrittenQuery,
                 userContext,
-                {
-                    minScore: MIN_POLICY_SCORE,
-                    intent: 'POLICY_CHECK',
-                    metadataFilter: { type: 'policy' }
-                }
+                searchOpts
             );
 
             LoggerService.info('policy_checker_rag', {

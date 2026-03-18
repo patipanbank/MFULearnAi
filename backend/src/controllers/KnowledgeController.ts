@@ -2,16 +2,16 @@ import { Request, Response } from 'express';
 import { KnowledgeService } from '../services/KnowledgeService';
 import busboy from 'busboy';
 import mongoose from 'mongoose';
+import crypto from 'crypto';
 import { minioClient, MINIO_BUCKET } from '../knowledge/minioClient';
 import { AdapterFactory } from '../knowledge/adapters/AdapterFactory';
 import { LoggerService } from '../services/LoggerService';
 import { UserContext } from '../knowledge/types';
+import { validateFileBuffer } from '../middleware/knowledgeGuard';
+import { MAX_FILE_SIZE_BYTES, MAX_EXTRACT_FILE_SIZE, ALLOWED_EXTENSIONS } from '../knowledge/constants';
+import { validateUrlSafety, validateUrlDns } from '../utils/ssrfGuard';
 
 const adapterFactory = new AdapterFactory();
-
-// Limits aligned with nginx client_max_body_size
-const MAX_KNOWLEDGE_FILE_SIZE = 100 * 1024 * 1024; // 100 MB
-const MAX_EXTRACT_FILE_SIZE = 20 * 1024 * 1024; // 20 MB (in-memory processing)
 
 const extractUser = (req: Request): UserContext | null => {
     // Rely on Auth Middleware to populate req.user
@@ -58,48 +58,110 @@ export class KnowledgeController {
         }
     }
 
-    // 1. CREATE KNOWLEDGE (Streaming Upload)
+    // 1. CREATE KNOWLEDGE (Streaming Upload with Enterprise Validation)
     static async create(req: Request, res: Response) {
         const user = extractUser(req);
         if (!user) return res.status(401).json({ error: 'Unauthorized' });
 
+        const auditIp = (req as any)._auditIp || 'unknown';
+
         const bb = busboy({
             headers: req.headers,
-            limits: { fileSize: MAX_KNOWLEDGE_FILE_SIZE }
+            limits: { fileSize: MAX_FILE_SIZE_BYTES }
         });
         const kbId = new mongoose.Types.ObjectId();
 
         const fields: Record<string, string> = {};
-        let uploadPromise: Promise<unknown> | null = null;
         let fileInfo: { originalName: string; mimeType: string; s3Key: string } | null = null;
         let hasFile = false;
+        let fileSizeLimitHit = false;
+        let fileBuffer: Buffer[] = [];
+        let fileValidated = false;
 
         bb.on('file', (name, file, info) => {
             hasFile = true;
             const { filename, mimeType } = info;
             const ext = filename.split('.').pop()?.toLowerCase() || 'dat';
             const s3Key = `knowledge/${kbId}/original.${ext}`;
-
-            // Decode filename from latin1 (busboy default) to utf8
             const decodedName = Buffer.from(filename, 'latin1').toString('utf8');
 
-            fileInfo = {
-                originalName: decodedName,
-                mimeType,
-                s3Key
-            };
+            // Enterprise: Pre-validate extension before consuming stream
+            if (!ALLOWED_EXTENSIONS.has(ext)) {
+                LoggerService.warn('upload_blocked_extension', { fileName: decodedName, ext });
+                file.resume(); // Drain stream
+                if (!res.headersSent) {
+                    res.status(400).json({
+                        error: `File extension ".${ext}" is not allowed. Supported: ${Array.from(ALLOWED_EXTENSIONS).join(', ')}`
+                    });
+                }
+                return;
+            }
 
-            // Handle file size limit exceeded
+            fileInfo = { originalName: decodedName, mimeType, s3Key };
+
             file.on('limit', () => {
+                fileSizeLimitHit = true;
                 LoggerService.error('upload_file_size_exceeded', { fileName: decodedName });
-                file.resume(); // Drain the stream
+                file.resume();
             });
 
-            LoggerService.info('upload_streaming', { fileName: decodedName, s3Key });
-            uploadPromise = minioClient.putObject(MINIO_BUCKET, s3Key, file, undefined, {
+            // Enterprise: Collect first chunk for magic-bytes validation, then stream to MinIO
+            let firstChunkValidated = false;
+            const hashStream = crypto.createHash('sha256');
+            const { PassThrough } = require('stream');
+            const passthrough = new PassThrough();
+
+            // Start MinIO upload with passthrough stream
+            LoggerService.info('upload_streaming', {
+                fileName: decodedName,
+                s3Key,
+                userId: user.userId,
+                ip: auditIp
+            });
+
+            const uploadPromise = minioClient.putObject(MINIO_BUCKET, s3Key, passthrough, undefined, {
                 'Content-Type': mimeType,
                 'x-amz-meta-original-name': encodeURIComponent(decodedName)
             });
+
+            file.on('data', (chunk: Buffer) => {
+                hashStream.update(chunk);
+
+                // Validate first chunk for magic bytes
+                if (!firstChunkValidated) {
+                    firstChunkValidated = true;
+                    const validation = validateFileBuffer(chunk, decodedName, mimeType);
+                    if (!validation.valid) {
+                        LoggerService.error('upload_blocked_magic_bytes', {
+                            fileName: decodedName,
+                            reason: validation.reason
+                        });
+                        file.resume();
+                        passthrough.destroy(new Error(validation.reason));
+                        if (!res.headersSent) {
+                            res.status(400).json({ error: validation.reason });
+                        }
+                        return;
+                    }
+                    fileValidated = true;
+                    // Store detected MIME type for audit
+                    if (validation.detectedType && fileInfo) {
+                        (fileInfo as any).detectedMimeType = validation.detectedType;
+                    }
+                }
+
+                passthrough.write(chunk);
+            });
+
+            file.on('end', () => {
+                passthrough.end();
+                // Store hash for file integrity
+                const fileHash = hashStream.digest('hex');
+                (fileInfo as any).originalFileHash = fileHash;
+            });
+
+            // Store the upload promise for await in close handler
+            (bb as any)._uploadPromise = uploadPromise;
         });
 
         bb.on('field', (name, val) => {
@@ -114,14 +176,42 @@ export class KnowledgeController {
         });
 
         bb.on('close', async () => {
+            if (res.headersSent) return; // Already responded (validation error)
             if (!hasFile || !fileInfo) return res.status(400).json({ error: 'No file uploaded' });
 
+            if (fileSizeLimitHit) {
+                // Cleanup the partial upload from MinIO
+                try { await minioClient.removeObject(MINIO_BUCKET, fileInfo.s3Key); } catch (_) {}
+                return res.status(413).json({
+                    error: `File exceeds ${Math.round(MAX_FILE_SIZE_BYTES / (1024 * 1024))} MB size limit`
+                });
+            }
+
             try {
-                await uploadPromise;
-                const kb = await KnowledgeService.createKnowledgeRecord(user, fileInfo, fields);
-                res.status(202).json({ success: true, knowledge: kb, message: 'File accepted.' });
+                await (bb as any)._uploadPromise;
+
+                // Enterprise: Pass audit data to service
+                const auditData = {
+                    uploadIp: auditIp,
+                    originalFileHash: (fileInfo as any).originalFileHash,
+                    detectedMimeType: (fileInfo as any).detectedMimeType
+                };
+
+                const kb = await KnowledgeService.createKnowledgeRecord(user, fileInfo, fields, undefined, auditData);
+
+                LoggerService.info('upload_accepted', {
+                    knowledgeId: kb._id,
+                    fileName: fileInfo.originalName,
+                    userId: user.userId,
+                    ip: auditIp,
+                    fileHash: (fileInfo as any).originalFileHash?.substring(0, 16)
+                });
+
+                res.status(202).json({ success: true, knowledge: kb, message: 'File accepted for processing.' });
             } catch (e: any) {
-                LoggerService.error('upload_failed', { error: e.message });
+                LoggerService.error('upload_failed', { error: e.message, userId: user.userId });
+                // Cleanup on failure
+                try { await minioClient.removeObject(MINIO_BUCKET, fileInfo.s3Key); } catch (_) {}
                 if (!res.headersSent) {
                     res.status(500).json({ error: 'Upload failed: ' + e.message });
                 }
@@ -131,58 +221,80 @@ export class KnowledgeController {
         req.pipe(bb);
     }
 
-    // 1.05 CREATE KNOWLEDGE FROM URL (Scraping)
+    // 1.05 CREATE KNOWLEDGE FROM URL (Scraping with validation)
     static async createFromUrl(req: Request, res: Response) {
         const user = extractUser(req);
         if (!user) return res.status(401).json({ error: 'Unauthorized' });
 
+        const auditIp = (req as any)._auditIp || 'unknown';
         const { url, type, folder, expiresAt } = req.body;
-        if (!url) return res.status(400).json({ error: 'Missing URL' });
+        if (!url || typeof url !== 'string') return res.status(400).json({ error: 'Missing URL' });
+
+        // Enterprise: Comprehensive SSRF prevention (static checks)
+        const staticCheck = validateUrlSafety(url.trim());
+        if (!staticCheck.safe) {
+            LoggerService.warn('url_upload_blocked_static', { url, reason: staticCheck.reason, userId: user.userId, ip: auditIp });
+            return res.status(400).json({ error: staticCheck.reason });
+        }
+
+        // Enterprise: DNS-based SSRF prevention (catches DNS rebinding)
+        try {
+            const dnsCheck = await validateUrlDns(url.trim());
+            if (!dnsCheck.safe) {
+                LoggerService.warn('url_upload_blocked_dns', { url, reason: dnsCheck.reason, resolvedIps: dnsCheck.resolvedIps, userId: user.userId, ip: auditIp });
+                return res.status(400).json({ error: 'URL resolves to a blocked address. Internal network access is not allowed.' });
+            }
+        } catch (dnsErr: any) {
+            LoggerService.warn('url_upload_dns_check_error', { url, error: dnsErr.message });
+            // Fail open on DNS errors to avoid blocking legitimate URLs
+        }
 
         try {
-            const kb = await KnowledgeService.createFromUrl(user, url, type, { folder, expiresAt });
+            const kb = await KnowledgeService.createFromUrl(user, url.trim(), type, { folder, expiresAt }, { uploadIp: auditIp });
+            LoggerService.info('url_scrape_accepted', { knowledgeId: kb._id, url, userId: user.userId, ip: auditIp });
             res.status(202).json({ success: true, knowledge: kb, message: 'URL scraping task started.' });
         } catch (e: any) {
-            LoggerService.error('url_scrape_failed', { error: e.message });
+            LoggerService.error('url_scrape_failed', { error: e.message, userId: user.userId });
             res.status(500).json({ error: e.message || 'URL scraping failed' });
         }
     }
 
-    // 1.06 CREATE KNOWLEDGE FROM TEXT (Direct Input)
+    // 1.06 CREATE KNOWLEDGE FROM TEXT (Direct Input with validation)
     static async createFromText(req: Request, res: Response) {
         const user = extractUser(req);
         if (!user) return res.status(401).json({ error: 'Unauthorized' });
 
+        const auditIp = (req as any)._auditIp || 'unknown';
         const { title, text, type, folder, expiresAt } = req.body;
         if (!title || !text) return res.status(400).json({ error: 'Missing title or text content' });
+
+        // Enterprise: Input validation
+        if (title.length > 500) return res.status(400).json({ error: 'Title too long (max 500 characters)' });
+        if (text.length > 5 * 1024 * 1024) return res.status(400).json({ error: 'Text content too large (max 5 MB)' });
+        if (text.trim().length === 0) return res.status(400).json({ error: 'Text content cannot be empty' });
 
         const kbId = new mongoose.Types.ObjectId();
         const s3Key = `knowledge/${kbId}/original.txt`;
         const originalName = `${title}.txt`;
 
         try {
-            // 1. Convert text to Buffer
             const buffer = Buffer.from(text, 'utf-8');
 
-            // 2. Upload directly to MinIO
-            LoggerService.info('upload_text_direct', { fileName: originalName, s3Key });
+            LoggerService.info('upload_text_direct', { fileName: originalName, s3Key, userId: user.userId });
             await minioClient.putObject(MINIO_BUCKET, s3Key, buffer, buffer.length, {
                 'Content-Type': 'text/plain',
                 'x-amz-meta-original-name': encodeURIComponent(originalName)
             });
 
-            // 3. Create DB Record to trigger worker
-            const fileInfo = {
-                originalName,
-                mimeType: 'text/plain',
-                s3Key
-            };
+            const fileInfo = { originalName, mimeType: 'text/plain', s3Key };
             const fields = { type, folder, expiresAt };
+            const auditData = { uploadIp: auditIp };
 
-            const kb = await KnowledgeService.createKnowledgeRecord(user, fileInfo, fields, kbId);
+            const kb = await KnowledgeService.createKnowledgeRecord(user, fileInfo, fields, kbId, auditData);
+            LoggerService.info('text_upload_accepted', { knowledgeId: kb._id, userId: user.userId, ip: auditIp });
             res.status(202).json({ success: true, knowledge: kb, message: 'Text content accepted for processing.' });
         } catch (e: any) {
-            LoggerService.error('text_upload_failed', { error: e.message });
+            LoggerService.error('text_upload_failed', { error: e.message, userId: user.userId });
             res.status(500).json({ error: e.message || 'Text upload failed' });
         }
     }

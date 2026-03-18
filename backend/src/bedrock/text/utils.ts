@@ -17,10 +17,38 @@ export const GUARDRAIL_ID = process.env.BEDROCK_GUARDRAIL_ID || '';
 export const GUARDRAIL_VERSION = process.env.BEDROCK_GUARDRAIL_VERSION || 'DRAFT';
 
 // --- Enhancement 1: Prompt Caching (OPT-IN) ---
-export const ENABLE_PROMPT_CACHE = process.env.BEDROCK_ENABLE_CACHE === 'true';
+// Enabled by default — reduces cost by ~90% on cache hits.
+// Bedrock Converse API cachePoint is supported by both Anthropic & Nova models.
+//
+// Key differences (verified via AWS docs April 2025 GA announcement):
+//   Nova:   system prompt + conversation prefix caching only (NO tool caching)
+//           Min tokens: 1,000 per checkpoint. Max cache: ~32k tokens. TTL: 5 min.
+//   Claude: system + tools + conversation caching
+//           Min tokens: 1,024-4,096 depending on model. TTL: 5 min (Bedrock).
+//
+// ⚠ Anthropic models are BLOCKED on this channel account.
+//   Nova models ARE available and WILL benefit from caching.
+export const ENABLE_PROMPT_CACHE = process.env.BEDROCK_ENABLE_CACHE !== 'false';
+
+/** Models that support cachePoint in system prompt blocks. */
 export const CACHE_SUPPORTED_MODELS = [
-    BEDROCK_MODELS.CLAUDE_3_5_SONNET,
-    BEDROCK_MODELS.CLAUDE_3_HAIKU
+    // Amazon Nova (system prompt caching — GA April 2025)
+    'amazon.nova-pro-v1:0',
+    'amazon.nova-lite-v1:0',
+    'amazon.nova-micro-v1:0',
+    // Anthropic (blocked on channel account — kept for when restriction lifts)
+    'anthropic.claude-3-5-haiku-20241022-v1:0',
+    'anthropic.claude-3-7-sonnet-20250219-v1:0',
+    'anthropic.claude-sonnet-4-6',
+    'anthropic.claude-opus-4-20250514-v1:0',
+];
+
+/** Models that also support cachePoint on tool definitions (Claude only). */
+export const TOOL_CACHE_SUPPORTED_MODELS = [
+    'anthropic.claude-3-5-haiku-20241022-v1:0',
+    'anthropic.claude-3-7-sonnet-20250219-v1:0',
+    'anthropic.claude-sonnet-4-6',
+    'anthropic.claude-opus-4-20250514-v1:0',
 ];
 
 export const validateModel = (modelId: string): string => {

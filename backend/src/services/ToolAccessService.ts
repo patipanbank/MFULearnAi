@@ -86,7 +86,7 @@ export class ToolAccessService {
 
         const result = runtimeTools.map(tool => {
             const dbConfig = dbMap.get(tool.name);
-            const isMcp = !['calculator', 'search', 'check_policy'].includes(tool.name);
+            const isMcp = !['calculator', 'search', 'check_policy', 'ask_user', 'lookup_knowledge_table'].includes(tool.name);
 
             return {
                 toolName: tool.name,

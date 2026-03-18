@@ -4,8 +4,13 @@ import { LoggerService } from '../services/LoggerService';
 import { CalculatorTool } from '../tools/CalculatorTool';
 import { SearchTool } from '../tools/SearchTool';
 import { PolicyCheckerTool } from '../tools/PolicyCheckerTool';
+import { TableLookupTool } from '../tools/TableLookupTool';
+import { AskUserTool } from '../tools/AskUserTool';
+import { StructuredQueryService } from '../services/StructuredQueryService';
 import { SYSTEM_MODELS } from '../config/models';
+import { getRecommendedTemperature } from '../config/ModelAdapter';
 import * as crypto from 'crypto';
+import { traceAsync, getMetrics } from '../infra/telemetry';
 
 // Components & Types
 import {
@@ -26,7 +31,8 @@ import { ToolAccessService } from '../services/ToolAccessService';
 const AVAILABLE_TOOLS: AgentTool[] = [
     new CalculatorTool(),
     new SearchTool(),
-    new PolicyCheckerTool()
+    new PolicyCheckerTool(),
+    new AskUserTool(),
 ];
 
 import { mcpManager } from '../mcp/McpManager';
@@ -56,7 +62,8 @@ export class AgentWorkflow {
             uploadPromises: [],
             clientDisconnected: false,
             messages: [],
-            hasEmittedAnswerStart: false
+            hasEmittedAnswerStart: false,
+            toolResultCache: new Map()
         };
 
         // Initialize Event Store with disconnect detection
@@ -96,6 +103,7 @@ export class AgentWorkflow {
     }
 
     private async run(): Promise<{ traceId: string }> {
+        return traceAsync('agent.workflow.run', async () => {
         LoggerService.info('agent_workflow_start', {
             traceId: this.state.traceId,
             userId: this.ctx.userId,
@@ -187,6 +195,27 @@ export class AgentWorkflow {
             const mcpTools = mcpManager.getTools();
             const allTools: AgentTool[] = [...AVAILABLE_TOOLS, ...mcpTools];
 
+            // 3.0.1 Conditionally inject TableLookupTool if collection has ANY structured data
+            //       (including small "inject" tables — we no longer inject tables into the system prompt)
+            if (this.ctx.collectionId) {
+                try {
+                    const [hasLookup, hasInjectable] = await Promise.all([
+                        StructuredQueryService.collectionHasLookupStructuredData(this.ctx.collectionId),
+                        StructuredQueryService.collectionHasInjectableData(this.ctx.collectionId)
+                    ]);
+                    if (hasLookup || hasInjectable) {
+                        allTools.push(new TableLookupTool());
+                        LoggerService.info('agent_structured_tool_injected', {
+                            collectionId: this.ctx.collectionId,
+                            mode: hasLookup ? 'lookup' : 'inject_via_tool',
+                            traceId: this.state.traceId
+                        });
+                    }
+                } catch (err: any) {
+                    LoggerService.warn('agent_structured_tool_check_failed', { error: err.message });
+                }
+            }
+
             // 3.1 Filter tools by user role (DB override > code defaults)
             let allowedTools = await ToolAccessService.filterAllowed(allTools, this.ctx.userRole);
 
@@ -207,6 +236,9 @@ export class AgentWorkflow {
             // 4. Build Prompt & Initial Messages
             this.state.phase = AgentPhase.PLANNING;
             this.state.messages = await PromptBuilder.buildInitialMessages(this.ctx, this.state, allowedTools);
+
+            // 4.1 Structured data is now always accessed via lookup_knowledge_table tool
+            //     (no longer injected into system prompt to save tokens)
 
             // 5. Main Agent Loop
             await this.agentLoop(allowedTools);
@@ -243,6 +275,7 @@ export class AgentWorkflow {
         }
 
         return { traceId: this.state.traceId };
+        }, { traceId: this.state.traceId, userId: this.ctx.userId }); // end traceAsync
     }
 
     // ── LLM Call with Exponential Backoff Retry ──────────────────────────────
@@ -269,7 +302,7 @@ export class AgentWorkflow {
                     SYSTEM_MODELS.AGENT,
                     messages as any,
                     onDelta,
-                    0.5,
+                    getRecommendedTemperature(SYSTEM_MODELS.AGENT) ?? 0.5,
                     toolConfig,
                     guardrailConfig
                 );
@@ -401,7 +434,8 @@ export class AgentWorkflow {
                     allowedTools,
                     this.ctx,
                     this.state.steps,
-                    this.emit.bind(this)
+                    this.emit.bind(this),
+                    this.state.toolResultCache
                 );
 
                 usedTools.forEach(t => this.state.usedTools.add(t));
@@ -424,6 +458,10 @@ export class AgentWorkflow {
                     });
                 }
 
+                // Compress older tool results to save tokens on the next LLM call.
+                // Only the latest tool exchange is kept in full — older ones are summarized.
+                this.compressOlderToolResults();
+
             } else {
                 // Final Answer — break loop
                 this.state.phase = AgentPhase.COMPLETED;
@@ -438,6 +476,77 @@ export class AgentWorkflow {
     }
 
     // ── Answer Mode Classification ──────────────────────────────────────────
+
+    /**
+     * Compress tool results from older agent steps to save tokens.
+     *
+     * Strategy:
+     *  - The LAST tool_result message (most recent) is kept in full —
+     *    the LLM needs it to formulate its answer.
+     *  - All OLDER tool_result messages are truncated to a short summary,
+     *    since the LLM already processed them in the previous step.
+     *  - assistant tool_use messages are kept as-is (they're small — just the call spec).
+     *
+     * This prevents token explosion in multi-step agent loops where each
+     * step re-sends the entire conversation including all previous tool results.
+     */
+    private compressOlderToolResults(): void {
+        const MAX_OLD_RESULT_CHARS = 200;
+        const msgs = this.state.messages;
+
+        // Find the index of the LAST tool_result message
+        let lastToolResultIdx = -1;
+        for (let i = msgs.length - 1; i >= 0; i--) {
+            const content = msgs[i].content;
+            if (Array.isArray(content) && content.some((b: any) => b.type === 'tool_result')) {
+                lastToolResultIdx = i;
+                break;
+            }
+        }
+
+        if (lastToolResultIdx < 0) return;
+
+        // Compress all tool_result messages EXCEPT the last one
+        for (let i = 0; i < lastToolResultIdx; i++) {
+            const msg = msgs[i];
+            if (!Array.isArray(msg.content)) continue;
+
+            const content = msg.content as any[];
+            const hasToolResult = content.some((b: any) => b.type === 'tool_result');
+            if (!hasToolResult) continue;
+
+            msgs[i] = {
+                ...msg,
+                content: content.map((block: any) => {
+                    if (block.type !== 'tool_result') return block;
+
+                    // Extract text from the result JSON
+                    const resultJson = block.content?.[0]?.json?.result
+                        || block.content?.[0]?.json
+                        || block.content;
+                    const resultStr = typeof resultJson === 'string'
+                        ? resultJson
+                        : JSON.stringify(resultJson);
+
+                    const truncated = resultStr.length > MAX_OLD_RESULT_CHARS
+                        ? resultStr.substring(0, MAX_OLD_RESULT_CHARS) + '… (see session context for full details)'
+                        : resultStr;
+
+                    return {
+                        type: 'tool_result' as const,
+                        toolUseId: block.toolUseId,
+                        content: [{ json: { result: truncated } }]
+                    };
+                })
+            };
+        }
+
+        LoggerService.debug('agent_tool_results_compressed', {
+            totalMessages: msgs.length,
+            lastToolResultIdx,
+            traceId: this.state.traceId
+        });
+    }
 
     /**
      * Determines the answer mode based on tools used and attached files.
@@ -485,6 +594,10 @@ export class AgentWorkflow {
         this.state.totalUsage.input += stepUsage.input;
         this.state.totalUsage.output += stepUsage.output;
         this.state.totalUsage.total += stepUsage.total;
+
+        // Record telemetry metrics
+        getMetrics().tokenCounter(SYSTEM_MODELS.AGENT, stepUsage.input, stepUsage.output);
+        getMetrics().workflowCounter(this.state.phase, true, durationMs);
 
         this.emit(AGENT_EVENTS.STEP_USAGE, {
             step: this.state.steps,

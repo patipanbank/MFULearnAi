@@ -101,6 +101,8 @@ export interface WorkflowState {
     clientDisconnected: boolean;
     messages: BedrockMessage[];
     hasEmittedAnswerStart: boolean;
+    /** In-session tool result cache — avoids redundant RAG/search calls within the same request */
+    toolResultCache: Map<string, { result: unknown; timestamp: number }>;
 }
 
 export enum AgentPhase {

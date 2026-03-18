@@ -290,9 +290,13 @@ export class KnowledgeService {
                     }
                 }));
 
+                const MAX_BLOCK_CHARS = 800; // Cap per-block content to save tokens
                 const text = finalHits.map((hit: any, index: number) => {
                     const blockId = blocks[index].id;
-                    return `<block id="${blockId}" score="${hit.rerankScore.toFixed(4)}">\n${hit.content}\n</block>`;
+                    const content = hit.content.length > MAX_BLOCK_CHARS
+                        ? hit.content.substring(0, MAX_BLOCK_CHARS) + '…'
+                        : hit.content;
+                    return `<block id="${blockId}" score="${hit.rerankScore.toFixed(4)}">\n${content}\n</block>`;
                 }).join('\n\n');
 
                 const result = {
@@ -340,12 +344,15 @@ export class KnowledgeService {
         const limit = Math.min(200, Math.max(1, filters.limit || 50));
         const skip = (page - 1) * limit;
 
+        // Enterprise: Always filter out archived/deleted documents
+        const visibilityFilter = { visibility: { $nin: ['archived', 'deleted'] } };
+
         let resultQuery: any;
         let total: number;
 
         // --- Special case: requestStatus filter (used by Manage Requests modal) ---
         if (requestStatus) {
-            const statusFilter: any = { requestStatus };
+            const statusFilter: any = { requestStatus, ...visibilityFilter };
 
             if (user.role === 'superadmin') {
                 resultQuery = statusFilter;
@@ -364,11 +371,9 @@ export class KnowledgeService {
         // --- Standard list (with optional type filter) ---
 
         if (user.role === 'superadmin') {
-            // Superadmin sees ALL knowledge across all departments
-            resultQuery = {};
+            resultQuery = { ...visibilityFilter };
             if (type) resultQuery.type = type;
         } else {
-            // Build permission-based conditions
             const conditions: any[] = [
                 { type: 'public' },
                 { type: 'department', department: user.department },
@@ -379,20 +384,17 @@ export class KnowledgeService {
                 conditions.push({ type: 'policy' });
             }
 
-            resultQuery = { $or: conditions };
+            resultQuery = { $or: conditions, ...visibilityFilter };
 
-            // Apply type filter: narrow down the $or conditions to only the matching type
             if (type) {
-                resultQuery = { type };
-                // Validate the user can see this type
+                resultQuery = { type, ...visibilityFilter };
                 if (type === 'personal') {
                     resultQuery.ownerId = user.userId;
                 } else if (type === 'department') {
                     resultQuery.department = user.department;
                 } else if (type === 'policy' && !this.isAdmin(user)) {
-                    return { items: [], total: 0, page, limit }; // Non-admin cannot filter by policy type
+                    return { items: [], total: 0, page, limit };
                 }
-                // 'public' needs no additional filter
             }
         }
 
@@ -457,14 +459,14 @@ export class KnowledgeService {
         user: UserContext,
         fileInfo: { originalName: string, mimeType: string, s3Key: string },
         fields: { type?: string, folder?: string, expiresAt?: string },
-        predefinedKbId?: mongoose.Types.ObjectId
+        predefinedKbId?: mongoose.Types.ObjectId,
+        auditData?: { uploadIp?: string, originalFileHash?: string, detectedMimeType?: string }
     ) {
         const type = fields.type || 'personal';
         if (!this.canCreateKnowledge(user, type)) {
             throw new Error('Insufficient permissions');
         }
 
-        // Fix: Use predefined ID if supplied (e.g. from createFromText), otherwise extract from S3 key or generate new
         let finalId = predefinedKbId?.toString() || '';
 
         if (!finalId) {
@@ -481,7 +483,6 @@ export class KnowledgeService {
         let version = 1;
         let previousVersionId = undefined;
 
-        // Look for an existing active document with the same title
         const existingDoc = await Knowledge.findOne({
             title: fileInfo.originalName,
             type: type,
@@ -494,7 +495,6 @@ export class KnowledgeService {
             version = (existingDoc.version || 1) + 1;
             previousVersionId = existingDoc._id;
 
-            // Archive the old version so it doesn't show up in search/lists
             existingDoc.visibility = 'archived';
             await existingDoc.save();
             LoggerService.info('knowledge_versioning', { archivedId: existingDoc._id, oldVersion: existingDoc.version, newVersion: version });
@@ -517,7 +517,13 @@ export class KnowledgeService {
             version,
             previousVersionId,
             folder: fields.folder || '',
-            expiresAt: expiresAtDate
+            expiresAt: expiresAtDate,
+            // Enterprise: Audit trail
+            lastModifiedBy: user.userId,
+            uploadIp: auditData?.uploadIp,
+            originalFileHash: auditData?.originalFileHash,
+            detectedMimeType: auditData?.detectedMimeType,
+            processingRetryCount: 0
         });
         await kb.save();
 
@@ -526,18 +532,19 @@ export class KnowledgeService {
             s3Key: fileInfo.s3Key,
             mimetype: fileInfo.mimeType,
             originalName: fileInfo.originalName
+        }, {
+            jobId: `file-${kb._id.toString()}`, // Dedup: BullMQ rejects duplicate jobId while job exists
         });
 
         return kb;
     }
 
-    static async createFromUrl(user: UserContext, url: string, typeVal?: string, fields?: { folder?: string, expiresAt?: string }) {
+    static async createFromUrl(user: UserContext, url: string, typeVal?: string, fields?: { folder?: string, expiresAt?: string }, auditData?: { uploadIp?: string }) {
         const type = typeVal || 'personal';
         if (!this.canCreateKnowledge(user, type)) {
             throw new Error('Insufficient permissions');
         }
 
-        // Extract a meaningful default title
         let title = url;
         try {
             const sheetsMatch = url.match(/docs\.google\.com\/spreadsheets\/d\/([\w-]+)/);
@@ -556,7 +563,6 @@ export class KnowledgeService {
         } catch (e) { /* fallback to full URL */ }
 
         const kbId = new mongoose.Types.ObjectId().toString();
-
         const expiresAtDate = fields?.expiresAt ? new Date(fields.expiresAt) : undefined;
 
         const kb = new Knowledge({
@@ -569,16 +575,22 @@ export class KnowledgeService {
             department: user.department,
             processingStatus: 'pending',
             processingStage: 'queued',
-            contentType: 'text/html', // pseudo-mime for scraped content
+            contentType: 'text/html',
             version: 1,
             folder: fields?.folder || '',
-            expiresAt: expiresAtDate
+            expiresAt: expiresAtDate,
+            // Enterprise: Audit trail
+            lastModifiedBy: user.userId,
+            uploadIp: auditData?.uploadIp,
+            processingRetryCount: 0
         });
         await kb.save();
 
         await knowledgeQueue.add('process-url', {
             knowledgeId: kbId,
             url
+        }, {
+            jobId: `url-${kbId}`, // Dedup: BullMQ rejects duplicate jobId while job exists
         });
 
         return kb;
@@ -589,23 +601,49 @@ export class KnowledgeService {
         if (!kb) throw new Error('Not found');
         if (!this.canManageKnowledge(user, kb)) throw new Error('Permission denied');
 
+        // Idempotency: Only allow retry from terminal states
+        if (kb.processingStatus === 'pending' || kb.processingStatus === 'processing') {
+            LoggerService.warn('knowledge_retry_skipped_already_active', {
+                knowledgeId: id,
+                currentStatus: kb.processingStatus,
+                userId: user.userId
+            });
+            return kb; // Already queued/processing — no-op
+        }
+
         kb.processingStatus = 'pending';
         kb.processingStage = 'queued';
         kb.errorReason = '';
         await kb.save();
 
-        // URL-sourced knowledge has no s3Key — re-queue as process-url
+        // Stable jobId prevents double-click duplicates, but BullMQ keeps completed/failed
+        // jobs for days (removeOnComplete.age). We must evict the old retry job first,
+        // otherwise queue.add() silently no-ops and the doc stays stuck at "pending".
         if (kb.contentSource && !kb.s3Key) {
+            const retryJobId = `url-${kb._id.toString()}-retry`;
+            const oldJob = await knowledgeQueue.getJob(retryJobId);
+            if (oldJob) {
+                try { await oldJob.remove(); } catch (_) { /* may already be active */ }
+            }
             await knowledgeQueue.add('process-url', {
                 knowledgeId: kb._id.toString(),
                 url: kb.contentSource
+            }, {
+                jobId: retryJobId,
             });
         } else {
+            const retryJobId = `file-${kb._id.toString()}-retry`;
+            const oldJob = await knowledgeQueue.getJob(retryJobId);
+            if (oldJob) {
+                try { await oldJob.remove(); } catch (_) { /* may already be active */ }
+            }
             await knowledgeQueue.add('process-file', {
                 knowledgeId: kb._id.toString(),
                 s3Key: kb.s3Key,
                 mimetype: kb.contentType || 'application/pdf',
                 originalName: kb.title
+            }, {
+                jobId: retryJobId,
             });
         }
 

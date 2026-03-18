@@ -48,7 +48,7 @@ services:
       - MFU_SSO_AUTH_URL=${MFU_SSO_AUTH_URL}
       - MFU_SSO_TOKEN_URL=${MFU_SSO_TOKEN_URL}
       # AWS Bedrock
-      - AWS_REGION=${AWS_REGION:-ap-southeast-1}
+      - AWS_REGION=${AWS_REGION:-us-east-1}
       - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
       - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
       # Chroma & MinIO
@@ -69,6 +69,10 @@ services:
       # - RERANKER_MIN_SCORE=0.1
       # - RERANKER_TIMEOUT_MS=5000
       # - RERANKER_FALLBACK_ON_ERROR=true
+      # Google Sheets API (enables multi-sheet tab reading for shared links)
+      # Free key: Google Cloud Console → APIs & Services → Credentials → Create API Key
+      # Then enable "Google Sheets API" in the project
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY:-}
       # Token Quota (optional overrides — defaults in config/quotas.ts)
       # - DAILY_TOKEN_LIMIT=50000
       # - DAILY_TOKEN_WARNING=0.8

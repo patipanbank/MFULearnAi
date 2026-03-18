@@ -12,7 +12,8 @@ import {
     GUARDRAIL_ID,
     GUARDRAIL_VERSION,
     ENABLE_PROMPT_CACHE,
-    CACHE_SUPPORTED_MODELS
+    CACHE_SUPPORTED_MODELS,
+    TOOL_CACHE_SUPPORTED_MODELS
 } from '../bedrock/text/utils';
 import { ChatMessage } from '../../../shared/types';
 import { LoggerService } from './LoggerService';
@@ -133,7 +134,7 @@ export class BedrockService {
         // Normalize Messages
         const formattedMessages = normalizeMessages(messages.filter(msg => msg.role !== 'system'));
 
-        // Prepare System Prompt
+        // Prepare System Prompt (with optional prompt caching)
         const systemMsg = messages.find(msg => msg.role === 'system');
         let system: any[] | undefined;
         if (systemMsg) {
@@ -144,6 +145,28 @@ export class BedrockService {
             } else if (typeof systemMsg.content === 'string') {
                 system = [{ text: systemMsg.content }];
             }
+        }
+
+        // Inject cachePoint for prompt caching on supported models.
+        // System prompt caching: Nova + Claude (reduces TTFT by ~85%, cost by ~90%).
+        // Tool definition caching: Claude only (Nova does NOT support tool caching).
+        if (ENABLE_PROMPT_CACHE && CACHE_SUPPORTED_MODELS.includes(finalModelId)) {
+            // Cache system prompt (persona + rules + directives)
+            if (system && system.length > 0) {
+                system.push({ cachePoint: { type: 'default' } });
+            }
+            // Cache tool definitions (Claude only — Nova will error if we try)
+            if (toolConfig?.tools && TOOL_CACHE_SUPPORTED_MODELS.includes(finalModelId)) {
+                toolConfig = {
+                    ...toolConfig,
+                    tools: [...toolConfig.tools, { cachePoint: { type: 'default' } }]
+                };
+            }
+            LoggerService.debug('prompt_cache_enabled', {
+                modelId: finalModelId,
+                systemCached: !!(system && system.length > 0),
+                toolsCached: !!(toolConfig?.tools && TOOL_CACHE_SUPPORTED_MODELS.includes(finalModelId))
+            });
         }
 
         // Guardrails
@@ -218,6 +241,18 @@ export class BedrockService {
                     if (chunk.metadata) {
                         const usage = chunk.metadata.usage || { inputTokens: 0, outputTokens: 0, totalTokens: 0 };
                         tokenUsage = { input: usage.inputTokens || 0, output: usage.outputTokens || 0, total: usage.totalTokens || 0 };
+
+                        // Prompt cache metrics (Nova & Claude)
+                        const cacheWrite = (usage as any).cacheWriteInputTokens || 0;
+                        const cacheRead = (usage as any).cacheReadInputTokens || 0;
+                        if (cacheWrite > 0 || cacheRead > 0) {
+                            LoggerService.info('prompt_cache_metrics', {
+                                modelId: finalModelId,
+                                cacheWriteTokens: cacheWrite,
+                                cacheReadTokens: cacheRead,
+                                cacheHitRate: cacheRead > 0 ? Math.round(cacheRead / (cacheRead + tokenUsage.input) * 100) : 0,
+                            });
+                        }
                     }
                 }
             }

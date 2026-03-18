@@ -23,6 +23,7 @@ const ConversationSchema = new mongoose.Schema({
         agentEvents: [{
             type: { type: String },             // event type (agent_start, thinking, tool_start, etc.)
             step: Number,                        // agent loop step number
+            content: String,                     // block text content (for block/block_end events)
             toolName: String,                    // tool name (for tool_start/tool_complete)
             input: mongoose.Schema.Types.Mixed,  // tool input
             resultPreview: String,               // truncated tool result
@@ -45,11 +46,12 @@ const ConversationSchema = new mongoose.Schema({
     },
     summary: { type: String, default: '' }, // Legacy Summary (Deprecated)
 
-    // Smart Context V2
+    // Smart Context V2 (synced with backend schema)
     smartContext: {
         canonical: { type: String, default: '' }, // Long-term stable truth (Append-only conceptually)
         rolling: {
             facts: [String],
+            tentative_facts: [String],
             intent: {
                 primary: String,
                 secondary: [String],
@@ -57,7 +59,8 @@ const ConversationSchema = new mongoose.Schema({
             },
             constraints: [String],
             decisions: [String],
-            open_questions: [String]
+            open_questions: [String],
+            confidence_score: Number
         },
         version: { type: Number, default: 0 },
         hashes: {
@@ -68,7 +71,9 @@ const ConversationSchema = new mongoose.Schema({
         lastCanonizedAt: { type: Date, default: Date.now }
     },
     createdAt: { type: Date, default: Date.now },
-    updatedAt: { type: Date, default: Date.now }
+    updatedAt: { type: Date, default: Date.now },
+    deletedAt: { type: Date },
+    isDeleted: { type: Boolean, default: false }
 });
 
 // Index for fast retrieval / cleanup
