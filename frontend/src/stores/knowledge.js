@@ -87,7 +87,7 @@ export const useKnowledgeStore = defineStore('knowledge', () => {
         }
     }
 
-    async function uploadKnowledge(file, type, folder, expiresAt, onProgress) {
+    async function uploadKnowledge(file, type, folder, expiresAt, onProgress, options = {}) {
         loading.value = true
         try {
             const formData = new FormData()
@@ -105,8 +105,10 @@ export const useKnowledgeStore = defineStore('knowledge', () => {
                     }
                 }
             })
-            await fetchKnowledge() // Refresh list
-            startPolling() // Start polling for the new file
+            if (!options.skipRefresh) {
+                await fetchKnowledge() // Refresh list
+                startPolling() // Start polling for the new file
+            }
             return true
         } catch (e) {
             error.value = e.response?.data?.error || e.message

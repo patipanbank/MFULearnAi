@@ -26,9 +26,10 @@ api.interceptors.response.use(
     (response) => response,
     async (error) => {
         const originalRequest = error.config
+        const status = error.response?.status
 
-        // If 401 or 403 (Invalid/Expired Token) and not already retrying
-        if ((error.response?.status === 401 || error.response?.status === 403) && !originalRequest._retry) {
+        // Refresh token only on 401 (unauthenticated), not on 403 (permission denied)
+        if (status === 401 && !originalRequest?._retry) {
             originalRequest._retry = true
 
             try {
@@ -38,6 +39,7 @@ api.interceptors.response.use(
                 if (!token) throw new Error('No token to refresh')
 
                 const { data } = await axios.post(`/auth/refresh`, {}, {
+                    baseURL: api.defaults.baseURL,
                     headers: { Authorization: `Bearer ${token}` }
                 })
 
@@ -56,16 +58,21 @@ api.interceptors.response.use(
                 }
             } catch (refreshError) {
                 console.error('Session expired, refresh failed:', refreshError)
-                // Logout
-                localStorage.removeItem('auth_token')
-                localStorage.removeItem('user_info')
-                window.location.href = '/login'
+
+                const refreshStatus = refreshError?.response?.status
+                // Force logout only when refresh is explicitly unauthorized
+                if (refreshStatus === 401 || refreshStatus === 403) {
+                    localStorage.removeItem('auth_token')
+                    localStorage.removeItem('user_info')
+                    window.location.href = '/login'
+                }
+
                 return Promise.reject(refreshError)
             }
         }
 
-        // If not 401/403 or refresh failed (already handled above but generic fallback)
-        if ((error.response?.status === 401 || error.response?.status === 403) && originalRequest._retry) {
+        // If retry already failed with 401, clear session
+        if (status === 401 && originalRequest?._retry) {
             localStorage.removeItem('auth_token')
             localStorage.removeItem('user_info')
             window.location.href = '/login'

@@ -205,7 +205,7 @@ const handleUpload = async () => {
         try {
             await knowledgeStore.uploadKnowledge(item.file, type.value, folder.value.trim(), expiresAt.value, (percent) => {
                 item.progress = percent
-            })
+            }, { skipRefresh: true })
             item.status = 'done'
             item.progress = 100
         } catch (e) {
@@ -223,6 +223,7 @@ const handleUpload = async () => {
     uploading.value = false
 
     if (allSuccess) {
+        await knowledgeStore.fetchKnowledge()
         emit('success')
     }
 }

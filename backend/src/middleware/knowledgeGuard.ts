@@ -17,6 +17,7 @@ import {
     MAX_PENDING_JOBS_PER_USER,
     BLOCKED_MAGIC_BYTES,
     ALLOWED_EXTENSIONS,
+    MAX_FILE_SIZE_BYTES,
 } from '../knowledge/constants';
 
 // ── In-memory sliding window rate limiter for uploads ──
@@ -144,7 +145,7 @@ export class KnowledgeGuard {
 
         // Check content-length header for oversized payloads before we even parse
         const contentLength = parseInt(req.headers['content-length'] || '0', 10);
-        const maxSize = parseInt(process.env.KB_MAX_FILE_SIZE_MB || '100', 10) * 1024 * 1024;
+        const maxSize = MAX_FILE_SIZE_BYTES;
         if (contentLength > maxSize) {
             LoggerService.warn('knowledge_upload_oversized_preflight', {
                 declaredSize: contentLength,
