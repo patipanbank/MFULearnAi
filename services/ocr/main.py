@@ -39,6 +39,7 @@ TYPHOON_TEMPERATURE = os.getenv("TYPHOON_OCR_TEMPERATURE", "0.1")
 TYPHOON_TOP_P = os.getenv("TYPHOON_OCR_TOP_P", "0.6")
 TYPHOON_REPETITION_PENALTY = os.getenv("TYPHOON_OCR_REPETITION_PENALTY", "1.2")
 TYPHOON_TIMEOUT_SECONDS = int(os.getenv("TYPHOON_OCR_TIMEOUT_SECONDS", "180"))
+TYPHOON_OCR_PAGES = os.getenv("TYPHOON_OCR_PAGES", "").strip()
 OCR_PROVIDER = os.getenv("OCR_PROVIDER", "typhoon").strip().lower()
 
 minio_client = Minio(
@@ -157,6 +158,11 @@ def process_ocr_via_typhoon(contents, content_type, filename):
         "repetition_penalty": str(TYPHOON_REPETITION_PENALTY)
     }
 
+    if TYPHOON_OCR_PAGES:
+        parsed_pages = _parse_pages_env(TYPHOON_OCR_PAGES)
+        if parsed_pages is not None:
+            form_data["pages"] = json.dumps(parsed_pages)
+
     headers = {
         "Authorization": f"Bearer {TYPHOON_API_KEY}"
     }
@@ -208,7 +214,7 @@ def _extract_text_from_typhoon_payload(payload: Dict[str, Any]) -> tuple[str, in
         return "", 0
 
     extracted_texts: List[str] = []
-    success_count = 0
+    total_pages = 0
 
     for result in results:
         if not isinstance(result, dict):
@@ -219,41 +225,50 @@ def _extract_text_from_typhoon_payload(payload: Dict[str, Any]) -> tuple[str, in
             continue
 
         message = result.get("message")
-        content = _extract_content_from_message(message)
+        content, content_pages = _extract_content_from_message(message)
         if content:
             extracted_texts.append(content)
-            success_count += 1
+            total_pages += max(content_pages, 1)
 
-    return "\n".join(extracted_texts), success_count
+    if total_pages == 0 and extracted_texts:
+        total_pages = 1
+
+    return "\n".join(extracted_texts), total_pages
 
 
-def _extract_content_from_message(message: Any) -> str:
+def _extract_content_from_message(message: Any) -> tuple[str, int]:
     if not isinstance(message, dict):
-        return ""
+        return "", 0
 
     choices = message.get("choices")
     if not isinstance(choices, list) or len(choices) == 0:
-        return ""
+        return "", 0
 
     first_choice = choices[0]
     if not isinstance(first_choice, dict):
-        return ""
+        return "", 0
 
     msg = first_choice.get("message")
     if not isinstance(msg, dict):
-        return ""
+        return "", 0
 
     content = msg.get("content", "")
+    if isinstance(content, list):
+        joined = "\n".join([str(part.get("text", "")) for part in content if isinstance(part, dict)])
+        if joined.strip():
+            return joined, _estimate_page_count_from_text(joined)
+        return "", 0
+
     if not isinstance(content, str):
-        return ""
+        return "", 0
 
     parsed = _parse_possible_json_content(content)
     if isinstance(parsed, dict):
-        natural_text = parsed.get("natural_text")
-        if isinstance(natural_text, str):
-            return natural_text
+        joined, page_count = _extract_text_from_structured_dict(parsed)
+        if joined:
+            return joined, page_count
 
-    return content
+    return content, _estimate_page_count_from_text(content)
 
 
 def _parse_possible_json_content(content: str) -> Optional[Dict[str, Any]]:
@@ -279,6 +294,55 @@ def _guess_content_type(filename: str) -> str:
     if lower.endswith(".bmp"):
         return "image/bmp"
     return "application/octet-stream"
+
+
+def _extract_text_from_structured_dict(data: Dict[str, Any]) -> tuple[str, int]:
+    chunks: List[str] = []
+    page_count = 0
+
+    natural_text = data.get("natural_text")
+    if isinstance(natural_text, str) and natural_text.strip():
+        chunks.append(natural_text.strip())
+
+    pages = data.get("pages")
+    if isinstance(pages, list):
+        for idx, page in enumerate(pages, start=1):
+            if isinstance(page, dict):
+                page_text = page.get("natural_text") or page.get("text") or page.get("content")
+                if isinstance(page_text, str) and page_text.strip():
+                    chunks.append(f"--- Page {idx} ---\n{page_text.strip()}")
+                    page_count += 1
+
+    if not chunks:
+        # Fallback: stringify key textual fields if available
+        for key in ("text", "content", "output"):
+            value = data.get(key)
+            if isinstance(value, str) and value.strip():
+                chunks.append(value.strip())
+                break
+
+    joined = "\n".join(chunks).strip()
+    if page_count == 0 and joined:
+        page_count = _estimate_page_count_from_text(joined)
+
+    return joined, page_count
+
+
+def _estimate_page_count_from_text(text: str) -> int:
+    if not text:
+        return 0
+    markers = text.count("--- Page ")
+    return markers if markers > 0 else 1
+
+
+def _parse_pages_env(raw: str) -> Optional[List[int]]:
+    try:
+        parsed = json.loads(raw)
+        if isinstance(parsed, list) and all(isinstance(x, int) and x > 0 for x in parsed):
+            return parsed
+    except json.JSONDecodeError:
+        return None
+    return None
 
 
 def _extract_typhoon_error_detail(response: requests.Response) -> str:

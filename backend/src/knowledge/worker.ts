@@ -535,10 +535,11 @@ export const processKnowledgeJob = async (job: Job) => {
                 const response = await requestOcrFromBucket(s3Key, job.id?.toString() || 'unknown');
 
                 fullText = response.data.text;
-                pages = fullText.split('--- Page ').slice(1).map(p => {
+                const parsedPages = fullText.split('--- Page ').slice(1).map(p => {
                     const [num, ...rest] = p.split(' ---');
                     return { pageNumber: parseInt(num), text: rest.join(' ---') };
                 });
+                pages = parsedPages.length > 0 ? parsedPages : [{ text: fullText, pageNumber: 1 }];
             }
 
         } else if (mimetype === 'image/png' || mimetype === 'image/jpeg' || mimetype === 'image/tiff') {
