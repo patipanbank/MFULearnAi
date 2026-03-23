@@ -453,3 +453,19 @@ def _extract_typhoon_error_detail(response: requests.Response) -> str:
         pass
 
     return text[:500]
+
+
+def _resolve_target_pages(total_pages: int) -> List[int]:
+    pages = _parse_pages_env(TYPHOON_OCR_PAGES) if TYPHOON_OCR_PAGES else None
+    if not pages:
+        return list(range(1, total_pages + 1))
+
+    # keep only valid pages and preserve order
+    valid = [p for p in pages if 1 <= p <= total_pages]
+    return valid if valid else list(range(1, total_pages + 1))
+
+
+def _sleep_retry_backoff(attempt: int) -> None:
+    # simple linear/exponential hybrid without external deps
+    delay_ms = TYPHOON_PAGE_RETRY_DELAY_MS * attempt
+    time.sleep(max(0, delay_ms) / 1000.0)
