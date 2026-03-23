@@ -77,8 +77,24 @@ export class KnowledgeController {
         let fileSizeLimitHit = false;
         let fileBuffer: Buffer[] = [];
         let fileValidated = false;
+        let rejected = false;
 
         bb.on('file', (name, file, info) => {
+            if (rejected) {
+                file.resume();
+                return;
+            }
+
+            if (hasFile) {
+                rejected = true;
+                LoggerService.warn('upload_multiple_files_blocked', { firstFile: fileInfo?.originalName, extraFile: info.filename });
+                file.resume();
+                if (!res.headersSent) {
+                    res.status(400).json({ error: 'Only one file is allowed per upload request.' });
+                }
+                return;
+            }
+
             hasFile = true;
             const { filename, mimeType } = info;
             const ext = filename.split('.').pop()?.toLowerCase() || 'dat';
@@ -176,7 +192,7 @@ export class KnowledgeController {
         });
 
         bb.on('close', async () => {
-            if (res.headersSent) return; // Already responded (validation error)
+            if (res.headersSent || rejected) return; // Already responded (validation error)
             if (!hasFile || !fileInfo) return res.status(400).json({ error: 'No file uploaded' });
 
             if (fileSizeLimitHit) {

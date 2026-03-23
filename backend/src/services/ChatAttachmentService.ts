@@ -1,4 +1,5 @@
 import { Response } from 'express';
+import crypto from 'crypto';
 import { minioClient } from '../knowledge/minioClient';
 import { LoggerService } from './LoggerService';
 
@@ -13,6 +14,7 @@ export interface AttachmentMetadata {
     mimeType: string;
     size: number;
     bucket: string;
+    originalFileHash: string;
 }
 
 // Lazy bucket creation flag — avoids repeated HEAD requests
@@ -89,6 +91,8 @@ export class ChatAttachmentService {
             // Key format: userId/safeFilename — ownership determined by prefix
             const s3Key = `${userId}/${safeFilename}`;
 
+            const hash = crypto.createHash('sha256').update(buffer).digest('hex');
+
             LoggerService.info('chat_attachment_upload_start', {
                 originalName: filename,
                 size: buffer.length,
@@ -98,7 +102,8 @@ export class ChatAttachmentService {
             await minioClient.putObject(CHAT_BUCKET, s3Key, buffer, buffer.length, {
                 'Content-Type': mimeType,
                 'x-amz-meta-original-name': encodeURIComponent(filename),
-                'x-amz-meta-user-id': userId
+                'x-amz-meta-user-id': userId,
+                'x-amz-meta-file-sha256': hash
             });
 
             return {
@@ -107,7 +112,8 @@ export class ChatAttachmentService {
                 originalName: filename,
                 mimeType,
                 size: buffer.length,
-                bucket: CHAT_BUCKET
+                bucket: CHAT_BUCKET,
+                originalFileHash: hash
             };
         } catch (error: any) {
             LoggerService.error('chat_attachment_upload_failed', {

@@ -8,11 +8,23 @@ import { Conversation } from '../models/Conversation';
 import { LoggerService } from '../services/LoggerService';
 import { ContextService } from '../services/ContextService';
 import { ChatAttachmentService } from '../services/ChatAttachmentService';
+import { validateFileBuffer } from '../middleware/knowledgeGuard';
+import { ALLOWED_EXTENSIONS } from '../knowledge/constants';
+
+// Chat attachment limits (per request)
+const MAX_CHAT_FILES = parseInt(process.env.CHAT_MAX_FILES || '10', 10);
+const MAX_CHAT_FILE_SIZE = parseInt(process.env.CHAT_MAX_FILE_MB || '25', 10) * 1024 * 1024;
+const MAX_CHAT_TOTAL_SIZE = parseInt(process.env.CHAT_MAX_TOTAL_MB || '100', 10) * 1024 * 1024;
 
 export class ChatController {
     static async chat(req: any, res: Response) {
         const isMultipart = req.headers['content-type']?.includes('multipart/form-data');
         const userId = req.user.userId;
+        const respondOnce = (status: number, message: string) => {
+            if (res.headersSent) return true;
+            res.status(status).json({ error: message });
+            return true;
+        };
 
         let message = '';
         let sessionId = '';
@@ -27,7 +39,12 @@ export class ChatController {
         // Capture context from request (preserved from middleware)
         const correlationId = (req.headers['x-correlation-id'] as string) || 'unknown';
 
+        let totalFileBytes = 0;
+        let fileCount = 0;
+        let rejected = false;
+
         const executeAgent = () => {
+            if (rejected) return;
             ContextService.run({ correlationId }, async () => {
                 const actualSessionId = sessionId || crypto.randomUUID();
                 if (!message && (!images || images.length === 0) && (!files || files.length === 0)) {
@@ -89,7 +106,15 @@ export class ChatController {
         };
 
         if (isMultipart) {
-            const bb = busboy({ headers: req.headers, limits: { fieldSize: 10 * 1024 * 1024 } });
+            const bb = busboy({
+                headers: req.headers,
+                limits: {
+                    fieldSize: 10 * 1024 * 1024,
+                    fileSize: MAX_CHAT_FILE_SIZE,
+                    files: MAX_CHAT_FILES,
+                    parts: MAX_CHAT_FILES + 50,
+                }
+            });
             const filePromises: Promise<any>[] = [];
 
             bb.on('field', (name: string, val: string) => {
@@ -105,20 +130,83 @@ export class ChatController {
 
             // @ts-ignore
             bb.on('file', (name: string, file: any, info: any) => {
-                LoggerService.debug('chat_busboy_file_event', { fieldName: name, filename: info.filename, mimeType: info.mimeType });
+                if (rejected) {
+                    file.resume();
+                    return;
+                }
+
+                const decodedName = Buffer.from(info.filename, 'latin1').toString('utf8');
+                const ext = decodedName.split('.').pop()?.toLowerCase() || '';
+
+                if (!ALLOWED_EXTENSIONS.has(ext)) {
+                    rejected = respondOnce(400, `File extension ".${ext}" is not allowed.`);
+                    LoggerService.warn('chat_upload_blocked_extension', { fileName: decodedName, ext, userId });
+                    file.resume();
+                    return;
+                }
+
+                fileCount += 1;
+                if (fileCount > MAX_CHAT_FILES) {
+                    rejected = respondOnce(413, `Too many files. Maximum ${MAX_CHAT_FILES} per request.`);
+                    LoggerService.warn('chat_upload_too_many_files', { fileName: decodedName, max: MAX_CHAT_FILES, userId });
+                    file.resume();
+                    return;
+                }
+
+                LoggerService.debug('chat_busboy_file_event', { fieldName: name, filename: decodedName, mimeType: info.mimeType });
                 const mimeType = info.mimeType || info.mime;
-                const promise = new Promise<any>(async (resolve) => {
-                    const chunks: any[] = [];
-                    file.on('data', (d: any) => chunks.push(d));
-                    file.on('end', async () => {
+                const promise = new Promise<any>((resolve) => {
+                    const chunks: Buffer[] = [];
+                    let firstChunkValidated = false;
+                    let blocked = false;
+
+                    file.on('data', (chunk: Buffer) => {
+                        if (blocked || rejected) return;
+
+                        // Validate magic bytes on first chunk
+                        if (!firstChunkValidated) {
+                            firstChunkValidated = true;
+                            const validation = validateFileBuffer(chunk, decodedName, mimeType);
+                            if (!validation.valid) {
+                                blocked = true;
+                                rejected = respondOnce(400, validation.reason || 'Invalid file');
+                                LoggerService.error('chat_upload_blocked_magic_bytes', { fileName: decodedName, reason: validation.reason, userId });
+                                file.resume();
+                                return;
+                            }
+                        }
+
+                        totalFileBytes += chunk.length;
+                        if (totalFileBytes > MAX_CHAT_TOTAL_SIZE) {
+                            blocked = true;
+                            rejected = respondOnce(413, `Total attachments exceed ${(MAX_CHAT_TOTAL_SIZE / (1024 * 1024)).toFixed(0)} MB.`);
+                            LoggerService.warn('chat_upload_total_size_exceeded', { totalBytes: totalFileBytes, limit: MAX_CHAT_TOTAL_SIZE, userId });
+                            file.resume();
+                            return;
+                        }
+
+                        chunks.push(chunk);
+                    });
+
+                    file.on('limit', () => {
+                        blocked = true;
+                        rejected = respondOnce(413, `File "${decodedName}" exceeds ${(MAX_CHAT_FILE_SIZE / (1024 * 1024)).toFixed(0)} MB limit.`);
+                        LoggerService.error('chat_upload_file_size_exceeded', { fileName: decodedName, limit: MAX_CHAT_FILE_SIZE, userId });
+                        file.resume();
+                    });
+
+                    file.on('end', () => {
+                        if (blocked || rejected) {
+                            resolve(null);
+                            return;
+                        }
                         const buf = Buffer.concat(chunks);
-                        // Keep raw buffer — AgentWorkflow sends it as native doc block to Converse API
                         resolve({
-                            name: info.filename,
+                            name: decodedName,
                             mediaType: mimeType,
                             size: buf.length,
                             buffer: buf,
-                            originalname: info.filename
+                            originalname: decodedName
                         });
                     });
                 });
@@ -126,6 +214,7 @@ export class ChatController {
             });
 
             bb.on('close', async () => {
+                if (rejected) return;
                 const results = await Promise.all(filePromises);
                 results.forEach(f => {
                     if (f) files.push(f);

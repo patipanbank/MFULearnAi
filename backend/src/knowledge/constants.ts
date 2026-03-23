@@ -18,7 +18,8 @@ export const KNOWLEDGE_QUEUE_NAME = 'knowledge-processing';
 export const GOOGLE_API_KEY = process.env.GOOGLE_API_KEY || '';
 
 // ── Upload Limits ──
-export const MAX_FILE_SIZE_BYTES = parseInt(process.env.KB_MAX_FILE_SIZE_MB || '100', 10) * 1024 * 1024;
+// Default lowered to 50MB to align with frontend and gateway limits
+export const MAX_FILE_SIZE_BYTES = parseInt(process.env.KB_MAX_FILE_SIZE_MB || '50', 10) * 1024 * 1024;
 export const MAX_FILES_PER_UPLOAD = parseInt(process.env.KB_MAX_FILES_PER_UPLOAD || '10', 10);
 export const MAX_EXTRACT_FILE_SIZE = parseInt(process.env.KB_MAX_EXTRACT_SIZE_MB || '20', 10) * 1024 * 1024;
 

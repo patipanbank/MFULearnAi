@@ -17,6 +17,9 @@ MINIO_ACCESS_KEY = os.getenv("MINIO_ACCESS_KEY", "minioadmin")
 MINIO_SECRET_KEY = os.getenv("MINIO_SECRET_KEY", "minioadmin")
 MINIO_SECURE = os.getenv("MINIO_SECURE", "false").lower() == "true"
 
+# Preferred OCR languages (Tesseract language codes). Default to Thai + English.
+OCR_LANG = os.getenv("OCR_LANG", "tha+eng")
+
 minio_client = Minio(
     MINIO_ENDPOINT,
     access_key=MINIO_ACCESS_KEY,
@@ -74,12 +77,12 @@ def process_ocr_data(contents, content_type, filename):
         logger.info(f"Converted PDF to {len(images)} images")
         
         for i, image in enumerate(images):
-            page_text = pytesseract.image_to_string(image)
+            page_text = pytesseract.image_to_string(image, lang=OCR_LANG)
             text += f"\n--- Page {i+1} ---\n{page_text}"
     
     elif content_type.startswith("image/") or filename.lower().endswith(('.png', '.jpg', '.jpeg', '.tiff', '.bmp')):
         image = Image.open(io.BytesIO(contents))
-        text = pytesseract.image_to_string(image)
+        text = pytesseract.image_to_string(image, lang=OCR_LANG)
         
     else:
         raise HTTPException(status_code=400, detail="Unsupported file type. Only PDF and Images allowed.")
