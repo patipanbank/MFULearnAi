@@ -25,7 +25,13 @@ OCR_LANG = os.getenv("OCR_LANG", "tha+eng")
 
 # Typhoon OCR configuration
 TYPHOON_OCR_URL = os.getenv("TYPHOON_OCR_URL", "https://api.opentyphoon.ai/v1/ocr")
-TYPHOON_API_KEY = os.getenv("TYPHOON_API_KEY", "")
+TYPHOON_API_KEY = (
+    os.getenv("TYPHOON_API_KEY")
+    or os.getenv("OPENTYPHOON_API_KEY")
+    or os.getenv("OPEN_TYPHOON_API_KEY")
+    or os.getenv("API_KEY")
+    or ""
+)
 TYPHOON_MODEL = os.getenv("TYPHOON_OCR_MODEL", "typhoon-ocr-1.5")
 TYPHOON_TASK_TYPE = os.getenv("TYPHOON_OCR_TASK_TYPE", "default")
 TYPHOON_MAX_TOKENS = os.getenv("TYPHOON_OCR_MAX_TOKENS", "16384")
