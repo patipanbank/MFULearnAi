@@ -60,6 +60,8 @@ async def ocr_process(file: UploadFile = File(...)):
     try:
         contents = await file.read()
         return process_ocr_data(contents, file.content_type, file.filename)
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"OCR Failed: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -71,12 +73,11 @@ async def ocr_bucket(payload: dict = Body(...)):
     key = payload.get("key")
     logger.info(f"Processing OCR from Bucket: {bucket}/{key}")
     
+    response = None
     try:
         # Get Object from MinIO
         response = minio_client.get_object(bucket, key)
         file_data = response.read()
-        response.close()
-        response.release_conn()
         
         # Determine mimetype from key or headers? 
         # For now, let's assume PDF if ends with .pdf, else image
@@ -84,10 +85,18 @@ async def ocr_bucket(payload: dict = Body(...)):
         mimetype = "application/pdf" if filename.lower().endswith(".pdf") else "image/png"
         
         return process_ocr_data(file_data, mimetype, filename)
-        
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"MinIO OCR Failed: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        if response is not None:
+            try:
+                response.close()
+                response.release_conn()
+            except Exception:
+                pass
 
 def process_ocr_data(contents, content_type, filename):
     if OCR_PROVIDER == "typhoon":
@@ -131,7 +140,7 @@ def process_ocr_via_tesseract(contents, content_type, filename):
 def process_ocr_via_typhoon(contents, content_type, filename):
     if not TYPHOON_API_KEY:
         logger.error("OCR provider is typhoon but TYPHOON_API_KEY is missing")
-        raise HTTPException(status_code=500, detail="Typhoon OCR is not configured")
+        raise HTTPException(status_code=503, detail="Typhoon OCR is not configured")
 
     form_data = {
         "model": TYPHOON_MODEL,
@@ -164,8 +173,9 @@ def process_ocr_via_typhoon(contents, content_type, filename):
         raise HTTPException(status_code=502, detail="Typhoon OCR request failed")
 
     if response.status_code != 200:
-        logger.error(f"Typhoon OCR failed [{response.status_code}]: {response.text[:500]}")
-        raise HTTPException(status_code=502, detail="Typhoon OCR failed")
+        detail = _extract_typhoon_error_detail(response)
+        logger.error(f"Typhoon OCR failed [{response.status_code}]: {detail}")
+        raise HTTPException(status_code=502, detail=f"Typhoon OCR failed: {detail}")
 
     try:
         payload = response.json()
@@ -263,3 +273,20 @@ def _guess_content_type(filename: str) -> str:
     if lower.endswith(".bmp"):
         return "image/bmp"
     return "application/octet-stream"
+
+
+def _extract_typhoon_error_detail(response: requests.Response) -> str:
+    text = (response.text or "").strip()
+    if not text:
+        return f"HTTP {response.status_code}"
+
+    try:
+        data = response.json()
+        if isinstance(data, dict):
+            detail = data.get("error") or data.get("detail") or data.get("message")
+            if isinstance(detail, str) and detail.strip():
+                return detail.strip()
+    except ValueError:
+        pass
+
+    return text[:500]

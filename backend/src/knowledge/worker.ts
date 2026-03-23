@@ -532,10 +532,7 @@ export const processKnowledgeJob = async (job: Job) => {
                 LoggerService.info('worker_pdf_scanned_ocr_fallback', { jobId: job.id });
                 await Knowledge.findByIdAndUpdate(knowledgeId, { processingStage: 'extracting (OCR)' });
 
-                const response = await axios.post(`${OCR_SERVICE_URL}/ocr-bucket`, {
-                    bucket: MINIO_BUCKET,
-                    key: s3Key
-                });
+                const response = await requestOcrFromBucket(s3Key, job.id?.toString() || 'unknown');
 
                 fullText = response.data.text;
                 pages = fullText.split('--- Page ').slice(1).map(p => {
@@ -546,10 +543,7 @@ export const processKnowledgeJob = async (job: Job) => {
 
         } else if (mimetype === 'image/png' || mimetype === 'image/jpeg' || mimetype === 'image/tiff') {
             LoggerService.info('worker_image_ocr', { jobId: job.id });
-            const response = await axios.post(`${OCR_SERVICE_URL}/ocr-bucket`, {
-                bucket: MINIO_BUCKET,
-                key: s3Key
-            });
+            const response = await requestOcrFromBucket(s3Key, job.id?.toString() || 'unknown');
             fullText = response.data.text;
             pages = [{ text: fullText, pageNumber: 1 }];
 
@@ -739,6 +733,40 @@ const streamToBuffer = (stream: NodeJS.ReadableStream): Promise<Buffer> => {
         stream.on('error', (err: Error) => reject(err));
     });
 };
+
+async function requestOcrFromBucket(s3Key: string, jobId: string) {
+    try {
+        return await axios.post(
+            `${OCR_SERVICE_URL}/ocr-bucket`,
+            {
+                bucket: MINIO_BUCKET,
+                key: s3Key
+            },
+            {
+                timeout: 180000,
+                maxContentLength: Infinity,
+                maxBodyLength: Infinity
+            }
+        );
+    } catch (err: any) {
+        if (axios.isAxiosError(err)) {
+            const status = err.response?.status;
+            const detailRaw = err.response?.data?.detail || err.response?.data?.error || err.message;
+            const detail = String(detailRaw || 'Unknown OCR error').substring(0, 500);
+
+            LoggerService.error('worker_ocr_request_failed', {
+                jobId,
+                s3Key,
+                status,
+                detail
+            });
+
+            throw new Error(`OCR service error${status ? ` (${status})` : ''}: ${detail}`);
+        }
+
+        throw err;
+    }
+}
 
 /**
  * Sanitize error messages before storing them in the database (visible to users).
