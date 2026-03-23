@@ -115,6 +115,7 @@ services:
       - MINIO_SECURE=${MINIO_SECURE:-false}
       - OCR_PROVIDER=${OCR_PROVIDER:-typhoon}
       - OCR_LANG=${OCR_LANG:-tha+eng}
+      - OCR_FALLBACK_TO_TESSERACT=${OCR_FALLBACK_TO_TESSERACT:-true}
       - TYPHOON_API_KEY=${TYPHOON_API_KEY}
       - TYPHOON_OCR_URL=${TYPHOON_OCR_URL:-https://api.opentyphoon.ai/v1/ocr}
       - TYPHOON_OCR_MODEL=${TYPHOON_OCR_MODEL:-typhoon-ocr-1.5}

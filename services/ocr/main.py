@@ -40,6 +40,7 @@ TYPHOON_TOP_P = os.getenv("TYPHOON_OCR_TOP_P", "0.6")
 TYPHOON_REPETITION_PENALTY = os.getenv("TYPHOON_OCR_REPETITION_PENALTY", "1.2")
 TYPHOON_TIMEOUT_SECONDS = int(os.getenv("TYPHOON_OCR_TIMEOUT_SECONDS", "180"))
 TYPHOON_OCR_PAGES = os.getenv("TYPHOON_OCR_PAGES", "").strip()
+OCR_FALLBACK_TO_TESSERACT = os.getenv("OCR_FALLBACK_TO_TESSERACT", "true").strip().lower() == "true"
 OCR_PROVIDER = os.getenv("OCR_PROVIDER", "typhoon").strip().lower()
 
 minio_client = Minio(
@@ -195,9 +196,19 @@ def process_ocr_via_typhoon(contents, content_type, filename):
         logger.error("Typhoon OCR returned non-JSON response")
         raise HTTPException(status_code=502, detail="Typhoon OCR invalid response")
 
+    logger.info(f"Typhoon OCR response summary: {_summarize_typhoon_payload(payload)}")
+
     text, page_count = _extract_text_from_typhoon_payload(payload)
     if not text.strip():
-        logger.warning("Typhoon OCR extracted empty text")
+        logger.warning(f"Typhoon OCR extracted empty text. details={_summarize_typhoon_payload(payload)}")
+        if OCR_FALLBACK_TO_TESSERACT:
+            logger.warning("Falling back to Tesseract OCR due to empty Typhoon output")
+            fallback = process_ocr_via_tesseract(contents, content_type, filename)
+            fallback["provider"] = "tesseract-fallback"
+            fallback["fallback_from"] = "typhoon"
+            return fallback
+
+        raise HTTPException(status_code=422, detail="Typhoon OCR returned empty text")
 
     return {
         "text": text,
@@ -229,6 +240,11 @@ def _extract_text_from_typhoon_payload(payload: Dict[str, Any]) -> tuple[str, in
         if content:
             extracted_texts.append(content)
             total_pages += max(content_pages, 1)
+        else:
+            logger.warning(
+                f"Typhoon OCR success result had no extractable content at index={result.get('index', '?')} "
+                f"message_keys={list(message.keys()) if isinstance(message, dict) else 'n/a'}"
+            )
 
     if total_pages == 0 and extracted_texts:
         total_pages = 1
@@ -254,7 +270,27 @@ def _extract_content_from_message(message: Any) -> tuple[str, int]:
 
     content = msg.get("content", "")
     if isinstance(content, list):
-        joined = "\n".join([str(part.get("text", "")) for part in content if isinstance(part, dict)])
+        list_chunks: List[str] = []
+        for part in content:
+            if isinstance(part, dict):
+                if isinstance(part.get("text"), str):
+                    list_chunks.append(part.get("text", ""))
+                    continue
+
+                inner = part.get("content")
+                if isinstance(inner, str):
+                    list_chunks.append(inner)
+                    continue
+
+                if isinstance(inner, dict):
+                    if isinstance(inner.get("text"), str):
+                        list_chunks.append(inner.get("text", ""))
+                        continue
+
+                    if isinstance(inner.get("content"), str):
+                        list_chunks.append(inner.get("content", ""))
+
+        joined = "\n".join(list_chunks)
         if joined.strip():
             return joined, _estimate_page_count_from_text(joined)
         return "", 0
@@ -272,8 +308,12 @@ def _extract_content_from_message(message: Any) -> tuple[str, int]:
 
 
 def _parse_possible_json_content(content: str) -> Optional[Dict[str, Any]]:
+    stripped = content.strip()
+    if stripped.startswith("```"):
+        stripped = _strip_code_fence(stripped)
+
     try:
-        data = json.loads(content)
+        data = json.loads(stripped)
         if isinstance(data, dict):
             return data
     except json.JSONDecodeError:
@@ -343,6 +383,59 @@ def _parse_pages_env(raw: str) -> Optional[List[int]]:
     except json.JSONDecodeError:
         return None
     return None
+
+
+def _strip_code_fence(value: str) -> str:
+    lines = value.splitlines()
+    if len(lines) >= 2 and lines[0].startswith("```") and lines[-1].strip() == "```":
+        return "\n".join(lines[1:-1]).strip()
+    return value
+
+
+def _summarize_typhoon_payload(payload: Dict[str, Any]) -> str:
+    if not isinstance(payload, dict):
+        return "non-dict payload"
+
+    results = payload.get("results")
+    if not isinstance(results, list):
+        return f"keys={list(payload.keys())} results_type={type(results).__name__}"
+
+    summary_parts: List[str] = [f"results={len(results)}"]
+
+    for idx, result in enumerate(results[:3]):
+        if not isinstance(result, dict):
+            summary_parts.append(f"r{idx}=non-dict")
+            continue
+
+        success = result.get("success")
+        message = result.get("message")
+        error = result.get("error")
+        msg_type = type(message).__name__
+        choices_len = 0
+        content_type = "none"
+        content_len = 0
+
+        if isinstance(message, dict):
+            choices = message.get("choices")
+            if isinstance(choices, list):
+                choices_len = len(choices)
+                if choices:
+                    first = choices[0]
+                    if isinstance(first, dict):
+                        msg = first.get("message")
+                        if isinstance(msg, dict):
+                            content = msg.get("content")
+                            content_type = type(content).__name__
+                            if isinstance(content, str):
+                                content_len = len(content)
+                            elif isinstance(content, list):
+                                content_len = len(content)
+
+        summary_parts.append(
+            f"r{idx}(success={success},msg={msg_type},choices={choices_len},contentType={content_type},contentSize={content_len},error={'yes' if error else 'no'})"
+        )
+
+    return " | ".join(summary_parts)
 
 
 def _extract_typhoon_error_detail(response: requests.Response) -> str:
