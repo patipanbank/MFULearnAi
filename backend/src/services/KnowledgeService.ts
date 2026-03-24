@@ -41,6 +41,17 @@ export class KnowledgeService {
     }
 
     static canReadKnowledge(user: UserContext, kb: IKnowledge): boolean {
+        // Superadmin can read any knowledge
+        if (user.role === 'superadmin') return true;
+        // Admin can read all knowledge in their department + public + policy
+        if (user.role === 'admin') {
+            if (kb.type === 'public' || kb.type === 'policy') return true;
+            if (kb.type === 'department' && user.department === kb.department) return true;
+            if (kb.type === 'personal' && user.department === kb.department) return true;
+            if (kb.type === 'personal' && kb.ownerId === user.userId) return true;
+            return false;
+        }
+
         if (kb.type === 'public') return true;
         if (kb.type === 'policy') return true; // Policies are readable by everyone? Assuming yes for RAG.
 
@@ -548,7 +559,7 @@ export class KnowledgeService {
         let title = url;
         try {
             const sheetsMatch = url.match(/docs\.google\.com\/spreadsheets\/d\/([\w-]+)/);
-            const docsMatch   = url.match(/docs\.google\.com\/document\/d\/([\w-]+)/);
+            const docsMatch = url.match(/docs\.google\.com\/document\/d\/([\w-]+)/);
             const slidesMatch = url.match(/docs\.google\.com\/presentation\/d\/([\w-]+)/);
             if (sheetsMatch) {
                 title = `Google Sheets: ${sheetsMatch[1]}`.substring(0, 100);
