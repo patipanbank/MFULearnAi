@@ -98,6 +98,31 @@ const getProcessingBadgeClass = (status) => {
     }
 }
 
+// ── Processing Stage helpers ──
+const processingStages = ['extracting', 'chunking', 'embedding', 'indexing']
+
+const getStageIndex = (stage) => {
+    if (!stage) return -1
+    if (stage === 'extracting (OCR)') return 0
+    return processingStages.indexOf(stage)
+}
+
+const getStageLabel = (stage) => {
+    const labels = {
+        queued: 'Queued',
+        extracting: 'Extracting',
+        'extracting (OCR)': 'OCR',
+        chunking: 'Chunking',
+        embedding: 'Embedding',
+        indexing: 'Indexing',
+        completed: 'Ready',
+        failed: 'Failed',
+        pending: 'Queued',
+        processing: 'Processing'
+    }
+    return labels[stage] || stage || 'Processing'
+}
+
 // Translations for filters (can be moved to useSettings)
 const filterOptions = computed(() => [
     { value: 'all', label: t('filterAll') },
@@ -378,17 +403,35 @@ onUnmounted(() => {
 
           <!-- Processing / Publish status -->
           <div class="kb-col kb-col--status">
+            <!-- Active processing: show stage detail -->
             <div
-              v-if="item.processingStatus && item.processingStatus !== 'completed' && item.processingStatus !== 'none'"
-              class="status-badge"
-              :class="getProcessingBadgeClass(item.processingStatus)"
+              v-if="item.processingStatus === 'processing' || item.processingStatus === 'pending'"
+              class="stage-indicator"
             >
-              <span v-if="item.processingStatus === 'processing'" class="status-spinner"></span>
-              {{ item.processingStatus === 'processing' ? t('processingStatus') : item.processingStatus }}
-              <span v-if="item.processingStatus === 'failed'" class="fail-hint" v-tooltip="{ content: item.errorReason, placement: 'top' }">
+              <div class="stage-top">
+                <span class="status-spinner"></span>
+                <span class="stage-label">{{ getStageLabel(item.processingStage || item.processingStatus) }}</span>
+              </div>
+              <div v-if="item.processingStage && getStageIndex(item.processingStage) >= 0" class="stage-dots">
+                <span
+                  v-for="(s, i) in processingStages"
+                  :key="s"
+                  class="stage-dot"
+                  :class="{ filled: i <= getStageIndex(item.processingStage), current: i === getStageIndex(item.processingStage) }"
+                />
+              </div>
+            </div>
+            <!-- Failed -->
+            <div
+              v-else-if="item.processingStatus === 'failed'"
+              class="status-badge status-failed"
+            >
+              Failed
+              <span class="fail-hint" v-tooltip="{ content: item.errorReason, placement: 'top' }">
                 <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
               </span>
             </div>
+            <!-- Publish request status -->
             <span
               v-else-if="item.requestStatus && item.requestStatus !== 'none'"
               class="status-badge"
@@ -823,6 +866,48 @@ onUnmounted(() => {
 
 .fail-hint { display: flex; align-items: center; cursor: help; }
 .req-type  { opacity: 0.7; font-size: 10px; }
+
+/* ── Stage indicator (detailed processing progress) ── */
+.stage-indicator {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.stage-top {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.stage-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #3b82f6;
+  white-space: nowrap;
+}
+.stage-dots {
+  display: flex;
+  gap: 3px;
+  align-items: center;
+}
+.stage-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-border);
+  transition: all 0.3s ease;
+}
+.stage-dot.filled {
+  background: #3b82f6;
+}
+.stage-dot.current {
+  background: #3b82f6;
+  box-shadow: 0 0 4px rgba(59, 130, 246, 0.5);
+  animation: pulse-dot 1.5s ease-in-out infinite;
+}
+@keyframes pulse-dot {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.4); opacity: 0.7; }
+}
 
 /* ── List item transition ── */
 .list-item-enter-active { transition: all 0.25s ease; }

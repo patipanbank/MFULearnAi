@@ -26,7 +26,7 @@ export const useKnowledgeStore = defineStore('knowledge', () => {
                 const res = await api.get('/knowledge')
                 knowledge.value = res.data.knowledge
             } catch (e) { console.error('Poll failed', e) }
-        }, 5000)
+        }, 3000)
     }
 
     const stopPolling = () => {
