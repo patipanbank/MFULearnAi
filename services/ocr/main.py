@@ -6,8 +6,10 @@ import io
 import logging
 import os
 import json
+import time
 import requests
 from typing import Any, Dict, List, Optional
+from pypdf import PdfReader
 from minio import Minio
 
 # Configure Logging
@@ -40,6 +42,7 @@ TYPHOON_TOP_P = os.getenv("TYPHOON_OCR_TOP_P", "0.6")
 TYPHOON_REPETITION_PENALTY = os.getenv("TYPHOON_OCR_REPETITION_PENALTY", "1.2")
 TYPHOON_TIMEOUT_SECONDS = int(os.getenv("TYPHOON_OCR_TIMEOUT_SECONDS", "180"))
 TYPHOON_OCR_PAGES = os.getenv("TYPHOON_OCR_PAGES", "").strip()
+TYPHOON_PAGE_RETRY_DELAY_MS = int(os.getenv("TYPHOON_OCR_PAGE_DELAY_MS", "200"))
 OCR_FALLBACK_TO_TESSERACT = os.getenv("OCR_FALLBACK_TO_TESSERACT", "true").strip().lower() == "true"
 OCR_PROVIDER = os.getenv("OCR_PROVIDER", "typhoon").strip().lower()
 
@@ -145,30 +148,33 @@ def process_ocr_via_tesseract(contents, content_type, filename):
     }
 
 
-def process_ocr_via_typhoon(contents, content_type, filename):
-    if not TYPHOON_API_KEY:
-        logger.error("OCR provider is typhoon but TYPHOON_API_KEY is missing")
-        raise HTTPException(status_code=503, detail="Typhoon OCR is not configured")
+def _get_pdf_page_count(contents: bytes) -> int:
+    """Count the number of pages in a PDF from raw bytes using pypdf."""
+    try:
+        reader = PdfReader(io.BytesIO(contents))
+        count = len(reader.pages)
+        logger.info(f"PDF page count: {count}")
+        return count
+    except Exception as e:
+        logger.warning(f"Failed to count PDF pages via pypdf: {e}. Defaulting to 1.")
+        return 1
 
+
+def _ocr_single_page(contents: bytes, mime: str, filename: str, page_num: int) -> Dict[str, Any]:
+    """Send a single OCR request to Typhoon API for a specific page."""
     form_data = {
         "model": TYPHOON_MODEL,
         "task_type": TYPHOON_TASK_TYPE,
         "max_tokens": str(TYPHOON_MAX_TOKENS),
         "temperature": str(TYPHOON_TEMPERATURE),
         "top_p": str(TYPHOON_TOP_P),
-        "repetition_penalty": str(TYPHOON_REPETITION_PENALTY)
+        "repetition_penalty": str(TYPHOON_REPETITION_PENALTY),
+        "page_num": str(page_num),
     }
-
-    if TYPHOON_OCR_PAGES:
-        parsed_pages = _parse_pages_env(TYPHOON_OCR_PAGES)
-        if parsed_pages is not None:
-            form_data["pages"] = json.dumps(parsed_pages)
 
     headers = {
         "Authorization": f"Bearer {TYPHOON_API_KEY}"
     }
-
-    mime = content_type or _guess_content_type(filename)
 
     try:
         files = {
@@ -182,25 +188,75 @@ def process_ocr_via_typhoon(contents, content_type, filename):
             timeout=TYPHOON_TIMEOUT_SECONDS
         )
     except requests.RequestException as e:
-        logger.error(f"Typhoon OCR request failed: {str(e)}")
-        raise HTTPException(status_code=502, detail="Typhoon OCR request failed")
+        logger.error(f"Typhoon OCR request failed for page {page_num}: {str(e)}")
+        raise HTTPException(status_code=502, detail=f"Typhoon OCR request failed (page {page_num})")
 
     if response.status_code != 200:
         detail = _extract_typhoon_error_detail(response)
-        logger.error(f"Typhoon OCR failed [{response.status_code}]: {detail}")
-        raise HTTPException(status_code=502, detail=f"Typhoon OCR failed: {detail}")
+        logger.error(f"Typhoon OCR failed for page {page_num} [{response.status_code}]: {detail}")
+        raise HTTPException(status_code=502, detail=f"Typhoon OCR failed (page {page_num}): {detail}")
 
     try:
         payload = response.json()
     except ValueError:
-        logger.error("Typhoon OCR returned non-JSON response")
-        raise HTTPException(status_code=502, detail="Typhoon OCR invalid response")
+        logger.error(f"Typhoon OCR returned non-JSON response for page {page_num}")
+        raise HTTPException(status_code=502, detail=f"Typhoon OCR invalid response (page {page_num})")
 
-    logger.info(f"Typhoon OCR response summary: {_summarize_typhoon_payload(payload)}")
+    return payload
 
-    text, page_count = _extract_text_from_typhoon_payload(payload)
-    if not text.strip():
-        logger.warning(f"Typhoon OCR extracted empty text. details={_summarize_typhoon_payload(payload)}")
+
+def process_ocr_via_typhoon(contents, content_type, filename):
+    if not TYPHOON_API_KEY:
+        logger.error("OCR provider is typhoon but TYPHOON_API_KEY is missing")
+        raise HTTPException(status_code=503, detail="Typhoon OCR is not configured")
+
+    mime = content_type or _guess_content_type(filename)
+    is_pdf = (mime == "application/pdf" or filename.lower().endswith(".pdf"))
+
+    # ---------- Determine which pages to process ----------
+    if is_pdf:
+        total_pages = _get_pdf_page_count(contents)
+        target_pages = _resolve_target_pages(total_pages)
+    else:
+        # Images are always single-page
+        total_pages = 1
+        target_pages = [1]
+
+    logger.info(
+        f"Typhoon OCR: file={filename}, is_pdf={is_pdf}, "
+        f"total_pages={total_pages}, target_pages={target_pages}"
+    )
+
+    # ---------- Process each page ----------
+    all_page_texts: List[str] = []
+    processed_count = 0
+
+    for idx, page_num in enumerate(target_pages):
+        logger.info(f"Typhoon OCR: processing page {page_num}/{total_pages} ({idx+1}/{len(target_pages)})")
+
+        payload = _ocr_single_page(contents, mime, filename, page_num)
+        logger.info(f"Typhoon OCR page {page_num} response: {_summarize_typhoon_payload(payload)}")
+
+        page_text, _ = _extract_text_from_typhoon_payload(payload)
+
+        if page_text.strip():
+            if len(target_pages) > 1:
+                all_page_texts.append(f"--- Page {page_num} ---\n{page_text.strip()}")
+            else:
+                all_page_texts.append(page_text.strip())
+            processed_count += 1
+        else:
+            logger.warning(f"Typhoon OCR page {page_num} returned empty text")
+
+        # Delay between requests to avoid rate-limiting (skip after last page)
+        if idx < len(target_pages) - 1 and TYPHOON_PAGE_RETRY_DELAY_MS > 0:
+            time.sleep(TYPHOON_PAGE_RETRY_DELAY_MS / 1000.0)
+
+    combined_text = "\n".join(all_page_texts)
+
+    # ---------- Handle empty results ----------
+    if not combined_text.strip():
+        logger.warning(f"Typhoon OCR extracted empty text for all {len(target_pages)} pages")
         if OCR_FALLBACK_TO_TESSERACT:
             logger.warning("Falling back to Tesseract OCR due to empty Typhoon output")
             fallback = process_ocr_via_tesseract(contents, content_type, filename)
@@ -211,9 +267,9 @@ def process_ocr_via_typhoon(contents, content_type, filename):
         raise HTTPException(status_code=422, detail="Typhoon OCR returned empty text")
 
     return {
-        "text": text,
+        "text": combined_text,
         "filename": filename,
-        "pages": page_count,
+        "pages": processed_count,
         "provider": "typhoon",
         "model": TYPHOON_MODEL
     }

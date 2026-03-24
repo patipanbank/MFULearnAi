@@ -6,3 +6,4 @@ pdf2image
 Pillow
 minio
 requests
+pypdf
