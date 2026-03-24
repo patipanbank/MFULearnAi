@@ -15,6 +15,7 @@ import { LoggerService } from '../services/LoggerService';
 import { CHROMA_URL, GLOBAL_CHROMA_COLLECTION, OCR_SERVICE_URL, GOOGLE_API_KEY } from './constants';
 import { detectAndParseStructured, determineQueryStrategy, formatForContextInjection } from './structuredDetector';
 import { validateUrlSafety, MAX_URL_RESPONSE_BYTES, MAX_URL_REDIRECTS, URL_FETCH_TIMEOUT_MS } from '../utils/ssrfGuard';
+import { redis } from '../config/redis';
 
 dotenv.config();
 
@@ -87,7 +88,7 @@ export const processKnowledgeJob = async (job: Job) => {
 
             // --- Google Drive document detection ---
             const googleSheetsMatch = url.match(/docs\.google\.com\/spreadsheets\/d\/([\w-]+)/);
-            const googleDocsMatch   = url.match(/docs\.google\.com\/document\/d\/([\w-]+)/);
+            const googleDocsMatch = url.match(/docs\.google\.com\/document\/d\/([\w-]+)/);
             const googleSlidesMatch = url.match(/docs\.google\.com\/presentation\/d\/([\w-]+)/);
 
             if (googleSheetsMatch) {
@@ -532,7 +533,7 @@ export const processKnowledgeJob = async (job: Job) => {
                 LoggerService.info('worker_pdf_scanned_ocr_fallback', { jobId: job.id });
                 await Knowledge.findByIdAndUpdate(knowledgeId, { processingStage: 'extracting (OCR)' });
 
-                const response = await requestOcrFromBucket(s3Key, job.id?.toString() || 'unknown');
+                const response = await requestOcrFromBucket(s3Key, job.id?.toString() || 'unknown', knowledgeId);
 
                 fullText = response.data.text;
                 const parsedPages = fullText.split('--- Page ').slice(1).map(p => {
@@ -544,7 +545,7 @@ export const processKnowledgeJob = async (job: Job) => {
 
         } else if (mimetype === 'image/png' || mimetype === 'image/jpeg' || mimetype === 'image/tiff') {
             LoggerService.info('worker_image_ocr', { jobId: job.id });
-            const response = await requestOcrFromBucket(s3Key, job.id?.toString() || 'unknown');
+            const response = await requestOcrFromBucket(s3Key, job.id?.toString() || 'unknown', knowledgeId);
             fullText = response.data.text;
             pages = [{ text: fullText, pageNumber: 1 }];
 
@@ -735,13 +736,31 @@ const streamToBuffer = (stream: NodeJS.ReadableStream): Promise<Buffer> => {
     });
 };
 
-async function requestOcrFromBucket(s3Key: string, jobId: string) {
+async function requestOcrFromBucket(s3Key: string, jobId: string, knowledgeId: string) {
+    const subscriber = redis.duplicate();
+    const channel = `ocr:progress:${knowledgeId}`;
+    let isSubscribed = false;
+
     try {
+        await subscriber.subscribe(channel);
+        isSubscribed = true;
+
+        subscriber.on('message', async (ch, message) => {
+            if (ch === channel) {
+                try {
+                    const data = JSON.parse(message);
+                    const msg = `Page ${data.page} of ${data.totalPages}`;
+                    await Knowledge.findByIdAndUpdate(knowledgeId, { processingMessage: msg });
+                } catch (e) { /* ignore parse errors */ }
+            }
+        });
+
         return await axios.post(
             `${OCR_SERVICE_URL}/ocr-bucket`,
             {
                 bucket: MINIO_BUCKET,
-                key: s3Key
+                key: s3Key,
+                knowledge_id: knowledgeId
             },
             {
                 timeout: 180000,
@@ -766,6 +785,11 @@ async function requestOcrFromBucket(s3Key: string, jobId: string) {
         }
 
         throw err;
+    } finally {
+        if (isSubscribed) {
+            subscriber.unsubscribe(channel).catch(() => { });
+        }
+        subscriber.quit().catch(() => { });
     }
 }
 

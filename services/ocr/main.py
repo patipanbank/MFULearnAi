@@ -11,6 +11,7 @@ import requests
 from typing import Any, Dict, List, Optional
 from pypdf import PdfReader
 from minio import Minio
+import redis
 
 # Configure Logging
 logging.basicConfig(level=logging.INFO)
@@ -53,6 +54,17 @@ minio_client = Minio(
     secure=MINIO_SECURE
 )
 
+try:
+    redis_client = redis.Redis(
+        host=os.getenv("REDIS_HOST", "redis"),
+        port=int(os.getenv("REDIS_PORT", "6379")),
+        db=int(os.getenv("REDIS_DB", "0")),
+        decode_responses=True
+    )
+except Exception as e:
+    logger.warning(f"Redis initialization failed: {e}")
+    redis_client = None
+
 app = FastAPI()
 
 @app.get("/health")
@@ -66,11 +78,11 @@ def health_check():
 
 # Existing Direct Upload Endpoint (Backup)
 @app.post("/ocr")
-async def ocr_process(file: UploadFile = File(...)):
+async def ocr_process(file: UploadFile = File(...), knowledge_id: Optional[str] = Form(None)):
     logger.info(f"Processing OCR for file: {file.filename} ({file.content_type})")
     try:
         contents = await file.read()
-        return process_ocr_data(contents, file.content_type, file.filename)
+        return process_ocr_data(contents, file.content_type, file.filename, knowledge_id)
     except HTTPException:
         raise
     except Exception as e:
@@ -82,6 +94,7 @@ async def ocr_process(file: UploadFile = File(...)):
 async def ocr_bucket(payload: dict = Body(...)):
     bucket = payload.get("bucket")
     key = payload.get("key")
+    knowledge_id = payload.get("knowledge_id")
     logger.info(f"Processing OCR from Bucket: {bucket}/{key}")
     
     response = None
@@ -95,7 +108,7 @@ async def ocr_bucket(payload: dict = Body(...)):
         filename = key.split('/')[-1]
         mimetype = "application/pdf" if filename.lower().endswith(".pdf") else "image/png"
         
-        return process_ocr_data(file_data, mimetype, filename)
+        return process_ocr_data(file_data, mimetype, filename, knowledge_id)
     except HTTPException:
         raise
     except Exception as e:
@@ -109,14 +122,14 @@ async def ocr_bucket(payload: dict = Body(...)):
             except Exception:
                 pass
 
-def process_ocr_data(contents, content_type, filename):
+def process_ocr_data(contents, content_type, filename, knowledge_id=None):
     if OCR_PROVIDER == "typhoon":
-        return process_ocr_via_typhoon(contents, content_type, filename)
+        return process_ocr_via_typhoon(contents, content_type, filename, knowledge_id)
 
-    return process_ocr_via_tesseract(contents, content_type, filename)
+    return process_ocr_via_tesseract(contents, content_type, filename, knowledge_id)
 
 
-def process_ocr_via_tesseract(contents, content_type, filename):
+def process_ocr_via_tesseract(contents, content_type, filename, knowledge_id=None):
     text = ""
     page_count = 1
 
@@ -205,7 +218,7 @@ def _ocr_single_page(contents: bytes, mime: str, filename: str, page_num: int) -
     return payload
 
 
-def process_ocr_via_typhoon(contents, content_type, filename):
+def process_ocr_via_typhoon(contents, content_type, filename, knowledge_id=None):
     if not TYPHOON_API_KEY:
         logger.error("OCR provider is typhoon but TYPHOON_API_KEY is missing")
         raise HTTPException(status_code=503, detail="Typhoon OCR is not configured")
@@ -234,8 +247,17 @@ def process_ocr_via_typhoon(contents, content_type, filename):
     for idx, page_num in enumerate(target_pages):
         logger.info(f"Typhoon OCR: processing page {page_num}/{total_pages} ({idx+1}/{len(target_pages)})")
 
+        if knowledge_id and redis_client:
+            try:
+                redis_client.publish(f"ocr:progress:{knowledge_id}", json.dumps({
+                    "page": idx + 1,
+                    "totalPages": len(target_pages)
+                }))
+            except Exception as e:
+                logger.warning(f"Failed to publish OCR progress to Redis: {e}")
+
         payload = _ocr_single_page(contents, mime, filename, page_num)
-        logger.info(f"Typhoon OCR page {page_num} response: {_summarize_typhoon_payload(payload)}")
+        logger.info(f"Typhoon OCR page {page_num} response: {{_summarize_typhoon_payload(payload)}}")
 
         page_text, _ = _extract_text_from_typhoon_payload(payload)
 

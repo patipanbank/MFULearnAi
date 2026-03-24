@@ -410,7 +410,10 @@ onUnmounted(() => {
             >
               <div class="stage-top">
                 <span class="status-spinner"></span>
-                <span class="stage-label">{{ getStageLabel(item.processingStage || item.processingStatus) }}</span>
+                <span class="stage-label">
+                  {{ getStageLabel(item.processingStage || item.processingStatus) }}
+                  <span v-if="item.processingMessage" class="stage-msg">({{ item.processingMessage }})</span>
+                </span>
               </div>
               <div v-if="item.processingStage && getStageIndex(item.processingStage) >= 0" class="stage-dots">
                 <span
@@ -883,6 +886,12 @@ onUnmounted(() => {
   font-weight: 600;
   color: #3b82f6;
   white-space: nowrap;
+}
+.stage-msg {
+  font-size: 10px;
+  font-weight: 500;
+  opacity: 0.85;
+  margin-left: 3px;
 }
 .stage-dots {
   display: flex;

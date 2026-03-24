@@ -18,6 +18,7 @@ export interface IKnowledge extends Document {
     updatedAt: Date;
     processingStatus: 'none' | 'pending' | 'processing' | 'completed' | 'failed';
     processingStage: 'none' | 'uploading' | 'queued' | 'extracting' | 'extracting (OCR)' | 'chunking' | 'embedding' | 'indexing' | 'completed' | 'failed';
+    processingMessage?: string; // e.g. "Page 3 of 10"
     errorReason?: string;
     s3Key?: string;
     s3Size?: number;
@@ -64,6 +65,7 @@ const KnowledgeSchema = new Schema({
     // Async Processing Fields
     processingStatus: { type: String, enum: ['none', 'pending', 'processing', 'completed', 'failed'], default: 'none' },
     processingStage: { type: String, enum: ['none', 'uploading', 'queued', 'extracting', 'extracting (OCR)', 'chunking', 'embedding', 'indexing', 'completed', 'failed'], default: 'none' },
+    processingMessage: String,
     s3Key: String,
     s3Size: Number,
     textHash: { type: String, index: true },
