@@ -1,4 +1,4 @@
-from fastapi import FastAPI, UploadFile, File, HTTPException, Body
+from fastapi import FastAPI, UploadFile, File, HTTPException, Body, Form
 import pytesseract
 from pdf2image import convert_from_bytes
 from PIL import Image
