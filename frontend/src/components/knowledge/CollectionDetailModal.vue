@@ -110,6 +110,8 @@ const handleAdd = async (knowledgeId) => {
         await knowledgeStore.mapKnowledge(props.collection._id, knowledgeId, 'add')
         fullCollection.value = knowledgeStore.currentCollection
         availableKnowledge.value = availableKnowledge.value.filter(k => k._id !== knowledgeId)
+    } catch (e) {
+        console.error('Add to collection failed', e)
     } finally {
         actionLoading.value = null
     }
@@ -121,6 +123,8 @@ const handleRemove = async (knowledgeId) => {
     try {
         await knowledgeStore.mapKnowledge(props.collection._id, knowledgeId, 'remove')
         fullCollection.value = knowledgeStore.currentCollection
+    } catch (e) {
+        console.error('Remove from collection failed', e)
     } finally {
         actionLoading.value = null
     }

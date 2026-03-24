@@ -115,14 +115,18 @@ export class AuthService {
             ApiKey.findOne({
                 revokedAt: { $exists: false },
                 $and: [
-                    { $or: [
-                        { keyHash },
-                        { 'previousKeyHashes.hash': keyHash, 'previousKeyHashes.expiresAt': { $gt: now } },
-                    ] },
-                    { $or: [
-                        { expiresAt: { $exists: false } },
-                        { expiresAt: { $gt: now } }
-                    ] }
+                    {
+                        $or: [
+                            { keyHash },
+                            { 'previousKeyHashes.hash': keyHash, 'previousKeyHashes.expiresAt': { $gt: now } },
+                        ]
+                    },
+                    {
+                        $or: [
+                            { expiresAt: { $exists: false } },
+                            { expiresAt: { $gt: now } }
+                        ]
+                    }
                 ]
             }).then(async (apiKey) => {
                 // Fallback: if primary didn't match, search previousKeyHashes separately
@@ -151,7 +155,7 @@ export class AuthService {
         // --- END API KEY CHECK ---
 
         jwt.verify(token, JWT_SECRET, (err: any, decoded: any) => {
-            if (err) return res.status(403).json({ error: 'Invalid token' });
+            if (err) return res.status(401).json({ error: 'Invalid or expired token' });
             // @ts-ignore - user extension
             req.user = decoded;
             next();
