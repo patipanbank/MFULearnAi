@@ -1,6 +1,6 @@
 
 import passport from 'passport';
-import { Strategy as SamlStrategy } from 'passport-saml';
+import { Strategy as SamlStrategy } from '@node-saml/passport-saml';
 import { AuthService } from './AuthService';
 
 const SAML_SP_ENTITY_ID = process.env.SAML_SP_ENTITY_ID || 'mfu-learn-ai';
@@ -21,13 +21,12 @@ export const configureSaml = () => {
             issuer: SAML_SP_ENTITY_ID,
             callbackUrl: SAML_CALLBACK_URL,
             entryPoint: SAML_IDP_SSO_URL,
-            cert: SAML_CERTIFICATE,
+            idpCert: SAML_CERTIFICATE,
             disableRequestedAuthnContext: true,
             forceAuthn: false,
             identifierFormat: null,
             wantAssertionsSigned: true,
             acceptedClockSkewMs: -1,
-            validateInResponseTo: false,
             passReqToCallback: true
         },
         async (req: any, profile: any, done: any) => {
@@ -84,6 +83,10 @@ export const configureSaml = () => {
                 console.error('[SAML] Auth Failed:', err.message);
                 return done(err);
             }
+        },
+        (req: any, profile: any, done: any) => {
+            // logoutVerify
+            return done(null, profile);
         }
     ) as any);
 };
