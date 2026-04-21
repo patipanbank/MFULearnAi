@@ -29,7 +29,7 @@ if (fs.existsSync(envPath)) {
         }
     });
 }
-
+ 
 const region = process.env.AWS_REGION || 'us-east-1';
 console.log(`Using AWS Region: ${region}`);
 
