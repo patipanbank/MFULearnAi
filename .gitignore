@@ -12,3 +12,4 @@ jwt-*.pem
 infrastructure/compose/secrets/nd/.env
 **/dist/
 test.py
+docs/project-workflow-analysis.md
